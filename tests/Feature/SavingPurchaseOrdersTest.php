@@ -153,6 +153,21 @@ test('the list shows saved orders, newest upload first', function () {
         );
 });
 
+test('the list shows totals across all saved orders', function () {
+    $purchaseOrder = PurchaseOrder::factory()->create();
+    PurchaseOrderItem::factory()->for($purchaseOrder)->create(['quantity_ordered' => 20, 'amount_centavos' => 42000]);
+    PurchaseOrderItem::factory()->for($purchaseOrder)->create(['quantity_ordered' => 5, 'amount_centavos' => 10500]);
+    PurchaseOrder::factory()->create();
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->get(route('purchase-orders.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('summary.orders_count', 2)
+            ->where('summary.units_ordered', 25)
+            ->where('summary.amount_ordered_centavos', 52500)
+        );
+});
+
 test('the original file can be downloaded with its original name', function () {
     $purchaseOrder = PurchaseOrder::factory()->create(['original_file_name' => 'estore-po.docx']);
     Storage::disk('local')->put($purchaseOrder->document_path, 'word file');

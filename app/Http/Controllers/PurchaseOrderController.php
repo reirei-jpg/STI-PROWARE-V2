@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Services\EstorePo\EstorePoParser;
 use App\Services\EstorePo\PendingPurchaseOrderScan;
 use App\Services\EstorePo\ScannedPurchaseOrder;
@@ -47,6 +48,11 @@ class PurchaseOrderController extends Controller
 
         return Inertia::render('purchase-orders/index', [
             'purchaseOrders' => $purchaseOrders,
+            'summary' => [
+                'orders_count' => PurchaseOrder::query()->count(),
+                'units_ordered' => (int) PurchaseOrderItem::query()->sum('quantity_ordered'),
+                'amount_ordered_centavos' => (int) PurchaseOrderItem::query()->sum('amount_centavos'),
+            ],
         ]);
     }
 

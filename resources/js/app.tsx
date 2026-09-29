@@ -1,5 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
-import { Toaster } from '@/components/ui/sonner';
+import FlashPopup from '@/components/flash-popup';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
@@ -27,14 +27,14 @@ void createInertiaApp({
         return (
             <TooltipProvider delayDuration={0}>
                 {app}
-                <Toaster />
+                <FlashPopup />
             </TooltipProvider>
         );
     },
     progress: {
-        color: '#4B5563',
+        color: '#0D6EFD',
     },
 });
 
-// This will set light / dark mode on load...
+// STI PROWARE is light mode only for now...
 initializeTheme();
