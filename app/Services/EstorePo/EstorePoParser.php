@@ -236,7 +236,7 @@ class EstorePoParser
         $category = $headerFields['category'] !== null && $headerFields['category'] !== '' ? $headerFields['category'] : null;
 
         if ($category === null) {
-            $warnings[] = ['row' => null, 'message' => 'Category was not found in the document.'];
+            $warnings[] = $this->warning(null, 'Category was not found in the document.');
         }
 
         $totalAmountCentavos = $this->readTotalAmount($headerFields['total'], $warnings);
@@ -249,14 +249,11 @@ class EstorePoParser
         ));
 
         if ($totalAmountCentavos !== null && $itemsTotalCentavos !== $totalAmountCentavos) {
-            $warnings[] = [
-                'row' => null,
-                'message' => sprintf(
-                    'The items add up to %s, but Total Amount (Ordered) says %s.',
-                    $this->formatMoney($itemsTotalCentavos),
-                    $this->formatMoney($totalAmountCentavos),
-                ),
-            ];
+            $warnings[] = $this->warning(null, sprintf(
+                'The items add up to %s, but Total Amount (Ordered) says %s.',
+                $this->formatMoney($itemsTotalCentavos),
+                $this->formatMoney($totalAmountCentavos),
+            ));
         }
 
         return new ScannedPurchaseOrder($dateOrdered, $timeOrdered, $category, $totalAmountCentavos, $items, $warnings);
@@ -344,7 +341,7 @@ class EstorePoParser
     /**
      * @param  list<string>  $lines
      * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}}  $layout
-     * @param  list<array{row: ?int, message: string}>  $warnings
+     * @param  list<array{row: ?int, message: string, blocking: bool}>  $warnings
      * @return list<ScannedPurchaseOrderItem>
      */
     private function readItems(array $lines, array $layout, array &$warnings): array
@@ -378,7 +375,7 @@ class EstorePoParser
             $rowNumber++;
 
             if (! $matchesLayout) {
-                $warnings[] = ['row' => $rowNumber, 'message' => sprintf('This row could not be read: expected %d columns but found %d.', $layout['compact']['width'], count($cells))];
+                $warnings[] = $this->warning($rowNumber, sprintf('This row could not be read: expected %d columns but found %d.', $layout['compact']['width'], count($cells)), blocking: true);
 
                 continue;
             }
@@ -397,13 +394,12 @@ class EstorePoParser
 
     /**
      * @param  array<string, string>  $values
-     * @param  list<array{row: ?int, message: string}>  $warnings
+     * @param  list<array{row: ?int, message: string, blocking: bool}>  $warnings
      */
     private function readItem(int $rowNumber, array $values, array &$warnings): ScannedPurchaseOrderItem
     {
         $itemCode = $this->normalizeItemCode($values['item_code'] ?? '');
         $description = trim((string) preg_replace('/\s+/u', ' ', $values['description'] ?? ''));
-        [$productName, $program, $variant] = $this->splitDescription($description);
 
         $rawStock = $values['stock_on_hand'] ?? '';
         $stockOnHand = $this->parseWholeNumber($rawStock);
@@ -411,12 +407,12 @@ class EstorePoParser
         $unitPriceCentavos = $this->parseMoney($values['unit_price'] ?? '');
         $amountCentavos = $this->parseMoney($values['amount'] ?? '');
 
-        $warn = function (string $message) use ($rowNumber, &$warnings): void {
-            $warnings[] = ['row' => $rowNumber, 'message' => $message];
+        $warn = function (string $message, bool $blocking = false) use ($rowNumber, &$warnings): void {
+            $warnings[] = $this->warning($rowNumber, $message, $blocking);
         };
 
         if ($itemCode === null) {
-            $warn('Item code is missing.');
+            $warn('Item code is missing.', blocking: true);
         }
 
         if ($description === '') {
@@ -428,13 +424,13 @@ class EstorePoParser
         }
 
         if ($quantityOrdered === null) {
-            $warn('Quantity ordered is missing or not a whole number.');
+            $warn('Quantity ordered is missing or not a whole number.', blocking: true);
         } elseif ($quantityOrdered === 0) {
             $warn('Quantity ordered is 0.');
         }
 
         if ($unitPriceCentavos === null) {
-            $warn('Unit price is missing or not a valid amount.');
+            $warn('Unit price is missing or not a valid amount.', blocking: true);
         }
 
         if ($amountCentavos === null) {
@@ -456,9 +452,6 @@ class EstorePoParser
             rowNumber: $rowNumber,
             itemCode: $itemCode,
             description: $description,
-            productName: $productName,
-            program: $program,
-            variant: $variant,
             stockOnHand: $stockOnHand,
             quantityOrdered: $quantityOrdered,
             unitPriceCentavos: $unitPriceCentavos,
@@ -467,13 +460,13 @@ class EstorePoParser
     }
 
     /**
-     * @param  list<array{row: ?int, message: string}>  $warnings
+     * @param  list<array{row: ?int, message: string, blocking: bool}>  $warnings
      * @return array{0: ?string, 1: ?string}
      */
     private function readDateOrdered(?string $value, array &$warnings): array
     {
         if ($value === null || $value === '') {
-            $warnings[] = ['row' => null, 'message' => 'Date Ordered was not found in the document.'];
+            $warnings[] = $this->warning(null, 'Date Ordered was not found in the document.', blocking: true);
 
             return [null, null];
         }
@@ -495,18 +488,18 @@ class EstorePoParser
             }
         }
 
-        $warnings[] = ['row' => null, 'message' => sprintf('Date Ordered "%s" could not be read as a date.', $value)];
+        $warnings[] = $this->warning(null, sprintf('Date Ordered "%s" could not be read as a date.', $value), blocking: true);
 
         return [null, null];
     }
 
     /**
-     * @param  list<array{row: ?int, message: string}>  $warnings
+     * @param  list<array{row: ?int, message: string, blocking: bool}>  $warnings
      */
     private function readTotalAmount(?string $value, array &$warnings): ?int
     {
         if ($value === null || $value === '') {
-            $warnings[] = ['row' => null, 'message' => 'Total Amount (Ordered) was not found in the document.'];
+            $warnings[] = $this->warning(null, 'Total Amount (Ordered) was not found in the document.');
 
             return null;
         }
@@ -514,7 +507,7 @@ class EstorePoParser
         $centavos = $this->parseMoney($value);
 
         if ($centavos === null) {
-            $warnings[] = ['row' => null, 'message' => sprintf('Total Amount (Ordered) "%s" is not a valid amount.', $value)];
+            $warnings[] = $this->warning(null, sprintf('Total Amount (Ordered) "%s" is not a valid amount.', $value));
         }
 
         return $centavos;
@@ -522,7 +515,7 @@ class EstorePoParser
 
     /**
      * @param  list<ScannedPurchaseOrderItem>  $items
-     * @param  list<array{row: ?int, message: string}>  $warnings
+     * @param  list<array{row: ?int, message: string, blocking: bool}>  $warnings
      */
     private function checkDuplicateItemCodes(array $items, array &$warnings): void
     {
@@ -536,7 +529,7 @@ class EstorePoParser
 
         foreach ($rowsByCode as $code => $rows) {
             if (count($rows) > 1) {
-                $warnings[] = ['row' => null, 'message' => sprintf('Item code %s appears more than once (rows %s).', $code, implode(', ', $rows))];
+                $warnings[] = $this->warning(null, sprintf('Item code %s appears more than once (rows %s).', $code, implode(', ', $rows)));
             }
         }
     }
@@ -552,26 +545,15 @@ class EstorePoParser
     }
 
     /**
-     * "Chibi Keychain - Tourism (Female)" becomes the product "Chibi Keychain",
-     * the program "Tourism" and the variant "Female". Each part is optional.
+     * A problem found while scanning. A blocking problem means an essential
+     * value (date, item code, quantity or unit price) is missing, so the
+     * order cannot be saved.
      *
-     * @return array{0: ?string, 1: ?string, 2: ?string}
+     * @return array{row: ?int, message: string, blocking: bool}
      */
-    private function splitDescription(string $description): array
+    private function warning(?int $row, string $message, bool $blocking = false): array
     {
-        $rest = $description;
-        $variant = null;
-
-        if (preg_match('/^(.*?)\s*\(([^()]*)\)$/u', $rest, $matches)) {
-            $rest = $matches[1];
-            $variant = trim($matches[2]) !== '' ? trim($matches[2]) : null;
-        }
-
-        $parts = preg_split('/\s+[-–—]\s+/u', $rest, 2) ?: [$rest];
-        $productName = trim($parts[0]) !== '' ? trim($parts[0]) : null;
-        $program = isset($parts[1]) && trim($parts[1]) !== '' ? trim($parts[1]) : null;
-
-        return [$productName, $program, $variant];
+        return ['row' => $row, 'message' => $message, 'blocking' => $blocking];
     }
 
     /**

@@ -14,9 +14,6 @@ readonly class ScannedPurchaseOrderItem
         public int $rowNumber,
         public ?string $itemCode,
         public string $description,
-        public ?string $productName,
-        public ?string $program,
-        public ?string $variant,
         public ?int $stockOnHand,
         public ?int $quantityOrdered,
         public ?int $unitPriceCentavos,
@@ -24,7 +21,7 @@ readonly class ScannedPurchaseOrderItem
     ) {}
 
     /**
-     * @return array{row_number: int, item_code: ?string, description: string, product_name: ?string, program: ?string, variant: ?string, stock_on_hand: ?int, quantity_ordered: ?int, unit_price_centavos: ?int, amount_centavos: ?int}
+     * @return array{row_number: int, item_code: ?string, description: string, stock_on_hand: ?int, quantity_ordered: ?int, unit_price_centavos: ?int, amount_centavos: ?int}
      */
     public function toArray(): array
     {
@@ -32,9 +29,6 @@ readonly class ScannedPurchaseOrderItem
             'row_number' => $this->rowNumber,
             'item_code' => $this->itemCode,
             'description' => $this->description,
-            'product_name' => $this->productName,
-            'program' => $this->program,
-            'variant' => $this->variant,
             'stock_on_hand' => $this->stockOnHand,
             'quantity_ordered' => $this->quantityOrdered,
             'unit_price_centavos' => $this->unitPriceCentavos,

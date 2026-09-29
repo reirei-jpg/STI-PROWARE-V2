@@ -1,5 +1,12 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FileScan, FolderGit2, LayoutGrid } from 'lucide-react';
+import {
+    BookOpen,
+    ClipboardList,
+    FileScan,
+    FolderGit2,
+    LayoutGrid,
+} from 'lucide-react';
+import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -26,6 +33,11 @@ const mainNavItems: NavItem[] = [
 ];
 
 const specialistNavItems: NavItem[] = [
+    {
+        title: 'Purchase Orders',
+        href: PurchaseOrderController.index(),
+        icon: ClipboardList,
+    },
     {
         title: 'Scan eStore PO',
         href: PurchaseOrderScanController.create(),

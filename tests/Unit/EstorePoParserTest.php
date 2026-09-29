@@ -28,10 +28,15 @@ function estorePoText(array $rows, string $total = '420', string $header = "Date
  */
 function warningMessages(ScannedPurchaseOrder $scan): array
 {
-    return array_map(
-        fn (array $warning): string => ($warning['row'] !== null ? "Row {$warning['row']}: " : '').$warning['message'],
-        $scan->warnings,
-    );
+    return array_map(warningText(...), $scan->warnings);
+}
+
+/**
+ * @param  array{row: ?int, message: string, blocking: bool}  $warning
+ */
+function warningText(array $warning): string
+{
+    return ($warning['row'] !== null ? "Row {$warning['row']}: " : '').$warning['message'];
 }
 
 function expectRealEstorePo(ScannedPurchaseOrder $scan): void
@@ -46,9 +51,6 @@ function expectRealEstorePo(ScannedPurchaseOrder $scan): void
             'row_number' => 1,
             'item_code' => 'PRCU01-01',
             'description' => 'Chibi Keychain Culinary',
-            'product_name' => 'Chibi Keychain Culinary',
-            'program' => null,
-            'variant' => null,
             'stock_on_hand' => 0,
             'quantity_ordered' => 20,
             'unit_price_centavos' => 2100,
@@ -97,19 +99,60 @@ test('it normalizes item codes', function (string $rawCode) {
     expect($scan->items[0]->itemCode)->toBe('PRCU01-01');
 })->with(['PRCU01 – 01', 'PRCU01 — 01', 'PRCU01 - 01', 'prcu01-01', ' PRCU01-01 ']);
 
-test('it splits the description into product, program and variant', function (string $description, ?string $product, ?string $program, ?string $variant) {
-    $scan = (new EstorePoParser)->parseText(estorePoText(["1\tPRCU01-01\t{$description}\t0\t20\t21.00\t420.00"]));
+test('it keeps the description as written, with extra spaces collapsed', function () {
+    $scan = (new EstorePoParser)->parseText(estorePoText(["1\tPRCU01-01\tChibi Keychain - Tourism  (Female)\t0\t20\t21.00\t420.00"]));
 
-    expect($scan->items[0])
-        ->productName->toBe($product)
-        ->program->toBe($program)
-        ->variant->toBe($variant);
-})->with([
-    'program and variant' => ['Chibi Keychain - Tourism  (Female)', 'Chibi Keychain', 'Tourism', 'Female'],
-    'no dash or variant' => ['Chibi Keychain Culinary', 'Chibi Keychain Culinary', null, null],
-    'hyphen inside the product name' => ['T-Shirt - IT (Large)', 'T-Shirt', 'IT', 'Large'],
-    'variant only' => ['Lanyard (Blue)', 'Lanyard', null, 'Blue'],
-]);
+    expect($scan->items[0]->description)->toBe('Chibi Keychain - Tourism (Female)');
+});
+
+test('only missing essentials block saving', function () {
+    $scan = (new EstorePoParser)->parseText(estorePoText([
+        "1\t \tChibi Keychain\t0\ttwenty\tabc\t420.00",
+        "2\tPRCU01-02\tChibi Keychain\t0\t0\t21.00\t400.00",
+    ], total: '999', header: 'Category: PROWARE'));
+
+    $blockingByMessage = array_column(
+        array_map(fn (array $warning): array => [warningText($warning), $warning['blocking']], $scan->warnings),
+        1,
+        0,
+    );
+
+    expect($blockingByMessage)->toBe([
+        'Row 1: Item code is missing.' => true,
+        'Row 1: Quantity ordered is missing or not a whole number.' => true,
+        'Row 1: Unit price is missing or not a valid amount.' => true,
+        'Row 2: Quantity ordered is 0.' => false,
+        'Row 2: 0 × ₱21.00 = ₱0.00, but the document says ₱400.00.' => false,
+        'Date Ordered was not found in the document.' => true,
+        'The items add up to ₱820.00, but Total Amount (Ordered) says ₱999.00.' => false,
+    ])->and($scan->hasBlockingProblems())->toBeTrue();
+});
+
+test('a row that cannot be read blocks saving', function () {
+    $scan = (new EstorePoParser)->parseText(estorePoText([
+        "1\tPRCU01-01\tChibi Keychain\t0\t20\t21.00\t420.00",
+        "2\tPRCU01-02\tChibi Keychain\t20\t21.00",
+    ]));
+
+    expect($scan->hasBlockingProblems())->toBeTrue();
+});
+
+test('a clean scan has no blocking problems', function () {
+    expect((new EstorePoParser)->parseText(REAL_ESTORE_PO)->hasBlockingProblems())->toBeFalse();
+});
+
+test('the fingerprint ignores row order but changes with the date, quantities or prices', function () {
+    $parser = new EstorePoParser;
+    $rowA = "1\tPRCU01-01\tChibi Keychain\t0\t20\t21.00\t420.00";
+    $rowB = "2\tPRCU01-02\tChibi Keychain\t0\t10\t21.00\t210.00";
+
+    $original = $parser->parseText(estorePoText([$rowA, $rowB], total: '630'))->fingerprint();
+
+    expect($parser->parseText(estorePoText([$rowB, $rowA], total: '630'))->fingerprint())->toBe($original)
+        ->and($parser->parseText(estorePoText([$rowA, str_replace("\t10\t", "\t11\t", $rowB)], total: '630'))->fingerprint())->not->toBe($original)
+        ->and($parser->parseText(estorePoText([$rowA, str_replace("\t21.00\t", "\t22.00\t", $rowB)], total: '630'))->fingerprint())->not->toBe($original)
+        ->and($parser->parseText(estorePoText([$rowA, $rowB], total: '630', header: "Date Ordered: Sep 30, 2026\nCategory: PROWARE"))->fingerprint())->not->toBe($original);
+});
 
 test('it warns when a row amount does not match quantity times unit price', function () {
     $scan = (new EstorePoParser)->parseText(estorePoText(["1\tPRCU01-01\tChibi Keychain\t0\t20\t21.00\t400.00"], total: '400'));

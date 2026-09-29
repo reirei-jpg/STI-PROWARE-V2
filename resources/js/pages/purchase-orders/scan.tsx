@@ -1,60 +1,50 @@
-import { Form, Head } from '@inertiajs/react';
-import { CircleAlert, CircleCheck } from 'lucide-react';
+import { Form, Head, Link } from '@inertiajs/react';
+import { CircleAlert, CircleCheck, CircleX } from 'lucide-react';
+import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import type { ScannedPurchaseOrder } from '@/types';
-
-const pesoFormatter = new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-});
-
-function formatPeso(centavos: number | null): string {
-    return centavos === null ? '—' : pesoFormatter.format(centavos / 100);
-}
-
-function formatDateOrdered(date: string | null, time: string | null): string {
-    if (date === null) {
-        return '—';
-    }
-
-    const [year, month, day] = date.split('-').map(Number);
-    const [hours, minutes] = (time ?? '00:00').split(':').map(Number);
-    const value = new Date(year, month - 1, day, hours, minutes);
-
-    return new Intl.DateTimeFormat('en-PH', {
-        dateStyle: 'medium',
-        ...(time !== null ? { timeStyle: 'short' } : {}),
-    }).format(value);
-}
+import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import type { DuplicateUpload, ScannedPurchaseOrder } from '@/types';
 
 export default function ScanPurchaseOrder({
     scan,
     fileName,
+    duplicate,
 }: {
     scan: ScannedPurchaseOrder | null;
     fileName: string | null;
+    duplicate: DuplicateUpload | null;
 }) {
     const rowsWithWarnings = new Set(
         scan?.warnings.map((warning) => warning.row) ?? [],
     );
+    const hasBlockingProblems =
+        scan?.warnings.some((warning) => warning.blocking) ?? false;
 
     return (
         <>
             <Head title="Scan eStore PO" />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                <Heading
-                    title="Scan eStore PO"
-                    description="Upload the purchase order file from the eStore email to check what PROWARE reads from it. Nothing is saved yet."
-                />
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <Heading
+                        title="Scan eStore PO"
+                        description="Upload the purchase order file from the eStore email, check what PROWARE read, then save it."
+                    />
+                    <Button variant="outline" asChild>
+                        <Link href={PurchaseOrderController.index()}>
+                            Back to Purchase Orders
+                        </Link>
+                    </Button>
+                </div>
 
                 <Form
                     {...PurchaseOrderScanController.store.form()}
@@ -64,7 +54,9 @@ export default function ScanPurchaseOrder({
                         <>
                             <div className="grid gap-2">
                                 <Label htmlFor="document">
-                                    Purchase order file
+                                    {scan
+                                        ? 'Scan a different file'
+                                        : 'Purchase order file'}
                                 </Label>
                                 <Input
                                     id="document"
@@ -78,6 +70,7 @@ export default function ScanPurchaseOrder({
                             <div>
                                 <Button
                                     disabled={processing}
+                                    variant={scan ? 'outline' : 'default'}
                                     data-test="scan-po-button"
                                 >
                                     {processing && <Spinner />}
@@ -90,15 +83,30 @@ export default function ScanPurchaseOrder({
 
                 {scan && (
                     <section className="flex flex-col gap-4">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <h3 className="text-lg font-semibold">
-                                Scan result
-                            </h3>
-                            {fileName && (
-                                <span className="text-sm text-muted-foreground">
-                                    {fileName}
-                                </span>
-                            )}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h3 className="text-lg font-semibold">
+                                    Scan result
+                                </h3>
+                                {fileName && (
+                                    <p className="text-sm text-muted-foreground">
+                                        {fileName}
+                                    </p>
+                                )}
+                            </div>
+
+                            <Form
+                                {...PurchaseOrderScanController.destroy.form()}
+                            >
+                                {({ processing }) => (
+                                    <Button
+                                        variant="ghost"
+                                        disabled={processing}
+                                    >
+                                        Discard this scan
+                                    </Button>
+                                )}
+                            </Form>
                         </div>
 
                         <dl className="grid gap-4 rounded-xl border p-4 sm:grid-cols-3">
@@ -131,6 +139,19 @@ export default function ScanPurchaseOrder({
                             </div>
                         </dl>
 
+                        {duplicate && (
+                            <Alert className="border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/40">
+                                <CircleX className="text-red-600" />
+                                <AlertTitle>Already uploaded</AlertTitle>
+                                <AlertDescription>
+                                    This order was uploaded on{' '}
+                                    {formatDateTime(duplicate.uploaded_at)} by{' '}
+                                    {duplicate.uploaded_by}, so it can't be
+                                    saved again.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         {scan.warnings.length === 0 ? (
                             <Alert>
                                 <CircleCheck className="text-green-600" />
@@ -150,12 +171,22 @@ export default function ScanPurchaseOrder({
                                         : 'things'}
                                 </AlertTitle>
                                 <AlertDescription>
-                                    <ul className="list-disc space-y-1 pl-4">
+                                    <ul className="space-y-1">
                                         {scan.warnings.map((warning, index) => (
-                                            <li key={index}>
-                                                {warning.row !== null &&
-                                                    `Row ${warning.row}: `}
-                                                {warning.message}
+                                            <li
+                                                key={index}
+                                                className="flex flex-wrap items-center gap-2"
+                                            >
+                                                {warning.blocking && (
+                                                    <Badge variant="destructive">
+                                                        Must fix
+                                                    </Badge>
+                                                )}
+                                                <span>
+                                                    {warning.row !== null &&
+                                                        `Row ${warning.row}: `}
+                                                    {warning.message}
+                                                </span>
                                             </li>
                                         ))}
                                     </ul>
@@ -169,9 +200,9 @@ export default function ScanPurchaseOrder({
                                     <tr>
                                         <th className="px-3 py-2">#</th>
                                         <th className="px-3 py-2">Item Code</th>
-                                        <th className="px-3 py-2">Product</th>
-                                        <th className="px-3 py-2">Program</th>
-                                        <th className="px-3 py-2">Variant</th>
+                                        <th className="px-3 py-2">
+                                            Description
+                                        </th>
                                         <th className="px-3 py-2 text-right">
                                             Stock on Hand
                                         </th>
@@ -205,24 +236,7 @@ export default function ScanPurchaseOrder({
                                                 {item.item_code ?? '—'}
                                             </td>
                                             <td className="px-3 py-2">
-                                                <div>
-                                                    {item.product_name ?? '—'}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {item.description}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                {item.program ?? '—'}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                {item.variant ? (
-                                                    <Badge variant="secondary">
-                                                        {item.variant}
-                                                    </Badge>
-                                                ) : (
-                                                    '—'
-                                                )}
+                                                {item.description || '—'}
                                             </td>
                                             <td className="px-3 py-2 text-right">
                                                 {item.stock_on_hand ?? '—'}
@@ -246,7 +260,7 @@ export default function ScanPurchaseOrder({
                                 <tfoot>
                                     <tr className="border-t font-medium">
                                         <td
-                                            colSpan={8}
+                                            colSpan={6}
                                             className="px-3 py-2 text-right"
                                         >
                                             Items total
@@ -260,6 +274,58 @@ export default function ScanPurchaseOrder({
                                 </tfoot>
                             </table>
                         </div>
+
+                        {hasBlockingProblems && !duplicate && (
+                            <p className="text-sm text-muted-foreground">
+                                This order can't be saved until the problems
+                                marked <strong>Must fix</strong> are solved.
+                                Check that this is the purchase order file from
+                                the eStore email.
+                            </p>
+                        )}
+
+                        {!hasBlockingProblems && !duplicate && (
+                            <Form
+                                {...PurchaseOrderController.store.form()}
+                                className="flex flex-col gap-3"
+                            >
+                                {({ processing, errors }) => (
+                                    <>
+                                        {scan.warnings.length > 0 && (
+                                            <div className="grid gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Checkbox
+                                                        id="warnings_checked"
+                                                        name="warnings_checked"
+                                                    />
+                                                    <Label htmlFor="warnings_checked">
+                                                        I checked the warnings
+                                                        above
+                                                    </Label>
+                                                </div>
+                                                <InputError
+                                                    message={
+                                                        errors.warnings_checked
+                                                    }
+                                                />
+                                            </div>
+                                        )}
+
+                                        <InputError message={errors.save} />
+
+                                        <div>
+                                            <Button
+                                                disabled={processing}
+                                                data-test="save-po-button"
+                                            >
+                                                {processing && <Spinner />}
+                                                Save purchase order
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
+                            </Form>
+                        )}
                     </section>
                 )}
             </div>
@@ -269,6 +335,10 @@ export default function ScanPurchaseOrder({
 
 ScanPurchaseOrder.layout = {
     breadcrumbs: [
+        {
+            title: 'Purchase Orders',
+            href: PurchaseOrderController.index(),
+        },
         {
             title: 'Scan eStore PO',
             href: PurchaseOrderScanController.create(),

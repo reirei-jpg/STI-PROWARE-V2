@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 /*
@@ -43,6 +44,32 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+/**
+ * An uploaded eStore purchase order Word file in the real eStore layout.
+ * By default it holds the one-item order the user shared on 29 Sep 2026.
+ *
+ * @param  list<string>  $rows  tab-separated item rows
+ */
+function estorePoWordUpload(
+    array $rows = ["1\tPRCU01 – 01\tChibi Keychain Culinary\t0\t20\t21.00\t420.00"],
+    string $total = '420',
+    string $dateOrdered = 'Sep 29, 2026',
+    string $fileName = 'estore-po.docx',
+): UploadedFile {
+    $lines = [
+        "Date Ordered:  {$dateOrdered}",
+        'Category: PROWARE',
+        "Total Amount (Ordered): {$total}",
+        '',
+        "#\tItem Code\tDescription\tStock on Hand (School)\tQTY Ordered\tUnit Price\tAmount",
+        ...$rows,
+    ];
+
+    $path = makeWordFile(implode('', array_map(wordParagraph(...), $lines)));
+
+    return UploadedFile::fake()->createWithContent($fileName, (string) file_get_contents($path));
+}
 
 /**
  * Build a minimal Word (.docx) file with the given body XML and return its path.

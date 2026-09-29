@@ -3,45 +3,81 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ScanEstorePoRequest;
+use App\Models\PurchaseOrder;
 use App\Services\EstorePo\EstorePoParser;
+use App\Services\EstorePo\PendingPurchaseOrderScan;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Lets the PROWARE Specialist upload an eStore purchase order and preview
- * what the scanner read from it. Nothing is saved at this stage.
+ * Lets the PROWARE Specialist upload an eStore purchase order and review what
+ * the scanner read from it before saving.
  */
 class PurchaseOrderScanController extends Controller
 {
     /**
-     * Show the upload form.
+     * Show the upload form and, when a file was just scanned, its result.
      */
-    public function create(): Response
+    public function create(Request $request, EstorePoParser $parser, PendingPurchaseOrderScan $pendingScans): Response
     {
+        $pending = $pendingScans->get($request->session());
+        $scan = null;
+
+        if ($pending !== null) {
+            try {
+                $scan = $parser->parseFile($pendingScans->absolutePath($pending['path']));
+            } catch (UnreadablePurchaseOrderException) {
+                $pendingScans->discard($request->session());
+                $pending = null;
+            }
+        }
+
+        $duplicate = $scan === null ? null : PurchaseOrder::query()
+            ->with('uploader')
+            ->where('fingerprint', $scan->fingerprint())
+            ->first();
+
         return Inertia::render('purchase-orders/scan', [
-            'scan' => null,
-            'fileName' => null,
+            'scan' => $scan?->toArray(),
+            'fileName' => $pending['file_name'] ?? null,
+            'duplicate' => $duplicate === null ? null : [
+                'uploaded_at' => $duplicate->created_at?->toIso8601String(),
+                'uploaded_by' => $duplicate->uploader->name,
+            ],
         ]);
     }
 
     /**
-     * Scan the uploaded file and show the result on the same page.
+     * Scan the uploaded file and keep it until the Specialist saves or discards it.
      */
-    public function store(ScanEstorePoRequest $request, EstorePoParser $parser): Response
+    public function store(ScanEstorePoRequest $request, EstorePoParser $parser, PendingPurchaseOrderScan $pendingScans): RedirectResponse
     {
+        $pendingScans->discard($request->session());
+
         $document = $request->file('document');
 
         try {
-            $scan = $parser->parseFile($document->getRealPath());
+            $parser->parseFile($document->getRealPath());
         } catch (UnreadablePurchaseOrderException $exception) {
             throw ValidationException::withMessages(['document' => $exception->getMessage()]);
         }
 
-        return Inertia::render('purchase-orders/scan', [
-            'scan' => $scan->toArray(),
-            'fileName' => $document->getClientOriginalName(),
-        ]);
+        $pendingScans->put($request->session(), $document);
+
+        return to_route('purchase-orders.scan');
+    }
+
+    /**
+     * Throw away the scanned file without saving it.
+     */
+    public function destroy(Request $request, PendingPurchaseOrderScan $pendingScans): RedirectResponse
+    {
+        $pendingScans->discard($request->session());
+
+        return to_route('purchase-orders.scan');
     }
 }
