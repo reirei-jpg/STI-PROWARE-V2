@@ -27,21 +27,19 @@ function useStaffMenuItems(): NavItem[] {
 
     const items: NavItem[] = [
         { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
+        {
+            title: 'Purchase Orders',
+            href: PurchaseOrderController.index(),
+            icon: ClipboardList,
+        },
     ];
 
     if (auth.user.role === 'specialist') {
-        items.push(
-            {
-                title: 'Purchase Orders',
-                href: PurchaseOrderController.index(),
-                icon: ClipboardList,
-            },
-            {
-                title: 'Scan eStore PO',
-                href: PurchaseOrderScanController.create(),
-                icon: FileScan,
-            },
-        );
+        items.push({
+            title: 'Scan eStore PO',
+            href: PurchaseOrderScanController.create(),
+            icon: FileScan,
+        });
     }
 
     return items;

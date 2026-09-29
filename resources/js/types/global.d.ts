@@ -1,4 +1,5 @@
 import type { Auth } from '@/types/auth';
+import type { StaffNotifications } from '@/types/notifications';
 
 declare module 'react' {
     interface InputHTMLAttributes<T> {
@@ -11,6 +12,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            notifications: StaffNotifications | null;
             [key: string]: unknown;
         };
     }

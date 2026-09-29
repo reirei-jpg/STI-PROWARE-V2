@@ -36,15 +36,13 @@ export default function Dashboard() {
                         />
                     </section>
                 ) : (
-                    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h2 className="font-black text-slate-900">
-                            Order monitoring is coming next
-                        </h2>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                            You will be able to follow every order the
-                            Specialist uploads from the eStore and its delivery
-                            progress here.
-                        </p>
+                    <section className="grid gap-4 md:grid-cols-2">
+                        <ShortcutCard
+                            href={PurchaseOrderController.index().url}
+                            icon={ClipboardList}
+                            title="Purchase Orders"
+                            description="See every eStore order the Specialist uploaded. The bell at the top tells you when a new one arrives."
+                        />
                     </section>
                 )}
             </div>

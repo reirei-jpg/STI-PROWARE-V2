@@ -1,6 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Boxes, ClipboardList, Eye, FileScan, Wallet } from 'lucide-react';
 import { useState } from 'react';
+import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
@@ -9,6 +10,7 @@ import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dial
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import type {
+    Auth,
     Paginated,
     PurchaseOrderSummary,
     PurchaseOrderTotals,
@@ -20,11 +22,30 @@ const primaryButtonClasses =
 export default function PurchaseOrdersIndex({
     purchaseOrders,
     summary,
+    openPurchaseOrderId,
 }: {
     purchaseOrders: Paginated<PurchaseOrderSummary>;
     summary: PurchaseOrderTotals;
+    openPurchaseOrderId: number | null;
 }) {
-    const [viewingId, setViewingId] = useState<number | null>(null);
+    const { auth } = usePage<{ auth: Auth }>().props;
+    const isSpecialist = auth.user.role === 'specialist';
+    const [viewingId, setViewingId] = useState<number | null>(
+        openPurchaseOrderId,
+    );
+
+    const closeDetails = () => {
+        setViewingId(null);
+
+        // Opened from a notification: drop "?view=" so a refresh does not reopen it.
+        if (openPurchaseOrderId !== null) {
+            router.get(
+                PurchaseOrderController.index().url,
+                {},
+                { preserveState: true, preserveScroll: true, replace: true },
+            );
+        }
+    };
 
     return (
         <>
@@ -32,7 +53,7 @@ export default function PurchaseOrdersIndex({
 
             <PurchaseOrderDetailsDialog
                 purchaseOrderId={viewingId}
-                onClose={() => setViewingId(null)}
+                onClose={closeDetails}
             />
 
             <div className="space-y-7">
@@ -40,13 +61,15 @@ export default function PurchaseOrdersIndex({
                     title="Purchase Orders"
                     description="Orders placed in the eStore, approved by the School Admin, and uploaded to PROWARE."
                     actions={
-                        <Link
-                            href={PurchaseOrderScanController.create()}
-                            className={primaryButtonClasses}
-                        >
-                            <FileScan size={18} />
-                            Scan eStore PO
-                        </Link>
+                        isSpecialist && (
+                            <Link
+                                href={PurchaseOrderScanController.create()}
+                                className={primaryButtonClasses}
+                            >
+                                <FileScan size={18} />
+                                Scan eStore PO
+                            </Link>
+                        )
                     }
                 />
 
@@ -86,17 +109,26 @@ export default function PurchaseOrdersIndex({
                             <h3 className="mt-4 text-lg font-black text-slate-800">
                                 No purchase orders yet
                             </h3>
-                            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                                Upload the purchase order file from an eStore
-                                email to add the first one.
-                            </p>
-                            <Link
-                                href={PurchaseOrderScanController.create()}
-                                className={`mt-6 ${primaryButtonClasses}`}
-                            >
-                                <FileScan size={17} />
-                                Scan eStore PO
-                            </Link>
+                            {isSpecialist ? (
+                                <>
+                                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                                        Upload the purchase order file from an
+                                        eStore email to add the first one.
+                                    </p>
+                                    <Link
+                                        href={PurchaseOrderScanController.create()}
+                                        className={`mt-6 ${primaryButtonClasses}`}
+                                    >
+                                        <FileScan size={17} />
+                                        Scan eStore PO
+                                    </Link>
+                                </>
+                            ) : (
+                                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                                    Purchase orders will appear here once the
+                                    Specialist uploads them.
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <>

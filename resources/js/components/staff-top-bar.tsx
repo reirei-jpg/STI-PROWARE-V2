@@ -2,6 +2,7 @@ import { usePage } from '@inertiajs/react';
 import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import AccountMenu from '@/components/account-menu';
+import NotificationBell from '@/components/notification-bell';
 import {
     StaffSidebarContent,
     useWorkspaceName,
@@ -51,6 +52,7 @@ export default function StaffTopBar() {
             </div>
 
             <div className="flex shrink-0 items-center gap-4">
+                <NotificationBell />
                 <AccountMenu />
             </div>
 

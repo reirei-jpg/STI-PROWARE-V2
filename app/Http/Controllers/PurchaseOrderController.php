@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\User;
+use App\Notifications\PurchaseOrderUploaded;
 use App\Services\EstorePo\EstorePoParser;
 use App\Services\EstorePo\PendingPurchaseOrderScan;
 use App\Services\EstorePo\ScannedPurchaseOrder;
@@ -14,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +30,7 @@ class PurchaseOrderController extends Controller
     /**
      * List the saved purchase orders, newest upload first.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $purchaseOrders = PurchaseOrder::query()
             ->with('uploader')
@@ -51,6 +55,7 @@ class PurchaseOrderController extends Controller
                 'total_qty_ordered' => (int) PurchaseOrderItem::query()->sum('quantity_ordered'),
                 'total_amount_centavos' => (int) PurchaseOrder::query()->sum('total_amount_centavos'),
             ],
+            'openPurchaseOrderId' => $request->filled('view') ? $request->integer('view') : null,
         ]);
     }
 
@@ -86,7 +91,7 @@ class PurchaseOrderController extends Controller
         $documentPath = 'purchase-orders/'.basename($pending['path']);
 
         try {
-            DB::transaction(function () use ($request, $scan, $pending, $documentPath): void {
+            $purchaseOrder = DB::transaction(function () use ($request, $scan, $pending, $documentPath): PurchaseOrder {
                 $purchaseOrder = PurchaseOrder::create([
                     'uploaded_by' => $request->user()->id,
                     'date_ordered' => $scan->dateOrdered,
@@ -110,6 +115,8 @@ class PurchaseOrderController extends Controller
                     ],
                     $scan->items,
                 ));
+
+                return $purchaseOrder;
             });
         } catch (UniqueConstraintViolationException) {
             $this->ensureNotAlreadyUploaded($scan);
@@ -118,6 +125,11 @@ class PurchaseOrderController extends Controller
         }
 
         $pendingScans->keep($request->session(), $pending, $documentPath);
+
+        Notification::send(
+            User::query()->where('role', UserRole::SchoolAdmin)->get(),
+            new PurchaseOrderUploaded($purchaseOrder),
+        );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Purchase order saved.']);
 
