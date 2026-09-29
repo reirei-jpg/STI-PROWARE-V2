@@ -49,7 +49,10 @@ class HandleInertiaRequests extends Middleware
     /**
      * The School Admin's latest notifications for the bell in the top bar.
      *
-     * @return array{unread_count: int, recent: list<array{id: string, data: array<string, mixed>, read: bool, created_at: ?string}>}|null
+     * The notification data is whatever the notification stored (see
+     * PurchaseOrderUploaded::toArray()), decoded from the database.
+     *
+     * @return array{unread_count: int, recent: list<array{id: string, data: array<mixed>, read: bool, created_at: ?string}>}|null
      */
     private function notifications(Request $request): ?array
     {
@@ -59,20 +62,21 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
+        $recent = $user->notifications()
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(fn (DatabaseNotification $notification): array => [
+                'id' => $notification->id,
+                'data' => $notification->data,
+                'read' => $notification->read_at !== null,
+                'created_at' => $notification->created_at?->toIso8601String(),
+            ])
+            ->all();
+
         return [
             'unread_count' => $user->unreadNotifications()->count(),
-            'recent' => $user->notifications()
-                ->latest()
-                ->limit(10)
-                ->get()
-                ->map(fn (DatabaseNotification $notification): array => [
-                    'id' => $notification->id,
-                    'data' => $notification->data,
-                    'read' => $notification->read_at !== null,
-                    'created_at' => $notification->created_at?->toIso8601String(),
-                ])
-                ->values()
-                ->all(),
+            'recent' => array_values($recent),
         ];
     }
 }

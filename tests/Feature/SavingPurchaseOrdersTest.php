@@ -3,6 +3,7 @@
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -68,6 +69,18 @@ test('the same order cannot be saved twice', function () {
         ->assertSessionHasErrors(['save' => 'This order was already uploaded on '.PurchaseOrder::sole()->created_at->format('M j, Y g:i A').' by Carlo Mendoza.']);
 
     expect(PurchaseOrder::count())->toBe(1);
+});
+
+test('the already-uploaded message shows Philippine time', function () {
+    $this->actingAs(User::factory()->specialist()->create(['name' => 'Carlo Mendoza']));
+
+    $this->travelTo(CarbonImmutable::parse('2026-09-29 02:30:00', 'UTC'));
+    $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()]);
+    $this->post(route('purchase-orders.store'));
+
+    $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()]);
+    $this->post(route('purchase-orders.store'))
+        ->assertSessionHasErrors(['save' => 'This order was already uploaded on Sep 29, 2026 10:30 AM by Carlo Mendoza.']);
 });
 
 test('an order with a different quantity is not treated as a duplicate', function () {
