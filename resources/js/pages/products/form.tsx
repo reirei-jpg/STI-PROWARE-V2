@@ -15,6 +15,7 @@ import ProductController from '@/actions/App/Http/Controllers/ProductController'
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
+import { optionPresets, presetChoices } from '@/lib/product-option-presets';
 import { variantCombinations } from '@/lib/product-variants';
 import { cn } from '@/lib/utils';
 import type {
@@ -401,6 +402,42 @@ export default function ProductForm({
                     }
                 >
                     <div className="space-y-4 p-6">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-bold text-slate-500">
+                                Quick add:
+                            </span>
+                            {Object.keys(optionPresets).map((key) => {
+                                const name =
+                                    key.charAt(0).toUpperCase() + key.slice(1);
+                                const alreadyAdded = data.options.some(
+                                    (option) =>
+                                        option.name.trim().toLowerCase() ===
+                                        key,
+                                );
+
+                                return (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        disabled={
+                                            alreadyAdded ||
+                                            data.options.length >= MAX_OPTIONS
+                                        }
+                                        onClick={() =>
+                                            setData('options', [
+                                                ...data.options,
+                                                { name, choices: [] },
+                                            ])
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        <Plus size={14} />
+                                        {name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
                         {data.options.length === 0 && (
                             <p className="text-sm text-slate-500">
                                 No options. Students buy this product as it is.
@@ -704,8 +741,10 @@ function IconButton({
 }
 
 /**
- * One option: its name (e.g. Size) and its choices (S, M, L) as chips.
- * Press Enter, a comma or "Add" to add a choice.
+ * One option: its name (e.g. Size) and its choices. For common options
+ * (Size, Program, Color, Capacity) the ready-made choices are a checklist
+ * to tick; anything else is typed in the "Other" box (Enter, a comma or
+ * "Add"). Ticked choices keep the checklist's order, typed ones follow.
  */
 function OptionEditor({
     option,
@@ -723,6 +762,34 @@ function OptionEditor({
     const [draft, setDraft] = useState('');
     const [duplicate, setDuplicate] = useState<string | null>(null);
 
+    const preset = presetChoices(option.name);
+    const sameChoice = (a: string, b: string) =>
+        a.toLowerCase() === b.toLowerCase();
+    const isTicked = (choice: string) =>
+        option.choices.some((existing) => sameChoice(existing, choice));
+    const typedChoices = preset
+        ? option.choices.filter(
+              (choice) => !preset.some((ready) => sameChoice(ready, choice)),
+          )
+        : option.choices;
+
+    const setChoices = (choices: string[]) => {
+        setDuplicate(null);
+        onChange({ ...option, choices });
+    };
+
+    const toggle = (choice: string) => {
+        if (!preset) {
+            return;
+        }
+
+        const ticked = preset.filter((ready) =>
+            sameChoice(ready, choice) ? !isTicked(ready) : isTicked(ready),
+        );
+
+        setChoices([...ticked, ...typedChoices]);
+    };
+
     const addChoice = () => {
         const choice = draft.trim().replace(/,$/, '').trim();
 
@@ -730,18 +797,20 @@ function OptionEditor({
             return;
         }
 
-        if (
-            option.choices.some(
-                (existing) => existing.toLowerCase() === choice.toLowerCase(),
-            )
-        ) {
+        if (option.choices.some((existing) => sameChoice(existing, choice))) {
             setDuplicate(`"${choice}" is already a choice.`);
 
             return;
         }
 
-        setDuplicate(null);
-        onChange({ ...option, choices: [...option.choices, choice] });
+        if (preset?.some((ready) => sameChoice(ready, choice))) {
+            setDraft('');
+            toggle(choice);
+
+            return;
+        }
+
+        setChoices([...option.choices, choice]);
         setDraft('');
     };
 
@@ -754,8 +823,8 @@ function OptionEditor({
 
     return (
         <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="flex flex-col gap-4 md:flex-row">
-                <div className="md:w-56">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div className="md:w-64">
                     <span className="text-sm font-black text-slate-700">
                         Option name
                     </span>
@@ -772,71 +841,100 @@ function OptionEditor({
                     <InputError className="mt-1" message={nameError} />
                 </div>
 
-                <div className="flex-1">
-                    <span className="text-sm font-black text-slate-700">
-                        Choices
-                    </span>
-                    <div className="mt-1.5 flex min-h-11 flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
-                        {option.choices.map((choice) => (
-                            <span
-                                key={choice}
-                                className="inline-flex items-center gap-1 rounded-lg bg-blue-100 py-1 pr-1 pl-2.5 text-sm font-bold text-blue-800"
-                            >
-                                {choice}
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        onChange({
-                                            ...option,
-                                            choices: option.choices.filter(
-                                                (current) => current !== choice,
-                                            ),
-                                        })
-                                    }
-                                    className="rounded p-0.5 hover:bg-blue-200"
-                                    aria-label={`Remove ${choice}`}
-                                >
-                                    <X size={13} />
-                                </button>
-                            </span>
-                        ))}
-                        <input
-                            value={draft}
-                            onChange={(event) => setDraft(event.target.value)}
-                            onKeyDown={onKeyDown}
-                            maxLength={40}
-                            placeholder={
-                                option.choices.length === 0
-                                    ? 'Type a choice, then press Enter'
-                                    : 'Add another'
-                            }
-                            className="h-8 min-w-32 flex-1 bg-transparent px-1.5 text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                            aria-label={`Add a choice to ${option.name || 'this option'}`}
-                        />
-                        <button
-                            type="button"
-                            onClick={addChoice}
-                            className="rounded-lg px-2.5 py-1 text-xs font-black text-blue-700 hover:bg-blue-50"
-                        >
-                            Add
-                        </button>
-                    </div>
-                    <InputError
-                        className="mt-1"
-                        message={duplicate ?? choicesError}
-                    />
-                </div>
+                <button
+                    type="button"
+                    onClick={onRemove}
+                    className="inline-flex items-center gap-1 self-start rounded-lg px-2 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 md:self-auto"
+                >
+                    <Trash2 size={15} />
+                    Remove option
+                </button>
+            </div>
 
-                <div className="md:pt-7">
+            <div className="mt-4">
+                <span className="text-sm font-black text-slate-700">
+                    Choices
+                </span>
+
+                {preset && (
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                        {preset.map((choice) => (
+                            <label
+                                key={choice}
+                                className={cn(
+                                    'flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition',
+                                    isTicked(choice)
+                                        ? 'border-[#0D6EFD] bg-blue-50 text-blue-800'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
+                                )}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={isTicked(choice)}
+                                    onChange={() => toggle(choice)}
+                                    className="h-4 w-4 shrink-0 accent-[#0D6EFD]"
+                                />
+                                {choice}
+                            </label>
+                        ))}
+                    </div>
+                )}
+
+                {preset && (
+                    <span className="mt-4 block text-xs font-bold tracking-wide text-slate-400 uppercase">
+                        Other (not in the list)
+                    </span>
+                )}
+                <div className="mt-1.5 flex min-h-11 flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+                    {typedChoices.map((choice) => (
+                        <span
+                            key={choice}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-100 py-1 pr-1 pl-2.5 text-sm font-bold text-blue-800"
+                        >
+                            {choice}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setChoices(
+                                        option.choices.filter(
+                                            (current) => current !== choice,
+                                        ),
+                                    )
+                                }
+                                className="rounded p-0.5 hover:bg-blue-200"
+                                aria-label={`Remove ${choice}`}
+                            >
+                                <X size={13} />
+                            </button>
+                        </span>
+                    ))}
+                    <input
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={onKeyDown}
+                        maxLength={40}
+                        placeholder={
+                            preset
+                                ? 'Type another choice, then press Enter'
+                                : option.choices.length === 0
+                                  ? 'Type a choice, then press Enter'
+                                  : 'Add another'
+                        }
+                        className="h-8 min-w-32 flex-1 bg-transparent px-1.5 text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                        aria-label={`Add a choice to ${option.name || 'this option'}`}
+                    />
                     <button
                         type="button"
-                        onClick={onRemove}
-                        className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-sm font-black text-red-600 transition hover:bg-red-50"
+                        onClick={addChoice}
+                        className="rounded-lg px-2.5 py-1 text-xs font-black text-blue-700 hover:bg-blue-50"
                     >
-                        <Trash2 size={15} />
-                        Remove option
+                        Add
                     </button>
                 </div>
+                <InputError
+                    className="mt-1"
+                    message={duplicate ?? choicesError}
+                />
             </div>
         </div>
     );
