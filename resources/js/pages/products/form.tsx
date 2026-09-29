@@ -2,8 +2,6 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     ArrowRight,
-    ChevronDown,
-    ChevronUp,
     ImagePlus,
     LoaderCircle,
     Plus,
@@ -173,28 +171,62 @@ export default function ProductForm({
         setData('photos', photos);
     };
 
-    // Only one option is open at a time; the others fold into a summary so
-    // the form stays short.
-    const [openOption, setOpenOption] = useState<number | null>(null);
+    // The options work like tabs: only the one being edited is shown.
+    const [activeOption, setActiveOption] = useState<number | null>(
+        data.options.length > 0 ? 0 : null,
+    );
 
-    const addOption = (name: string) => {
-        setData('options', [...data.options, { name, choices: [] }]);
-        setOpenOption(data.options.length);
+    /**
+     * Switch to the option `matches` finds, adding it as `newName` first
+     * when the product does not have it yet (null: never add). The option
+     * being left is dropped when nothing was chosen in it, so a quick look
+     * never blocks saving.
+     */
+    const showOption = (
+        matches: (option: ProductOptionInput) => boolean,
+        newName: string | null,
+    ) => {
+        const current =
+            activeOption === null ? undefined : data.options[activeOption];
+
+        if (current !== undefined && matches(current)) {
+            return;
+        }
+
+        let options =
+            current !== undefined && current.choices.length === 0
+                ? data.options.filter((option) => option !== current)
+                : [...data.options];
+        let index = options.findIndex(matches);
+
+        if (index === -1) {
+            if (newName === null || options.length >= MAX_OPTIONS) {
+                return;
+            }
+
+            options = [...options, { name: newName, choices: [] }];
+            index = options.length - 1;
+        }
+
+        setData('options', options);
+        setActiveOption(index);
     };
+
+    const isPresetName = (name: string) =>
+        Object.hasOwn(optionPresets, name.trim().toLowerCase());
 
     const removeOption = (index: number) => {
         setData(
             'options',
             data.options.filter((_, i) => i !== index),
         );
-        setOpenOption((open) =>
-            open === null || open === index
-                ? null
-                : open > index
-                  ? open - 1
-                  : open,
-        );
+        setActiveOption(data.options.length > 1 ? 0 : null);
     };
+
+    const optionHasError = (index: number) =>
+        Object.keys(errors).some(
+            (key) => key.startsWith(`options.${index}.`) && errors[key],
+        );
 
     const updateOption = (index: number, option: ProductOptionInput) =>
         setData(
@@ -408,80 +440,121 @@ export default function ProductForm({
 
                 <Panel
                     title="Options"
-                    description="Optional. Add what students choose, e.g. Size (S, M, L), Program (Culinary, Tourism), or Color and Capacity for a tumbler."
-                    actions={
-                        <button
-                            type="button"
-                            disabled={data.options.length >= MAX_OPTIONS}
-                            onClick={() => addOption('')}
-                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <Plus size={15} />
-                            Add option
-                        </button>
-                    }
+                    description={`Optional, up to ${MAX_OPTIONS}. Click an option to choose its choices; click another to switch. Size, Program, Color and Capacity have ready-made choices.`}
                 >
                     <div className="space-y-4 p-6">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-bold text-slate-500">
-                                Quick add:
-                            </span>
+                        <div
+                            role="tablist"
+                            aria-label="Options"
+                            className="flex flex-wrap items-center gap-2"
+                        >
                             {Object.keys(optionPresets).map((key) => {
                                 const name =
                                     key.charAt(0).toUpperCase() + key.slice(1);
-                                const alreadyAdded = data.options.some(
+                                const index = data.options.findIndex(
                                     (option) =>
                                         option.name.trim().toLowerCase() ===
                                         key,
                                 );
 
                                 return (
-                                    <button
+                                    <OptionTab
                                         key={key}
-                                        type="button"
+                                        label={name}
+                                        count={
+                                            index === -1
+                                                ? null
+                                                : data.options[index].choices
+                                                      .length
+                                        }
+                                        active={
+                                            index !== -1 &&
+                                            index === activeOption
+                                        }
+                                        hasError={
+                                            index !== -1 &&
+                                            optionHasError(index)
+                                        }
                                         disabled={
-                                            alreadyAdded ||
+                                            index === -1 &&
                                             data.options.length >= MAX_OPTIONS
                                         }
-                                        onClick={() => addOption(name)}
-                                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        <Plus size={14} />
-                                        {name}
-                                    </button>
+                                        onClick={() =>
+                                            showOption(
+                                                (option) =>
+                                                    option.name
+                                                        .trim()
+                                                        .toLowerCase() === key,
+                                                name,
+                                            )
+                                        }
+                                    />
                                 );
                             })}
+
+                            {data.options.map((option, index) =>
+                                isPresetName(option.name) ? null : (
+                                    <OptionTab
+                                        key={`other-${index}`}
+                                        label={
+                                            option.name.trim() || 'New option'
+                                        }
+                                        count={option.choices.length}
+                                        active={index === activeOption}
+                                        hasError={optionHasError(index)}
+                                        onClick={() =>
+                                            showOption(
+                                                (candidate) =>
+                                                    candidate === option,
+                                                null,
+                                            )
+                                        }
+                                    />
+                                ),
+                            )}
+
+                            <button
+                                type="button"
+                                disabled={data.options.length >= MAX_OPTIONS}
+                                onClick={() => showOption(() => false, '')}
+                                className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <Plus size={14} />
+                                Other option
+                            </button>
                         </div>
 
-                        {data.options.length === 0 && (
+                        {activeOption === null ||
+                        data.options[activeOption] === undefined ? (
                             <p className="text-sm text-slate-500">
-                                No options. Students buy this product as it is.
+                                {data.options.length === 0
+                                    ? 'No options. Students buy this product as it is.'
+                                    : 'Click an option above to see its choices.'}
                             </p>
-                        )}
-
-                        {data.options.map((option, index) => (
+                        ) : (
                             <OptionEditor
-                                key={index}
-                                option={option}
-                                expanded={openOption === index}
-                                onExpand={() => setOpenOption(index)}
-                                onCollapse={() => setOpenOption(null)}
-                                nameError={errors[`options.${index}.name`]}
+                                key={activeOption}
+                                option={data.options[activeOption]}
+                                nameError={
+                                    errors[`options.${activeOption}.name`]
+                                }
                                 choicesError={
-                                    errors[`options.${index}.choices`] ??
-                                    option.choices
+                                    errors[`options.${activeOption}.choices`] ??
+                                    data.options[activeOption].choices
                                         .map(
                                             (_, choice) =>
                                                 errors[
-                                                    `options.${index}.choices.${choice}`
+                                                    `options.${activeOption}.choices.${choice}`
                                                 ],
                                         )
                                         .find(Boolean)
                                 }
-                                onChange={(next) => updateOption(index, next)}
-                                onRemove={() => removeOption(index)}
+                                onChange={(next) =>
+                                    updateOption(activeOption, next)
+                                }
+                                onRemove={() => removeOption(activeOption)}
                             />
-                        ))}
+                        )}
 
                         <InputError message={errors.options} />
                     </div>
@@ -752,6 +825,59 @@ function IconButton({
 }
 
 /**
+ * One option in the row of option tabs, with how many choices it has.
+ * An option the product does not have yet shows a "+".
+ */
+function OptionTab({
+    label,
+    count,
+    active,
+    hasError,
+    disabled,
+    onClick,
+}: {
+    label: string;
+    count: number | null;
+    active: boolean;
+    hasError: boolean;
+    disabled?: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            disabled={disabled}
+            onClick={onClick}
+            className={cn(
+                'inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40',
+                active
+                    ? 'border-[#0D6EFD] bg-[#0D6EFD] text-white'
+                    : hasError
+                      ? 'border-red-300 bg-red-50 text-red-700 hover:border-red-400'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:text-blue-700',
+            )}
+        >
+            {count === null && <Plus size={14} />}
+            {label}
+            {count !== null && count > 0 && (
+                <span
+                    className={cn(
+                        'rounded-full px-2 py-0.5 text-xs font-black',
+                        active
+                            ? 'bg-white/25 text-white'
+                            : 'bg-blue-100 text-blue-700',
+                    )}
+                >
+                    {count}
+                </span>
+            )}
+        </button>
+    );
+}
+
+/**
  * One option: its name (e.g. Size) and its choices. For common options
  * (Size, Program, Color, Capacity) the ready-made choices are a checklist
  * to tick; anything else is typed in the "Other" box (Enter, a comma or
@@ -759,87 +885,19 @@ function IconButton({
  */
 function OptionEditor({
     option,
-    expanded,
     nameError,
     choicesError,
-    onExpand,
-    onCollapse,
     onChange,
     onRemove,
 }: {
     option: ProductOptionInput;
-    expanded: boolean;
     nameError?: string;
     choicesError?: string;
-    onExpand: () => void;
-    onCollapse: () => void;
     onChange: (option: ProductOptionInput) => void;
     onRemove: () => void;
 }) {
     const [draft, setDraft] = useState('');
     const [duplicate, setDuplicate] = useState<string | null>(null);
-
-    if (!expanded) {
-        const needsAttention =
-            Boolean(nameError || choicesError) ||
-            option.name.trim() === '' ||
-            option.choices.length === 0;
-
-        return (
-            <div
-                className={cn(
-                    'flex flex-wrap items-center gap-3 rounded-2xl border bg-white px-4 py-3',
-                    needsAttention ? 'border-red-300' : 'border-slate-200',
-                )}
-            >
-                <button
-                    type="button"
-                    onClick={onExpand}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                    aria-expanded={false}
-                >
-                    <ChevronDown
-                        size={18}
-                        className="shrink-0 text-slate-400"
-                    />
-                    <span className="min-w-0">
-                        <span className="block font-black text-slate-900">
-                            {option.name.trim() || 'Unnamed option'}
-                        </span>
-                        <span
-                            className={cn(
-                                'block truncate text-sm',
-                                needsAttention
-                                    ? 'text-red-600'
-                                    : 'text-slate-500',
-                            )}
-                        >
-                            {needsAttention
-                                ? (nameError ??
-                                  choicesError ??
-                                  'Needs attention: give it a name and at least one choice.')
-                                : `${option.choices.join(', ')} · ${option.choices.length} ${option.choices.length === 1 ? 'choice' : 'choices'}`}
-                        </span>
-                    </span>
-                </button>
-                <button
-                    type="button"
-                    onClick={onExpand}
-                    className="rounded-lg px-3 py-1.5 text-sm font-black text-blue-700 transition hover:bg-blue-50"
-                >
-                    Edit
-                </button>
-                <button
-                    type="button"
-                    onClick={onRemove}
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-black text-red-600 transition hover:bg-red-50"
-                >
-                    <Trash2 size={15} />
-                    Remove
-                </button>
-            </div>
-        );
-    }
 
     const preset = presetChoices(option.name);
     const sameChoice = (a: string, b: string) =>
@@ -903,42 +961,40 @@ function OptionEditor({
     return (
         <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div className="md:w-64">
-                    <span className="text-sm font-black text-slate-700">
-                        Option name
-                    </span>
-                    <input
-                        value={option.name}
-                        onChange={(event) =>
-                            onChange({ ...option, name: event.target.value })
-                        }
-                        list="option-names"
-                        maxLength={40}
-                        placeholder="e.g. Size"
-                        className={cn(inputClasses, 'mt-1.5')}
-                    />
-                    <InputError className="mt-1" message={nameError} />
-                </div>
+                {preset ? (
+                    <p className="text-lg font-black text-slate-900">
+                        {option.name.trim()}
+                    </p>
+                ) : (
+                    <div className="md:w-64">
+                        <span className="text-sm font-black text-slate-700">
+                            Option name
+                        </span>
+                        <input
+                            value={option.name}
+                            onChange={(event) =>
+                                onChange({
+                                    ...option,
+                                    name: event.target.value,
+                                })
+                            }
+                            list="option-names"
+                            maxLength={40}
+                            placeholder="e.g. Design"
+                            className={cn(inputClasses, 'mt-1.5')}
+                        />
+                        <InputError className="mt-1" message={nameError} />
+                    </div>
+                )}
 
-                <div className="flex gap-2 self-start md:self-auto">
-                    <button
-                        type="button"
-                        onClick={onCollapse}
-                        className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                        aria-expanded={true}
-                    >
-                        <ChevronUp size={15} />
-                        Done
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onRemove}
-                        className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-sm font-black text-red-600 transition hover:bg-red-50"
-                    >
-                        <Trash2 size={15} />
-                        Remove option
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onClick={onRemove}
+                    className="inline-flex items-center gap-1 self-start rounded-lg px-2 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 md:self-auto"
+                >
+                    <Trash2 size={15} />
+                    Remove option
+                </button>
             </div>
 
             <div className="mt-4">
