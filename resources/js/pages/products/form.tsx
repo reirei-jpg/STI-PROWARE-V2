@@ -2,6 +2,8 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     ArrowRight,
+    ChevronDown,
+    ChevronUp,
     ImagePlus,
     LoaderCircle,
     Plus,
@@ -169,6 +171,29 @@ export default function ProductForm({
         const target = index + direction;
         [photos[index], photos[target]] = [photos[target], photos[index]];
         setData('photos', photos);
+    };
+
+    // Only one option is open at a time; the others fold into a summary so
+    // the form stays short.
+    const [openOption, setOpenOption] = useState<number | null>(null);
+
+    const addOption = (name: string) => {
+        setData('options', [...data.options, { name, choices: [] }]);
+        setOpenOption(data.options.length);
+    };
+
+    const removeOption = (index: number) => {
+        setData(
+            'options',
+            data.options.filter((_, i) => i !== index),
+        );
+        setOpenOption((open) =>
+            open === null || open === index
+                ? null
+                : open > index
+                  ? open - 1
+                  : open,
+        );
     };
 
     const updateOption = (index: number, option: ProductOptionInput) =>
@@ -388,12 +413,7 @@ export default function ProductForm({
                         <button
                             type="button"
                             disabled={data.options.length >= MAX_OPTIONS}
-                            onClick={() =>
-                                setData('options', [
-                                    ...data.options,
-                                    { name: '', choices: [] },
-                                ])
-                            }
+                            onClick={() => addOption('')}
                             className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Plus size={15} />
@@ -423,12 +443,7 @@ export default function ProductForm({
                                             alreadyAdded ||
                                             data.options.length >= MAX_OPTIONS
                                         }
-                                        onClick={() =>
-                                            setData('options', [
-                                                ...data.options,
-                                                { name, choices: [] },
-                                            ])
-                                        }
+                                        onClick={() => addOption(name)}
                                         className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         <Plus size={14} />
@@ -448,6 +463,9 @@ export default function ProductForm({
                             <OptionEditor
                                 key={index}
                                 option={option}
+                                expanded={openOption === index}
+                                onExpand={() => setOpenOption(index)}
+                                onCollapse={() => setOpenOption(null)}
                                 nameError={errors[`options.${index}.name`]}
                                 choicesError={
                                     errors[`options.${index}.choices`] ??
@@ -461,14 +479,7 @@ export default function ProductForm({
                                         .find(Boolean)
                                 }
                                 onChange={(next) => updateOption(index, next)}
-                                onRemove={() =>
-                                    setData(
-                                        'options',
-                                        data.options.filter(
-                                            (_, i) => i !== index,
-                                        ),
-                                    )
-                                }
+                                onRemove={() => removeOption(index)}
                             />
                         ))}
 
@@ -748,19 +759,87 @@ function IconButton({
  */
 function OptionEditor({
     option,
+    expanded,
     nameError,
     choicesError,
+    onExpand,
+    onCollapse,
     onChange,
     onRemove,
 }: {
     option: ProductOptionInput;
+    expanded: boolean;
     nameError?: string;
     choicesError?: string;
+    onExpand: () => void;
+    onCollapse: () => void;
     onChange: (option: ProductOptionInput) => void;
     onRemove: () => void;
 }) {
     const [draft, setDraft] = useState('');
     const [duplicate, setDuplicate] = useState<string | null>(null);
+
+    if (!expanded) {
+        const needsAttention =
+            Boolean(nameError || choicesError) ||
+            option.name.trim() === '' ||
+            option.choices.length === 0;
+
+        return (
+            <div
+                className={cn(
+                    'flex flex-wrap items-center gap-3 rounded-2xl border bg-white px-4 py-3',
+                    needsAttention ? 'border-red-300' : 'border-slate-200',
+                )}
+            >
+                <button
+                    type="button"
+                    onClick={onExpand}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    aria-expanded={false}
+                >
+                    <ChevronDown
+                        size={18}
+                        className="shrink-0 text-slate-400"
+                    />
+                    <span className="min-w-0">
+                        <span className="block font-black text-slate-900">
+                            {option.name.trim() || 'Unnamed option'}
+                        </span>
+                        <span
+                            className={cn(
+                                'block truncate text-sm',
+                                needsAttention
+                                    ? 'text-red-600'
+                                    : 'text-slate-500',
+                            )}
+                        >
+                            {needsAttention
+                                ? (nameError ??
+                                  choicesError ??
+                                  'Needs attention: give it a name and at least one choice.')
+                                : `${option.choices.join(', ')} · ${option.choices.length} ${option.choices.length === 1 ? 'choice' : 'choices'}`}
+                        </span>
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={onExpand}
+                    className="rounded-lg px-3 py-1.5 text-sm font-black text-blue-700 transition hover:bg-blue-50"
+                >
+                    Edit
+                </button>
+                <button
+                    type="button"
+                    onClick={onRemove}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-black text-red-600 transition hover:bg-red-50"
+                >
+                    <Trash2 size={15} />
+                    Remove
+                </button>
+            </div>
+        );
+    }
 
     const preset = presetChoices(option.name);
     const sameChoice = (a: string, b: string) =>
@@ -841,14 +920,25 @@ function OptionEditor({
                     <InputError className="mt-1" message={nameError} />
                 </div>
 
-                <button
-                    type="button"
-                    onClick={onRemove}
-                    className="inline-flex items-center gap-1 self-start rounded-lg px-2 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 md:self-auto"
-                >
-                    <Trash2 size={15} />
-                    Remove option
-                </button>
+                <div className="flex gap-2 self-start md:self-auto">
+                    <button
+                        type="button"
+                        onClick={onCollapse}
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                        aria-expanded={true}
+                    >
+                        <ChevronUp size={15} />
+                        Done
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onRemove}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-sm font-black text-red-600 transition hover:bg-red-50"
+                    >
+                        <Trash2 size={15} />
+                        Remove option
+                    </button>
+                </div>
             </div>
 
             <div className="mt-4">
