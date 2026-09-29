@@ -1,5 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
-import { ClipboardList, FileScan, LayoutDashboard } from 'lucide-react';
+import {
+    ClipboardList,
+    FileScan,
+    LayoutDashboard,
+    Package,
+} from 'lucide-react';
+import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import SidebarBrand from '@/components/sidebar-brand';
@@ -35,11 +41,18 @@ function useStaffMenuItems(): NavItem[] {
     ];
 
     if (auth.user.role === 'specialist') {
-        items.push({
-            title: 'Scan eStore PO',
-            href: PurchaseOrderScanController.create(),
-            icon: FileScan,
-        });
+        items.push(
+            {
+                title: 'Scan eStore PO',
+                href: PurchaseOrderScanController.create(),
+                icon: FileScan,
+            },
+            {
+                title: 'Products',
+                href: ProductController.index(),
+                icon: Package,
+            },
+        );
     }
 
     return items;

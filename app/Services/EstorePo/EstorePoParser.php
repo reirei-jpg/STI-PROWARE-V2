@@ -30,8 +30,6 @@ class EstorePoParser
 {
     private const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-    private const DASH_CHARACTERS = ['–', '—', '‐', '‑', '‒', '−'];
-
     private const UNSUPPORTED_FILE_MESSAGE = 'PROWARE can\'t read this file type yet. Please upload the Word file (.docx) from the eStore email.';
 
     /**
@@ -398,7 +396,7 @@ class EstorePoParser
      */
     private function readItem(int $rowNumber, array $values, array &$warnings): ScannedPurchaseOrderItem
     {
-        $itemCode = $this->normalizeItemCode($values['item_code'] ?? '');
+        $itemCode = ItemCode::normalize($values['item_code'] ?? '');
         $description = trim((string) preg_replace('/\s+/u', ' ', $values['description'] ?? ''));
 
         $rawStock = $values['stock_on_hand'] ?? '';
@@ -532,16 +530,6 @@ class EstorePoParser
                 $warnings[] = $this->warning(null, sprintf('Item code %s appears more than once (rows %s).', $code, implode(', ', $rows)));
             }
         }
-    }
-
-    /**
-     * "PRCU01 – 01" and "prcu01-01" both become "PRCU01-01".
-     */
-    private function normalizeItemCode(string $value): ?string
-    {
-        $code = (string) preg_replace('/\s+/u', '', str_replace(self::DASH_CHARACTERS, '-', $value));
-
-        return $code === '' ? null : mb_strtoupper($code);
     }
 
     /**
