@@ -10,14 +10,13 @@ use App\Services\EstorePo\ScannedPurchaseOrder;
 use App\Services\EstorePo\ScannedPurchaseOrderItem;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The purchase orders the Specialist has uploaded from the eStore.
@@ -41,7 +40,6 @@ class PurchaseOrderController extends Controller
                 'category' => $purchaseOrder->category,
                 'total_amount_centavos' => $purchaseOrder->total_amount_centavos,
                 'items_count' => $purchaseOrder->items_count,
-                'original_file_name' => $purchaseOrder->original_file_name,
                 'uploaded_by' => $purchaseOrder->uploader->name,
                 'uploaded_at' => $purchaseOrder->created_at?->toIso8601String(),
             ]);
@@ -127,13 +125,31 @@ class PurchaseOrderController extends Controller
     }
 
     /**
-     * Download the original file that was uploaded for this order.
+     * Every detail of one purchase order, for the details window on the list.
      */
-    public function document(PurchaseOrder $purchaseOrder): StreamedResponse
+    public function show(PurchaseOrder $purchaseOrder): JsonResponse
     {
-        abort_unless(Storage::disk('local')->exists($purchaseOrder->document_path), 404);
+        $purchaseOrder->load(['uploader', 'items']);
 
-        return Storage::disk('local')->download($purchaseOrder->document_path, $purchaseOrder->original_file_name);
+        return response()->json([
+            'id' => $purchaseOrder->id,
+            'date_ordered' => $purchaseOrder->date_ordered->toDateString(),
+            'time_ordered' => $purchaseOrder->time_ordered === null ? null : substr($purchaseOrder->time_ordered, 0, 5),
+            'category' => $purchaseOrder->category,
+            'total_amount_centavos' => $purchaseOrder->total_amount_centavos,
+            'items_total_centavos' => (int) $purchaseOrder->items->sum('amount_centavos'),
+            'uploaded_by' => $purchaseOrder->uploader->name,
+            'uploaded_at' => $purchaseOrder->created_at?->toIso8601String(),
+            'items' => $purchaseOrder->items->map(fn (PurchaseOrderItem $item): array => [
+                'row_number' => $item->row_number,
+                'item_code' => $item->item_code,
+                'description' => $item->description,
+                'stock_on_hand' => $item->stock_on_hand,
+                'quantity_ordered' => $item->quantity_ordered,
+                'unit_price_centavos' => $item->unit_price_centavos,
+                'amount_centavos' => $item->amount_centavos,
+            ])->all(),
+        ]);
     }
 
     private function ensureNotAlreadyUploaded(ScannedPurchaseOrder $scan): void

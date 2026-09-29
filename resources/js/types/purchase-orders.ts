@@ -35,9 +35,30 @@ export type PurchaseOrderSummary = {
     category: string | null;
     total_amount_centavos: number | null;
     items_count: number;
-    original_file_name: string;
     uploaded_by: string;
     uploaded_at: string | null;
+};
+
+export type PurchaseOrderItemDetails = {
+    row_number: number;
+    item_code: string;
+    description: string;
+    stock_on_hand: number | null;
+    quantity_ordered: number;
+    unit_price_centavos: number;
+    amount_centavos: number;
+};
+
+export type PurchaseOrderDetails = {
+    id: number;
+    date_ordered: string;
+    time_ordered: string | null;
+    category: string | null;
+    total_amount_centavos: number | null;
+    items_total_centavos: number;
+    uploaded_by: string;
+    uploaded_at: string | null;
+    items: PurchaseOrderItemDetails[];
 };
 
 export type PurchaseOrderTotals = {

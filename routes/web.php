@@ -15,7 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('purchase-orders/scan', [PurchaseOrderScanController::class, 'create'])->name('purchase-orders.scan');
         Route::post('purchase-orders/scan', [PurchaseOrderScanController::class, 'store'])->name('purchase-orders.scan.store');
         Route::delete('purchase-orders/scan', [PurchaseOrderScanController::class, 'destroy'])->name('purchase-orders.scan.destroy');
-        Route::get('purchase-orders/{purchaseOrder}/document', [PurchaseOrderController::class, 'document'])->name('purchase-orders.document');
+        Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
     });
 });
 

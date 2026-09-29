@@ -121,13 +121,13 @@ test('saving without a scanned file explains what to do', function () {
         ->assertSessionHasErrors(['save' => 'There is no scanned file to save. Please scan the purchase order again.']);
 });
 
-test('a school admin cannot see, save or download purchase orders', function () {
+test('a school admin cannot see or save purchase orders here', function () {
     $purchaseOrder = PurchaseOrder::factory()->create();
     $this->actingAs(User::factory()->schoolAdmin()->create());
 
     $this->get(route('purchase-orders.index'))->assertForbidden();
     $this->post(route('purchase-orders.store'))->assertForbidden();
-    $this->get(route('purchase-orders.document', $purchaseOrder))->assertForbidden();
+    $this->getJson(route('purchase-orders.show', $purchaseOrder))->assertForbidden();
 });
 
 test('the list shows saved orders, newest upload first', function () {
@@ -168,20 +168,50 @@ test('the list shows totals across all saved orders', function () {
         );
 });
 
-test('the original file can be downloaded with its original name', function () {
-    $purchaseOrder = PurchaseOrder::factory()->create(['original_file_name' => 'estore-po.docx']);
-    Storage::disk('local')->put($purchaseOrder->document_path, 'word file');
+test('the details window gets every detail of the order, items in document order', function () {
+    $specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
+    $purchaseOrder = PurchaseOrder::factory()->for($specialist, 'uploader')->create([
+        'date_ordered' => '2026-09-29',
+        'time_ordered' => '10:14',
+        'category' => 'PROWARE',
+        'total_amount_centavos' => 63000,
+    ]);
+    PurchaseOrderItem::factory()->for($purchaseOrder)->create([
+        'row_number' => 2, 'item_code' => 'PRCU01-02', 'description' => 'Chibi Keychain Tourism',
+        'stock_on_hand' => 3, 'quantity_ordered' => 10, 'unit_price_centavos' => 2100, 'amount_centavos' => 21000,
+    ]);
+    PurchaseOrderItem::factory()->for($purchaseOrder)->create([
+        'row_number' => 1, 'item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain Culinary',
+        'stock_on_hand' => null, 'quantity_ordered' => 20, 'unit_price_centavos' => 2100, 'amount_centavos' => 42000,
+    ]);
 
-    $this->actingAs(User::factory()->specialist()->create())
-        ->get(route('purchase-orders.document', $purchaseOrder))
+    $this->actingAs($specialist)
+        ->getJson(route('purchase-orders.show', $purchaseOrder))
         ->assertOk()
-        ->assertDownload('estore-po.docx');
+        ->assertExactJson([
+            'id' => $purchaseOrder->id,
+            'date_ordered' => '2026-09-29',
+            'time_ordered' => '10:14',
+            'category' => 'PROWARE',
+            'total_amount_centavos' => 63000,
+            'items_total_centavos' => 63000,
+            'uploaded_by' => 'Carlo Mendoza',
+            'uploaded_at' => $purchaseOrder->created_at->toIso8601String(),
+            'items' => [
+                [
+                    'row_number' => 1, 'item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain Culinary',
+                    'stock_on_hand' => null, 'quantity_ordered' => 20, 'unit_price_centavos' => 2100, 'amount_centavos' => 42000,
+                ],
+                [
+                    'row_number' => 2, 'item_code' => 'PRCU01-02', 'description' => 'Chibi Keychain Tourism',
+                    'stock_on_hand' => 3, 'quantity_ordered' => 10, 'unit_price_centavos' => 2100, 'amount_centavos' => 21000,
+                ],
+            ],
+        ]);
 });
 
-test('a missing original file gives not found', function () {
-    $purchaseOrder = PurchaseOrder::factory()->create();
-
+test('details of an order that does not exist give not found', function () {
     $this->actingAs(User::factory()->specialist()->create())
-        ->get(route('purchase-orders.document', $purchaseOrder))
+        ->getJson(route('purchase-orders.show', 999))
         ->assertNotFound();
 });

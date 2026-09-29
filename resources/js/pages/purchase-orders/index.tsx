@@ -1,10 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
-import { Boxes, ClipboardList, Download, FileScan, Wallet } from 'lucide-react';
-import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
+import { Boxes, ClipboardList, Eye, FileScan, Wallet } from 'lucide-react';
+import { useState } from 'react';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
+import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import type {
@@ -23,9 +24,16 @@ export default function PurchaseOrdersIndex({
     purchaseOrders: Paginated<PurchaseOrderSummary>;
     summary: PurchaseOrderTotals;
 }) {
+    const [viewingId, setViewingId] = useState<number | null>(null);
+
     return (
         <>
             <Head title="Purchase Orders" />
+
+            <PurchaseOrderDetailsDialog
+                purchaseOrderId={viewingId}
+                onClose={() => setViewingId(null)}
+            />
 
             <div className="space-y-7">
                 <PageHeader
@@ -65,7 +73,7 @@ export default function PurchaseOrdersIndex({
 
                 <Panel
                     title="Uploaded Purchase Orders"
-                    description="Newest uploads first. Download the original eStore file at any time."
+                    description="Newest uploads first. Open View Details to see everything in an order."
                 >
                     {purchaseOrders.data.length === 0 ? (
                         <div className="px-6 py-16 text-center">
@@ -109,8 +117,8 @@ export default function PurchaseOrdersIndex({
                                             <TableHeading>
                                                 Uploaded
                                             </TableHeading>
-                                            <TableHeading>
-                                                Original File
+                                            <TableHeading align="right">
+                                                Actions
                                             </TableHeading>
                                         </tr>
                                     </thead>
@@ -161,25 +169,19 @@ export default function PurchaseOrdersIndex({
                                                             )}
                                                         </p>
                                                     </td>
-                                                    <td className="px-5 py-4">
-                                                        <a
-                                                            href={
-                                                                PurchaseOrderController.document(
+                                                    <td className="px-5 py-4 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setViewingId(
                                                                     purchaseOrder.id,
-                                                                ).url
+                                                                )
                                                             }
-                                                            className="inline-flex max-w-64 items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                         >
-                                                            <Download
-                                                                size={15}
-                                                                className="shrink-0"
-                                                            />
-                                                            <span className="truncate">
-                                                                {
-                                                                    purchaseOrder.original_file_name
-                                                                }
-                                                            </span>
-                                                        </a>
+                                                            <Eye size={15} />
+                                                            View Details
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ),
