@@ -1,4 +1,4 @@
-import { ImageIcon, ShoppingCart } from 'lucide-react';
+import { CalendarClock, ImageIcon, ShoppingCart } from 'lucide-react';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
 import { cn } from '@/lib/utils';
 
@@ -7,8 +7,10 @@ import { cn } from '@/lib/utils';
  * price and Add to Cart. It only shows the tile's shape for now; real
  * products will fill it once they exist.
  *
- * `sale` adds the SALE badge and a second (original) price, `comingSoon`
- * the COMING SOON badge and no Add to Cart button.
+ * `sale` adds the SALE badge and shows the original price crossed out
+ * before the sale price (e.g. ~~₱350~~ ₱300). `comingSoon` adds the
+ * COMING SOON badge and a Preorder button instead of Add to Cart. Both
+ * buttons ask a signed-out visitor to sign in first.
  */
 export default function StorefrontTile({
     sale = false,
@@ -51,30 +53,39 @@ export default function StorefrontTile({
                 </div>
 
                 <div
-                    className="mt-auto flex items-end gap-2 pt-1"
+                    className="mt-auto flex items-center gap-2 pt-1"
                     aria-hidden="true"
                 >
+                    {sale && (
+                        <div className="relative h-3 w-10 rounded-full bg-slate-200">
+                            <span className="absolute top-1/2 -right-0.5 -left-0.5 h-px bg-slate-500" />
+                        </div>
+                    )}
                     <div
                         className={cn(
                             'h-5 w-16 rounded-full',
-                            sale ? 'bg-red-100' : 'bg-blue-100',
+                            sale ? 'bg-red-200' : 'bg-blue-100',
                         )}
                     />
-                    {sale && (
-                        <div className="h-3 w-10 rounded-full bg-slate-100" />
-                    )}
                 </div>
 
-                {!comingSoon && (
-                    <button
-                        type="button"
-                        onClick={openSignIn}
-                        className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700"
-                    >
+                <button
+                    type="button"
+                    onClick={openSignIn}
+                    className={cn(
+                        'mt-1 inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition',
+                        comingSoon
+                            ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
+                            : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
+                    )}
+                >
+                    {comingSoon ? (
+                        <CalendarClock size={14} />
+                    ) : (
                         <ShoppingCart size={14} />
-                        Add to Cart
-                    </button>
-                )}
+                    )}
+                    {comingSoon ? 'Preorder' : 'Add to Cart'}
+                </button>
             </div>
         </article>
     );
