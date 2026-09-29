@@ -140,13 +140,13 @@ test('a school admin cannot save purchase orders', function () {
         ->assertForbidden();
 });
 
-test('the list shows saved orders, newest upload first', function () {
-    $older = PurchaseOrder::factory()
-        ->has(PurchaseOrderItem::factory()->count(2), 'items')
-        ->create(['created_at' => now()->subDay()]);
+test('the list shows saved orders, newest Date Ordered first', function () {
     $newer = PurchaseOrder::factory()
         ->for(User::factory()->specialist()->state(['name' => 'Carlo Mendoza']), 'uploader')
-        ->create(['date_ordered' => '2026-09-29', 'total_amount_centavos' => 42000]);
+        ->create(['date_ordered' => '2026-09-29', 'total_amount_centavos' => 42000, 'created_at' => now()->subDay()]);
+    $older = PurchaseOrder::factory()
+        ->has(PurchaseOrderItem::factory()->count(2), 'items')
+        ->create(['date_ordered' => '2026-09-01']);
 
     $this->actingAs(User::factory()->specialist()->create())
         ->get(route('purchase-orders.index'))

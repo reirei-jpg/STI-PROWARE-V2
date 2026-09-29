@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
+use App\Http\Requests\FilterPurchaseOrdersRequest;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
@@ -12,6 +13,7 @@ use App\Services\EstorePo\PendingPurchaseOrderScan;
 use App\Services\EstorePo\ScannedPurchaseOrder;
 use App\Services\EstorePo\ScannedPurchaseOrderItem;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -28,16 +30,25 @@ use Inertia\Response;
 class PurchaseOrderController extends Controller
 {
     /**
-     * List the saved purchase orders, newest upload first.
+     * List the saved purchase orders, newest Date Ordered first, optionally
+     * limited to a Date Ordered range. The summary follows the same range.
      */
-    public function index(Request $request): Response
+    public function index(FilterPurchaseOrdersRequest $request): Response
     {
-        $purchaseOrders = PurchaseOrder::query()
+        $dateFrom = $request->dateFrom();
+        $dateTo = $request->dateTo();
+
+        $filtered = PurchaseOrder::query()
+            ->when($dateFrom, fn (Builder $query, string $date) => $query->whereDate('date_ordered', '>=', $date))
+            ->when($dateTo, fn (Builder $query, string $date) => $query->whereDate('date_ordered', '<=', $date));
+
+        $purchaseOrders = (clone $filtered)
             ->with('uploader')
             ->withCount('items')
-            ->latest()
-            ->latest('id')
+            ->orderByDesc('date_ordered')
+            ->orderByDesc('id')
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (PurchaseOrder $purchaseOrder): array => [
                 'id' => $purchaseOrder->id,
                 'date_ordered' => $purchaseOrder->date_ordered->toDateString(),
@@ -51,9 +62,15 @@ class PurchaseOrderController extends Controller
         return Inertia::render('purchase-orders/index', [
             'purchaseOrders' => $purchaseOrders,
             'summary' => [
-                'orders_count' => PurchaseOrder::query()->count(),
-                'total_qty_ordered' => (int) PurchaseOrderItem::query()->sum('quantity_ordered'),
-                'total_amount_centavos' => (int) PurchaseOrder::query()->sum('total_amount_centavos'),
+                'orders_count' => (clone $filtered)->count(),
+                'total_qty_ordered' => (int) PurchaseOrderItem::query()
+                    ->whereIn('purchase_order_id', (clone $filtered)->select('id'))
+                    ->sum('quantity_ordered'),
+                'total_amount_centavos' => (int) (clone $filtered)->sum('total_amount_centavos'),
+            ],
+            'filters' => [
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
             ],
             'openPurchaseOrderId' => $request->filled('view') ? $request->integer('view') : null,
         ]);

@@ -59,6 +59,11 @@ export type PurchaseOrderDetails = {
     items: PurchaseOrderItemDetails[];
 };
 
+export type PurchaseOrderFilters = {
+    date_from: string | null;
+    date_to: string | null;
+};
+
 export type PurchaseOrderTotals = {
     orders_count: number;
     total_qty_ordered: number;
