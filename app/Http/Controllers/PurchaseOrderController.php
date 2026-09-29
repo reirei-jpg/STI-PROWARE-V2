@@ -48,8 +48,8 @@ class PurchaseOrderController extends Controller
             'purchaseOrders' => $purchaseOrders,
             'summary' => [
                 'orders_count' => PurchaseOrder::query()->count(),
-                'units_ordered' => (int) PurchaseOrderItem::query()->sum('quantity_ordered'),
-                'amount_ordered_centavos' => (int) PurchaseOrderItem::query()->sum('amount_centavos'),
+                'total_qty_ordered' => (int) PurchaseOrderItem::query()->sum('quantity_ordered'),
+                'total_amount_centavos' => (int) PurchaseOrder::query()->sum('total_amount_centavos'),
             ],
         ]);
     }
@@ -137,7 +137,6 @@ class PurchaseOrderController extends Controller
             'time_ordered' => $purchaseOrder->time_ordered === null ? null : substr($purchaseOrder->time_ordered, 0, 5),
             'category' => $purchaseOrder->category,
             'total_amount_centavos' => $purchaseOrder->total_amount_centavos,
-            'items_total_centavos' => (int) $purchaseOrder->items->sum('amount_centavos'),
             'uploaded_by' => $purchaseOrder->uploader->name,
             'uploaded_at' => $purchaseOrder->created_at?->toIso8601String(),
             'items' => $purchaseOrder->items->map(fn (PurchaseOrderItem $item): array => [

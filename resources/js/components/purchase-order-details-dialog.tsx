@@ -139,7 +139,7 @@ export default function PurchaseOrderDetailsDialog({
                                             <Heading>Item Code</Heading>
                                             <Heading>Description</Heading>
                                             <Heading right>
-                                                Stock on Hand
+                                                Stock on Hand (School)
                                             </Heading>
                                             <Heading right>QTY Ordered</Heading>
                                             <Heading right>Unit Price</Heading>
@@ -192,25 +192,6 @@ export default function PurchaseOrderDetailsDialog({
                                             </tr>
                                         ))}
                                     </tbody>
-                                    <tfoot>
-                                        <tr className="border-t border-slate-200 bg-slate-50">
-                                            <Cell
-                                                right
-                                                colSpan={6}
-                                                className="text-sm font-black tracking-wide text-slate-500 uppercase"
-                                            >
-                                                Items Total
-                                            </Cell>
-                                            <Cell
-                                                right
-                                                className="text-lg font-black text-blue-700"
-                                            >
-                                                {formatPeso(
-                                                    details.items_total_centavos,
-                                                )}
-                                            </Cell>
-                                        </tr>
-                                    </tfoot>
                                 </table>
                             </div>
                         </>
@@ -277,20 +258,15 @@ function Heading({
 
 function Cell({
     right = false,
-    colSpan,
     className,
     children,
 }: {
     right?: boolean;
-    colSpan?: number;
     className?: string;
     children: ReactNode;
 }) {
     return (
-        <td
-            colSpan={colSpan}
-            className={cn('px-8 py-5', right && 'text-right', className)}
-        >
+        <td className={cn('px-8 py-5', right && 'text-right', className)}>
             {children}
         </td>
     );

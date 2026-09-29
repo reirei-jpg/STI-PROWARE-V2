@@ -250,7 +250,7 @@ class EstorePoParser
 
         if ($totalAmountCentavos !== null && $itemsTotalCentavos !== $totalAmountCentavos) {
             $warnings[] = $this->warning(null, sprintf(
-                'The items add up to %s, but Total Amount (Ordered) says %s.',
+                'The Amounts add up to %s, but the Total Amount (Ordered) is %s.',
                 $this->formatMoney($itemsTotalCentavos),
                 $this->formatMoney($totalAmountCentavos),
             ));

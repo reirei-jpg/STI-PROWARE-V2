@@ -138,8 +138,8 @@ export default function ScanPurchaseOrder({
                                 icon={CircleCheck}
                                 title="Everything adds up"
                             >
-                                Every row was read, and the amounts match the
-                                document total.
+                                Every row was read, and the Amounts add up to
+                                the Total Amount (Ordered).
                             </Notice>
                         ) : (
                             <Notice
@@ -216,7 +216,7 @@ export default function ScanPurchaseOrder({
                                                 Description
                                             </TableHeading>
                                             <TableHeading align="right">
-                                                Stock on Hand
+                                                Stock on Hand (School)
                                             </TableHeading>
                                             <TableHeading align="right">
                                                 QTY Ordered
@@ -270,21 +270,6 @@ export default function ScanPurchaseOrder({
                                             </tr>
                                         ))}
                                     </tbody>
-                                    <tfoot>
-                                        <tr className="border-t border-slate-200 bg-slate-50">
-                                            <td
-                                                colSpan={6}
-                                                className="px-5 py-4 text-right text-xs font-black tracking-wide text-slate-500 uppercase"
-                                            >
-                                                Items Total
-                                            </td>
-                                            <td className="px-5 py-4 text-right text-base font-black text-blue-700">
-                                                {formatPeso(
-                                                    scan.items_total_centavos,
-                                                )}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
                                 </table>
                             </div>
 

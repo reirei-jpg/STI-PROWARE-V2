@@ -19,7 +19,6 @@ export type ScannedPurchaseOrder = {
     time_ordered: string | null;
     category: string | null;
     total_amount_centavos: number | null;
-    items_total_centavos: number;
     items: ScannedPurchaseOrderItem[];
     warnings: ScanWarning[];
 };
@@ -55,7 +54,6 @@ export type PurchaseOrderDetails = {
     time_ordered: string | null;
     category: string | null;
     total_amount_centavos: number | null;
-    items_total_centavos: number;
     uploaded_by: string;
     uploaded_at: string | null;
     items: PurchaseOrderItemDetails[];
@@ -63,8 +61,8 @@ export type PurchaseOrderDetails = {
 
 export type PurchaseOrderTotals = {
     orders_count: number;
-    units_ordered: number;
-    amount_ordered_centavos: number;
+    total_qty_ordered: number;
+    total_amount_centavos: number;
 };
 
 export type Paginated<T> = {

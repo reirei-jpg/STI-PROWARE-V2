@@ -54,19 +54,21 @@ export default function PurchaseOrdersIndex({
                     <SummaryCard
                         label="Orders Uploaded"
                         value={String(summary.orders_count)}
-                        description="eStore purchase orders saved in PROWARE"
+                        description="eStore purchase orders uploaded to PROWARE"
                         icon={ClipboardList}
                     />
                     <SummaryCard
-                        label="Units Ordered"
-                        value={summary.units_ordered.toLocaleString('en-PH')}
-                        description="All items ordered from STI Head Office"
+                        label="Total QTY Ordered"
+                        value={summary.total_qty_ordered.toLocaleString(
+                            'en-PH',
+                        )}
+                        description="Across all uploaded purchase orders"
                         icon={Boxes}
                     />
                     <SummaryCard
-                        label="Amount Ordered"
-                        value={formatPeso(summary.amount_ordered_centavos)}
-                        description="At Head Office cost, from the uploaded orders"
+                        label="Total Amount (Ordered)"
+                        value={formatPeso(summary.total_amount_centavos)}
+                        description="Across all uploaded purchase orders, at Head Office cost"
                         icon={Wallet}
                     />
                 </section>
@@ -109,13 +111,13 @@ export default function PurchaseOrdersIndex({
                                                 Category
                                             </TableHeading>
                                             <TableHeading align="right">
-                                                Items
+                                                No. of Items
                                             </TableHeading>
                                             <TableHeading align="right">
-                                                Total Amount
+                                                Total Amount (Ordered)
                                             </TableHeading>
                                             <TableHeading>
-                                                Uploaded
+                                                Uploaded By
                                             </TableHeading>
                                             <TableHeading align="right">
                                                 Actions

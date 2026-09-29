@@ -124,7 +124,7 @@ test('only missing essentials block saving', function () {
         'Row 2: Quantity ordered is 0.' => false,
         'Row 2: 0 × ₱21.00 = ₱0.00, but the document says ₱400.00.' => false,
         'Date Ordered was not found in the document.' => true,
-        'The items add up to ₱820.00, but Total Amount (Ordered) says ₱999.00.' => false,
+        'The Amounts add up to ₱820.00, but the Total Amount (Ordered) is ₱999.00.' => false,
     ])->and($scan->hasBlockingProblems())->toBeTrue();
 });
 
@@ -160,10 +160,10 @@ test('it warns when a row amount does not match quantity times unit price', func
     expect(warningMessages($scan))->toBe(['Row 1: 20 × ₱21.00 = ₱420.00, but the document says ₱400.00.']);
 });
 
-test('it warns when the items do not add up to the document total', function () {
+test('it warns when the Amounts do not add up to the Total Amount (Ordered)', function () {
     $scan = (new EstorePoParser)->parseText(estorePoText(["1\tPRCU01-01\tChibi Keychain\t0\t20\t21.00\t420.00"], total: '500.00'));
 
-    expect(warningMessages($scan))->toBe(['The items add up to ₱420.00, but Total Amount (Ordered) says ₱500.00.']);
+    expect(warningMessages($scan))->toBe(['The Amounts add up to ₱420.00, but the Total Amount (Ordered) is ₱500.00.']);
 });
 
 test('it warns when the same item code appears more than once', function () {

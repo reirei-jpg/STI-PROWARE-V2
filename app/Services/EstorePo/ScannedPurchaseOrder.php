@@ -24,14 +24,6 @@ readonly class ScannedPurchaseOrder
         public array $warnings,
     ) {}
 
-    public function itemsTotalCentavos(): int
-    {
-        return array_sum(array_map(
-            fn (ScannedPurchaseOrderItem $item): int => $item->amountCentavos ?? 0,
-            $this->items,
-        ));
-    }
-
     public function hasBlockingProblems(): bool
     {
         foreach ($this->warnings as $warning) {
@@ -61,7 +53,7 @@ readonly class ScannedPurchaseOrder
     }
 
     /**
-     * @return array{date_ordered: ?string, time_ordered: ?string, category: ?string, total_amount_centavos: ?int, items_total_centavos: int, items: list<array<string, mixed>>, warnings: list<array{row: ?int, message: string, blocking: bool}>}
+     * @return array{date_ordered: ?string, time_ordered: ?string, category: ?string, total_amount_centavos: ?int, items: list<array<string, mixed>>, warnings: list<array{row: ?int, message: string, blocking: bool}>}
      */
     public function toArray(): array
     {
@@ -70,7 +62,6 @@ readonly class ScannedPurchaseOrder
             'time_ordered' => $this->timeOrdered,
             'category' => $this->category,
             'total_amount_centavos' => $this->totalAmountCentavos,
-            'items_total_centavos' => $this->itemsTotalCentavos(),
             'items' => array_map(fn (ScannedPurchaseOrderItem $item): array => $item->toArray(), $this->items),
             'warnings' => $this->warnings,
         ];

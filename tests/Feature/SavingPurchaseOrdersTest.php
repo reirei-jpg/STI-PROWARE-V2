@@ -154,17 +154,17 @@ test('the list shows saved orders, newest upload first', function () {
 });
 
 test('the list shows totals across all saved orders', function () {
-    $purchaseOrder = PurchaseOrder::factory()->create();
+    $purchaseOrder = PurchaseOrder::factory()->create(['total_amount_centavos' => 52500]);
     PurchaseOrderItem::factory()->for($purchaseOrder)->create(['quantity_ordered' => 20, 'amount_centavos' => 42000]);
     PurchaseOrderItem::factory()->for($purchaseOrder)->create(['quantity_ordered' => 5, 'amount_centavos' => 10500]);
-    PurchaseOrder::factory()->create();
+    PurchaseOrder::factory()->create(['total_amount_centavos' => 42000]);
 
     $this->actingAs(User::factory()->specialist()->create())
         ->get(route('purchase-orders.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('summary.orders_count', 2)
-            ->where('summary.units_ordered', 25)
-            ->where('summary.amount_ordered_centavos', 52500)
+            ->where('summary.total_qty_ordered', 25)
+            ->where('summary.total_amount_centavos', 94500)
         );
 });
 
@@ -194,7 +194,6 @@ test('the details window gets every detail of the order, items in document order
             'time_ordered' => '10:14',
             'category' => 'PROWARE',
             'total_amount_centavos' => 63000,
-            'items_total_centavos' => 63000,
             'uploaded_by' => 'Carlo Mendoza',
             'uploaded_at' => $purchaseOrder->created_at->toIso8601String(),
             'items' => [

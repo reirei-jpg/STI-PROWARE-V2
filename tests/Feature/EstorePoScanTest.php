@@ -49,7 +49,6 @@ test('scanning keeps the file privately and shows what was read', function () {
             ->where('scan.date_ordered', '2026-09-29')
             ->where('scan.category', 'PROWARE')
             ->where('scan.total_amount_centavos', 42000)
-            ->where('scan.items_total_centavos', 42000)
             ->where('scan.warnings', [])
             ->has('scan.items', 1)
             ->where('scan.items.0.item_code', 'PRCU01-01')
