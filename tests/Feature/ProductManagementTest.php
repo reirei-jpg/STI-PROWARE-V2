@@ -143,9 +143,30 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
     'photo not a picture' => [['photos' => [['file' => UploadedFile::fake()->create('po.pdf', 10, 'application/pdf'), 'label' => '']]], 'photos.0.file', 'Photos must be JPG, PNG or WEBP pictures.'],
     'photo too large' => [['photos' => [['file' => UploadedFile::fake()->image('big.jpg')->size(5121), 'label' => '']]], 'photos.0.file', 'Each photo must be 5 MB or smaller.'],
     'option without name' => [['options' => [['name' => '', 'choices' => ['S']]]], 'options.0.name', 'Give every option a name, e.g. Size or Color.'],
-    'two options with the same name' => [['options' => [['name' => 'Size', 'choices' => ['S']], ['name' => 'size', 'choices' => ['M']]]], 'options.0.name', 'Two options have the same name.'],
+    'two options with the same name' => [['options' => [['name' => 'Size', 'choices' => ['S']], ['name' => 'size', 'choices' => ['M']]]], 'options.1.name', 'Two options have the same name.'],
     'same choice twice' => [['options' => [['name' => 'Size', 'choices' => ['M', 'm']]]], 'options.0.choices', 'The option "Size" has the same choice twice.'],
 ]);
+
+test('an option with no choices yet does not block saving and is not saved', function () {
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('products.store'), productForm([
+            'options' => [
+                ['name' => 'Size', 'choices' => ['S', 'M']],
+                ['name' => 'Program'],
+                ['name' => ''],
+            ],
+            'variants' => [
+                ['combination' => 'Size: S', 'estore_item_code' => '', 'price' => ''],
+                ['combination' => 'Size: M', 'estore_item_code' => '', 'price' => ''],
+            ],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $product = Product::sole();
+
+    expect($product->options->pluck('name')->all())->toBe(['Size'])
+        ->and($product->variants->pluck('combination')->all())->toBe(['Size: S', 'Size: M']);
+});
 
 test('an eStore Item Code cannot be used twice', function () {
     $this->actingAs(User::factory()->specialist()->create())

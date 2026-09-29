@@ -178,25 +178,15 @@ export default function ProductForm({
 
     /**
      * Switch to the option `matches` finds, adding it as `newName` first
-     * when the product does not have it yet (null: never add). The option
-     * being left is dropped when nothing was chosen in it, so a quick look
-     * never blocks saving.
+     * when the product does not have it yet (null: never add). Switching
+     * only hides the option being left; nothing the Specialist added is
+     * ever removed except with its own Remove option button.
      */
     const showOption = (
         matches: (option: ProductOptionInput) => boolean,
         newName: string | null,
     ) => {
-        const current =
-            activeOption === null ? undefined : data.options[activeOption];
-
-        if (current !== undefined && matches(current)) {
-            return;
-        }
-
-        let options =
-            current !== undefined && current.choices.length === 0
-                ? data.options.filter((option) => option !== current)
-                : [...data.options];
+        let options = [...data.options];
         let index = options.findIndex(matches);
 
         if (index === -1) {
@@ -861,13 +851,15 @@ function OptionTab({
         >
             {count === null && <Plus size={14} />}
             {label}
-            {count !== null && count > 0 && (
+            {count !== null && (
                 <span
                     className={cn(
                         'rounded-full px-2 py-0.5 text-xs font-black',
                         active
                             ? 'bg-white/25 text-white'
-                            : 'bg-blue-100 text-blue-700',
+                            : count === 0
+                              ? 'bg-slate-100 text-slate-500'
+                              : 'bg-blue-100 text-blue-700',
                     )}
                 >
                     {count}
@@ -1001,6 +993,14 @@ function OptionEditor({
                 <span className="text-sm font-black text-slate-700">
                     Choices
                 </span>
+
+                {option.choices.length === 0 && (
+                    <p className="mt-1 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        No choices yet — tick at least one to use this option.
+                        Until then it stays here but isn't saved with the
+                        product.
+                    </p>
+                )}
 
                 {preset && (
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">

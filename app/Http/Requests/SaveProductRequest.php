@@ -18,7 +18,8 @@ use Illuminate\Validation\Validator;
  *
  * Prices are typed in pesos (e.g. "350" or "350.50"). Options are optional
  * and dynamic: the Specialist names each one (Size, Program, Color…) and
- * lists its choices. Every combination of choices becomes a variant.
+ * lists its choices. Every combination of choices becomes a variant. An
+ * option without choices yet does not block saving; it is just not saved.
  */
 class SaveProductRequest extends FormRequest
 {
@@ -68,8 +69,8 @@ class SaveProductRequest extends FormRequest
             'photos.*.label' => ['nullable', 'string', 'max:40'],
 
             'options' => ['nullable', 'array', 'max:'.self::MAX_OPTIONS],
-            'options.*.name' => ['required', 'string', 'max:40', 'distinct:ignore_case'],
-            'options.*.choices' => ['required', 'array', 'min:1', 'max:30'],
+            'options.*.name' => ['nullable', 'string', 'max:40'],
+            'options.*.choices' => ['nullable', 'array', 'max:30'],
             'options.*.choices.*' => ['required', 'string', 'max:40'],
 
             'variants' => ['nullable', 'array'],
@@ -99,10 +100,6 @@ class SaveProductRequest extends FormRequest
             'photos.*.file.mimes' => 'Photos must be JPG, PNG or WEBP pictures.',
             'photos.*.file.max' => 'Each photo must be 5 MB or smaller.',
             'options.max' => 'A product can have up to '.self::MAX_OPTIONS.' options.',
-            'options.*.name.required' => 'Give every option a name, e.g. Size or Color.',
-            'options.*.name.distinct' => 'Two options have the same name.',
-            'options.*.choices.required' => 'Add at least one choice to every option.',
-            'options.*.choices.min' => 'Add at least one choice to every option.',
             'options.*.choices.*.required' => 'A choice cannot be blank.',
             'variants.*.price.decimal' => 'Enter variant prices in pesos, e.g. 450.',
         ];
@@ -123,7 +120,26 @@ class SaveProductRequest extends FormRequest
                     return;
                 }
 
-                foreach ($this->options() as $index => $option) {
+                $namesSeen = [];
+
+                foreach ($this->submittedOptions() as $index => $option) {
+                    if ($option['choices'] === []) {
+                        continue;
+                    }
+
+                    if ($option['name'] === '') {
+                        $validator->errors()->add("options.{$index}.name", 'Give every option a name, e.g. Size or Color.');
+
+                        continue;
+                    }
+
+                    $name = mb_strtolower($option['name']);
+
+                    if (isset($namesSeen[$name])) {
+                        $validator->errors()->add("options.{$index}.name", 'Two options have the same name.');
+                    }
+
+                    $namesSeen[$name] = true;
                     $lowercase = array_map('mb_strtolower', $option['choices']);
 
                     if (count($lowercase) !== count(array_unique($lowercase))) {
@@ -141,19 +157,34 @@ class SaveProductRequest extends FormRequest
     }
 
     /**
-     * The options, trimmed, in the order the Specialist entered them.
+     * The options that are saved: those with at least one choice, trimmed,
+     * in the order the Specialist entered them. An option with no choices
+     * yet stays in the form but is not saved, since it makes no variants.
      *
      * @return list<array{name: string, choices: list<string>}>
      */
     public function options(): array
     {
-        /** @var array<int, array{name: string, choices: array<int, string>}> $options */
+        return array_values(array_filter(
+            $this->submittedOptions(),
+            fn (array $option): bool => $option['choices'] !== [],
+        ));
+    }
+
+    /**
+     * Every option as sent by the form, keyed by its position in the form.
+     *
+     * @return array<int, array{name: string, choices: list<string>}>
+     */
+    private function submittedOptions(): array
+    {
+        /** @var array<int, array{name?: string|null, choices?: array<int, string>|null}> $options */
         $options = $this->input('options', []);
 
-        return array_values(array_map(fn (array $option): array => [
-            'name' => trim($option['name']),
-            'choices' => array_values(array_map('trim', $option['choices'])),
-        ], $options));
+        return array_map(fn (array $option): array => [
+            'name' => trim((string) ($option['name'] ?? '')),
+            'choices' => array_values(array_map('trim', $option['choices'] ?? [])),
+        ], $options);
     }
 
     public function centavos(string $field): ?int
