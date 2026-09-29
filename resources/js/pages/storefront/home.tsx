@@ -1,10 +1,11 @@
 import { Head } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Clock, Flame, Store } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Clock, Flame, Store } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import StorefrontTile from '@/components/storefront-tile';
+import TileCarousel from '@/components/tile-carousel';
 
-const PLACEHOLDER_COMING_SOON = 8;
+const PLACEHOLDER_COMING_SOON = 10;
 const PLACEHOLDER_ON_SALE = 4;
 const PLACEHOLDER_FEED = 20;
 
@@ -75,22 +76,10 @@ function SectionHeading({
 }
 
 /**
- * Coming Soon items in a row that slides sideways: arrows on a computer,
- * swipe on a phone.
+ * Coming Soon items in a carousel: 3 at a time on a phone, 5 on a
+ * computer, moving to the next set every 7 seconds.
  */
 function ComingSoonCarousel() {
-    const track = useRef<HTMLDivElement>(null);
-
-    const slide = (direction: 1 | -1) => {
-        track.current?.scrollBy({
-            left: direction * track.current.clientWidth * 0.8,
-            behavior: 'smooth',
-        });
-    };
-
-    const arrowClasses =
-        'flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50';
-
     return (
         <section aria-label="Coming Soon">
             <SectionHeading
@@ -101,40 +90,21 @@ function ComingSoonCarousel() {
                 }
                 title="Coming Soon"
                 description="Ordered from STI Head Office and on the way."
-                actions={
-                    <div className="hidden gap-2 md:flex">
-                        <button
-                            type="button"
-                            onClick={() => slide(-1)}
-                            className={arrowClasses}
-                            aria-label="Previous"
-                        >
-                            <ChevronLeft size={20} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => slide(1)}
-                            className={arrowClasses}
-                            aria-label="Next"
-                        >
-                            <ChevronRight size={20} />
-                        </button>
-                    </div>
-                }
             />
 
-            <div
-                ref={track}
-                className="-mx-4 flex snap-x snap-mandatory [scrollbar-width:none] gap-4 overflow-x-auto scroll-smooth px-4 pb-2 md:mx-0 md:px-0"
-            >
-                {Array.from({ length: PLACEHOLDER_COMING_SOON }, (_, index) => (
-                    <StorefrontTile
-                        key={index}
-                        comingSoon
-                        className="w-40 shrink-0 snap-start sm:w-48 lg:w-56"
-                    />
-                ))}
-            </div>
+            <TileCarousel
+                label="Coming Soon"
+                tiles={Array.from(
+                    { length: PLACEHOLDER_COMING_SOON },
+                    (_, index) => (
+                        <StorefrontTile
+                            key={index}
+                            comingSoon
+                            className="w-full"
+                        />
+                    ),
+                )}
+            />
         </section>
     );
 }
