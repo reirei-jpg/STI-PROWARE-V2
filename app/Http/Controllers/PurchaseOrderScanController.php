@@ -14,8 +14,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Lets the PROWARE Specialist upload an eStore purchase order and review what
- * the scanner read from it before saving.
+ * Lets the PROWARE Specialist paste (or upload) an eStore order and review
+ * what the scanner read from it before saving.
  */
 class PurchaseOrderScanController extends Controller
 {
@@ -36,9 +36,9 @@ class PurchaseOrderScanController extends Controller
             }
         }
 
-        $duplicate = $scan === null ? null : PurchaseOrder::query()
+        $duplicate = $scan?->orderNumber === null ? null : PurchaseOrder::query()
             ->with('uploader')
-            ->where('fingerprint', $scan->fingerprint())
+            ->where('order_number', $scan->orderNumber)
             ->first();
 
         return Inertia::render('purchase-orders/scan', [
@@ -52,11 +52,26 @@ class PurchaseOrderScanController extends Controller
     }
 
     /**
-     * Scan the uploaded file and keep it until the Specialist saves or discards it.
+     * Scan the pasted order details email (or the uploaded file) and keep it
+     * until the Specialist saves or discards it.
      */
     public function store(ScanEstorePoRequest $request, EstorePoParser $parser, PendingPurchaseOrderScan $pendingScans): RedirectResponse
     {
         $pendingScans->discard($request->session());
+
+        $text = $request->pastedText();
+
+        if ($text !== null) {
+            try {
+                $parser->parseText($text);
+            } catch (UnreadablePurchaseOrderException $exception) {
+                throw ValidationException::withMessages(['email_text' => $exception->getMessage()]);
+            }
+
+            $pendingScans->putText($request->session(), $text);
+
+            return to_route('purchase-orders.scan');
+        }
 
         $document = $request->file('document');
 

@@ -15,6 +15,9 @@ export type ScanWarning = {
 };
 
 export type ScannedPurchaseOrder = {
+    order_number: string | null;
+    school: string | null;
+    ordered_by: string | null;
     date_ordered: string | null;
     time_ordered: string | null;
     category: string | null;
@@ -30,6 +33,8 @@ export type DuplicateUpload = {
 
 export type PurchaseOrderSummary = {
     id: number;
+    order_number: string | null;
+    ordered_by: string | null;
     date_ordered: string;
     category: string | null;
     total_amount_centavos: number | null;
@@ -50,6 +55,9 @@ export type PurchaseOrderItemDetails = {
 
 export type PurchaseOrderDetails = {
     id: number;
+    order_number: string | null;
+    school: string | null;
+    ordered_by: string | null;
     date_ordered: string;
     time_ordered: string | null;
     category: string | null;
@@ -60,6 +68,8 @@ export type PurchaseOrderDetails = {
 };
 
 export type PurchaseOrderFilters = {
+    search: string | null;
+    category: string | null;
     date_from: string | null;
     date_to: string | null;
 };

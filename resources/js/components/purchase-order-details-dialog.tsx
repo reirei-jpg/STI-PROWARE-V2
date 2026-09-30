@@ -72,7 +72,9 @@ export default function PurchaseOrderDetailsDialog({
                         </p>
                         <DialogTitle className="mt-1 text-2xl font-black text-slate-900">
                             {details
-                                ? `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
+                                ? details.order_number
+                                    ? `Order #${details.order_number}`
+                                    : `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
                                 : 'Purchase Order Details'}
                         </DialogTitle>
                         <DialogDescription className="sr-only">
@@ -110,7 +112,13 @@ export default function PurchaseOrderDetailsDialog({
                         </div>
                     ) : (
                         <>
-                            <dl className="grid auto-rows-fr gap-5 px-8 py-6 sm:grid-cols-2 lg:grid-cols-4">
+                            <dl className="grid auto-rows-fr gap-5 px-8 py-6 sm:grid-cols-2 lg:grid-cols-3">
+                                <Detail label="School">
+                                    {details.school ?? '—'}
+                                </Detail>
+                                <Detail label="Ordered by">
+                                    {details.ordered_by ?? '—'}
+                                </Detail>
                                 <Detail label="Date Ordered">
                                     {formatDateOrdered(
                                         details.date_ordered,

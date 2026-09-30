@@ -1,13 +1,15 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Boxes,
-    CalendarSearch,
     ClipboardList,
     Eye,
     FileScan,
+    Search,
+    SearchX,
     Wallet,
+    X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import DateRangeFilter from '@/components/date-range-filter';
@@ -28,24 +30,33 @@ import type {
 const primaryButtonClasses =
     'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
 
+const noFilters: PurchaseOrderFilters = {
+    search: null,
+    category: null,
+    date_from: null,
+    date_to: null,
+};
+
 /**
  * The filters as page-address parameters, leaving out empty ones.
  */
 function filterQuery(filters: PurchaseOrderFilters): Record<string, string> {
     const query: Record<string, string> = {};
 
-    if (filters.date_from) {
-        query.date_from = filters.date_from;
-    }
-
-    if (filters.date_to) {
-        query.date_to = filters.date_to;
+    for (const [key, value] of Object.entries(filters)) {
+        if (value) {
+            query[key] = value;
+        }
     }
 
     return query;
 }
 
-function describeRange(filters: PurchaseOrderFilters): string {
+function describeScope(filters: PurchaseOrderFilters): string {
+    if (filters.search || filters.category) {
+        return 'Orders matching your search and filters';
+    }
+
     if (filters.date_from && filters.date_to) {
         return `Orders dated ${formatDateOrdered(filters.date_from)} to ${formatDateOrdered(filters.date_to)}`;
     }
@@ -54,18 +65,24 @@ function describeRange(filters: PurchaseOrderFilters): string {
         return `Orders dated ${formatDateOrdered(filters.date_from)} onwards`;
     }
 
-    return `Orders dated up to ${formatDateOrdered(filters.date_to)}`;
+    if (filters.date_to) {
+        return `Orders dated up to ${formatDateOrdered(filters.date_to)}`;
+    }
+
+    return 'Across all uploaded purchase orders';
 }
 
 export default function PurchaseOrdersIndex({
     purchaseOrders,
     summary,
     filters,
+    categories,
     openPurchaseOrderId,
 }: {
     purchaseOrders: Paginated<PurchaseOrderSummary>;
     summary: PurchaseOrderTotals;
     filters: PurchaseOrderFilters;
+    categories: string[];
     openPurchaseOrderId: number | null;
 }) {
     const { auth, errors } = usePage<{
@@ -73,17 +90,46 @@ export default function PurchaseOrdersIndex({
         errors: Record<string, string>;
     }>().props;
     const isSpecialist = auth.user.role === 'specialist';
-    const isFiltered = filters.date_from !== null || filters.date_to !== null;
+    const isFiltered = Object.values(filters).some((value) => value !== null);
     const [viewingId, setViewingId] = useState<number | null>(
         openPurchaseOrderId,
     );
+    const [search, setSearch] = useState(filters.search ?? '');
+    const firstRender = useRef(true);
 
-    const showList = (query: Record<string, string>) => {
-        router.get(PurchaseOrderController.index().url, query, {
+    const showList = (next: PurchaseOrderFilters) => {
+        router.get(PurchaseOrderController.index().url, filterQuery(next), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
         });
+    };
+
+    // Search by Order # as the Specialist types, after a short pause.
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
+
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () =>
+                showList({
+                    ...filters,
+                    search: search.trim() === '' ? null : search.trim(),
+                }),
+            400,
+        );
+
+        return () => window.clearTimeout(timer);
+        // Only the typed text should trigger a search.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search]);
+
+    const clearFilters = () => {
+        setSearch('');
+        showList(noFilters);
     };
 
     const closeDetails = () => {
@@ -91,13 +137,11 @@ export default function PurchaseOrdersIndex({
 
         // Opened from a notification: drop "?view=" so a refresh does not reopen it.
         if (openPurchaseOrderId !== null) {
-            showList(filterQuery(filters));
+            showList(filters);
         }
     };
 
-    const summaryScope = isFiltered
-        ? describeRange(filters)
-        : 'Across all uploaded purchase orders';
+    const summaryScope = describeScope(filters);
 
     return (
         <>
@@ -125,21 +169,72 @@ export default function PurchaseOrdersIndex({
                     }
                 />
 
-                <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-xs">
+                            <Search size={18} className="shrink-0" />
+                            <input
+                                type="search"
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                inputMode="numeric"
+                                placeholder="Search by Order #"
+                                className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                aria-label="Search by Order #"
+                            />
+                        </label>
+
+                        {categories.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-bold text-slate-500">
+                                    Category:
+                                </span>
+                                {[null, ...categories].map((category) => (
+                                    <button
+                                        key={category ?? 'all'}
+                                        type="button"
+                                        onClick={() =>
+                                            showList({ ...filters, category })
+                                        }
+                                        className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                            filters.category === category
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        {category ?? 'All'}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     <DateRangeFilter
                         label="Date Ordered"
                         dateFrom={filters.date_from}
                         dateTo={filters.date_to}
                         serverError={errors.date_from ?? errors.date_to}
                         onChange={(dateFrom, dateTo) =>
-                            showList(
-                                filterQuery({
-                                    date_from: dateFrom,
-                                    date_to: dateTo,
-                                }),
-                            )
+                            showList({
+                                ...filters,
+                                date_from: dateFrom,
+                                date_to: dateTo,
+                            })
                         }
                     />
+
+                    {isFiltered && (
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="inline-flex items-center gap-2 text-sm font-black text-blue-700 hover:underline"
+                        >
+                            <X size={15} />
+                            Clear search and all filters
+                        </button>
+                    )}
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-3">
@@ -175,20 +270,20 @@ export default function PurchaseOrdersIndex({
                 >
                     {purchaseOrders.data.length === 0 && isFiltered ? (
                         <div className="px-6 py-16 text-center">
-                            <CalendarSearch
+                            <SearchX
                                 size={44}
                                 className="mx-auto text-slate-300"
                             />
                             <h3 className="mt-4 text-lg font-black text-slate-800">
-                                No purchase orders match these dates
+                                No purchase orders match your search or filters
                             </h3>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                                Try other dates, or clear the filters to see
-                                every purchase order.
+                                Check the Order #, try other filters, or clear
+                                them to see every purchase order.
                             </p>
                             <button
                                 type="button"
-                                onClick={() => showList({})}
+                                onClick={clearFilters}
                                 className={`mt-6 ${primaryButtonClasses}`}
                             >
                                 Clear filters
@@ -206,8 +301,8 @@ export default function PurchaseOrdersIndex({
                             {isSpecialist ? (
                                 <>
                                     <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                                        Upload the purchase order file from an
-                                        eStore email to add the first one.
+                                        Paste the order details email from the
+                                        eStore to add the first one.
                                     </p>
                                     <Link
                                         href={PurchaseOrderScanController.create()}
@@ -227,14 +322,15 @@ export default function PurchaseOrdersIndex({
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-225">
+                                <table className="w-full min-w-250">
                                     <thead className="bg-slate-50">
                                         <tr>
-                                            <TableHeading>
-                                                Date Ordered
-                                            </TableHeading>
+                                            <TableHeading>Order #</TableHeading>
                                             <TableHeading>
                                                 Category
+                                            </TableHeading>
+                                            <TableHeading>
+                                                Ordered by
                                             </TableHeading>
                                             <TableHeading align="right">
                                                 No. of Items
@@ -257,10 +353,18 @@ export default function PurchaseOrdersIndex({
                                                     key={purchaseOrder.id}
                                                     className="border-t border-slate-100"
                                                 >
-                                                    <td className="px-5 py-4 font-black text-slate-900">
-                                                        {formatDateOrdered(
-                                                            purchaseOrder.date_ordered,
-                                                        )}
+                                                    <td className="px-5 py-4">
+                                                        <p className="font-mono text-sm font-black text-blue-700">
+                                                            {purchaseOrder.order_number
+                                                                ? `#${purchaseOrder.order_number}`
+                                                                : '—'}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            Ordered{' '}
+                                                            {formatDateOrdered(
+                                                                purchaseOrder.date_ordered,
+                                                            )}
+                                                        </p>
                                                     </td>
                                                     <td className="px-5 py-4">
                                                         {purchaseOrder.category ? (
@@ -274,6 +378,10 @@ export default function PurchaseOrdersIndex({
                                                                 —
                                                             </span>
                                                         )}
+                                                    </td>
+                                                    <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                                                        {purchaseOrder.ordered_by ??
+                                                            '—'}
                                                     </td>
                                                     <td className="px-5 py-4 text-right text-sm font-black text-slate-800">
                                                         {

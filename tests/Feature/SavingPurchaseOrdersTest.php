@@ -50,7 +50,23 @@ test('a specialist can save the scanned order', function () {
         ->assertInertia(fn (Assert $page) => $page->where('scan', null));
 });
 
-test('the same order cannot be saved twice', function () {
+test('a pasted order is saved with its Order #, School and Ordered by', function () {
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->post(route('purchase-orders.scan.store'), ['email_text' => estoreOrderEmail()]);
+    $this->post(route('purchase-orders.store'))->assertSessionHasNoErrors();
+
+    expect(PurchaseOrder::sole())
+        ->order_number->toBe('30722')
+        ->school->toBe('STI COLLEGE ORMOC')
+        ->ordered_by->toBe('Manilyn Bioc')
+        ->category->toBe('SMS')
+        ->time_ordered->toStartWith('10:48')
+        ->total_amount_centavos->toBe(600000)
+        ->original_file_name->toBe('Pasted email');
+});
+
+test('the same Order # cannot be saved twice, even with different items', function () {
     $specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
     $this->actingAs($specialist);
 
@@ -59,14 +75,10 @@ test('the same order cannot be saved twice', function () {
 
     $this->travelTo(now()->addDay());
 
-    $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload(
-        rows: ["1\tPRCU01-01\tChibi Keychain Culinary\t0\t20\t21.00\t420.00"],
-        total: '420.00',
-        fileName: 'forwarded-copy.docx',
-    )]);
+    $this->post(route('purchase-orders.scan.store'), ['email_text' => estoreOrderEmail()]);
 
     $this->post(route('purchase-orders.store'))
-        ->assertSessionHasErrors(['save' => 'This order was already uploaded on '.PurchaseOrder::sole()->created_at->format('M j, Y g:i A').' by Carlo Mendoza.']);
+        ->assertSessionHasErrors(['save' => 'Order #30722 was already uploaded on '.PurchaseOrder::sole()->created_at->format('M j, Y g:i A').' by Carlo Mendoza.']);
 
     expect(PurchaseOrder::count())->toBe(1);
 });
@@ -80,19 +92,16 @@ test('the already-uploaded message shows Philippine time', function () {
 
     $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()]);
     $this->post(route('purchase-orders.store'))
-        ->assertSessionHasErrors(['save' => 'This order was already uploaded on Sep 29, 2026 10:30 AM by Carlo Mendoza.']);
+        ->assertSessionHasErrors(['save' => 'Order #30722 was already uploaded on Sep 29, 2026 10:30 AM by Carlo Mendoza.']);
 });
 
-test('an order with a different quantity is not treated as a duplicate', function () {
+test('the same items under a different Order # are a new order', function () {
     $this->actingAs(User::factory()->specialist()->create());
 
     $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()]);
     $this->post(route('purchase-orders.store'));
 
-    $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload(
-        rows: ["1\tPRCU01-01\tChibi Keychain Culinary\t0\t10\t21.00\t210.00"],
-        total: '210',
-    )]);
+    $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload(orderNumber: '30723')]);
 
     $this->post(route('purchase-orders.store'))->assertSessionHasNoErrors();
 
@@ -181,6 +190,9 @@ test('the list shows totals across all saved orders', function () {
 test('the details window gets every detail of the order, items in document order', function () {
     $specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
     $purchaseOrder = PurchaseOrder::factory()->for($specialist, 'uploader')->create([
+        'order_number' => '30722',
+        'school' => 'STI COLLEGE ORMOC',
+        'ordered_by' => 'Manilyn Bioc',
         'date_ordered' => '2026-09-29',
         'time_ordered' => '10:14',
         'category' => 'PROWARE',
@@ -200,6 +212,9 @@ test('the details window gets every detail of the order, items in document order
         ->assertOk()
         ->assertExactJson([
             'id' => $purchaseOrder->id,
+            'order_number' => '30722',
+            'school' => 'STI COLLEGE ORMOC',
+            'ordered_by' => 'Manilyn Bioc',
             'date_ordered' => '2026-09-29',
             'time_ordered' => '10:14',
             'category' => 'PROWARE',

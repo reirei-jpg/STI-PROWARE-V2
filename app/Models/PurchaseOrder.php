@@ -11,12 +11,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * A purchase order the Specialist placed in the eStore and uploaded here.
+ * An order the Specialist placed in the eStore and uploaded here, known by
+ * the eStore's Order #. Orders saved before Order # was read have none.
  *
- * The supplier is always STI Head Office, and the School Admin has already
- * approved it inside the eStore before the document was emailed.
+ * The supplier is always STI Head Office, and the School Admin approves
+ * orders inside the eStore.
  *
  * @property int $id
+ * @property string|null $order_number
+ * @property string|null $school
+ * @property string|null $ordered_by
  * @property int $uploaded_by
  * @property Carbon $date_ordered
  * @property string|null $time_ordered
@@ -24,11 +28,10 @@ use Illuminate\Support\Carbon;
  * @property int|null $total_amount_centavos
  * @property string $original_file_name
  * @property string $document_path
- * @property string $fingerprint
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['uploaded_by', 'date_ordered', 'time_ordered', 'category', 'total_amount_centavos', 'original_file_name', 'document_path', 'fingerprint'])]
+#[Fillable(['order_number', 'school', 'ordered_by', 'uploaded_by', 'date_ordered', 'time_ordered', 'category', 'total_amount_centavos', 'original_file_name', 'document_path'])]
 class PurchaseOrder extends Model
 {
     /** @use HasFactory<PurchaseOrderFactory> */

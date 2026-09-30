@@ -46,8 +46,8 @@ expect()->extend('toBeOne', function () {
 */
 
 /**
- * An uploaded eStore purchase order Word file in the real eStore layout.
- * By default it holds the one-item order the user shared on 29 Sep 2026.
+ * An uploaded eStore order saved as a Word file. By default it holds the
+ * one-item order the user shared on 29 Sep 2026, with an Order #.
  *
  * @param  list<string>  $rows  tab-separated item rows
  */
@@ -56,8 +56,10 @@ function estorePoWordUpload(
     string $total = '420',
     string $dateOrdered = 'Sep 29, 2026',
     string $fileName = 'estore-po.docx',
+    string $orderNumber = '30722',
 ): UploadedFile {
     $lines = [
+        "Order #\t:\t{$orderNumber}",
         "Date Ordered:  {$dateOrdered}",
         'Category: PROWARE',
         "Total Amount (Ordered): {$total}",
@@ -69,6 +71,55 @@ function estorePoWordUpload(
     $path = makeWordFile(implode('', array_map(wordParagraph(...), $lines)));
 
     return UploadedFile::fake()->createWithContent($fileName, (string) file_get_contents($path));
+}
+
+/**
+ * The eStore "Delivered: Online Sales Ordering" email as the Specialist
+ * would copy and paste it, forward headers and all. By default it is the
+ * real email the user shared on 30 Sep 2026 (Order #30722).
+ *
+ * @param  list<string>  $rows  tab-separated item rows
+ */
+function estoreOrderEmail(
+    string $orderNumber = '30722',
+    array $rows = ["1\tSSIF001-001\tStudent Information form\t0\t3,000\t₱ 2.00\t₱ 6,000.00"],
+    string $total = '₱ 6,000.00',
+    string $category = 'SMS',
+): string {
+    return implode("\n", [
+        '---------- Forwarded message ---------',
+        'From: Bioc, Manilyn <manilyn.bioc@ormoc.sti.edu>',
+        'Date: Wed, Sep 30, 2026 at 11:18 AM',
+        'Subject: Fw: Delivered: Online Sales Ordering',
+        '',
+        'From: E-Store (No-Reply) <estore1@sti.edu>',
+        'Sent: Tuesday, September 29, 2026 10:48',
+        'Subject: Delivered: Online Sales Ordering',
+        '',
+        'Dear Ms. Manilyn Bioc,',
+        '',
+        'Your request has been successfully sent to Ms. Sheena Joy Muyuela.',
+        '',
+        '----- Order Details -----',
+        '',
+        '',
+        "Order #\t:\t{$orderNumber}",
+        "School\t:\tSTI COLLEGE ORMOC",
+        "Ordered by\t:\tManilyn Bioc",
+        "Date Ordered\t:\tSep 29, 2026 10:48 AM",
+        "Category\t:\t{$category}",
+        "Total Amount (Ordered)\t:\t{$total}",
+        "#\tItem Code\tItem Description\tStock on Hand (School)\tQty Ordered\tUnit Price\tAmount",
+        ...$rows,
+        '',
+        '',
+        'Click here to review your request.',
+        '',
+        '',
+        'Thank you,',
+        '',
+        'Online Sales Ordering Team',
+    ]);
 }
 
 /**

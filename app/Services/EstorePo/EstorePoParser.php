@@ -9,28 +9,32 @@ use DOMNode;
 use ZipArchive;
 
 /**
- * Reads ("scans") the purchase order document that STI's eStore emails to the
- * PROWARE Specialist.
+ * Reads ("scans") an eStore order: the order details email the eStore sends
+ * when the Specialist submits an order, pasted as text or saved as a Word or
+ * text file.
  *
- * The document has a few header lines followed by an item table:
+ * The order has header lines followed by an item table (tab-separated):
  *
- *     Date Ordered:  Sep 29, 2026
- *     Category: PROWARE
- *     Total Amount (Ordered): 420
+ *     Order #                 :  30722
+ *     School                  :  STI COLLEGE ORMOC
+ *     Ordered by              :  Manilyn Bioc
+ *     Date Ordered            :  Sep 29, 2026 10:48 AM
+ *     Category                :  SMS
+ *     Total Amount (Ordered)  :  ₱ 6,000.00
+ *     #  Item Code    Item Description          Stock on Hand (School)  Qty Ordered  Unit Price  Amount
+ *     1  SSIF001-001  Student Information form  0                       3,000        ₱ 2.00      ₱ 6,000.00
  *
- *     #  Item Code    Description              Stock on Hand (School)  QTY Ordered  Unit Price  Amount
- *     1  PRCU01 – 01  Chibi Keychain Culinary  0                       20           21.00       420.00
- *
- * A Word file is first turned into plain lines (a real Word table row becomes
- * one tab-separated line), so Word tables, tab-separated text and plain text
- * files all go through the same reading rules. Labels are matched loosely, so
- * small wording changes in the eStore template still scan.
+ * Anything else in a pasted email (From, Subject, greetings, links) is
+ * ignored. A Word file is first turned into plain lines (a real Word table
+ * row becomes one tab-separated line), so every source goes through the same
+ * reading rules. Labels are matched loosely, so small wording changes in the
+ * eStore template still scan.
  */
 class EstorePoParser
 {
     private const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-    private const UNSUPPORTED_FILE_MESSAGE = 'PROWARE can\'t read this file type yet. Please upload the Word file (.docx) from the eStore email.';
+    private const UNSUPPORTED_FILE_MESSAGE = 'PROWARE can\'t read this file type yet. Paste the order details email instead, or upload it as a Word (.docx) or text file.';
 
     /**
      * Scan a file on disk. Word (.docx) and plain text files are supported.
@@ -203,7 +207,7 @@ class EstorePoParser
             $lines,
         );
 
-        $headerFields = ['date' => null, 'category' => null, 'total' => null];
+        $headerFields = ['order' => null, 'school' => null, 'ordered_by' => null, 'date' => null, 'category' => null, 'total' => null];
         $layout = null;
         $tableStart = null;
 
@@ -220,7 +224,7 @@ class EstorePoParser
         }
 
         if ($layout === null || $tableStart === null) {
-            throw new UnreadablePurchaseOrderException('PROWARE could not find the item table in this file. Please upload the purchase order document from the eStore email.');
+            throw new UnreadablePurchaseOrderException('PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.');
         }
 
         $warnings = [];
@@ -228,6 +232,12 @@ class EstorePoParser
 
         if ($items === []) {
             throw new UnreadablePurchaseOrderException('The item table in this file has no items.');
+        }
+
+        $orderNumber = $this->filledOrNull($headerFields['order']);
+
+        if ($orderNumber === null) {
+            $warnings[] = $this->warning(null, 'Order # was not found in the document.', blocking: true);
         }
 
         [$dateOrdered, $timeOrdered] = $this->readDateOrdered($headerFields['date'], $warnings);
@@ -254,30 +264,54 @@ class EstorePoParser
             ));
         }
 
-        return new ScannedPurchaseOrder($dateOrdered, $timeOrdered, $category, $totalAmountCentavos, $items, $warnings);
+        return new ScannedPurchaseOrder(
+            orderNumber: $orderNumber,
+            school: $this->filledOrNull($headerFields['school']),
+            orderedBy: $this->filledOrNull($headerFields['ordered_by']),
+            dateOrdered: $dateOrdered,
+            timeOrdered: $timeOrdered,
+            category: $category,
+            totalAmountCentavos: $totalAmountCentavos,
+            items: $items,
+            warnings: $warnings,
+        );
     }
 
     /**
-     * Pick up "Label: value" (or "Label<tab>value") header lines.
+     * Pick up header lines in any of the layouts the eStore uses:
+     * "Label: value", "Label<tab>value" or "Label<tab>:<tab>value" (the
+     * order details email). The first occurrence of each label wins, so
+     * forwarded-email lines further down cannot replace it.
      *
-     * @param  array{date: ?string, category: ?string, total: ?string}  $headerFields
+     * @param  array{order: ?string, school: ?string, ordered_by: ?string, date: ?string, category: ?string, total: ?string}  $headerFields
      */
     private function readHeaderField(string $line, array &$headerFields): void
     {
-        if (! preg_match('/^\s*([^:\t]+?)\s*(?::|\t)\s*(.*)$/u', $line, $matches)) {
+        if (! preg_match('/^\s*([^:\t]+?)[\t ]*(?::|\t)[\t ]*:?[\t ]*(.*)$/u', $line, $matches)) {
             return;
         }
 
         $label = $this->labelKey($matches[1]);
         $value = trim((string) preg_replace('/\s+/u', ' ', $matches[2]));
 
-        if ($label === 'dateordered') {
-            $headerFields['date'] ??= $value;
-        } elseif ($label === 'category') {
-            $headerFields['category'] ??= $value;
-        } elseif (str_starts_with($label, 'totalamount')) {
-            $headerFields['total'] ??= $value;
+        $field = match (true) {
+            in_array($label, ['order', 'orderno', 'ordernumber'], true) => 'order',
+            $label === 'school' => 'school',
+            $label === 'orderedby' => 'ordered_by',
+            $label === 'dateordered' => 'date',
+            $label === 'category' => 'category',
+            str_starts_with($label, 'totalamount') => 'total',
+            default => null,
+        };
+
+        if ($field !== null) {
+            $headerFields[$field] ??= $value;
         }
+    }
+
+    private function filledOrNull(?string $value): ?string
+    {
+        return $value === null || trim($value) === '' ? null : trim($value);
     }
 
     /**

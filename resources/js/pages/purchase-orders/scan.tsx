@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import {
     ArrowLeft,
+    ClipboardPaste,
     CircleAlert,
     CircleCheck,
     CircleX,
@@ -10,6 +11,7 @@ import {
     Trash2,
     UploadCloud,
 } from 'lucide-react';
+import { useState } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import InputError from '@/components/input-error';
@@ -39,6 +41,7 @@ export default function ScanPurchaseOrder({
     );
     const hasBlockingProblems =
         scan?.warnings.some((warning) => warning.blocking) ?? false;
+    const [inputMode, setInputMode] = useState<'paste' | 'file'>('paste');
 
     return (
         <>
@@ -47,7 +50,7 @@ export default function ScanPurchaseOrder({
             <div className="space-y-7">
                 <PageHeader
                     title="Scan eStore PO"
-                    description="Upload the purchase order file from the eStore email, check what PROWARE read, then save it."
+                    description="Paste the eStore order details email, check what PROWARE read, then save it."
                     actions={
                         <Link
                             href={PurchaseOrderController.index()}
@@ -60,58 +63,115 @@ export default function ScanPurchaseOrder({
                 />
 
                 <Panel
-                    title={scan ? 'Scan a Different File' : 'Upload PO File'}
-                    description="Any file can be chosen. PROWARE reads the Word file (.docx) sent by the eStore. Maximum 5 MB."
+                    title={
+                        scan ? 'Scan a Different Order' : 'Add an eStore Order'
+                    }
+                    description="Open the eStore order details email (Order #, School, Ordered by, the item table), copy all of it and paste it here. You can also upload a saved copy as a Word (.docx) or text file."
+                    actions={
+                        <div
+                            role="tablist"
+                            aria-label="How to add the order"
+                            className="flex rounded-xl bg-slate-100 p-1"
+                        >
+                            {(
+                                [
+                                    ['paste', 'Paste email', ClipboardPaste],
+                                    ['file', 'Upload file', UploadCloud],
+                                ] as const
+                            ).map(([value, label, Icon]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={inputMode === value}
+                                    onClick={() => setInputMode(value)}
+                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${
+                                        inputMode === value
+                                            ? 'bg-white text-blue-700 shadow-sm'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    <Icon size={16} />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    }
                 >
                     <Form
                         {...PurchaseOrderScanController.store.form()}
-                        className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start"
+                        className="flex flex-col gap-4 p-6"
                     >
                         {({ processing, errors }) => (
                             <>
-                                <div className="flex-1">
-                                    <label
-                                        htmlFor="document"
-                                        className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50/40"
-                                    >
-                                        <UploadCloud
-                                            size={22}
-                                            className="shrink-0 text-blue-600"
-                                        />
-                                        <input
-                                            id="document"
-                                            type="file"
-                                            name="document"
+                                {inputMode === 'paste' ? (
+                                    <div>
+                                        <textarea
+                                            name="email_text"
                                             required
-                                            className="w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-blue-700"
+                                            rows={10}
+                                            placeholder={
+                                                'Paste the whole email here, e.g.\n\nOrder #\t:\t30722\nSchool\t:\tSTI COLLEGE ORMOC\nOrdered by\t:\tManilyn Bioc\nDate Ordered\t:\tSep 29, 2026 10:48 AM\n…'
+                                            }
+                                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 font-mono text-sm text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                                            aria-label="Order details email"
                                         />
-                                    </label>
-                                    <InputError
-                                        message={errors.document}
-                                        className="mt-2"
-                                    />
-                                </div>
+                                        <InputError
+                                            message={errors.email_text}
+                                            className="mt-2"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label
+                                            htmlFor="document"
+                                            className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50/40"
+                                        >
+                                            <UploadCloud
+                                                size={22}
+                                                className="shrink-0 text-blue-600"
+                                            />
+                                            <input
+                                                id="document"
+                                                type="file"
+                                                name="document"
+                                                required
+                                                className="w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-blue-700"
+                                            />
+                                        </label>
+                                        <p className="mt-2 text-xs text-slate-500">
+                                            Word (.docx) or text file, up to 5
+                                            MB.
+                                        </p>
+                                        <InputError
+                                            message={errors.document}
+                                            className="mt-2"
+                                        />
+                                    </div>
+                                )}
 
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className={
-                                        scan
-                                            ? secondaryButtonClasses
-                                            : primaryButtonClasses
-                                    }
-                                    data-test="scan-po-button"
-                                >
-                                    {processing ? (
-                                        <LoaderCircle
-                                            size={18}
-                                            className="animate-spin"
-                                        />
-                                    ) : (
-                                        <FileScan size={18} />
-                                    )}
-                                    {processing ? 'Scanning...' : 'Scan'}
-                                </button>
+                                <div>
+                                    <button
+                                        type="submit"
+                                        disabled={processing}
+                                        className={
+                                            scan
+                                                ? secondaryButtonClasses
+                                                : primaryButtonClasses
+                                        }
+                                        data-test="scan-po-button"
+                                    >
+                                        {processing ? (
+                                            <LoaderCircle
+                                                size={18}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <FileScan size={18} />
+                                        )}
+                                        {processing ? 'Scanning...' : 'Scan'}
+                                    </button>
+                                </div>
                             </>
                         )}
                     </Form>
@@ -125,7 +185,7 @@ export default function ScanPurchaseOrder({
                                 icon={CircleX}
                                 title="Already uploaded"
                             >
-                                This order was uploaded on{' '}
+                                Order #{scan.order_number} was uploaded on{' '}
                                 {formatDateTime(duplicate.uploaded_at)} by{' '}
                                 {duplicate.uploaded_by}, so it can't be saved
                                 again.
@@ -189,7 +249,20 @@ export default function ScanPurchaseOrder({
                                 </Form>
                             }
                         >
-                            <dl className="grid gap-4 border-b border-slate-100 p-6 sm:grid-cols-3">
+                            <dl className="grid gap-4 border-b border-slate-100 p-6 sm:grid-cols-2 lg:grid-cols-3">
+                                <Detail label="Order #">
+                                    <span className="font-mono text-blue-700">
+                                        {scan.order_number
+                                            ? `#${scan.order_number}`
+                                            : '—'}
+                                    </span>
+                                </Detail>
+                                <Detail label="School">
+                                    {scan.school ?? '—'}
+                                </Detail>
+                                <Detail label="Ordered by">
+                                    {scan.ordered_by ?? '—'}
+                                </Detail>
                                 <Detail label="Date Ordered">
                                     {formatDateOrdered(
                                         scan.date_ordered,

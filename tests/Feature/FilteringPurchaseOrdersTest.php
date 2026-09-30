@@ -32,7 +32,7 @@ test('the Date Ordered filter keeps only orders in the range, including both end
     $this->get(route('purchase-orders.index', array_filter(['date_from' => $from, 'date_to' => $to])))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('filters', ['date_from' => $from, 'date_to' => $to])
+            ->where('filters', ['search' => null, 'category' => null, 'date_from' => $from, 'date_to' => $to])
             ->where('purchaseOrders.data', fn ($rows) => collect($rows)->pluck('date_ordered')->all() === $expectedDates)
         );
 })->with([
@@ -63,6 +63,43 @@ test('the page links keep the chosen dates', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->has('purchaseOrders.data', 20)
             ->where('purchaseOrders.next_page_url', fn (string $url) => str_contains($url, 'date_from=2026-09-01') && str_contains($url, 'date_to=2026-09-30'))
+        );
+});
+
+test('the list can be searched by Order #', function (string $search) {
+    PurchaseOrder::factory()->create(['order_number' => '30722']);
+    PurchaseOrder::factory()->create(['order_number' => '30720']);
+    PurchaseOrder::factory()->create(['order_number' => '41115']);
+
+    $this->get(route('purchase-orders.index', ['search' => $search]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('purchaseOrders.data', 1)
+            ->where('purchaseOrders.data.0.order_number', '30722')
+            ->where('summary.orders_count', 1)
+            ->where('filters.search', '30722')
+        );
+})->with(['30722', '#30722', ' 30722 ']);
+
+test('part of an Order # finds every order that contains it', function () {
+    PurchaseOrder::factory()->create(['order_number' => '30722']);
+    PurchaseOrder::factory()->create(['order_number' => '30720']);
+    PurchaseOrder::factory()->create(['order_number' => '41115']);
+
+    $this->get(route('purchase-orders.index', ['search' => '3072']))
+        ->assertInertia(fn (Assert $page) => $page->has('purchaseOrders.data', 2));
+});
+
+test('the list can be filtered by the categories that were uploaded', function () {
+    PurchaseOrder::factory()->create(['order_number' => '30722', 'category' => 'SMS']);
+    PurchaseOrder::factory()->create(['order_number' => '30701', 'category' => 'PROWARE']);
+    PurchaseOrder::factory()->create(['order_number' => '30650', 'category' => 'TERTIARY UNIFORM']);
+
+    $this->get(route('purchase-orders.index', ['category' => 'SMS']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('categories', ['PROWARE', 'SMS', 'TERTIARY UNIFORM'])
+            ->has('purchaseOrders.data', 1)
+            ->where('purchaseOrders.data.0.order_number', '30722')
+            ->where('filters.category', 'SMS')
         );
 });
 

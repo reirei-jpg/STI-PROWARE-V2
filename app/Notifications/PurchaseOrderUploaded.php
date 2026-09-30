@@ -23,12 +23,13 @@ class PurchaseOrderUploaded extends Notification
     }
 
     /**
-     * @return array{purchase_order_id: int, uploaded_by: string, date_ordered: string, total_amount_centavos: ?int, items_count: int}
+     * @return array{purchase_order_id: int, order_number: ?string, uploaded_by: string, date_ordered: string, total_amount_centavos: ?int, items_count: int}
      */
     public function toArray(object $notifiable): array
     {
         return [
             'purchase_order_id' => $this->purchaseOrder->id,
+            'order_number' => $this->purchaseOrder->order_number,
             'uploaded_by' => $this->purchaseOrder->uploader->name,
             'date_ordered' => $this->purchaseOrder->date_ordered->toDateString(),
             'total_amount_centavos' => $this->purchaseOrder->total_amount_centavos,

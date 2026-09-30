@@ -119,7 +119,9 @@ export default function NotificationBell() {
                                     </span>
                                     <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                                         {notification.data.uploaded_by} uploaded
-                                        an order dated{' '}
+                                        {notification.data.order_number
+                                            ? ` Order #${notification.data.order_number}, dated `
+                                            : ' an order dated '}
                                         {formatDateOrdered(
                                             notification.data.date_ordered,
                                         )}{' '}

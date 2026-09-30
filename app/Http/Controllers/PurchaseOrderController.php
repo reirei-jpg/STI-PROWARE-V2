@@ -35,10 +35,14 @@ class PurchaseOrderController extends Controller
      */
     public function index(FilterPurchaseOrdersRequest $request): Response
     {
+        $search = $request->search();
+        $category = $request->category();
         $dateFrom = $request->dateFrom();
         $dateTo = $request->dateTo();
 
         $filtered = PurchaseOrder::query()
+            ->when($search, fn (Builder $query, string $orderNumber) => $query->whereLike('order_number', "%{$orderNumber}%"))
+            ->when($category, fn (Builder $query, string $name) => $query->where('category', $name))
             ->when($dateFrom, fn (Builder $query, string $date) => $query->whereDate('date_ordered', '>=', $date))
             ->when($dateTo, fn (Builder $query, string $date) => $query->whereDate('date_ordered', '<=', $date));
 
@@ -51,6 +55,8 @@ class PurchaseOrderController extends Controller
             ->withQueryString()
             ->through(fn (PurchaseOrder $purchaseOrder): array => [
                 'id' => $purchaseOrder->id,
+                'order_number' => $purchaseOrder->order_number,
+                'ordered_by' => $purchaseOrder->ordered_by,
                 'date_ordered' => $purchaseOrder->date_ordered->toDateString(),
                 'category' => $purchaseOrder->category,
                 'total_amount_centavos' => $purchaseOrder->total_amount_centavos,
@@ -69,9 +75,17 @@ class PurchaseOrderController extends Controller
                 'total_amount_centavos' => (int) (clone $filtered)->sum('total_amount_centavos'),
             ],
             'filters' => [
+                'search' => $search,
+                'category' => $category,
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
             ],
+            'categories' => PurchaseOrder::query()
+                ->whereNotNull('category')
+                ->distinct()
+                ->orderBy('category')
+                ->pluck('category')
+                ->all(),
             'openPurchaseOrderId' => $request->filled('view') ? $request->integer('view') : null,
         ]);
     }
@@ -110,6 +124,9 @@ class PurchaseOrderController extends Controller
         try {
             $purchaseOrder = DB::transaction(function () use ($request, $scan, $pending, $documentPath): PurchaseOrder {
                 $purchaseOrder = PurchaseOrder::create([
+                    'order_number' => $scan->orderNumber,
+                    'school' => $scan->school,
+                    'ordered_by' => $scan->orderedBy,
                     'uploaded_by' => $request->user()->id,
                     'date_ordered' => $scan->dateOrdered,
                     'time_ordered' => $scan->timeOrdered,
@@ -117,7 +134,6 @@ class PurchaseOrderController extends Controller
                     'total_amount_centavos' => $scan->totalAmountCentavos,
                     'original_file_name' => $pending['file_name'],
                     'document_path' => $documentPath,
-                    'fingerprint' => $scan->fingerprint(),
                 ]);
 
                 $purchaseOrder->items()->createMany(array_map(
@@ -138,7 +154,7 @@ class PurchaseOrderController extends Controller
         } catch (UniqueConstraintViolationException) {
             $this->ensureNotAlreadyUploaded($scan);
 
-            throw ValidationException::withMessages(['save' => 'This order was already uploaded.']);
+            throw ValidationException::withMessages(['save' => "Order #{$scan->orderNumber} was already uploaded."]);
         }
 
         $pendingScans->keep($request->session(), $pending, $documentPath);
@@ -162,6 +178,9 @@ class PurchaseOrderController extends Controller
 
         return response()->json([
             'id' => $purchaseOrder->id,
+            'order_number' => $purchaseOrder->order_number,
+            'school' => $purchaseOrder->school,
+            'ordered_by' => $purchaseOrder->ordered_by,
             'date_ordered' => $purchaseOrder->date_ordered->toDateString(),
             'time_ordered' => $purchaseOrder->time_ordered === null ? null : substr($purchaseOrder->time_ordered, 0, 5),
             'category' => $purchaseOrder->category,
@@ -180,16 +199,21 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
+    /**
+     * The eStore's Order # identifies an order, so the same Order # cannot
+     * be saved twice.
+     */
     private function ensureNotAlreadyUploaded(ScannedPurchaseOrder $scan): void
     {
         $duplicate = PurchaseOrder::query()
             ->with('uploader')
-            ->where('fingerprint', $scan->fingerprint())
+            ->where('order_number', $scan->orderNumber)
             ->first();
 
         if ($duplicate !== null) {
             throw ValidationException::withMessages(['save' => sprintf(
-                'This order was already uploaded on %s by %s.',
+                'Order #%s was already uploaded on %s by %s.',
+                $scan->orderNumber,
                 $duplicate->created_at?->format('M j, Y g:i A'),
                 $duplicate->uploader->name,
             )]);

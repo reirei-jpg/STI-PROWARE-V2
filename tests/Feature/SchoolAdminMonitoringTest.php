@@ -52,7 +52,7 @@ test('the notification tells the school admin who uploaded what', function () {
     $purchaseOrder = PurchaseOrder::factory()
         ->for($specialist, 'uploader')
         ->has(PurchaseOrderItem::factory()->count(2), 'items')
-        ->create(['date_ordered' => '2026-09-29', 'total_amount_centavos' => 42000]);
+        ->create(['order_number' => '30722', 'date_ordered' => '2026-09-29', 'total_amount_centavos' => 42000]);
     $schoolAdmin = User::factory()->schoolAdmin()->create();
 
     $schoolAdmin->notify(new PurchaseOrderUploaded($purchaseOrder));
@@ -65,6 +65,7 @@ test('the notification tells the school admin who uploaded what', function () {
             ->where('notifications.recent.0.read', false)
             ->where('notifications.recent.0.data', [
                 'purchase_order_id' => $purchaseOrder->id,
+                'order_number' => '30722',
                 'uploaded_by' => 'Carlo Mendoza',
                 'date_ordered' => '2026-09-29',
                 'total_amount_centavos' => 42000,

@@ -1,5 +1,6 @@
 export type PurchaseOrderUploadedData = {
     purchase_order_id: number;
+    order_number: string | null;
     uploaded_by: string;
     date_ordered: string;
     total_amount_centavos: number | null;

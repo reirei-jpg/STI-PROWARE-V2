@@ -5,6 +5,7 @@ namespace App\Services\EstorePo;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Keeps the file the Specialist just scanned (privately, on the server) until
@@ -19,6 +20,9 @@ class PendingPurchaseOrderScan
 
     private const FOLDER = 'purchase-orders/pending';
 
+    /** Shown in place of a file name when the order was pasted. */
+    public const PASTED_EMAIL = 'Pasted email';
+
     public function put(Session $session, UploadedFile $file): void
     {
         $this->discard($session);
@@ -26,6 +30,22 @@ class PendingPurchaseOrderScan
         $session->put(self::SESSION_KEY, [
             'path' => $file->store(self::FOLDER, 'local'),
             'file_name' => $file->getClientOriginalName(),
+        ]);
+    }
+
+    /**
+     * Keep pasted email text the same way as an uploaded file.
+     */
+    public function putText(Session $session, string $text): void
+    {
+        $this->discard($session);
+
+        $path = self::FOLDER.'/'.Str::uuid()->toString().'.txt';
+        Storage::disk('local')->put($path, $text);
+
+        $session->put(self::SESSION_KEY, [
+            'path' => $path,
+            'file_name' => self::PASTED_EMAIL,
         ]);
     }
 
