@@ -64,6 +64,7 @@ test('the notification tells the school admin who uploaded what', function () {
             ->has('notifications.recent', 1)
             ->where('notifications.recent.0.read', false)
             ->where('notifications.recent.0.data', [
+                'kind' => 'purchase_order_uploaded',
                 'purchase_order_id' => $purchaseOrder->id,
                 'order_number' => '30722',
                 'uploaded_by' => 'Carlo Mendoza',
@@ -74,10 +75,18 @@ test('the notification tells the school admin who uploaded what', function () {
         );
 });
 
-test('the specialist has no notification bell', function () {
-    $this->actingAs(User::factory()->specialist()->create())
-        ->get(route('dashboard'))
-        ->assertInertia(fn (Assert $page) => $page->where('notifications', null));
+test('the specialist has a notification bell for delivery reminders, but is not told about her own uploads', function () {
+    $specialist = User::factory()->specialist()->create();
+
+    $this->actingAs($specialist);
+    $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()]);
+    $this->post(route('purchase-orders.store'))->assertSessionHasNoErrors();
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('notifications.unread_count', 0)
+            ->has('notifications.recent', 0)
+        );
 });
 
 test('opening a notification marks it read and shows that order', function () {
@@ -121,8 +130,13 @@ test('mark all read clears the unread count', function () {
     expect($schoolAdmin->unreadNotifications()->count())->toBe(0);
 });
 
-test('the specialist cannot use the notification actions', function () {
-    $this->actingAs(User::factory()->specialist()->create())
+test('the specialist can mark her own notifications as read', function () {
+    $specialist = User::factory()->specialist()->create();
+    $specialist->notify(new PurchaseOrderUploaded(PurchaseOrder::factory()->create()));
+
+    $this->actingAs($specialist)
         ->post(route('notifications.read-all'))
-        ->assertForbidden();
+        ->assertRedirect();
+
+    expect($specialist->unreadNotifications()->count())->toBe(0);
 });

@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Boxes,
+    CalendarClock,
     ClipboardList,
     Eye,
     FileScan,
@@ -13,16 +14,21 @@ import { useEffect, useRef, useState } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import DateRangeFilter from '@/components/date-range-filter';
+import DeliveryProgress from '@/components/delivery-progress';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
+import SetExpectedDeliveryDialog from '@/components/set-expected-delivery-dialog';
+import type { ExpectedDeliveryTarget } from '@/components/set-expected-delivery-dialog';
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import type {
     Auth,
+    DeliveryStatus,
     Paginated,
     PurchaseOrderFilters,
+    PurchaseOrderSort,
     PurchaseOrderSummary,
     PurchaseOrderTotals,
 } from '@/types';
@@ -33,18 +39,35 @@ const primaryButtonClasses =
 const noFilters: PurchaseOrderFilters = {
     search: null,
     category: null,
+    status: null,
+    sort: 'expected',
     date_from: null,
     date_to: null,
 };
 
+const statusChips: { value: DeliveryStatus | null; label: string }[] = [
+    { value: null, label: 'All' },
+    { value: 'awaiting', label: 'Awaiting Delivery' },
+    { value: 'partially_received', label: 'Partially Received' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'completed_short', label: 'Completed (short)' },
+];
+
+const sortOptions: { value: PurchaseOrderSort; label: string }[] = [
+    { value: 'expected', label: 'Next expected delivery first' },
+    { value: 'newest', label: 'Newest Date Ordered first' },
+    { value: 'oldest_waiting', label: 'Still waiting, oldest first' },
+];
+
 /**
- * The filters as page-address parameters, leaving out empty ones.
+ * The filters as page-address parameters, leaving out empty ones and the
+ * default sort.
  */
 function filterQuery(filters: PurchaseOrderFilters): Record<string, string> {
     const query: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(filters)) {
-        if (value) {
+        if (value && !(key === 'sort' && value === 'expected')) {
             query[key] = value;
         }
     }
@@ -52,8 +75,30 @@ function filterQuery(filters: PurchaseOrderFilters): Record<string, string> {
     return query;
 }
 
+/**
+ * "Tomorrow, Oct 2", "Today, Oct 1" or "Oct 5, 2026".
+ */
+function describeExpected(date: string, today: string): string {
+    const days = Math.round(
+        (new Date(`${date}T00:00:00`).getTime() -
+            new Date(`${today}T00:00:00`).getTime()) /
+            86_400_000,
+    );
+    const formatted = formatDateOrdered(date);
+
+    if (days === 0) {
+        return `Today, ${formatted}`;
+    }
+
+    if (days === 1) {
+        return `Tomorrow, ${formatted}`;
+    }
+
+    return days < 0 ? `${formatted} (passed)` : formatted;
+}
+
 function describeScope(filters: PurchaseOrderFilters): string {
-    if (filters.search || filters.category) {
+    if (filters.search || filters.category || filters.status) {
         return 'Orders matching your search and filters';
     }
 
@@ -78,22 +123,32 @@ export default function PurchaseOrdersIndex({
     filters,
     categories,
     openPurchaseOrderId,
+    today,
 }: {
     purchaseOrders: Paginated<PurchaseOrderSummary>;
     summary: PurchaseOrderTotals;
     filters: PurchaseOrderFilters;
     categories: string[];
     openPurchaseOrderId: number | null;
+    today: string;
 }) {
     const { auth, errors } = usePage<{
         auth: Auth;
         errors: Record<string, string>;
     }>().props;
     const isSpecialist = auth.user.role === 'specialist';
-    const isFiltered = Object.values(filters).some((value) => value !== null);
+    const isFiltered = Boolean(
+        filters.search ||
+        filters.category ||
+        filters.status ||
+        filters.date_from ||
+        filters.date_to,
+    );
     const [viewingId, setViewingId] = useState<number | null>(
         openPurchaseOrderId,
     );
+    const [settingDateFor, setSettingDateFor] =
+        useState<ExpectedDeliveryTarget | null>(null);
     const [search, setSearch] = useState(filters.search ?? '');
     const firstRender = useRef(true);
 
@@ -129,7 +184,7 @@ export default function PurchaseOrdersIndex({
 
     const clearFilters = () => {
         setSearch('');
-        showList(noFilters);
+        showList({ ...noFilters, sort: filters.sort });
     };
 
     const closeDetails = () => {
@@ -150,6 +205,16 @@ export default function PurchaseOrdersIndex({
             <PurchaseOrderDetailsDialog
                 purchaseOrderId={viewingId}
                 onClose={closeDetails}
+                onSetExpectedDate={(order) => {
+                    setViewingId(null);
+                    setSettingDateFor(order);
+                }}
+            />
+
+            <SetExpectedDeliveryDialog
+                order={settingDateFor}
+                today={today}
+                onClose={() => setSettingDateFor(null)}
             />
 
             <div className="space-y-7">
@@ -211,6 +276,57 @@ export default function PurchaseOrdersIndex({
                         )}
                     </div>
 
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-bold text-slate-500">
+                                Delivery:
+                            </span>
+                            {statusChips.map((chip) => (
+                                <button
+                                    key={chip.label}
+                                    type="button"
+                                    onClick={() =>
+                                        showList({
+                                            ...filters,
+                                            status: chip.value,
+                                        })
+                                    }
+                                    className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                        filters.status === chip.value
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    {chip.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <label className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                            Sort:
+                            <select
+                                value={filters.sort}
+                                onChange={(event) =>
+                                    showList({
+                                        ...filters,
+                                        sort: event.target
+                                            .value as PurchaseOrderSort,
+                                    })
+                                }
+                                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            >
+                                {sortOptions.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+
                     <DateRangeFilter
                         label="Date Ordered"
                         dateFrom={filters.date_from}
@@ -266,7 +382,7 @@ export default function PurchaseOrdersIndex({
 
                 <Panel
                     title="Uploaded Purchase Orders"
-                    description="Newest Date Ordered first. Open View Details to see everything in an order."
+                    description={`${sortOptions.find((option) => option.value === filters.sort)?.label ?? ''}. Open View Details to see every item, what has arrived, and the delivery history.`}
                 >
                     {purchaseOrders.data.length === 0 && isFiltered ? (
                         <div className="px-6 py-16 text-center">
@@ -330,10 +446,10 @@ export default function PurchaseOrdersIndex({
                                                 Category
                                             </TableHeading>
                                             <TableHeading>
-                                                Ordered by
+                                                Delivery
                                             </TableHeading>
-                                            <TableHeading align="right">
-                                                No. of Items
+                                            <TableHeading>
+                                                Expected Delivery
                                             </TableHeading>
                                             <TableHeading align="right">
                                                 Total Amount (Ordered)
@@ -364,6 +480,8 @@ export default function PurchaseOrdersIndex({
                                                             {formatDateOrdered(
                                                                 purchaseOrder.date_ordered,
                                                             )}
+                                                            {purchaseOrder.ordered_by &&
+                                                                ` by ${purchaseOrder.ordered_by}`}
                                                         </p>
                                                     </td>
                                                     <td className="px-5 py-4">
@@ -379,19 +497,81 @@ export default function PurchaseOrdersIndex({
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                                                        {purchaseOrder.ordered_by ??
-                                                            '—'}
+                                                    <td className="px-5 py-4">
+                                                        <DeliveryProgress
+                                                            progress={
+                                                                purchaseOrder
+                                                            }
+                                                        />
                                                     </td>
-                                                    <td className="px-5 py-4 text-right text-sm font-black text-slate-800">
-                                                        {
-                                                            purchaseOrder.items_count
-                                                        }
-                                                    </td>
-                                                    <td className="px-5 py-4 text-right text-base font-black text-blue-700">
-                                                        {formatPeso(
-                                                            purchaseOrder.total_amount_centavos,
+                                                    <td className="px-5 py-4">
+                                                        {purchaseOrder.expected_delivery_date ? (
+                                                            <>
+                                                                <p className="text-sm font-black text-slate-800">
+                                                                    {describeExpected(
+                                                                        purchaseOrder.expected_delivery_date,
+                                                                        today,
+                                                                    )}
+                                                                </p>
+                                                                {purchaseOrder.expected_delivery_note && (
+                                                                    <p className="mt-1 max-w-48 truncate text-xs text-slate-500">
+                                                                        {
+                                                                            purchaseOrder.expected_delivery_note
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <p className="text-sm text-slate-400">
+                                                                {[
+                                                                    'awaiting',
+                                                                    'partially_received',
+                                                                ].includes(
+                                                                    purchaseOrder.delivery_status,
+                                                                )
+                                                                    ? 'Not set yet'
+                                                                    : '—'}
+                                                            </p>
                                                         )}
+                                                        {isSpecialist &&
+                                                            [
+                                                                'awaiting',
+                                                                'partially_received',
+                                                            ].includes(
+                                                                purchaseOrder.delivery_status,
+                                                            ) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setSettingDateFor(
+                                                                            purchaseOrder,
+                                                                        )
+                                                                    }
+                                                                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-black text-blue-700 hover:underline"
+                                                                >
+                                                                    <CalendarClock
+                                                                        size={
+                                                                            13
+                                                                        }
+                                                                    />
+                                                                    {purchaseOrder.expected_delivery_date
+                                                                        ? 'Change date'
+                                                                        : 'Set delivery date'}
+                                                                </button>
+                                                            )}
+                                                    </td>
+                                                    <td className="px-5 py-4 text-right">
+                                                        <p className="text-base font-black text-blue-700">
+                                                            {formatPeso(
+                                                                purchaseOrder.total_amount_centavos,
+                                                            )}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            No. of Items:{' '}
+                                                            {
+                                                                purchaseOrder.items_count
+                                                            }
+                                                        </p>
                                                     </td>
                                                     <td className="px-5 py-4">
                                                         <p className="text-sm font-semibold text-slate-700">

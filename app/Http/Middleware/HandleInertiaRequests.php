@@ -47,10 +47,13 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * The School Admin's latest notifications for the bell in the top bar.
+     * The signed-in staff member's latest notifications for the bell in the
+     * top bar: uploaded orders for the School Admin, delivery reminders for
+     * the Specialist.
      *
      * The notification data is whatever the notification stored (see
-     * PurchaseOrderUploaded::toArray()), decoded from the database.
+     * PurchaseOrderUploaded and ExpectedDeliveryReminder), decoded from the
+     * database.
      *
      * @return array{unread_count: int, recent: list<array{id: string, data: array<mixed>, read: bool, created_at: ?string}>}|null
      */
@@ -58,7 +61,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
-        if ($user === null || ! $user->isSchoolAdmin()) {
+        if ($user === null) {
             return null;
         }
 

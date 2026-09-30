@@ -8,13 +8,15 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import type { StaffNotification } from '@/types';
 
 /**
- * The School Admin's bell (as in V1): a red count of unread notifications
- * and a list of the latest ones. Opening one shows that purchase order.
+ * The staff bell (as in V1): a red count of unread notifications and a list
+ * of the latest ones — uploaded orders for the School Admin, delivery
+ * reminders for the Specialist. Opening one shows that purchase order.
  */
 export default function NotificationBell() {
-    const { notifications } = usePage().props;
+    const { notifications, auth } = usePage().props;
 
     if (!notifications) {
         return null;
@@ -84,8 +86,9 @@ export default function NotificationBell() {
                             No notifications yet
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
-                            You will be notified here when the Specialist
-                            uploads a purchase order.
+                            {auth.user.role === 'specialist'
+                                ? 'You will be reminded here the day before and on the day of an expected delivery.'
+                                : 'You will be notified here when the Specialist uploads a purchase order.'}
                         </p>
                     </div>
                 ) : (
@@ -114,27 +117,9 @@ export default function NotificationBell() {
                                     }`}
                                 />
                                 <span className="min-w-0">
-                                    <span className="block text-sm font-bold text-slate-900">
-                                        New purchase order uploaded
-                                    </span>
-                                    <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                                        {notification.data.uploaded_by} uploaded
-                                        {notification.data.order_number
-                                            ? ` Order #${notification.data.order_number}, dated `
-                                            : ' an order dated '}
-                                        {formatDateOrdered(
-                                            notification.data.date_ordered,
-                                        )}{' '}
-                                        ·{' '}
-                                        {formatPeso(
-                                            notification.data
-                                                .total_amount_centavos,
-                                        )}{' '}
-                                        · {notification.data.items_count}{' '}
-                                        {notification.data.items_count === 1
-                                            ? 'item'
-                                            : 'items'}
-                                    </span>
+                                    <NotificationText
+                                        data={notification.data}
+                                    />
                                     <span className="mt-1 block text-[11px] text-slate-400">
                                         {formatDateTime(
                                             notification.created_at,
@@ -147,5 +132,43 @@ export default function NotificationBell() {
                 )}
             </DropdownMenuContent>
         </DropdownMenu>
+    );
+}
+
+function NotificationText({ data }: { data: StaffNotification['data'] }) {
+    if (data.kind === 'delivery_reminder') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-slate-900">
+                    Delivery expected {data.when}
+                    {data.order_number ? `: Order #${data.order_number}` : ''}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.percent_received}% received so far ·{' '}
+                    {data.quantity_remaining.toLocaleString('en-PH')} still to
+                    come
+                    {data.expected_delivery_date
+                        ? ` · ${formatDateOrdered(data.expected_delivery_date)}`
+                        : ''}
+                </span>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <span className="block text-sm font-bold text-slate-900">
+                New purchase order uploaded
+            </span>
+            <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                {data.uploaded_by} uploaded
+                {data.order_number
+                    ? ` Order #${data.order_number}, dated `
+                    : ' an order dated '}
+                {formatDateOrdered(data.date_ordered)} ·{' '}
+                {formatPeso(data.total_amount_centavos)} · {data.items_count}{' '}
+                {data.items_count === 1 ? 'item' : 'items'}
+            </span>
+        </>
     );
 }

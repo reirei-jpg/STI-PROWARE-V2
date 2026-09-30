@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DeliveryStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\FilterPurchaseOrdersRequest;
+use App\Models\Delivery;
+use App\Models\DeliveryItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
@@ -37,20 +40,39 @@ class PurchaseOrderController extends Controller
     {
         $search = $request->search();
         $category = $request->category();
+        $status = $request->status();
+        $sort = $request->sort();
         $dateFrom = $request->dateFrom();
         $dateTo = $request->dateTo();
 
         $filtered = PurchaseOrder::query()
             ->when($search, fn (Builder $query, string $orderNumber) => $query->whereLike('order_number', "%{$orderNumber}%"))
             ->when($category, fn (Builder $query, string $name) => $query->where('category', $name))
+            ->when($status, fn (Builder $query, DeliveryStatus $chosen) => $query->where('delivery_status', $chosen))
             ->when($dateFrom, fn (Builder $query, string $date) => $query->whereDate('date_ordered', '>=', $date))
             ->when($dateTo, fn (Builder $query, string $date) => $query->whereDate('date_ordered', '<=', $date));
 
-        $purchaseOrders = (clone $filtered)
+        $sorted = match ($sort) {
+            // Orders still waiting come first, the oldest order at the top.
+            'oldest_waiting' => (clone $filtered)
+                ->orderByRaw('case when delivery_status in (?, ?) then 0 else 1 end', [DeliveryStatus::Awaiting->value, DeliveryStatus::PartiallyReceived->value])
+                ->orderBy('date_ordered')
+                ->orderBy('id'),
+            'newest' => (clone $filtered)
+                ->orderByDesc('date_ordered')
+                ->orderByDesc('id'),
+            // Default: the delivery expected soonest at the top; orders
+            // without an expected date follow, newest first.
+            default => (clone $filtered)
+                ->orderByRaw('case when expected_delivery_date is null then 1 else 0 end')
+                ->orderBy('expected_delivery_date')
+                ->orderByDesc('date_ordered')
+                ->orderByDesc('id'),
+        };
+
+        $purchaseOrders = $sorted
             ->with('uploader')
             ->withCount('items')
-            ->orderByDesc('date_ordered')
-            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString()
             ->through(fn (PurchaseOrder $purchaseOrder): array => [
@@ -63,6 +85,13 @@ class PurchaseOrderController extends Controller
                 'items_count' => $purchaseOrder->items_count,
                 'uploaded_by' => $purchaseOrder->uploader->name,
                 'uploaded_at' => $purchaseOrder->created_at?->toIso8601String(),
+                'delivery_status' => $purchaseOrder->delivery_status->value,
+                'delivery_status_label' => $purchaseOrder->delivery_status->label(),
+                'quantity_ordered_total' => $purchaseOrder->quantity_ordered_total,
+                'quantity_received_total' => $purchaseOrder->quantity_received_total,
+                'percent_received' => $purchaseOrder->percentReceived(),
+                'expected_delivery_date' => $purchaseOrder->expected_delivery_date?->toDateString(),
+                'expected_delivery_note' => $purchaseOrder->expected_delivery_note,
             ]);
 
         return Inertia::render('purchase-orders/index', [
@@ -77,6 +106,8 @@ class PurchaseOrderController extends Controller
             'filters' => [
                 'search' => $search,
                 'category' => $category,
+                'status' => $status?->value,
+                'sort' => $sort,
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
             ],
@@ -87,6 +118,7 @@ class PurchaseOrderController extends Controller
                 ->pluck('category')
                 ->all(),
             'openPurchaseOrderId' => $request->filled('view') ? $request->integer('view') : null,
+            'today' => now()->toDateString(),
         ]);
     }
 
@@ -149,6 +181,8 @@ class PurchaseOrderController extends Controller
                     $scan->items,
                 ));
 
+                $purchaseOrder->refreshDeliveryProgress();
+
                 return $purchaseOrder;
             });
         } catch (UniqueConstraintViolationException) {
@@ -174,7 +208,17 @@ class PurchaseOrderController extends Controller
      */
     public function show(PurchaseOrder $purchaseOrder): JsonResponse
     {
-        $purchaseOrder->load(['uploader', 'items']);
+        $purchaseOrder->load(['uploader', 'closer', 'items']);
+
+        $deliveries = Delivery::query()
+            ->with('recorder')
+            ->whereHas('items.purchaseOrderItem', fn (Builder $query) => $query->where('purchase_order_id', $purchaseOrder->id))
+            ->with(['items' => fn ($query) => $query
+                ->whereHas('purchaseOrderItem', fn (Builder $item) => $item->where('purchase_order_id', $purchaseOrder->id))
+                ->with('purchaseOrderItem')])
+            ->latest('received_on')
+            ->latest('id')
+            ->get();
 
         return response()->json([
             'id' => $purchaseOrder->id,
@@ -187,14 +231,38 @@ class PurchaseOrderController extends Controller
             'total_amount_centavos' => $purchaseOrder->total_amount_centavos,
             'uploaded_by' => $purchaseOrder->uploader->name,
             'uploaded_at' => $purchaseOrder->created_at?->toIso8601String(),
+            'delivery_status' => $purchaseOrder->delivery_status->value,
+            'delivery_status_label' => $purchaseOrder->delivery_status->label(),
+            'quantity_ordered_total' => $purchaseOrder->quantity_ordered_total,
+            'quantity_received_total' => $purchaseOrder->quantity_received_total,
+            'percent_received' => $purchaseOrder->percentReceived(),
+            'expected_delivery_date' => $purchaseOrder->expected_delivery_date?->toDateString(),
+            'expected_delivery_note' => $purchaseOrder->expected_delivery_note,
+            'closed_reason' => $purchaseOrder->closed_reason,
+            'closed_at' => $purchaseOrder->closed_at?->toIso8601String(),
+            'closed_by' => $purchaseOrder->closer?->name,
             'items' => $purchaseOrder->items->map(fn (PurchaseOrderItem $item): array => [
                 'row_number' => $item->row_number,
                 'item_code' => $item->item_code,
                 'description' => $item->description,
                 'stock_on_hand' => $item->stock_on_hand,
                 'quantity_ordered' => $item->quantity_ordered,
+                'quantity_received' => $item->quantity_delivered,
+                'quantity_remaining' => $item->quantityRemaining(),
                 'unit_price_centavos' => $item->unit_price_centavos,
                 'amount_centavos' => $item->amount_centavos,
+            ])->all(),
+            'deliveries' => $deliveries->map(fn (Delivery $delivery): array => [
+                'id' => $delivery->id,
+                'received_on' => $delivery->received_on->toDateString(),
+                'sales_invoice_number' => $delivery->sales_invoice_number,
+                'delivery_receipt_number' => $delivery->delivery_receipt_number,
+                'recorded_by' => $delivery->recorder->name,
+                'items' => $delivery->items->map(fn (DeliveryItem $item): array => [
+                    'item_code' => $item->purchaseOrderItem->item_code,
+                    'description' => $item->purchaseOrderItem->description,
+                    'quantity_received' => $item->quantity_received,
+                ])->values()->all(),
             ])->all(),
         ]);
     }

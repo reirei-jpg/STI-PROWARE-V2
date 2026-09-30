@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Delivery reminders for the Specialist (sent from 7:00 AM, once per date).
+Schedule::command('deliveries:send-reminders')->hourly()->withoutOverlapping();

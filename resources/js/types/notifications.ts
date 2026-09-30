@@ -1,4 +1,5 @@
 export type PurchaseOrderUploadedData = {
+    kind?: 'purchase_order_uploaded';
     purchase_order_id: number;
     order_number: string | null;
     uploaded_by: string;
@@ -7,9 +8,19 @@ export type PurchaseOrderUploadedData = {
     items_count: number;
 };
 
+export type DeliveryReminderData = {
+    kind: 'delivery_reminder';
+    purchase_order_id: number;
+    order_number: string | null;
+    expected_delivery_date: string | null;
+    when: 'tomorrow' | 'today';
+    percent_received: number;
+    quantity_remaining: number;
+};
+
 export type StaffNotification = {
     id: string;
-    data: PurchaseOrderUploadedData;
+    data: PurchaseOrderUploadedData | DeliveryReminderData;
     read: boolean;
     created_at: string | null;
 };

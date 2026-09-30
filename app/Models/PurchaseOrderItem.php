@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -38,5 +39,18 @@ class PurchaseOrderItem extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    /**
+     * @return HasMany<DeliveryItem, $this>
+     */
+    public function deliveryItems(): HasMany
+    {
+        return $this->hasMany(DeliveryItem::class);
+    }
+
+    public function quantityRemaining(): int
+    {
+        return max(0, $this->quantity_ordered - $this->quantity_delivered);
     }
 }

@@ -206,6 +206,7 @@ test('the details window gets every detail of the order, items in document order
         'row_number' => 1, 'item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain Culinary',
         'stock_on_hand' => null, 'quantity_ordered' => 20, 'unit_price_centavos' => 2100, 'amount_centavos' => 42000,
     ]);
+    $purchaseOrder->refreshDeliveryProgress();
 
     $this->actingAs($specialist)
         ->getJson(route('purchase-orders.show', $purchaseOrder))
@@ -221,16 +222,29 @@ test('the details window gets every detail of the order, items in document order
             'total_amount_centavos' => 63000,
             'uploaded_by' => 'Carlo Mendoza',
             'uploaded_at' => $purchaseOrder->created_at->toIso8601String(),
+            'delivery_status' => 'awaiting',
+            'delivery_status_label' => 'Awaiting Delivery',
+            'quantity_ordered_total' => 30,
+            'quantity_received_total' => 0,
+            'percent_received' => 0,
+            'expected_delivery_date' => null,
+            'expected_delivery_note' => null,
+            'closed_reason' => null,
+            'closed_at' => null,
+            'closed_by' => null,
             'items' => [
                 [
                     'row_number' => 1, 'item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain Culinary',
                     'stock_on_hand' => null, 'quantity_ordered' => 20, 'unit_price_centavos' => 2100, 'amount_centavos' => 42000,
+                    'quantity_received' => 0, 'quantity_remaining' => 20,
                 ],
                 [
                     'row_number' => 2, 'item_code' => 'PRCU01-02', 'description' => 'Chibi Keychain Tourism',
                     'stock_on_hand' => 3, 'quantity_ordered' => 10, 'unit_price_centavos' => 2100, 'amount_centavos' => 21000,
+                    'quantity_received' => 0, 'quantity_remaining' => 10,
                 ],
             ],
+            'deliveries' => [],
         ]);
 });
 

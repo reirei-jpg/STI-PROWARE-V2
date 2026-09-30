@@ -41,7 +41,7 @@ export type PurchaseOrderSummary = {
     items_count: number;
     uploaded_by: string;
     uploaded_at: string | null;
-};
+} & DeliveryProgress;
 
 export type PurchaseOrderItemDetails = {
     row_number: number;
@@ -49,6 +49,8 @@ export type PurchaseOrderItemDetails = {
     description: string;
     stock_on_hand: number | null;
     quantity_ordered: number;
+    quantity_received: number;
+    quantity_remaining: number;
     unit_price_centavos: number;
     amount_centavos: number;
 };
@@ -65,11 +67,17 @@ export type PurchaseOrderDetails = {
     uploaded_by: string;
     uploaded_at: string | null;
     items: PurchaseOrderItemDetails[];
-};
+    closed_reason: string | null;
+    closed_at: string | null;
+    closed_by: string | null;
+    deliveries: OrderDeliveryRecord[];
+} & DeliveryProgress;
 
 export type PurchaseOrderFilters = {
     search: string | null;
     category: string | null;
+    status: DeliveryStatus | null;
+    sort: PurchaseOrderSort;
     date_from: string | null;
     date_to: string | null;
 };
@@ -89,4 +97,36 @@ export type Paginated<T> = {
     total: number;
     prev_page_url: string | null;
     next_page_url: string | null;
+};
+
+export type DeliveryStatus =
+    | 'awaiting'
+    | 'partially_received'
+    | 'completed'
+    | 'completed_short';
+
+export type PurchaseOrderSort = 'expected' | 'newest' | 'oldest_waiting';
+
+/** Delivery progress shared by the list rows and the details window. */
+export type DeliveryProgress = {
+    delivery_status: DeliveryStatus;
+    delivery_status_label: string;
+    quantity_ordered_total: number;
+    quantity_received_total: number;
+    percent_received: number;
+    expected_delivery_date: string | null;
+    expected_delivery_note: string | null;
+};
+
+export type OrderDeliveryRecord = {
+    id: number;
+    received_on: string;
+    sales_invoice_number: string | null;
+    delivery_receipt_number: string | null;
+    recorded_by: string;
+    items: {
+        item_code: string;
+        description: string;
+        quantity_received: number;
+    }[];
 };

@@ -4,7 +4,9 @@ import {
     FileScan,
     LayoutDashboard,
     Package,
+    Truck,
 } from 'lucide-react';
+import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
@@ -46,6 +48,11 @@ function useStaffMenuItems(): NavItem[] {
                 title: 'Scan eStore PO',
                 href: PurchaseOrderScanController.create(),
                 icon: FileScan,
+            },
+            {
+                title: 'Deliveries',
+                href: DeliveryController.index(),
+                icon: Truck,
             },
             {
                 title: 'Products',

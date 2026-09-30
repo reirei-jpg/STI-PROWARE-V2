@@ -32,7 +32,7 @@ test('the Date Ordered filter keeps only orders in the range, including both end
     $this->get(route('purchase-orders.index', array_filter(['date_from' => $from, 'date_to' => $to])))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('filters', ['search' => null, 'category' => null, 'date_from' => $from, 'date_to' => $to])
+            ->where('filters', ['search' => null, 'category' => null, 'status' => null, 'sort' => 'expected', 'date_from' => $from, 'date_to' => $to])
             ->where('purchaseOrders.data', fn ($rows) => collect($rows)->pluck('date_ordered')->all() === $expectedDates)
         );
 })->with([

@@ -1,8 +1,20 @@
-import { useHttp } from '@inertiajs/react';
-import { ClipboardList, LoaderCircle, X } from 'lucide-react';
+import { Form, Link, useHttp, usePage } from '@inertiajs/react';
+import {
+    Ban,
+    CalendarClock,
+    ClipboardList,
+    LoaderCircle,
+    Truck,
+    X,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
+import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/PurchaseOrderDeliveryController';
+import DeliveryProgress from '@/components/delivery-progress';
+import InputError from '@/components/input-error';
+import type { ExpectedDeliveryTarget } from '@/components/set-expected-delivery-dialog';
 import {
     Dialog,
     DialogClose,
@@ -12,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { PurchaseOrderDetails } from '@/types';
+import type { OrderDeliveryRecord, PurchaseOrderDetails } from '@/types';
 
 /**
  * The pop-up window with every detail of one purchase order: the header
@@ -24,10 +36,14 @@ import type { PurchaseOrderDetails } from '@/types';
 export default function PurchaseOrderDetailsDialog({
     purchaseOrderId,
     onClose,
+    onSetExpectedDate,
 }: {
     purchaseOrderId: number | null;
     onClose: () => void;
+    onSetExpectedDate?: (order: ExpectedDeliveryTarget) => void;
 }) {
+    const { auth } = usePage().props;
+    const isSpecialist = auth.user.role === 'specialist';
     const http = useHttp<Record<string, never>, PurchaseOrderDetails>({});
     const [details, setDetails] = useState<PurchaseOrderDetails | null>(null);
     const [failed, setFailed] = useState(false);
@@ -139,6 +155,12 @@ export default function PurchaseOrderDetailsDialog({
                                 </Detail>
                             </dl>
 
+                            <DeliverySummary
+                                details={details}
+                                isSpecialist={isSpecialist}
+                                onSetExpectedDate={onSetExpectedDate}
+                            />
+
                             <div className="overflow-x-auto border-t border-slate-100">
                                 <table className="w-full min-w-225">
                                     <thead className="bg-slate-50">
@@ -150,6 +172,8 @@ export default function PurchaseOrderDetailsDialog({
                                                 Stock on Hand (School)
                                             </Heading>
                                             <Heading right>QTY Ordered</Heading>
+                                            <Heading right>Received</Heading>
+                                            <Heading right>Remaining</Heading>
                                             <Heading right>Unit Price</Heading>
                                             <Heading right>Amount</Heading>
                                         </tr>
@@ -179,7 +203,31 @@ export default function PurchaseOrderDetailsDialog({
                                                     right
                                                     className="font-black text-slate-800"
                                                 >
-                                                    {item.quantity_ordered}
+                                                    {item.quantity_ordered.toLocaleString(
+                                                        'en-PH',
+                                                    )}
+                                                </Cell>
+                                                <Cell
+                                                    right
+                                                    className="font-black text-emerald-700"
+                                                >
+                                                    {item.quantity_received.toLocaleString(
+                                                        'en-PH',
+                                                    )}
+                                                </Cell>
+                                                <Cell
+                                                    right
+                                                    className={cn(
+                                                        'font-black',
+                                                        item.quantity_remaining >
+                                                            0
+                                                            ? 'text-amber-700'
+                                                            : 'text-slate-400',
+                                                    )}
+                                                >
+                                                    {item.quantity_remaining.toLocaleString(
+                                                        'en-PH',
+                                                    )}
                                                 </Cell>
                                                 <Cell
                                                     right
@@ -202,6 +250,8 @@ export default function PurchaseOrderDetailsDialog({
                                     </tbody>
                                 </table>
                             </div>
+
+                            <DeliveryHistory deliveries={details.deliveries} />
                         </>
                     )}
                 </div>
@@ -213,6 +263,226 @@ export default function PurchaseOrderDetailsDialog({
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/**
+ * How far the order's delivery has come, the expected delivery date, why it
+ * was closed short (if it was), and the Specialist's delivery actions.
+ */
+function DeliverySummary({
+    details,
+    isSpecialist,
+    onSetExpectedDate,
+}: {
+    details: PurchaseOrderDetails;
+    isSpecialist: boolean;
+    onSetExpectedDate?: (order: ExpectedDeliveryTarget) => void;
+}) {
+    const [closing, setClosing] = useState(false);
+    const isOpen =
+        details.delivery_status === 'awaiting' ||
+        details.delivery_status === 'partially_received';
+
+    return (
+        <section className="border-t border-slate-100 px-8 py-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex flex-col gap-5 sm:flex-row sm:gap-10">
+                    <DeliveryProgress progress={details} className="w-64" />
+
+                    <div>
+                        <p className="text-sm font-bold tracking-wide text-slate-400 uppercase">
+                            Expected Delivery
+                        </p>
+                        <p className="mt-1 text-lg font-black text-slate-900">
+                            {details.expected_delivery_date
+                                ? formatDateOrdered(
+                                      details.expected_delivery_date,
+                                  )
+                                : isOpen
+                                  ? 'Not set yet'
+                                  : '—'}
+                        </p>
+                        {details.expected_delivery_note && (
+                            <p className="mt-0.5 text-sm text-slate-500">
+                                {details.expected_delivery_note}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {isSpecialist && isOpen && (
+                    <div className="flex flex-wrap gap-2">
+                        {onSetExpectedDate && (
+                            <button
+                                type="button"
+                                onClick={() => onSetExpectedDate(details)}
+                                className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                            >
+                                <CalendarClock size={16} />
+                                {details.expected_delivery_date
+                                    ? 'Change delivery date'
+                                    : 'Set delivery date'}
+                            </button>
+                        )}
+                        <Link
+                            href={DeliveryController.create()}
+                            className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700"
+                        >
+                            <Truck size={16} />
+                            Record Delivery
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={() => setClosing((open) => !open)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
+                        >
+                            <Ban size={16} />
+                            Close order (short)
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {details.closed_reason && (
+                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+                    <p className="font-black">
+                        Closed as Completed (short)
+                        {details.closed_by && ` by ${details.closed_by}`}
+                        {details.closed_at &&
+                            ` on ${formatDateTime(details.closed_at)}`}
+                    </p>
+                    <p className="mt-1">Reason: {details.closed_reason}</p>
+                </div>
+            )}
+
+            {closing && (
+                <Form
+                    {...PurchaseOrderDeliveryController.close.form(details.id)}
+                    options={{ preserveScroll: true }}
+                    className="mt-5 rounded-2xl border border-red-200 bg-red-50/60 p-5"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <p className="font-black text-red-800">
+                                Close this order even though{' '}
+                                {(
+                                    details.quantity_ordered_total -
+                                    details.quantity_received_total
+                                ).toLocaleString('en-PH')}{' '}
+                                have not arrived?
+                            </p>
+                            <p className="mt-1 text-sm text-red-700">
+                                Use this when Head Office says the rest will not
+                                be delivered. The order will show as Completed
+                                (short) with your reason.
+                            </p>
+                            <label className="mt-4 grid gap-1.5">
+                                <span className="text-sm font-black text-slate-700">
+                                    Reason
+                                </span>
+                                <textarea
+                                    name="reason"
+                                    required
+                                    rows={3}
+                                    maxLength={500}
+                                    placeholder="e.g. Head Office said the M/L polos are out of stock and will not be delivered."
+                                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                                />
+                                <InputError message={errors.reason} />
+                            </label>
+                            <div className="mt-4 flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setClosing(false)}
+                                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60"
+                                >
+                                    {processing && (
+                                        <LoaderCircle
+                                            size={16}
+                                            className="animate-spin"
+                                        />
+                                    )}
+                                    Close order
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </Form>
+            )}
+        </section>
+    );
+}
+
+/**
+ * Every delivery that brought items of this order, newest first.
+ */
+function DeliveryHistory({
+    deliveries,
+}: {
+    deliveries: OrderDeliveryRecord[];
+}) {
+    return (
+        <section className="border-t border-slate-100 px-8 py-6">
+            <h3 className="text-lg font-black text-slate-900">
+                Delivery History
+            </h3>
+
+            {deliveries.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-500">
+                    Nothing has arrived for this order yet.
+                </p>
+            ) : (
+                <ol className="mt-4 space-y-3">
+                    {deliveries.map((delivery) => (
+                        <li
+                            key={delivery.id}
+                            className="rounded-2xl border border-slate-200 p-4"
+                        >
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                <p className="font-black text-slate-900">
+                                    Received{' '}
+                                    {formatDateOrdered(delivery.received_on)}
+                                </p>
+                                <p className="text-sm text-slate-500">
+                                    {[
+                                        delivery.sales_invoice_number &&
+                                            `SI # ${delivery.sales_invoice_number}`,
+                                        delivery.delivery_receipt_number &&
+                                            `DR # ${delivery.delivery_receipt_number}`,
+                                        `Recorded by ${delivery.recorded_by}`,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </p>
+                            </div>
+                            <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                                {delivery.items.map((item) => (
+                                    <li key={item.item_code}>
+                                        <span className="font-mono font-bold text-blue-700">
+                                            {item.item_code}
+                                        </span>{' '}
+                                        {item.description} —{' '}
+                                        <span className="font-black">
+                                            {item.quantity_received.toLocaleString(
+                                                'en-PH',
+                                            )}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </li>
+                    ))}
+                </ol>
+            )}
+        </section>
     );
 }
 

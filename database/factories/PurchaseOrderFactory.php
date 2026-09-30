@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -30,5 +31,25 @@ class PurchaseOrderFactory extends Factory
             'original_file_name' => 'Pasted email',
             'document_path' => 'purchase-orders/'.fake()->uuid().'.txt',
         ];
+    }
+
+    /**
+     * Give the order these items (attributes per item, e.g. item code and
+     * quantities) and bring its delivery totals and status up to date.
+     *
+     * @param  list<array<string, mixed>>  $items
+     */
+    public function withItems(array $items): static
+    {
+        return $this->afterCreating(function (PurchaseOrder $purchaseOrder) use ($items): void {
+            foreach ($items as $index => $attributes) {
+                PurchaseOrderItem::factory()->for($purchaseOrder)->create([
+                    'row_number' => $index + 1,
+                    ...$attributes,
+                ]);
+            }
+
+            $purchaseOrder->refreshDeliveryProgress();
+        });
     }
 }
