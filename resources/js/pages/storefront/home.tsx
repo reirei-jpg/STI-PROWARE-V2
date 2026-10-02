@@ -1,24 +1,39 @@
-import { Head } from '@inertiajs/react';
-import { Clock, Flame, Store } from 'lucide-react';
-import { useState } from 'react';
+import { Head, InfiniteScroll, router } from '@inertiajs/react';
+import { Clock, Flame, LoaderCircle, Search, Store, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
+import StorefrontProductDialog from '@/components/storefront-product-dialog';
 import StorefrontTile from '@/components/storefront-tile';
 import TileCarousel from '@/components/tile-carousel';
+import type { StorefrontFilters, StorefrontTileProduct } from '@/types';
 
-const PLACEHOLDER_COMING_SOON = 10;
-const PLACEHOLDER_ON_SALE = 4;
-const PLACEHOLDER_FEED = 20;
-
-const feedFilters = ['All', 'Available', 'Out of Stock'] as const;
-
-type FeedFilter = (typeof feedFilters)[number];
+const feedChoices: { value: StorefrontFilters['show']; label: string }[] = [
+    { value: null, label: 'All' },
+    { value: 'in_stock', label: 'In stock' },
+    { value: 'sold_out', label: 'Sold out' },
+];
 
 /**
  * The public storefront dashboard: anyone can scroll and browse; signing in
- * is only asked for at Add to Cart. For now it shows the tile layout only,
- * with empty tiles where products will go.
+ * is only asked for at Add to Cart or Preorder. Coming Soon shows Preorder
+ * products, On Sale the products being cleared, and All Merchandise every
+ * product that arrived, newest first and sold-out ones last. Tapping a tile
+ * opens the product's view.
  */
-export default function StorefrontHome() {
+export default function StorefrontHome({
+    comingSoon,
+    onSale,
+    merchandise,
+    filters,
+}: {
+    comingSoon: StorefrontTileProduct[];
+    onSale: StorefrontTileProduct[];
+    merchandise: { data: StorefrontTileProduct[] };
+    filters: StorefrontFilters;
+}) {
+    const [viewing, setViewing] = useState<StorefrontTileProduct | null>(null);
+
     return (
         <>
             <Head title="Official STI Merchandise" />
@@ -38,12 +53,28 @@ export default function StorefrontHome() {
                     </p>
                 </section>
 
-                <ComingSoonCarousel />
+                {comingSoon.length > 0 && (
+                    <ComingSoonCarousel
+                        products={comingSoon}
+                        onView={setViewing}
+                    />
+                )}
 
-                <OnSaleSection />
+                {onSale.length > 0 && (
+                    <OnSaleSection products={onSale} onView={setViewing} />
+                )}
 
-                <MerchandiseFeed />
+                <MerchandiseFeed
+                    merchandise={merchandise}
+                    filters={filters}
+                    onView={setViewing}
+                />
             </div>
+
+            <StorefrontProductDialog
+                product={viewing}
+                onClose={() => setViewing(null)}
+            />
         </>
     );
 }
@@ -76,10 +107,16 @@ function SectionHeading({
 }
 
 /**
- * Coming Soon items in a carousel: 3 at a time on a phone, 5 on a
+ * Preorder products in a carousel: 3 at a time on a phone, 5 on a
  * computer, moving to the next set every 7 seconds.
  */
-function ComingSoonCarousel() {
+function ComingSoonCarousel({
+    products,
+    onView,
+}: {
+    products: StorefrontTileProduct[];
+    onView: (product: StorefrontTileProduct) => void;
+}) {
     return (
         <section aria-label="Coming Soon">
             <SectionHeading
@@ -89,21 +126,19 @@ function ComingSoonCarousel() {
                     </span>
                 }
                 title="Coming Soon"
-                description="Ordered from STI Head Office and on the way."
+                description="Preorder now. These are being ordered from STI Head Office."
             />
 
             <TileCarousel
                 label="Coming Soon"
-                tiles={Array.from(
-                    { length: PLACEHOLDER_COMING_SOON },
-                    (_, index) => (
-                        <StorefrontTile
-                            key={index}
-                            comingSoon
-                            className="w-full"
-                        />
-                    ),
-                )}
+                tiles={products.map((product) => (
+                    <StorefrontTile
+                        key={product.id}
+                        product={product}
+                        onView={onView}
+                        className="w-full"
+                    />
+                ))}
             />
         </section>
     );
@@ -112,7 +147,13 @@ function ComingSoonCarousel() {
 /**
  * Slow-moving items the Specialist has put on sale so they sell quickly.
  */
-function OnSaleSection() {
+function OnSaleSection({
+    products,
+    onView,
+}: {
+    products: StorefrontTileProduct[];
+    onView: (product: StorefrontTileProduct) => void;
+}) {
     return (
         <section
             aria-label="On Sale"
@@ -129,8 +170,12 @@ function OnSaleSection() {
             />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                {Array.from({ length: PLACEHOLDER_ON_SALE }, (_, index) => (
-                    <StorefrontTile key={index} sale />
+                {products.map((product) => (
+                    <StorefrontTile
+                        key={product.id}
+                        product={product}
+                        onView={onView}
+                    />
                 ))}
             </div>
         </section>
@@ -138,10 +183,64 @@ function OnSaleSection() {
 }
 
 /**
- * All merchandise as a dense TikTok Shop style feed.
+ * All merchandise as a dense TikTok Shop style feed that loads more as the
+ * visitor scrolls, with a name search and All / In stock / Sold out.
  */
-function MerchandiseFeed() {
-    const [filter, setFilter] = useState<FeedFilter>('All');
+function MerchandiseFeed({
+    merchandise,
+    filters,
+    onView,
+}: {
+    merchandise: { data: StorefrontTileProduct[] };
+    filters: StorefrontFilters;
+    onView: (product: StorefrontTileProduct) => void;
+}) {
+    const [search, setSearch] = useState(filters.search ?? '');
+    const firstRender = useRef(true);
+    const grid = useRef<HTMLDivElement>(null);
+    const isFiltered = filters.search !== null || filters.show !== null;
+
+    const showFeed = (next: StorefrontFilters) => {
+        const query: Record<string, string> = {};
+
+        if (next.search) {
+            query.search = next.search;
+        }
+
+        if (next.show) {
+            query.show = next.show;
+        }
+
+        router.get(StorefrontController.home().url, query, {
+            only: ['merchandise', 'filters'],
+            reset: ['merchandise'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    // Search as the visitor types, after a short pause.
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
+
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () =>
+                showFeed({
+                    ...filters,
+                    search: search.trim() === '' ? null : search.trim(),
+                }),
+            400,
+        );
+
+        return () => window.clearTimeout(timer);
+        // Only the typed text should trigger a search.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search]);
 
     return (
         <section aria-label="All Merchandise">
@@ -152,32 +251,96 @@ function MerchandiseFeed() {
                     </span>
                 }
                 title="All Merchandise"
-                description="Everything available at the PROWARE store."
+                description="Everything at the PROWARE store, newest first."
                 actions={
-                    <div className="flex gap-2">
-                        {feedFilters.map((option) => (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <label className="flex h-9 w-56 items-center gap-2 rounded-full bg-white px-3 text-slate-400 shadow-sm focus-within:ring-2 focus-within:ring-blue-100">
+                            <Search size={15} className="shrink-0" />
+                            <input
+                                type="search"
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                placeholder="Search merchandise"
+                                className="w-full min-w-0 bg-transparent text-xs font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                aria-label="Search merchandise"
+                            />
+                        </label>
+                        {feedChoices.map((choice) => (
                             <button
-                                key={option}
+                                key={choice.label}
                                 type="button"
-                                onClick={() => setFilter(option)}
+                                onClick={() =>
+                                    showFeed({ ...filters, show: choice.value })
+                                }
                                 className={`rounded-full px-4 py-2 text-xs font-bold transition ${
-                                    filter === option
+                                    filters.show === choice.value
                                         ? 'bg-[#0D6EFD] text-white'
                                         : 'bg-white text-slate-600 shadow-sm hover:bg-slate-100'
                                 }`}
                             >
-                                {option}
+                                {choice.label}
                             </button>
                         ))}
                     </div>
                 }
             />
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-                {Array.from({ length: PLACEHOLDER_FEED }, (_, index) => (
-                    <StorefrontTile key={index} />
-                ))}
-            </div>
+            {merchandise.data.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                    <Store size={40} className="mx-auto text-slate-300" />
+                    <h3 className="mt-3 text-lg font-black text-slate-800">
+                        {isFiltered
+                            ? 'No merchandise matches your search'
+                            : 'No merchandise yet'}
+                    </h3>
+                    <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
+                        {isFiltered
+                            ? 'Try another name, or show all merchandise.'
+                            : 'New items appear here as soon as they arrive at the PROWARE store. Check back soon.'}
+                    </p>
+                    {isFiltered && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSearch('');
+                                showFeed({ search: null, show: null });
+                            }}
+                            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700"
+                        >
+                            <X size={16} />
+                            Show all merchandise
+                        </button>
+                    )}
+                </div>
+            ) : (
+                <InfiniteScroll
+                    data="merchandise"
+                    itemsElement={grid}
+                    onlyNext
+                    preserveUrl
+                    loading={() => (
+                        <p className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
+                            <LoaderCircle size={16} className="animate-spin" />
+                            Loading more merchandise...
+                        </p>
+                    )}
+                >
+                    <div
+                        ref={grid}
+                        className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5"
+                    >
+                        {merchandise.data.map((product) => (
+                            <StorefrontTile
+                                key={product.id}
+                                product={product}
+                                onView={onView}
+                            />
+                        ))}
+                    </div>
+                </InfiniteScroll>
+            )}
         </section>
     );
 }
