@@ -13,6 +13,7 @@ use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use App\Services\EstorePo\ItemCode;
+use App\Services\Stock\LowStockAlerts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,20 +26,23 @@ use Inertia\Response;
 class ProductController extends Controller
 {
     /**
-     * List the products, most recently changed first, with a name search and
-     * a status filter.
+     * List the products, most recently changed first, with a name search, a
+     * status filter and a "Low stock" filter.
      */
     public function index(FilterProductsRequest $request): Response
     {
         $search = $request->search();
         $status = $request->status();
+        $lowStockOnly = $request->lowStockOnly();
 
         $products = Product::query()
             ->with(['mainPhoto', 'packs'])
             ->withCount('variants')
             ->withSum('variants', 'stock_on_hand')
+            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at')])
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->when($status, fn (Builder $query, ProductStatus $chosen) => $query->where('status', $chosen))
+            ->when($lowStockOnly, fn (Builder $query) => $query->lowOnStock())
             ->latest('updated_at')
             ->latest('id')
             ->paginate(20)
@@ -61,6 +65,8 @@ class ProductController extends Controller
                     ->values()
                     ->all(),
                 'stock_on_hand' => (int) $product->getAttribute('variants_sum_stock_on_hand'),
+                'low_stock_alert_at' => $product->low_stock_alert_at,
+                'low_stock' => LowStockAlerts::isSold($product) && (bool) $product->getAttribute('has_variant_at_alert'),
                 'photo_url' => $product->mainPhoto?->url(),
                 'variants_count' => $product->variants_count,
                 'updated_at' => $product->updated_at?->toIso8601String(),
@@ -71,7 +77,9 @@ class ProductController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status?->value,
+                'stock' => $lowStockOnly ? 'low' : null,
             ],
+            'lowStockCount' => Product::query()->lowOnStock()->count(),
             'itemsToLinkCount' => PurchaseOrderItem::query()
                 ->notLinkedToProduct()
                 ->distinct()
@@ -119,6 +127,7 @@ class ProductController extends Controller
                 'price' => $product->price_centavos === null ? '' : $this->pesos($product->price_centavos),
                 'sale_price' => $product->sale_price_centavos === null ? '' : $this->pesos($product->sale_price_centavos),
                 'status' => $product->status->value,
+                'low_stock_alert_at' => (string) $product->low_stock_alert_at,
                 'photos' => $product->photos->map(fn (ProductPhoto $photo): array => [
                     'id' => $photo->id,
                     'url' => $photo->url(),

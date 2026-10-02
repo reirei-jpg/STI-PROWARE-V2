@@ -56,6 +56,7 @@ class SaveProductRequest extends FormRequest
                 'max:1000000',
             ],
             'status' => ['required', Rule::enum(ProductStatus::class)],
+            'low_stock_alert_at' => ['required', 'integer', 'min:0', 'max:100000'],
             'sale_price' => [
                 Rule::requiredIf($soldByPiece && $this->input('status') === ProductStatus::OnSale->value),
                 'nullable',
@@ -118,6 +119,9 @@ class SaveProductRequest extends FormRequest
             'price.required' => 'Enter the price per piece.',
             'price.decimal' => 'Enter the price per piece in pesos, e.g. 350 or 350.50.',
             'price.gt' => 'The price per piece must be more than ₱0.',
+            'low_stock_alert_at.required' => 'Enter the number of pieces to be warned at, e.g. 5.',
+            'low_stock_alert_at.integer' => 'Enter the number of pieces as a whole number.',
+            'low_stock_alert_at.min' => 'The number cannot be below 0.',
             'sale_price.required' => 'Enter the sale price for a product On Sale.',
             'sale_price.decimal' => 'Enter the sale price in pesos, e.g. 300 or 299.50.',
             'sale_price.lt' => 'The sale price must be lower than the price per piece.',

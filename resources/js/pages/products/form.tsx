@@ -52,6 +52,7 @@ type ProductFormData = {
     price: string;
     status: ProductStatus;
     sale_price: string;
+    low_stock_alert_at: string;
     photos: PhotoInput[];
     packs: ProductPackInput[];
     options: ProductOptionInput[];
@@ -110,6 +111,7 @@ export default function ProductForm({
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
         sale_price: product?.sale_price ?? '',
+        low_stock_alert_at: product?.low_stock_alert_at ?? '5',
         photos:
             product?.photos.map((photo) => ({
                 id: photo.id,
@@ -176,6 +178,7 @@ export default function ProductForm({
                 current.sold_by_piece && current.status === 'on_sale'
                     ? current.sale_price
                     : '',
+            low_stock_alert_at: current.low_stock_alert_at,
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
                 file: photo.file ?? '',
@@ -787,6 +790,38 @@ export default function ProductForm({
                         <InputError
                             message={errors.sold_by_piece ?? errors.packs}
                         />
+                    </div>
+                    <div className="border-t border-slate-100 bg-amber-50/40 px-6 py-5">
+                        <label className="grid gap-1.5">
+                            <span className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
+                                Notify me when stock falls to
+                                <input
+                                    value={data.low_stock_alert_at}
+                                    onChange={(event) =>
+                                        setData(
+                                            'low_stock_alert_at',
+                                            digitsOnly(event.target.value),
+                                        )
+                                    }
+                                    inputMode="numeric"
+                                    placeholder="5"
+                                    className={cn(
+                                        inputClasses,
+                                        'w-24 text-right',
+                                    )}
+                                    aria-label="Low-stock number of pieces"
+                                />
+                                pcs
+                            </span>
+                            <span className="text-xs leading-5 text-slate-500">
+                                Applies to each variant (e.g. only S/M can be
+                                low). You are told once in the bell, and again
+                                after the stock goes back above this number.
+                                Enter 0 to be told only when it runs out. Only
+                                Available and On Sale products are watched.
+                            </span>
+                            <InputError message={errors.low_stock_alert_at} />
+                        </label>
                     </div>
                 </Panel>
 

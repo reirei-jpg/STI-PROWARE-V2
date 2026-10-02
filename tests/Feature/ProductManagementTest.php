@@ -30,6 +30,7 @@ function productForm(array $overrides = []): array
         'price' => '350',
         'status' => 'available',
         'sale_price' => '',
+        'low_stock_alert_at' => '5',
         'photos' => [
             ['file' => UploadedFile::fake()->image('front.jpg'), 'label' => 'Front'],
         ],
@@ -160,6 +161,7 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
 })->with([
     'no name' => [['name' => ''], 'name', 'Enter the product name.'],
     'no price per piece' => [['price' => ''], 'price', 'Enter the price per piece.'],
+    'no low-stock number' => [['low_stock_alert_at' => ''], 'low_stock_alert_at', 'Enter the number of pieces to be warned at, e.g. 5.'],
     'price in words' => [['price' => 'three fifty'], 'price', 'Enter the price per piece in pesos, e.g. 350 or 350.50.'],
     'on sale without sale price' => [['status' => 'on_sale'], 'sale_price', 'Enter the sale price for a product On Sale.'],
     'sale price not lower' => [['status' => 'on_sale', 'sale_price' => '350'], 'sale_price', 'The sale price must be lower than the price per piece.'],
@@ -290,7 +292,7 @@ test('the list can be searched by name and filtered by status', function () {
             ->has('products.data', 1)
             ->where('products.data.0.name', '42nd Anniversary Shirt')
             ->where('products.data.0.status_label', 'Preorder')
-            ->where('filters', ['search' => 'anniversary', 'status' => 'preorder'])
+            ->where('filters', ['search' => 'anniversary', 'status' => 'preorder', 'stock' => null])
         );
 });
 

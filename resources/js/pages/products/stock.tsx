@@ -59,7 +59,7 @@ export default function ProductStock({
             <div className="space-y-7">
                 <PageHeader
                     title="Stock History"
-                    description={`${product.name} · ${formatUnits(product.stock_on_hand, 'Piece')} in stock. Every delivery and correction is listed here and cannot be changed or deleted.`}
+                    description={`${product.name} · ${formatUnits(product.stock_on_hand, 'Piece')} in stock · ${product.is_sold ? `you are warned at ${formatUnits(product.low_stock_alert_at, 'Piece')} per variant` : 'not watched for low stock (only Available and On Sale products are)'}. Every delivery and correction is listed here and cannot be changed or deleted.`}
                     actions={
                         <>
                             <Link
@@ -92,9 +92,15 @@ export default function ProductStock({
                     {variants.map((variant) => (
                         <SummaryCard
                             key={variant.id}
-                            label={
-                                product.has_options ? variant.label : 'In stock'
-                            }
+                            label={`${product.has_options ? variant.label : 'In stock'}${
+                                product.is_sold &&
+                                variant.stock_on_hand <=
+                                    product.low_stock_alert_at
+                                    ? variant.stock_on_hand === 0
+                                        ? ' · Out of stock'
+                                        : ' · Low stock'
+                                    : ''
+                            }`}
                             value={formatUnits(variant.stock_on_hand, 'Piece')}
                             description={
                                 variant.estore_item_code

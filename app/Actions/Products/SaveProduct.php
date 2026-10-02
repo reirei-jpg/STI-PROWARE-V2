@@ -10,6 +10,7 @@ use App\Models\ProductVariant;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductVariants;
 use App\Services\Stock\DeliveredStock;
+use App\Services\Stock\LowStockAlerts;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -24,11 +25,15 @@ use Illuminate\Support\Facades\Storage;
  * stock).
  *
  * When a variant gets an eStore Item Code, deliveries of that item that
- * arrived before it was linked are added to stock.
+ * arrived before it was linked are added to stock. Changing the low-stock
+ * number lets variants now above it be warned again later.
  */
 class SaveProduct
 {
-    public function __construct(private DeliveredStock $deliveredStock) {}
+    public function __construct(
+        private DeliveredStock $deliveredStock,
+        private LowStockAlerts $lowStockAlerts,
+    ) {}
 
     /**
      * @return int pieces of earlier deliveries added to stock
@@ -49,6 +54,7 @@ class SaveProduct
                     'price_centavos' => $soldByPiece ? $request->centavos('price') : null,
                     'sale_price_centavos' => $soldByPiece && $status === ProductStatus::OnSale ? $request->centavos('sale_price') : null,
                     'status' => $status,
+                    'low_stock_alert_at' => $request->integer('low_stock_alert_at'),
                 ])->save();
 
                 $removedPhotoPaths = $this->syncPhotos($product, $request, $newPhotoPaths);
@@ -59,6 +65,8 @@ class SaveProduct
                 foreach ($product->variants()->whereNotNull('estore_item_code')->get() as $variant) {
                     $piecesAdded += $this->deliveredStock->addWaitingFor($variant, $request->user());
                 }
+
+                $this->lowStockAlerts->rearm($product);
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($newPhotoPaths);

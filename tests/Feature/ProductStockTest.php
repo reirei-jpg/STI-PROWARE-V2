@@ -39,6 +39,7 @@ function draftProductWithCode(string $code): array
         'price' => '35',
         'status' => 'draft',
         'sale_price' => '',
+        'low_stock_alert_at' => '5',
         'photos' => [],
         'packs' => [],
         'options' => [],

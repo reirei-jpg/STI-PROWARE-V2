@@ -7,6 +7,7 @@ import {
     Pencil,
     Plus,
     Search,
+    TriangleAlert,
     Unlink,
     X,
 } from 'lucide-react';
@@ -48,6 +49,10 @@ function filterQuery(filters: ProductFilters): Record<string, string> {
         query.status = filters.status;
     }
 
+    if (filters.stock) {
+        query.stock = filters.stock;
+    }
+
     return query;
 }
 
@@ -55,13 +60,18 @@ export default function ProductsIndex({
     products,
     filters,
     itemsToLinkCount,
+    lowStockCount,
 }: {
     products: Paginated<ProductListItem>;
     filters: ProductFilters;
     itemsToLinkCount: number;
+    lowStockCount: number;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
-    const isFiltered = filters.search !== null || filters.status !== null;
+    const isFiltered =
+        filters.search !== null ||
+        filters.status !== null ||
+        filters.stock !== null;
     const firstRender = useRef(true);
 
     const showList = (next: ProductFilters) => {
@@ -83,8 +93,8 @@ export default function ProductsIndex({
         const timer = window.setTimeout(
             () =>
                 showList({
+                    ...filters,
                     search: search.trim() === '' ? null : search.trim(),
-                    status: filters.status,
                 }),
             400,
         );
@@ -172,14 +182,14 @@ export default function ProductsIndex({
                         />
                     </label>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         {statusChips.map((chip) => (
                             <button
                                 key={chip.label}
                                 type="button"
                                 onClick={() =>
                                     showList({
-                                        search: filters.search,
+                                        ...filters,
                                         status: chip.value,
                                     })
                                 }
@@ -192,6 +202,35 @@ export default function ProductsIndex({
                                 {chip.label}
                             </button>
                         ))}
+                        <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
+                        <button
+                            type="button"
+                            onClick={() =>
+                                showList({
+                                    ...filters,
+                                    stock:
+                                        filters.stock === 'low' ? null : 'low',
+                                })
+                            }
+                            aria-pressed={filters.stock === 'low'}
+                            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                filters.stock === 'low'
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                            }`}
+                        >
+                            <TriangleAlert size={14} />
+                            Low stock
+                            <span
+                                className={`rounded-full px-1.5 text-[11px] font-black ${
+                                    filters.stock === 'low'
+                                        ? 'bg-white/25'
+                                        : 'bg-amber-100'
+                                }`}
+                            >
+                                {lowStockCount.toLocaleString('en-PH')}
+                            </span>
+                        </button>
                     </div>
                 </section>
 
@@ -223,6 +262,7 @@ export default function ProductsIndex({
                                         showList({
                                             search: null,
                                             status: null,
+                                            stock: null,
                                         });
                                     }}
                                     className={`mt-6 ${primaryButtonClasses}`}
@@ -322,6 +362,19 @@ export default function ProductsIndex({
                                                     <span className="text-xs text-slate-500">
                                                         pcs
                                                     </span>
+                                                    {product.low_stock && (
+                                                        <span
+                                                            className="mt-1 flex justify-end"
+                                                            title={`A variant is at or below ${product.low_stock_alert_at} pcs`}
+                                                        >
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">
+                                                                <TriangleAlert
+                                                                    size={12}
+                                                                />
+                                                                Low stock
+                                                            </span>
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-4 text-right text-sm font-black text-slate-800">
                                                     {product.variants_count}

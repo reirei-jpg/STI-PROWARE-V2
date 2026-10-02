@@ -8,8 +8,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * The search and status filter on the Products list, read from the page
- * address.
+ * The search, status filter and "Low stock" filter on the Products list,
+ * read from the page address.
  */
 class FilterProductsRequest extends FormRequest
 {
@@ -21,7 +21,13 @@ class FilterProductsRequest extends FormRequest
         return [
             'search' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', Rule::enum(ProductStatus::class)],
+            'stock' => ['nullable', 'in:low'],
         ];
+    }
+
+    public function lowStockOnly(): bool
+    {
+        return $this->input('stock') === 'low';
     }
 
     public function search(): ?string

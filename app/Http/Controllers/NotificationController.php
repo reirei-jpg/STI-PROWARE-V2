@@ -6,18 +6,23 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * The School Admin's in-app notifications (the bell in the top bar).
+ * The in-app notifications (the bell in the top bar).
  */
 class NotificationController extends Controller
 {
     /**
-     * Open a notification: mark it read and show the purchase order it is
-     * about, with its details window already open.
+     * Open a notification: mark it read and show what it is about: the
+     * product's Stock History for a low-stock notice, otherwise the purchase
+     * order with its details window already open.
      */
     public function open(Request $request, string $notification): RedirectResponse
     {
         $notification = $request->user()->notifications()->findOrFail($notification);
         $notification->markAsRead();
+
+        if (($notification->data['kind'] ?? null) === 'low_stock') {
+            return to_route('products.stock', $notification->data['product_id']);
+        }
 
         return to_route('purchase-orders.index', ['view' => $notification->data['purchase_order_id'] ?? null]);
     }

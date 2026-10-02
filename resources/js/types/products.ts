@@ -12,6 +12,10 @@ export type ProductListItem = {
     packs_for_sale: { name: string; pieces: number; price_centavos: number }[];
     /** Pieces in stock across all variants. */
     stock_on_hand: number;
+    /** Pieces at which the Specialist is warned, per variant. */
+    low_stock_alert_at: number;
+    /** On sale to students with a variant at or below that number. */
+    low_stock: boolean;
     photo_url: string | null;
     variants_count: number;
     updated_at: string | null;
@@ -20,6 +24,7 @@ export type ProductListItem = {
 export type ProductFilters = {
     search: string | null;
     status: ProductStatus | null;
+    stock: 'low' | null;
 };
 
 export type ProductOptionInput = {
@@ -47,6 +52,7 @@ export type EditableProduct = {
     price: string;
     sale_price: string;
     status: ProductStatus;
+    low_stock_alert_at: string;
     photos: { id: number; url: string; label: string }[];
     packs: ProductPackInput[];
     options: ProductOptionInput[];
@@ -91,6 +97,10 @@ export type StockProduct = {
     has_options: boolean;
     /** Pieces in stock across all variants. */
     stock_on_hand: number;
+    /** Pieces at which the Specialist is warned, per variant. */
+    low_stock_alert_at: number;
+    /** Available or On Sale: only these get low-stock warnings. */
+    is_sold: boolean;
 };
 
 export type StockVariant = {

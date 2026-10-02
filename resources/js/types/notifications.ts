@@ -18,9 +18,18 @@ export type DeliveryReminderData = {
     quantity_remaining: number;
 };
 
+export type LowStockData = {
+    kind: 'low_stock';
+    product_id: number;
+    /** "TM Polo (S/M)", or the product name without options. */
+    product_name: string;
+    stock_on_hand: number;
+    alert_at: number;
+};
+
 export type StaffNotification = {
     id: string;
-    data: PurchaseOrderUploadedData | DeliveryReminderData;
+    data: PurchaseOrderUploadedData | DeliveryReminderData | LowStockData;
     read: boolean;
     created_at: string | null;
 };

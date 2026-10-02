@@ -8,6 +8,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { formatUnits } from '@/lib/units';
 import type { StaffNotification } from '@/types';
 
 /**
@@ -136,6 +137,24 @@ export default function NotificationBell() {
 }
 
 function NotificationText({ data }: { data: StaffNotification['data'] }) {
+    if (data.kind === 'low_stock') {
+        return (
+            <>
+                <span
+                    className={`block text-sm font-bold ${data.stock_on_hand === 0 ? 'text-red-700' : 'text-amber-800'}`}
+                >
+                    {data.stock_on_hand === 0 ? 'Out of stock' : 'Low stock'}:{' '}
+                    {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {formatUnits(data.stock_on_hand, 'Piece')} left · you are
+                    warned at {formatUnits(data.alert_at, 'Piece')}. Order more
+                    in the eStore.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'delivery_reminder') {
         return (
             <>
@@ -146,7 +165,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.percent_received}% received so far ·{' '}
                     {data.quantity_remaining.toLocaleString('en-PH')} still to
-                    come
+                    come (as ordered on the eStore)
                     {data.expected_delivery_date
                         ? ` · ${formatDateOrdered(data.expected_delivery_date)}`
                         : ''}

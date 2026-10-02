@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $estore_pack_id
  * @property int|null $price_centavos
  * @property int $stock_on_hand
+ * @property Carbon|null $low_stock_notified_at when the low-stock warning was sent; cleared when stock rises above the number
  * @property int $position
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -48,6 +49,7 @@ class ProductVariant extends Model
             'choices' => 'array',
             'price_centavos' => 'integer',
             'stock_on_hand' => 'integer',
+            'low_stock_notified_at' => 'datetime',
         ];
     }
 

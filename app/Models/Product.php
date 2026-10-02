@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\ProductStatus;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,10 +24,11 @@ use Illuminate\Support\Carbon;
  * @property int|null $price_centavos
  * @property int|null $sale_price_centavos
  * @property ProductStatus $status
+ * @property int $low_stock_alert_at pieces at which the Specialist is warned, per variant
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status'])]
+#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -41,6 +44,7 @@ class Product extends Model
             'price_centavos' => 'integer',
             'sale_price_centavos' => 'integer',
             'status' => ProductStatus::class,
+            'low_stock_alert_at' => 'integer',
         ];
     }
 
@@ -84,5 +88,18 @@ class Product extends Model
     public function packs(): HasMany
     {
         return $this->hasMany(ProductPack::class)->orderBy('position');
+    }
+
+    /**
+     * Products students can buy now (Available or On Sale) with a variant
+     * at or below the product's low-stock number.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function lowOnStock(Builder $query): void
+    {
+        $query->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
+            ->whereHas('variants', fn (Builder $variants) => $variants->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at'));
     }
 }

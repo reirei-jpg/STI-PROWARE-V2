@@ -24,6 +24,7 @@ class ProductFactory extends Factory
             'price_centavos' => fake()->numberBetween(50, 800) * 100,
             'sale_price_centavos' => null,
             'status' => ProductStatus::Available,
+            'low_stock_alert_at' => 5,
         ];
     }
 

@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class DeliveredStock
 {
+    public function __construct(private LowStockAlerts $lowStockAlerts) {}
+
     /**
      * Add the delivered items whose eStore Item Code is linked to a variant.
      * Items already in stock, and items not linked yet, are skipped.
@@ -80,6 +82,11 @@ final class DeliveredStock
                 ]);
 
                 $piecesAdded += $pieces;
+            }
+
+            // Stock went up, so a variant warned before may be warned again.
+            foreach ($variants as $variant) {
+                $this->lowStockAlerts->check($variant);
             }
 
             return $piecesAdded;

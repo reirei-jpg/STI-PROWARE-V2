@@ -7,6 +7,7 @@ use App\Enums\StockMovementType;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\Stock\LowStockAlerts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,6 +18,8 @@ use Illuminate\Validation\ValidationException;
  */
 class CorrectStock
 {
+    public function __construct(private LowStockAlerts $lowStockAlerts) {}
+
     /**
      * @param  int  $amount  pieces to take out, or the actual count on the shelf, depending on the reason
      */
@@ -37,7 +40,7 @@ class CorrectStock
 
             $locked->forceFill(['stock_on_hand' => $balance])->save();
 
-            return $locked->stockMovements()->create([
+            $correction = $locked->stockMovements()->create([
                 'type' => StockMovementType::Correction,
                 'quantity' => $change,
                 'balance_after' => $balance,
@@ -45,6 +48,10 @@ class CorrectStock
                 'note' => $note,
                 'recorded_by' => $correctedBy->id,
             ]);
+
+            $this->lowStockAlerts->check($locked);
+
+            return $correction;
         });
     }
 }

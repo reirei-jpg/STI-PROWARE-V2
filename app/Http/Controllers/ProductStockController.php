@@ -9,6 +9,7 @@ use App\Http\Requests\FilterStockHistoryRequest;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
+use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -65,6 +66,8 @@ class ProductStockController extends Controller
                 'name' => $product->name,
                 'has_options' => $product->variants->contains(fn (ProductVariant $variant): bool => $variant->choices !== []),
                 'stock_on_hand' => (int) $product->variants->sum('stock_on_hand'),
+                'low_stock_alert_at' => $product->low_stock_alert_at,
+                'is_sold' => LowStockAlerts::isSold($product),
             ],
             'variants' => $product->variants->map(fn (ProductVariant $variant): array => [
                 'id' => $variant->id,
