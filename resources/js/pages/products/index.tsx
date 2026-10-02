@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    Boxes,
     ImageIcon,
     Link2,
     Package,
@@ -12,6 +13,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
+import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
@@ -329,16 +331,27 @@ export default function ProductsIndex({
                                                         product.updated_at,
                                                     )}
                                                 </td>
-                                                <td className="px-5 py-4 text-right">
-                                                    <Link
-                                                        href={ProductController.edit(
-                                                            product.id,
-                                                        )}
-                                                        className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                                                    >
-                                                        <Pencil size={15} />
-                                                        Edit
-                                                    </Link>
+                                                <td className="px-5 py-4">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Link
+                                                            href={ProductStockController.index(
+                                                                product.id,
+                                                            )}
+                                                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                                                        >
+                                                            <Boxes size={15} />
+                                                            Stock
+                                                        </Link>
+                                                        <Link
+                                                            href={ProductController.edit(
+                                                                product.id,
+                                                            )}
+                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                                        >
+                                                            <Pencil size={15} />
+                                                            Edit
+                                                        </Link>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

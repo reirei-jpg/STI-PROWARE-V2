@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StockCorrectionReason;
 use App\Enums\StockMovementType;
 use Database\Factories\StockMovementFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,7 +14,8 @@ use Illuminate\Support\Carbon;
 /**
  * One change to a variant's stock, in pieces, with the balance after it.
  * For a delivery it also keeps the eStore quantity and the pack it came in,
- * e.g. 2 × Pack (50 pieces) = +100. Together these are the stock history.
+ * e.g. 2 × Pack (50 pieces) = +100; for a correction, the reason and note.
+ * Together these are the stock history, which is never edited or deleted.
  *
  * @property int $id
  * @property int $product_variant_id
@@ -24,7 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $units_received
  * @property string|null $unit_name
  * @property int|null $pieces_per_unit
- * @property string|null $reason
+ * @property StockCorrectionReason|null $reason
  * @property string|null $note
  * @property int|null $recorded_by
  * @property Carbon|null $created_at
@@ -47,6 +49,7 @@ class StockMovement extends Model
             'balance_after' => 'integer',
             'units_received' => 'integer',
             'pieces_per_unit' => 'integer',
+            'reason' => StockCorrectionReason::class,
         ];
     }
 

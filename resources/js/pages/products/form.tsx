@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     ArrowRight,
+    Boxes,
     ImagePlus,
     Link2,
     LoaderCircle,
@@ -13,6 +14,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
+import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
@@ -359,13 +361,26 @@ export default function ProductForm({
                     title={product ? 'Edit Product' : 'Add Product'}
                     description="Students see the photos, name, price and options on the storefront."
                     actions={
-                        <Link
-                            href={ProductController.index()}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                            <ArrowLeft size={18} />
-                            Back to Products
-                        </Link>
+                        <>
+                            <Link
+                                href={ProductController.index()}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            >
+                                <ArrowLeft size={18} />
+                                Back to Products
+                            </Link>
+                            {product && (
+                                <Link
+                                    href={ProductStockController.index(
+                                        product.id,
+                                    )}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    <Boxes size={18} />
+                                    Stock History
+                                </Link>
+                            )}
+                        </>
                     }
                 />
 

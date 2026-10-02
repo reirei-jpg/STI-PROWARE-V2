@@ -4,6 +4,7 @@ use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ItemLinkController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductStockController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseOrderDeliveryController;
 use App\Http\Controllers\PurchaseOrderScanController;
@@ -37,6 +38,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('products/items-to-link', [ItemLinkController::class, 'index'])->name('item-links.index');
         Route::get('products/items-to-link/products', [ItemLinkController::class, 'products'])->name('item-links.products');
         Route::post('products/items-to-link', [ItemLinkController::class, 'store'])->name('item-links.store');
+        Route::get('products/{product}/stock', [ProductStockController::class, 'index'])->name('products.stock');
+        Route::post('products/{product}/stock-corrections', [ProductStockController::class, 'store'])->name('products.stock.correct');
         Route::resource('products', ProductController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     });
 });

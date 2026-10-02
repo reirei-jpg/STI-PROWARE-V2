@@ -84,6 +84,54 @@ export type ItemsToLinkFilters = {
     search: string | null;
 };
 
+/** The product whose Stock History is shown. */
+export type StockProduct = {
+    id: number;
+    name: string;
+    has_options: boolean;
+    /** Pieces in stock across all variants. */
+    stock_on_hand: number;
+};
+
+export type StockVariant = {
+    id: number;
+    label: string;
+    stock_on_hand: number;
+    estore_item_code: string | null;
+    /** "Pack (10 pcs)" when Head Office sends it by a pack; null by the piece. */
+    sent_by: string | null;
+};
+
+/** One change to a variant's stock, in pieces. */
+export type StockMovementRow = {
+    id: number;
+    created_at: string | null;
+    variant_label: string;
+    type: 'delivery' | 'correction';
+    type_label: string;
+    /** + added, − taken out, in pieces. */
+    quantity: number;
+    balance_after: number;
+    units_received: number | null;
+    unit_name: string | null;
+    pieces_per_unit: number | null;
+    reason_label: string | null;
+    note: string | null;
+    delivery: {
+        received_on: string;
+        sales_invoice_number: string | null;
+        order_number: string | null;
+    } | null;
+    recorded_by: string | null;
+};
+
+export type StockCorrectionReasonOption = {
+    value: string;
+    label: string;
+    /** True: enter pieces to take out. False: enter the actual count. */
+    removes_pieces: boolean;
+};
+
 /** A product to choose from in the Link pop-up. */
 export type LinkableProduct = {
     id: number;
