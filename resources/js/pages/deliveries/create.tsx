@@ -1,13 +1,16 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Boxes,
     LoaderCircle,
     PackageCheck,
     Save,
     Search,
+    Unlink,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
+import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
@@ -364,6 +367,7 @@ export default function RecordDelivery({
                                         </label>
                                     }
                                 >
+                                    <StockTargetNote group={group} />
                                     <div className="overflow-x-auto">
                                         <table className="w-full min-w-200">
                                             <thead className="bg-slate-50">
@@ -521,5 +525,50 @@ export default function RecordDelivery({
                 )}
             </form>
         </>
+    );
+}
+
+/**
+ * Where this item goes in stock once saved: the linked product and how
+ * many pieces each eStore unit adds, or a warning that it is not linked to
+ * a product yet, so it will not be added to stock.
+ */
+function StockTargetNote({ group }: { group: WaitingItemGroup }) {
+    const target = group.stock_target;
+
+    if (target === null) {
+        return (
+            <div className="flex flex-col gap-2 border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+                <span className="inline-flex items-center gap-2">
+                    <Unlink size={16} className="shrink-0" />
+                    Not linked to a product yet, so it will not be added to
+                    stock. You can still record it and link it later.
+                </span>
+                <Link
+                    href={ItemLinkController.index({
+                        query: { search: group.item_code },
+                    })}
+                    className="shrink-0 font-black text-amber-900 underline underline-offset-2"
+                >
+                    Link it now
+                </Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex items-center gap-2 border-b border-emerald-100 bg-emerald-50 px-6 py-3 text-sm text-emerald-800">
+            <Boxes size={16} className="shrink-0" />
+            <span>
+                Goes into stock:{' '}
+                <span className="font-black">
+                    {target.product_name}
+                    {target.has_options && ` (${target.variant_label})`}
+                </span>
+                {target.pieces_per_unit > 1
+                    ? ` · Head Office sends it by the ${target.unit_name}: 1 ${target.unit_name} = ${target.pieces_per_unit.toLocaleString('en-PH')} pieces`
+                    : ' · by the piece'}
+            </span>
+        </div>
     );
 }

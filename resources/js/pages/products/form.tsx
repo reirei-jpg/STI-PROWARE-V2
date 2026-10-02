@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     ArrowRight,
     ImagePlus,
+    Link2,
     LoaderCircle,
     Plus,
     Save,
@@ -20,12 +21,15 @@ import { variantCombinations } from '@/lib/product-variants';
 import { cn } from '@/lib/utils';
 import type {
     EditableProduct,
+    ProductFromItem,
     ProductOptionInput,
+    ProductPackInput,
     ProductStatus,
 } from '@/types';
 
 const MAX_PHOTOS = 6;
 const MAX_OPTIONS = 3;
+const MAX_PACKS = 5;
 
 type PhotoInput = {
     id: number | null;
@@ -34,17 +38,32 @@ type PhotoInput = {
     label: string;
 };
 
-type VariantInput = { estore_item_code: string; price: string };
+type VariantInput = {
+    estore_item_code: string;
+    estore_pack_key: string;
+    price: string;
+};
 
 type ProductFormData = {
     name: string;
+    sold_by_piece: boolean;
     price: string;
     status: ProductStatus;
     sale_price: string;
     photos: PhotoInput[];
+    packs: ProductPackInput[];
     options: ProductOptionInput[];
     variant_inputs: Record<string, VariantInput>;
 };
+
+const emptyVariantInput: VariantInput = {
+    estore_item_code: '',
+    estore_pack_key: '',
+    price: '',
+};
+
+/** Keeps only digits, so "50 pcs" becomes "50". */
+const digitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 6);
 
 const statuses: { value: ProductStatus; label: string; description: string }[] =
     [
@@ -78,11 +97,14 @@ const inputClasses =
 
 export default function ProductForm({
     product,
+    fromItem,
 }: {
     product: EditableProduct | null;
+    fromItem: ProductFromItem | null;
 }) {
     const form = useForm<ProductFormData>({
-        name: product?.name ?? '',
+        name: product?.name ?? fromItem?.description.slice(0, 120) ?? '',
+        sold_by_piece: product?.sold_by_piece ?? true,
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
         sale_price: product?.sale_price ?? '',
@@ -93,16 +115,27 @@ export default function ProductForm({
                 file: null,
                 label: photo.label,
             })) ?? [],
+        packs: product?.packs ?? [],
         options: product?.options ?? [],
-        variant_inputs: Object.fromEntries(
-            (product?.variants ?? []).map((variant) => [
-                variant.combination,
-                {
-                    estore_item_code: variant.estore_item_code,
-                    price: variant.price,
-                },
-            ]),
-        ),
+        variant_inputs: product
+            ? Object.fromEntries(
+                  product.variants.map((variant) => [
+                      variant.combination,
+                      {
+                          estore_item_code: variant.estore_item_code,
+                          estore_pack_key: variant.estore_pack_key,
+                          price: variant.price,
+                      },
+                  ]),
+              )
+            : fromItem
+              ? {
+                    '': {
+                        ...emptyVariantInput,
+                        estore_item_code: fromItem.item_code,
+                    },
+                }
+              : {},
     });
 
     const { data, setData, processing } = form;
@@ -112,6 +145,17 @@ export default function ProductForm({
             (option) => option.name.trim() !== '' && option.choices.length > 0,
         ),
     );
+    const stockByCombination = Object.fromEntries(
+        (product?.variants ?? []).map((variant) => [
+            variant.combination,
+            variant.stock_on_hand,
+        ]),
+    );
+    const variantInput = (key: string): VariantInput =>
+        data.variant_inputs[key] ?? emptyVariantInput;
+
+    // New packs get a key of their own until they are saved.
+    const nextPackNumber = useRef(1);
 
     // Free the previews of newly chosen photos when leaving the page.
     const previews = useRef<string[]>([]);
@@ -123,22 +167,39 @@ export default function ProductForm({
     const submit = () => {
         form.transform((current) => ({
             name: current.name,
-            price: current.price,
+            sold_by_piece: current.sold_by_piece,
+            price: current.sold_by_piece ? current.price : '',
             status: current.status,
-            sale_price: current.status === 'on_sale' ? current.sale_price : '',
+            sale_price:
+                current.sold_by_piece && current.status === 'on_sale'
+                    ? current.sale_price
+                    : '',
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
                 file: photo.file ?? '',
                 label: photo.label,
             })),
-            options: current.options,
-            variants: combinations.map((combination) => ({
-                combination: combination.key,
-                estore_item_code:
-                    current.variant_inputs[combination.key]?.estore_item_code ??
-                    '',
-                price: current.variant_inputs[combination.key]?.price ?? '',
+            packs: current.packs.map((pack) => ({
+                key: pack.key,
+                id: pack.id ?? '',
+                name: pack.name,
+                pieces: pack.pieces,
+                sold_to_students: pack.sold_to_students,
+                price: pack.sold_to_students ? pack.price : '',
             })),
+            options: current.options,
+            variants: combinations.map((combination) => {
+                const input =
+                    current.variant_inputs[combination.key] ??
+                    emptyVariantInput;
+
+                return {
+                    combination: combination.key,
+                    estore_item_code: input.estore_item_code,
+                    estore_pack_key: input.estore_pack_key,
+                    price: current.sold_by_piece ? input.price : '',
+                };
+            }),
             ...(product ? { _method: 'put' } : {}),
         }));
 
@@ -231,13 +292,53 @@ export default function ProductForm({
     ) =>
         setData('variant_inputs', {
             ...data.variant_inputs,
-            [key]: {
-                estore_item_code:
-                    data.variant_inputs[key]?.estore_item_code ?? '',
-                price: data.variant_inputs[key]?.price ?? '',
-                [field]: value,
-            },
+            [key]: { ...variantInput(key), [field]: value },
         });
+
+    const addPack = () => {
+        const key = `new-${nextPackNumber.current++}`;
+
+        setData('packs', [
+            ...data.packs,
+            {
+                key,
+                id: null,
+                name: 'Pack',
+                pieces: '',
+                sold_to_students: false,
+                price: '',
+            },
+        ]);
+    };
+
+    const updatePack = (key: string, changes: Partial<ProductPackInput>) =>
+        setData(
+            'packs',
+            data.packs.map((pack) =>
+                pack.key === key ? { ...pack, ...changes } : pack,
+            ),
+        );
+
+    /** The variants whose eStore item Head Office sends in this pack. */
+    const variantsUsingPack = (key: string) =>
+        combinations.filter(
+            (combination) =>
+                variantInput(combination.key).estore_pack_key === key,
+        );
+
+    const packLabel = (pack: ProductPackInput) =>
+        `${pack.name.trim() || 'Pack'} (${pack.pieces || '?'} pcs)`;
+
+    // The eStore item this product is created from, if its code is no
+    // longer on any variant (e.g. after options were added).
+    const fromItemCodeMissing =
+        fromItem !== null &&
+        !combinations.some(
+            (combination) =>
+                variantInput(combination.key)
+                    .estore_item_code.trim()
+                    .toUpperCase() === fromItem.item_code,
+        );
 
     const firstPhotoError = data.photos
         .map((_, index) => errors[`photos.${index}.file`])
@@ -267,6 +368,31 @@ export default function ProductForm({
                         </Link>
                     }
                 />
+
+                {fromItem && (
+                    <section className="flex items-start gap-3 rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
+                        <Link2 size={20} className="mt-0.5 shrink-0" />
+                        <div>
+                            <p className="font-black">
+                                New product from eStore item{' '}
+                                <span className="font-mono">
+                                    {fromItem.item_code}
+                                </span>{' '}
+                                · {fromItem.description}
+                            </p>
+                            <p className="mt-1 leading-6">
+                                Its eStore Item Code is already on the variant
+                                below, so its deliveries go into stock when you
+                                save. If the item comes in sizes or colors, add
+                                the options first, then put{' '}
+                                <span className="font-mono">
+                                    {fromItem.item_code}
+                                </span>{' '}
+                                on the right variant.
+                            </p>
+                        </div>
+                    </section>
+                )}
 
                 <Panel
                     title="Photos"
@@ -414,17 +540,238 @@ export default function ProductForm({
                                 className={inputClasses}
                             />
                         </Field>
-                        <Field
-                            label="Student price"
-                            hint="What students pay, not the Head Office cost."
-                            error={errors.price}
+                    </div>
+                </Panel>
+
+                <Panel
+                    title="Pieces and Packs"
+                    description="Stock is always counted in pieces. Add a pack when Head Office sends this item in packs, or when students can buy a whole pack, e.g. Pack = 50 pieces. Student prices are what students pay, not the Head Office cost."
+                >
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-175">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <TableHeading>Sold as</TableHeading>
+                                    <TableHeading>Pieces in one</TableHeading>
+                                    <TableHeading>
+                                        Students can buy it
+                                    </TableHeading>
+                                    <TableHeading>Student price</TableHeading>
+                                    <TableHeading align="right">
+                                        <span className="sr-only">Actions</span>
+                                    </TableHeading>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="border-t border-slate-100 align-top">
+                                    <td className="px-5 py-4">
+                                        <p className="flex h-11 items-center font-black text-slate-900">
+                                            Piece
+                                        </p>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <p className="flex h-11 items-center font-bold text-slate-500">
+                                            1
+                                        </p>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <SellCheckbox
+                                            checked={data.sold_by_piece}
+                                            onChange={(checked) =>
+                                                setData(
+                                                    'sold_by_piece',
+                                                    checked,
+                                                )
+                                            }
+                                            label="Sell by the piece"
+                                        />
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <PesoInput
+                                            value={data.price}
+                                            onChange={(value) =>
+                                                setData('price', value)
+                                            }
+                                            placeholder={
+                                                data.sold_by_piece
+                                                    ? '350'
+                                                    : 'Not sold by the piece'
+                                            }
+                                            disabled={!data.sold_by_piece}
+                                            label="Price per piece"
+                                        />
+                                        <InputError
+                                            className="mt-1"
+                                            message={errors.price}
+                                        />
+                                    </td>
+                                    <td className="px-5 py-4" />
+                                </tr>
+
+                                {data.packs.map((pack, index) => {
+                                    const usedBy = variantsUsingPack(pack.key);
+
+                                    return (
+                                        <tr
+                                            key={pack.key}
+                                            className="border-t border-slate-100 align-top"
+                                        >
+                                            <td className="px-5 py-4">
+                                                <input
+                                                    value={pack.name}
+                                                    onChange={(event) =>
+                                                        updatePack(pack.key, {
+                                                            name: event.target
+                                                                .value,
+                                                        })
+                                                    }
+                                                    list="pack-names"
+                                                    maxLength={30}
+                                                    placeholder="e.g. Pack"
+                                                    className={cn(
+                                                        inputClasses,
+                                                        'w-40',
+                                                    )}
+                                                    aria-label={`Name of pack ${index + 1}`}
+                                                />
+                                                <InputError
+                                                    className="mt-1"
+                                                    message={
+                                                        errors[
+                                                            `packs.${index}.name`
+                                                        ]
+                                                    }
+                                                />
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className="flex items-center gap-2">
+                                                    <input
+                                                        value={pack.pieces}
+                                                        onChange={(event) =>
+                                                            updatePack(
+                                                                pack.key,
+                                                                {
+                                                                    pieces: digitsOnly(
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    ),
+                                                                },
+                                                            )
+                                                        }
+                                                        inputMode="numeric"
+                                                        placeholder="50"
+                                                        className={cn(
+                                                            inputClasses,
+                                                            'w-28 text-right',
+                                                        )}
+                                                        aria-label={`Pieces in one ${pack.name || 'pack'}`}
+                                                    />
+                                                    <span className="text-sm text-slate-500">
+                                                        pcs
+                                                    </span>
+                                                </span>
+                                                <InputError
+                                                    className="mt-1"
+                                                    message={
+                                                        errors[
+                                                            `packs.${index}.pieces`
+                                                        ]
+                                                    }
+                                                />
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <SellCheckbox
+                                                    checked={
+                                                        pack.sold_to_students
+                                                    }
+                                                    onChange={(checked) =>
+                                                        updatePack(pack.key, {
+                                                            sold_to_students:
+                                                                checked,
+                                                        })
+                                                    }
+                                                    label={`Sell the whole ${pack.name.trim() || 'pack'}`}
+                                                />
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <PesoInput
+                                                    value={pack.price}
+                                                    onChange={(value) =>
+                                                        updatePack(pack.key, {
+                                                            price: value,
+                                                        })
+                                                    }
+                                                    placeholder={
+                                                        pack.sold_to_students
+                                                            ? '900'
+                                                            : 'Not sold to students'
+                                                    }
+                                                    disabled={
+                                                        !pack.sold_to_students
+                                                    }
+                                                    label={`Price of one ${pack.name || 'pack'}`}
+                                                />
+                                                <InputError
+                                                    className="mt-1"
+                                                    message={
+                                                        errors[
+                                                            `packs.${index}.price`
+                                                        ]
+                                                    }
+                                                />
+                                            </td>
+                                            <td className="px-5 py-4 text-right">
+                                                <button
+                                                    type="button"
+                                                    disabled={usedBy.length > 0}
+                                                    title={
+                                                        usedBy.length > 0
+                                                            ? `Head Office sends ${usedBy.map((combination) => combination.label).join(', ')} in this pack. Change that in Variants first.`
+                                                            : undefined
+                                                    }
+                                                    onClick={() =>
+                                                        setData(
+                                                            'packs',
+                                                            data.packs.filter(
+                                                                (current) =>
+                                                                    current.key !==
+                                                                    pack.key,
+                                                            ),
+                                                        )
+                                                    }
+                                                    className="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                >
+                                                    <Trash2 size={15} />
+                                                    Remove
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <datalist id="pack-names">
+                        <option value="Pack" />
+                        <option value="Box" />
+                        <option value="Bundle" />
+                        <option value="Dozen" />
+                        <option value="Set" />
+                    </datalist>
+                    <div className="flex flex-col gap-2 border-t border-slate-100 px-6 py-4">
+                        <button
+                            type="button"
+                            onClick={addPack}
+                            disabled={data.packs.length >= MAX_PACKS}
+                            className="inline-flex items-center gap-1 self-start rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                            <PesoInput
-                                value={data.price}
-                                onChange={(value) => setData('price', value)}
-                                placeholder="350"
-                            />
-                        </Field>
+                            <Plus size={14} />
+                            Add a pack
+                        </button>
+                        <InputError
+                            message={errors.sold_by_piece ?? errors.packs}
+                        />
                     </div>
                 </Panel>
 
@@ -558,10 +905,19 @@ export default function ProductForm({
 
                 <Panel
                     title="Variants"
-                    description="Every combination of the options. Add the eStore Item Code so deliveries from uploaded purchase orders match the right variant. Leave the price blank to use the student price."
+                    description="Every combination of the options. Add the eStore Item Code so deliveries from uploaded purchase orders go into the right variant's stock, and choose how Head Office sends it. Leave the price blank to use the price per piece."
                 >
+                    {fromItemCodeMissing && fromItem && (
+                        <p className="border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800">
+                            <span className="font-mono font-black">
+                                {fromItem.item_code}
+                            </span>{' '}
+                            is not on any variant yet. Type it on the variant
+                            that matches {fromItem.description}.
+                        </p>
+                    )}
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-150">
+                        <table className="w-full min-w-225">
                             <thead className="bg-slate-50">
                                 <tr>
                                     <TableHeading>Variant</TableHeading>
@@ -569,8 +925,16 @@ export default function ProductForm({
                                         eStore Item Code
                                     </TableHeading>
                                     <TableHeading>
-                                        Price (optional)
+                                        Head Office sends it by
                                     </TableHeading>
+                                    <TableHeading>
+                                        Price per piece (optional)
+                                    </TableHeading>
+                                    {product && (
+                                        <TableHeading align="right">
+                                            Stock
+                                        </TableHeading>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody>
@@ -585,9 +949,9 @@ export default function ProductForm({
                                         <td className="px-5 py-4">
                                             <input
                                                 value={
-                                                    data.variant_inputs[
-                                                        combination.key
-                                                    ]?.estore_item_code ?? ''
+                                                    variantInput(
+                                                        combination.key,
+                                                    ).estore_item_code
                                                 }
                                                 onChange={(event) =>
                                                     updateVariant(
@@ -614,11 +978,71 @@ export default function ProductForm({
                                             />
                                         </td>
                                         <td className="px-5 py-4">
+                                            <select
+                                                value={
+                                                    variantInput(
+                                                        combination.key,
+                                                    ).estore_pack_key
+                                                }
+                                                onChange={(event) =>
+                                                    updateVariant(
+                                                        combination.key,
+                                                        'estore_pack_key',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                className={cn(
+                                                    inputClasses,
+                                                    'w-48',
+                                                )}
+                                                aria-label={`How Head Office sends ${combination.label}`}
+                                            >
+                                                <option value="">Piece</option>
+                                                {data.packs.map((pack) => (
+                                                    <option
+                                                        key={pack.key}
+                                                        value={pack.key}
+                                                    >
+                                                        {packLabel(pack)}
+                                                    </option>
+                                                ))}
+                                                {variantInput(combination.key)
+                                                    .estore_pack_key !== '' &&
+                                                    !data.packs.some(
+                                                        (pack) =>
+                                                            pack.key ===
+                                                            variantInput(
+                                                                combination.key,
+                                                            ).estore_pack_key,
+                                                    ) && (
+                                                        <option
+                                                            value={
+                                                                variantInput(
+                                                                    combination.key,
+                                                                )
+                                                                    .estore_pack_key
+                                                            }
+                                                        >
+                                                            Removed pack —
+                                                            choose again
+                                                        </option>
+                                                    )}
+                                            </select>
+                                            <InputError
+                                                className="mt-1"
+                                                message={
+                                                    errors[
+                                                        `variants.${index}.estore_pack_key`
+                                                    ]
+                                                }
+                                            />
+                                        </td>
+                                        <td className="px-5 py-4">
                                             <PesoInput
                                                 value={
-                                                    data.variant_inputs[
-                                                        combination.key
-                                                    ]?.price ?? ''
+                                                    variantInput(
+                                                        combination.key,
+                                                    ).price
                                                 }
                                                 onChange={(value) =>
                                                     updateVariant(
@@ -628,9 +1052,12 @@ export default function ProductForm({
                                                     )
                                                 }
                                                 placeholder={
-                                                    data.price ||
-                                                    'Student price'
+                                                    data.sold_by_piece
+                                                        ? data.price ||
+                                                          'Price per piece'
+                                                        : 'Not sold by the piece'
                                                 }
+                                                disabled={!data.sold_by_piece}
                                                 label={`Price for ${combination.label}`}
                                             />
                                             <InputError
@@ -642,6 +1069,24 @@ export default function ProductForm({
                                                 }
                                             />
                                         </td>
+                                        {product && (
+                                            <td className="px-5 py-4 text-right">
+                                                <p className="flex h-11 items-center justify-end gap-1">
+                                                    <span className="font-black text-slate-900">
+                                                        {(
+                                                            stockByCombination[
+                                                                combination.key
+                                                            ] ?? 0
+                                                        ).toLocaleString(
+                                                            'en-PH',
+                                                        )}
+                                                    </span>
+                                                    <span className="text-xs text-slate-500">
+                                                        pcs
+                                                    </span>
+                                                </p>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
@@ -766,11 +1211,13 @@ function PesoInput({
     onChange,
     placeholder,
     label,
+    disabled,
 }: {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
     label?: string;
+    disabled?: boolean;
 }) {
     return (
         <span className="relative block">
@@ -778,14 +1225,50 @@ function PesoInput({
                 ₱
             </span>
             <input
-                value={value}
+                value={disabled ? '' : value}
                 onChange={(event) => onChange(event.target.value)}
                 inputMode="decimal"
                 placeholder={placeholder}
                 aria-label={label}
-                className={cn(inputClasses, 'pl-7')}
+                disabled={disabled}
+                className={cn(
+                    inputClasses,
+                    'pl-7 disabled:cursor-not-allowed disabled:bg-slate-50',
+                )}
             />
         </span>
+    );
+}
+
+/**
+ * The "Students can buy it" tick box of a piece or a pack.
+ */
+function SellCheckbox({
+    checked,
+    onChange,
+    label,
+}: {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    label: string;
+}) {
+    return (
+        <label
+            className={cn(
+                'inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm font-bold transition',
+                checked
+                    ? 'border-[#0D6EFD] bg-blue-50 text-blue-800'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
+            )}
+        >
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => onChange(event.target.checked)}
+                className="h-4 w-4 shrink-0 accent-[#0D6EFD]"
+            />
+            {label}
+        </label>
     );
 }
 

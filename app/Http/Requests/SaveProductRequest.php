@@ -20,6 +20,11 @@ use Illuminate\Validation\Validator;
  * and dynamic: the Specialist names each one (Size, Program, Color…) and
  * lists its choices. Every combination of choices becomes a variant. An
  * option without choices yet does not block saving; it is just not saved.
+ *
+ * Stock is counted in pieces. Packs (e.g. Pack = 50 pieces) say how Head
+ * Office sends an item and let students buy a whole pack; students buy by
+ * the piece, by a pack, or both. Each pack has a key from the form so a
+ * variant can point to a pack that is not saved yet.
  */
 class SaveProductRequest extends FormRequest
 {
@@ -29,6 +34,8 @@ class SaveProductRequest extends FormRequest
 
     public const MAX_VARIANTS = 100;
 
+    public const MAX_PACKS = 5;
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -36,18 +43,38 @@ class SaveProductRequest extends FormRequest
     {
         $product = $this->route('product');
         $productId = $product instanceof Product ? $product->id : null;
+        $soldByPiece = $this->boolean('sold_by_piece');
 
         return [
             'name' => ['required', 'string', 'max:120'],
-            'price' => ['required', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'sold_by_piece' => ['required', 'boolean'],
+            'price' => [
+                Rule::requiredIf($soldByPiece),
+                'nullable',
+                'decimal:0,2',
+                'gt:0',
+                'max:1000000',
+            ],
             'status' => ['required', Rule::enum(ProductStatus::class)],
             'sale_price' => [
-                Rule::requiredIf($this->input('status') === ProductStatus::OnSale->value),
+                Rule::requiredIf($soldByPiece && $this->input('status') === ProductStatus::OnSale->value),
                 'nullable',
                 'decimal:0,2',
                 'gt:0',
                 'lt:price',
             ],
+
+            'packs' => ['nullable', 'array', 'max:'.self::MAX_PACKS],
+            'packs.*.key' => ['required', 'string', 'max:40', 'distinct'],
+            'packs.*.id' => [
+                'nullable',
+                'integer',
+                Rule::exists('product_packs', 'id')->where('product_id', $productId ?? 0),
+            ],
+            'packs.*.name' => ['required', 'string', 'max:30'],
+            'packs.*.pieces' => ['required', 'integer', 'min:2', 'max:100000'],
+            'packs.*.sold_to_students' => ['required', 'boolean'],
+            'packs.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
 
             'photos' => [
                 Rule::requiredIf($this->input('status') !== ProductStatus::Draft->value),
@@ -76,6 +103,7 @@ class SaveProductRequest extends FormRequest
             'variants' => ['nullable', 'array'],
             'variants.*.combination' => ['present', 'nullable', 'string'],
             'variants.*.estore_item_code' => ['nullable', 'string', 'max:40'],
+            'variants.*.estore_pack_key' => ['nullable', 'string', 'max:40'],
             'variants.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
         ];
     }
@@ -87,12 +115,19 @@ class SaveProductRequest extends FormRequest
     {
         return [
             'name.required' => 'Enter the product name.',
-            'price.required' => 'Enter the student price.',
-            'price.decimal' => 'Enter the student price in pesos, e.g. 350 or 350.50.',
-            'price.gt' => 'The student price must be more than ₱0.',
+            'price.required' => 'Enter the price per piece.',
+            'price.decimal' => 'Enter the price per piece in pesos, e.g. 350 or 350.50.',
+            'price.gt' => 'The price per piece must be more than ₱0.',
             'sale_price.required' => 'Enter the sale price for a product On Sale.',
             'sale_price.decimal' => 'Enter the sale price in pesos, e.g. 300 or 299.50.',
-            'sale_price.lt' => 'The sale price must be lower than the student price.',
+            'sale_price.lt' => 'The sale price must be lower than the price per piece.',
+            'packs.max' => 'A product can have up to '.self::MAX_PACKS.' packs.',
+            'packs.*.name.required' => 'Name the pack, e.g. Pack or Box.',
+            'packs.*.pieces.required' => 'Enter how many pieces are in one pack.',
+            'packs.*.pieces.integer' => 'Enter the number of pieces as a whole number.',
+            'packs.*.pieces.min' => 'A pack has at least 2 pieces.',
+            'packs.*.price.decimal' => 'Enter the pack price in pesos, e.g. 900.',
+            'packs.*.price.gt' => 'The pack price must be more than ₱0.',
             'photos.required' => 'Add at least one photo. Only a Draft can be saved without a photo.',
             'photos.max' => 'A product can have up to '.self::MAX_PHOTOS.' photos.',
             'photos.*.file.required_without' => 'Choose a photo file.',
@@ -151,9 +186,110 @@ class SaveProductRequest extends FormRequest
                     $validator->errors()->add('options', 'These options make more than '.self::MAX_VARIANTS.' variants. Use fewer choices.');
                 }
 
+                $this->validatePacks($validator);
                 $this->validateItemCodes($validator);
+                $this->validateVariantsWithStockAreKept($validator);
             },
         ];
+    }
+
+    /**
+     * The packs as sent by the form, trimmed, in the order shown.
+     *
+     * @return list<array{key: string, id: int|null, name: string, pieces: int, sold_to_students: bool, price_centavos: int|null}>
+     */
+    public function packs(): array
+    {
+        /** @var array<int, array{key?: string|null, id?: int|string|null, name?: string|null, pieces?: int|string|null, sold_to_students?: bool|string|null, price?: string|null}> $packs */
+        $packs = $this->input('packs', []);
+
+        return array_values(array_map(fn (array $pack): array => [
+            'key' => (string) ($pack['key'] ?? ''),
+            'id' => empty($pack['id']) ? null : (int) $pack['id'],
+            'name' => trim((string) ($pack['name'] ?? '')),
+            'pieces' => (int) ($pack['pieces'] ?? 0),
+            'sold_to_students' => filter_var($pack['sold_to_students'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'price_centavos' => ($pack['price'] ?? null) === null || $pack['price'] === '' ? null : self::toCentavos((string) $pack['price']),
+        ], $packs));
+    }
+
+    /**
+     * Pack names must differ from each other and from "Piece", a pack sold
+     * to students needs its price, and students must be able to buy the
+     * product somehow. A variant's "Head Office sends it by" must point to a
+     * pack still in the form.
+     */
+    private function validatePacks(Validator $validator): void
+    {
+        $packs = $this->packs();
+        $namesSeen = [];
+
+        foreach ($packs as $index => $pack) {
+            $name = mb_strtolower($pack['name']);
+
+            if (in_array($name, ['piece', 'pieces', 'pc', 'pcs'], true)) {
+                $validator->errors()->add("packs.{$index}.name", 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.');
+            } elseif (isset($namesSeen[$name])) {
+                $validator->errors()->add("packs.{$index}.name", 'Two packs have the same name.');
+            }
+
+            $namesSeen[$name] = true;
+
+            if ($pack['sold_to_students'] && $pack['price_centavos'] === null) {
+                $validator->errors()->add("packs.{$index}.price", "Enter the price students pay for one {$pack['name']}.");
+            }
+        }
+
+        $sellsAPack = array_filter($packs, fn (array $pack): bool => $pack['sold_to_students']) !== [];
+
+        if (! $this->boolean('sold_by_piece') && ! $sellsAPack) {
+            $validator->errors()->add('sold_by_piece', 'Choose how students buy it: by the piece, by a pack, or both.');
+        }
+
+        if (! $this->boolean('sold_by_piece') && $this->input('status') === ProductStatus::OnSale->value) {
+            $validator->errors()->add('status', 'On Sale lowers the price per piece. Sell it by the piece, or choose another status.');
+        }
+
+        $keys = array_column($packs, 'key');
+
+        /** @var array<int, array{estore_pack_key?: string|null}> $variants */
+        $variants = $this->input('variants', []);
+
+        foreach ($variants as $index => $variant) {
+            $key = $variant['estore_pack_key'] ?? null;
+
+            if ($key !== null && $key !== '' && ! in_array($key, $keys, true)) {
+                $validator->errors()->add("variants.{$index}.estore_pack_key", 'That pack was removed. Choose how Head Office sends this item again.');
+            }
+        }
+    }
+
+    /**
+     * A variant that already has stock records cannot disappear, or its
+     * stock and history would be lost. That happens when a choice it uses
+     * is removed or renamed, or when options are added to a product that
+     * had none.
+     */
+    private function validateVariantsWithStockAreKept(Validator $validator): void
+    {
+        $product = $this->route('product');
+
+        if (! $product instanceof Product) {
+            return;
+        }
+
+        $kept = array_column(ProductVariants::combinations($this->options()), 'combination');
+
+        $lost = $product->variants()
+            ->whereNotIn('combination', $kept)
+            ->where(fn (Builder $query) => $query->where('stock_on_hand', '!=', 0)->orWhereHas('stockMovements'))
+            ->get();
+
+        foreach ($lost as $variant) {
+            $validator->errors()->add('options', $variant->choices === []
+                ? 'This product already has stock without options, so options cannot be added to it.'
+                : "\"{$variant->label()}\" already has stock, so it cannot be removed or renamed. Put its choice back.");
+        }
     }
 
     /**

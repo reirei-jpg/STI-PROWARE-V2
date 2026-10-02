@@ -2,32 +2,9 @@
 
 use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
-use App\Models\PurchaseOrder;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
-
-/**
- * An order with the given item codes and quantities ordered.
- *
- * @param  array<string, int>  $items  quantity ordered by item code
- * @param  array<string, mixed>  $attributes
- */
-function orderWith(array $items, array $attributes = []): PurchaseOrder
-{
-    return PurchaseOrder::factory()
-        ->withItems(array_map(
-            fn (string $code, int $quantity): array => ['item_code' => $code, 'description' => "Item {$code}", 'quantity_ordered' => $quantity, 'quantity_delivered' => 0],
-            array_keys($items),
-            array_values($items),
-        ))
-        ->create($attributes);
-}
-
-function itemOf(PurchaseOrder $order, string $code): int
-{
-    return $order->items()->where('item_code', $code)->value('id');
-}
 
 beforeEach(function () {
     $this->specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);

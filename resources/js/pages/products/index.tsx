@@ -1,6 +1,16 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ImageIcon, Package, Pencil, Plus, Search, X } from 'lucide-react';
+import {
+    ImageIcon,
+    Link2,
+    Package,
+    Pencil,
+    Plus,
+    Search,
+    Unlink,
+    X,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
@@ -42,9 +52,11 @@ function filterQuery(filters: ProductFilters): Record<string, string> {
 export default function ProductsIndex({
     products,
     filters,
+    itemsToLinkCount,
 }: {
     products: Paginated<ProductListItem>;
     filters: ProductFilters;
+    itemsToLinkCount: number;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const isFiltered = filters.search !== null || filters.status !== null;
@@ -89,15 +101,61 @@ export default function ProductsIndex({
                     title="Products"
                     description="Merchandise students see on the storefront. Set each product as Draft, Preorder, Available or On Sale."
                     actions={
-                        <Link
-                            href={ProductController.create()}
-                            className={primaryButtonClasses}
-                        >
-                            <Plus size={18} />
-                            Add Product
-                        </Link>
+                        <>
+                            <Link
+                                href={ItemLinkController.index()}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            >
+                                <Link2 size={18} />
+                                Items to Link
+                                {itemsToLinkCount > 0 && (
+                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
+                                        {itemsToLinkCount.toLocaleString(
+                                            'en-PH',
+                                        )}
+                                    </span>
+                                )}
+                            </Link>
+                            <Link
+                                href={ProductController.create()}
+                                className={primaryButtonClasses}
+                            >
+                                <Plus size={18} />
+                                Add Product
+                            </Link>
+                        </>
                     }
                 />
+
+                {itemsToLinkCount > 0 && (
+                    <section className="flex flex-col gap-3 rounded-3xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                                <Unlink size={20} />
+                            </span>
+                            <div>
+                                <p className="font-black text-amber-900">
+                                    {itemsToLinkCount === 1
+                                        ? '1 eStore item is not linked to a product yet'
+                                        : `${itemsToLinkCount.toLocaleString('en-PH')} eStore items are not linked to a product yet`}
+                                </p>
+                                <p className="mt-1 text-sm text-amber-800">
+                                    Their deliveries are not counted as stock
+                                    until you link them. Link each item once;
+                                    after that its deliveries go into stock by
+                                    themselves.
+                                </p>
+                            </div>
+                        </div>
+                        <Link
+                            href={ItemLinkController.index()}
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700"
+                        >
+                            <Link2 size={17} />
+                            Link Items
+                        </Link>
+                    </section>
+                )}
 
                 <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
                     <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
@@ -192,6 +250,9 @@ export default function ProductsIndex({
                                                 Student Price
                                             </TableHeading>
                                             <TableHeading align="right">
+                                                Stock
+                                            </TableHeading>
+                                            <TableHeading align="right">
                                                 No. of Variants
                                             </TableHeading>
                                             <TableHeading>
@@ -239,27 +300,26 @@ export default function ProductsIndex({
                                                     />
                                                 </td>
                                                 <td className="px-5 py-4 text-right">
-                                                    {product.sale_price_centavos !==
-                                                    null ? (
-                                                        <span className="inline-flex items-baseline gap-2">
-                                                            <span className="text-sm text-slate-400 line-through">
-                                                                {formatPeso(
-                                                                    product.price_centavos,
-                                                                )}
-                                                            </span>
-                                                            <span className="text-base font-black text-red-600">
-                                                                {formatPeso(
-                                                                    product.sale_price_centavos,
-                                                                )}
-                                                            </span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-base font-black text-blue-700">
-                                                            {formatPeso(
-                                                                product.price_centavos,
-                                                            )}
-                                                        </span>
-                                                    )}
+                                                    <StudentPrice
+                                                        product={product}
+                                                    />
+                                                </td>
+                                                <td className="px-5 py-4 text-right">
+                                                    <span
+                                                        className={`text-base font-black ${
+                                                            product.stock_on_hand >
+                                                            0
+                                                                ? 'text-slate-900'
+                                                                : 'text-slate-400'
+                                                        }`}
+                                                    >
+                                                        {product.stock_on_hand.toLocaleString(
+                                                            'en-PH',
+                                                        )}
+                                                    </span>{' '}
+                                                    <span className="text-xs text-slate-500">
+                                                        pcs
+                                                    </span>
                                                 </td>
                                                 <td className="px-5 py-4 text-right text-sm font-black text-slate-800">
                                                     {product.variants_count}
@@ -295,5 +355,49 @@ export default function ProductsIndex({
                 </Panel>
             </div>
         </>
+    );
+}
+
+/**
+ * The price per piece (crossed out with the sale price when On Sale), and
+ * the price of each pack students can buy.
+ */
+function StudentPrice({ product }: { product: ProductListItem }) {
+    return (
+        <div className="grid justify-items-end gap-1">
+            {product.sold_by_piece &&
+                product.price_centavos !== null &&
+                (product.sale_price_centavos !== null ? (
+                    <span className="inline-flex items-baseline gap-2">
+                        <span className="text-sm text-slate-400 line-through">
+                            {formatPeso(product.price_centavos)}
+                        </span>
+                        <span className="text-base font-black text-red-600">
+                            {formatPeso(product.sale_price_centavos)}
+                        </span>
+                        <span className="text-xs text-slate-500">/ pc</span>
+                    </span>
+                ) : (
+                    <span className="inline-flex items-baseline gap-1">
+                        <span className="text-base font-black text-blue-700">
+                            {formatPeso(product.price_centavos)}
+                        </span>
+                        <span className="text-xs text-slate-500">/ pc</span>
+                    </span>
+                ))}
+            {product.packs_for_sale.map((pack) => (
+                <span
+                    key={pack.name}
+                    className="inline-flex items-baseline gap-1"
+                >
+                    <span className="text-sm font-black text-blue-700">
+                        {formatPeso(pack.price_centavos)}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                        / {pack.name} of {pack.pieces}
+                    </span>
+                </span>
+            ))}
+        </div>
     );
 }

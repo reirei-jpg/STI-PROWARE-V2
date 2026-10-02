@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DeliveryController;
+use App\Http\Controllers\ItemLinkController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -33,6 +34,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
         Route::post('deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
 
+        Route::get('products/items-to-link', [ItemLinkController::class, 'index'])->name('item-links.index');
+        Route::get('products/items-to-link/products', [ItemLinkController::class, 'products'])->name('item-links.products');
+        Route::post('products/items-to-link', [ItemLinkController::class, 'store'])->name('item-links.store');
         Route::resource('products', ProductController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     });
 });

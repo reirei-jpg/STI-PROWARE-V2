@@ -8,6 +8,7 @@ use App\Http\Requests\FilterDeliveriesRequest;
 use App\Http\Requests\RecordDeliveryRequest;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
+use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -87,11 +88,18 @@ class DeliveryController extends Controller
             ->with('purchaseOrder')
             ->get();
 
+        $linkedVariants = ProductVariant::query()
+            ->with(['product', 'estorePack'])
+            ->whereIn('estore_item_code', $waiting->pluck('item_code')->unique()->values())
+            ->get()
+            ->keyBy('estore_item_code');
+
         $groups = $waiting
             ->groupBy('item_code')
             ->map(fn ($items, string $itemCode): array => [
                 'item_code' => $itemCode,
                 'description' => $items->first()->description,
+                'stock_target' => $this->stockTarget($linkedVariants->get($itemCode)),
                 'rows' => $items->map(fn (PurchaseOrderItem $item): array => [
                     'purchase_order_item_id' => $item->id,
                     'order_number' => $item->purchaseOrder->order_number,
@@ -119,13 +127,45 @@ class DeliveryController extends Controller
             $request->receivedQuantities(),
         );
 
-        $total = (int) $delivery->items()->sum('quantity_received');
+        $items = $delivery->items()->withExists('stockMovement')->get();
+        $total = $items->sum('quantity_received');
+        $notInStock = $items->where('stock_movement_exists', false)->count();
+
+        $message = "Delivery recorded: {$total} received.";
+
+        if ($notInStock > 0) {
+            $message .= $notInStock === 1
+                ? ' 1 item is not linked to a product yet, so it was not added to stock. Link it in Products › Items to Link.'
+                : " {$notInStock} items are not linked to a product yet, so they were not added to stock. Link them in Products › Items to Link.";
+        }
 
         Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => "Delivery recorded: {$total} received.",
+            'type' => $notInStock > 0 ? 'warning' : 'success',
+            'message' => $message,
         ]);
 
         return to_route('deliveries.index');
+    }
+
+    /**
+     * Where an item's deliveries go in stock: the product variant its eStore
+     * Item Code is linked to, and how many pieces each eStore unit adds.
+     * Null while the code is not linked to a product.
+     *
+     * @return array{product_name: string, variant_label: string, has_options: bool, unit_name: string, pieces_per_unit: int}|null
+     */
+    private function stockTarget(?ProductVariant $variant): ?array
+    {
+        if ($variant === null) {
+            return null;
+        }
+
+        return [
+            'product_name' => $variant->product->name,
+            'variant_label' => $variant->label(),
+            'has_options' => $variant->choices !== [],
+            'unit_name' => $variant->estorePack->name ?? 'Piece',
+            'pieces_per_unit' => $variant->estorePack->pieces ?? 1,
+        ];
     }
 }

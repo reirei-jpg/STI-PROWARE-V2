@@ -6,6 +6,7 @@ use App\Models\Delivery;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
+use App\Services\Stock\DeliveredStock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -14,9 +15,14 @@ use Illuminate\Validation\ValidationException;
  * affected order's progress and status. The expected delivery date of those
  * orders is cleared, since that delivery has now happened; the Specialist
  * sets a new one when Head Office calls about the rest.
+ *
+ * Items whose eStore Item Code is linked to a product are added to stock
+ * right away; the others wait until the Specialist links them.
  */
 class RecordDelivery
 {
+    public function __construct(private DeliveredStock $deliveredStock) {}
+
     /**
      * @param  array{received_on: string, sales_invoice_number?: ?string, delivery_receipt_number?: ?string, note?: ?string}  $details
      * @param  array<int, int>  $quantities  quantity received by ordered item id
@@ -66,6 +72,8 @@ class RecordDelivery
                 $order->clearExpectedDelivery();
                 $order->refreshDeliveryProgress();
             }
+
+            $this->deliveredStock->add($delivery->items()->get(), $recordedBy);
 
             return $delivery;
         });

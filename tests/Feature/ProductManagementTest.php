@@ -2,9 +2,12 @@
 
 use App\Enums\ProductStatus;
 use App\Models\Product;
+use App\Models\ProductPack;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
+use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\Products\ProductVariants;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -23,14 +26,34 @@ function productForm(array $overrides = []): array
 {
     return array_merge([
         'name' => '42nd Anniversary Shirt',
+        'sold_by_piece' => '1',
         'price' => '350',
         'status' => 'available',
         'sale_price' => '',
         'photos' => [
             ['file' => UploadedFile::fake()->image('front.jpg'), 'label' => 'Front'],
         ],
+        'packs' => [],
         'options' => [],
-        'variants' => [['combination' => '', 'estore_item_code' => '', 'price' => '']],
+        'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
+    ], $overrides);
+}
+
+/**
+ * A new pack as the form sends it, changed by $overrides.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function packInput(array $overrides = []): array
+{
+    return array_merge([
+        'key' => 'new-1',
+        'id' => '',
+        'name' => 'Pack',
+        'pieces' => '50',
+        'sold_to_students' => '0',
+        'price' => '',
     ], $overrides);
 }
 
@@ -136,10 +159,18 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
     expect(Product::count())->toBe(0);
 })->with([
     'no name' => [['name' => ''], 'name', 'Enter the product name.'],
-    'no price' => [['price' => ''], 'price', 'Enter the student price.'],
-    'price in words' => [['price' => 'three fifty'], 'price', 'Enter the student price in pesos, e.g. 350 or 350.50.'],
+    'no price per piece' => [['price' => ''], 'price', 'Enter the price per piece.'],
+    'price in words' => [['price' => 'three fifty'], 'price', 'Enter the price per piece in pesos, e.g. 350 or 350.50.'],
     'on sale without sale price' => [['status' => 'on_sale'], 'sale_price', 'Enter the sale price for a product On Sale.'],
-    'sale price not lower' => [['status' => 'on_sale', 'sale_price' => '350'], 'sale_price', 'The sale price must be lower than the student price.'],
+    'sale price not lower' => [['status' => 'on_sale', 'sale_price' => '350'], 'sale_price', 'The sale price must be lower than the price per piece.'],
+    'not sold by the piece or by a pack' => [['sold_by_piece' => '0', 'price' => ''], 'sold_by_piece', 'Choose how students buy it: by the piece, by a pack, or both.'],
+    'on sale but not sold by the piece' => [['sold_by_piece' => '0', 'status' => 'on_sale', 'packs' => [packInput(['sold_to_students' => '1', 'price' => '900'])]], 'status', 'On Sale lowers the price per piece. Sell it by the piece, or choose another status.'],
+    'pack of one piece' => [['packs' => [packInput(['pieces' => '1'])]], 'packs.0.pieces', 'A pack has at least 2 pieces.'],
+    'pack without its number of pieces' => [['packs' => [packInput(['pieces' => ''])]], 'packs.0.pieces', 'Enter how many pieces are in one pack.'],
+    'pack sold without a price' => [['packs' => [packInput(['sold_to_students' => '1', 'price' => ''])]], 'packs.0.price', 'Enter the price students pay for one Pack.'],
+    'pack named piece' => [['packs' => [packInput(['name' => 'Pieces'])]], 'packs.0.name', 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.'],
+    'two packs with the same name' => [['packs' => [packInput(), packInput(['key' => 'new-2', 'name' => 'pack'])]], 'packs.1.name', 'Two packs have the same name.'],
+    'variant sent by a removed pack' => [['variants' => [['combination' => '', 'estore_item_code' => 'PRLY01-01', 'estore_pack_key' => 'new-9', 'price' => '']]], 'variants.0.estore_pack_key', 'That pack was removed. Choose how Head Office sends this item again.'],
     'photo not a picture' => [['photos' => [['file' => UploadedFile::fake()->create('po.pdf', 10, 'application/pdf'), 'label' => '']]], 'photos.0.file', 'Photos must be JPG, PNG or WEBP pictures.'],
     'photo too large' => [['photos' => [['file' => UploadedFile::fake()->image('big.jpg')->size(5121), 'label' => '']]], 'photos.0.file', 'Each photo must be 5 MB or smaller.'],
     'option without name' => [['options' => [['name' => '', 'choices' => ['S']]]], 'options.0.name', 'Give every option a name, e.g. Size or Color.'],
@@ -260,6 +291,112 @@ test('the list can be searched by name and filtered by status', function () {
             ->where('products.data.0.name', '42nd Anniversary Shirt')
             ->where('products.data.0.status_label', 'Preorder')
             ->where('filters', ['search' => 'anniversary', 'status' => 'preorder'])
+        );
+});
+
+test('packs are saved, and a variant can say Head Office sends it by a pack', function () {
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('products.store'), productForm([
+            'name' => 'Lanyard',
+            'packs' => [
+                packInput(['sold_to_students' => '1', 'price' => '900']),
+                packInput(['key' => 'new-2', 'name' => ' Box ', 'pieces' => '12', 'price' => '120']),
+            ],
+            'variants' => [['combination' => '', 'estore_item_code' => 'PRLY01-01', 'estore_pack_key' => 'new-1', 'price' => '']],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $product = Product::sole();
+
+    expect($product->packs->map->only(['name', 'pieces', 'sold_to_students', 'price_centavos'])->all())->toBe([
+        ['name' => 'Pack', 'pieces' => 50, 'sold_to_students' => true, 'price_centavos' => 90000],
+        ['name' => 'Box', 'pieces' => 12, 'sold_to_students' => false, 'price_centavos' => null],
+    ])->and($product->variants()->sole()->estore_pack_id)->toBe($product->packs->first()->id);
+});
+
+test('a product can be sold by the pack only, without a price per piece', function () {
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('products.store'), productForm([
+            'sold_by_piece' => '0',
+            'price' => '350',
+            'packs' => [packInput(['sold_to_students' => '1', 'price' => '900'])],
+            'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '400']],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect(Product::sole())
+        ->sold_by_piece->toBeFalse()
+        ->price_centavos->toBeNull()
+        ->and(ProductVariant::sole()->price_centavos)->toBeNull();
+});
+
+test('editing updates the packs kept and removes the others', function () {
+    $product = Product::factory()->create();
+    $pack = ProductPack::factory()->for($product)->create(['name' => 'Pack', 'pieces' => 50]);
+    $box = ProductPack::factory()->for($product)->create(['name' => 'Box', 'pieces' => 12, 'position' => 1]);
+    ProductVariant::factory()->for($product)->create();
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->put(route('products.update', $product), productForm([
+            'packs' => [packInput(['key' => (string) $pack->id, 'id' => $pack->id, 'name' => 'Bundle', 'pieces' => '100'])],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect($product->packs()->get()->map->only(['id', 'name', 'pieces'])->all())->toBe([
+        ['id' => $pack->id, 'name' => 'Bundle', 'pieces' => 100],
+    ])->and(ProductPack::find($box->id))->toBeNull();
+});
+
+test('a variant that has stock cannot disappear from the product', function (array $choices, array $options, string $message) {
+    $product = Product::factory()->create();
+    $variant = ProductVariant::factory()->for($product)->create([
+        'combination' => ProductVariants::key($choices),
+        'choices' => $choices,
+        'stock_on_hand' => 10,
+    ]);
+    StockMovement::factory()->for($variant, 'variant')->create(['quantity' => 10, 'balance_after' => 10]);
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->put(route('products.update', $product), productForm([
+            'options' => $options,
+            'variants' => [['combination' => 'Size: M', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
+        ]))
+        ->assertSessionHasErrors(['options' => $message]);
+
+    expect($variant->fresh())->not->toBeNull();
+})->with([
+    'its choice removed' => [
+        [['option' => 'Size', 'choice' => 'S/M']],
+        [['name' => 'Size', 'choices' => ['M']]],
+        '"S/M" already has stock, so it cannot be removed or renamed. Put its choice back.',
+    ],
+    'options added to a product that had none' => [
+        [],
+        [['name' => 'Size', 'choices' => ['M']]],
+        'This product already has stock without options, so options cannot be added to it.',
+    ],
+]);
+
+test('the edit form gets the packs, how Head Office sends each item, and the stock', function () {
+    $product = Product::factory()->create(['sold_by_piece' => false, 'price_centavos' => null]);
+    $pack = ProductPack::factory()->for($product)->soldToStudents(90000)->create(['name' => 'Pack', 'pieces' => 50]);
+    ProductVariant::factory()->for($product)->create(['estore_item_code' => 'PRLY01-01', 'estore_pack_id' => $pack->id, 'stock_on_hand' => 120]);
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->get(route('products.edit', $product))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('product.sold_by_piece', false)
+            ->where('product.price', '')
+            ->where('product.packs', [[
+                'key' => (string) $pack->id,
+                'id' => $pack->id,
+                'name' => 'Pack',
+                'pieces' => '50',
+                'sold_to_students' => true,
+                'price' => '900',
+            ]])
+            ->where('product.variants.0.estore_pack_key', (string) $pack->id)
+            ->where('product.variants.0.stock_on_hand', 120)
         );
 });
 

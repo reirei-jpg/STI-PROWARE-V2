@@ -26,9 +26,23 @@ export type WaitingItemRow = {
     quantity_remaining: number;
 };
 
+/**
+ * The product variant an item code's deliveries go into, and how many
+ * pieces each eStore unit adds (e.g. 1 Pack = 50 pieces).
+ */
+export type StockTarget = {
+    product_name: string;
+    variant_label: string;
+    has_options: boolean;
+    unit_name: string;
+    pieces_per_unit: number;
+};
+
 /** Every order still waiting for one item code, oldest order first. */
 export type WaitingItemGroup = {
     item_code: string;
     description: string;
+    /** Null while the item code is not linked to a product. */
+    stock_target: StockTarget | null;
     rows: WaitingItemRow[];
 };

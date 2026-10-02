@@ -20,6 +20,7 @@ class ProductFactory extends Factory
     {
         return [
             'name' => fake()->randomElement(['42nd Anniversary Shirt', 'Chibi Keychain', 'Aquaflask', 'PE Shirt', 'Lanyard']),
+            'sold_by_piece' => true,
             'price_centavos' => fake()->numberBetween(50, 800) * 100,
             'sale_price_centavos' => null,
             'status' => ProductStatus::Available,

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\PurchaseOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
@@ -44,6 +45,31 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+/**
+ * An order with the given item codes and quantities ordered.
+ *
+ * @param  array<string, int>  $items  quantity ordered by item code
+ * @param  array<string, mixed>  $attributes
+ */
+function orderWith(array $items, array $attributes = []): PurchaseOrder
+{
+    return PurchaseOrder::factory()
+        ->withItems(array_map(
+            fn (string $code, int $quantity): array => ['item_code' => $code, 'description' => "Item {$code}", 'quantity_ordered' => $quantity, 'quantity_delivered' => 0],
+            array_keys($items),
+            array_values($items),
+        ))
+        ->create($attributes);
+}
+
+/**
+ * The id of the ordered item with this code on the order.
+ */
+function itemOf(PurchaseOrder $order, string $code): int
+{
+    return $order->items()->where('item_code', $code)->value('id');
+}
 
 /**
  * An uploaded eStore order saved as a Word file. By default it holds the

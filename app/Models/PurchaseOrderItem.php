@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Database\Factories\PurchaseOrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 
 /**
@@ -52,5 +55,21 @@ class PurchaseOrderItem extends Model
     public function quantityRemaining(): int
     {
         return max(0, $this->quantity_ordered - $this->quantity_delivered);
+    }
+
+    /**
+     * Ordered items whose eStore Item Code is not on any product variant yet:
+     * their deliveries cannot be added to stock until the Specialist links
+     * the code.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function notLinkedToProduct(Builder $query): void
+    {
+        $query->whereNotExists(fn (QueryBuilder $variants) => $variants
+            ->selectRaw('1')
+            ->from('product_variants')
+            ->whereColumn('product_variants.estore_item_code', 'purchase_order_items.item_code'));
     }
 }

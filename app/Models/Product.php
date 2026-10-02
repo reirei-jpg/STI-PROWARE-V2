@@ -13,16 +13,19 @@ use Illuminate\Support\Carbon;
 
 /**
  * Merchandise the Specialist sells to students through the storefront.
+ * Students buy it by the piece (price_centavos is the price per piece), by
+ * a pack, or both. A product sold only by the pack has no price per piece.
  *
  * @property int $id
  * @property string $name
- * @property int $price_centavos
+ * @property bool $sold_by_piece
+ * @property int|null $price_centavos
  * @property int|null $sale_price_centavos
  * @property ProductStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'price_centavos', 'sale_price_centavos', 'status'])]
+#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -34,6 +37,7 @@ class Product extends Model
     protected function casts(): array
     {
         return [
+            'sold_by_piece' => 'boolean',
             'price_centavos' => 'integer',
             'sale_price_centavos' => 'integer',
             'status' => ProductStatus::class,
@@ -72,5 +76,13 @@ class Product extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class)->orderBy('position');
+    }
+
+    /**
+     * @return HasMany<ProductPack, $this>
+     */
+    public function packs(): HasMany
+    {
+        return $this->hasMany(ProductPack::class)->orderBy('position');
     }
 }

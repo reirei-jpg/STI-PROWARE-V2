@@ -23,6 +23,7 @@ class ProductVariantFactory extends Factory
             'combination' => '',
             'choices' => [],
             'estore_item_code' => null,
+            'estore_pack_id' => null,
             'price_centavos' => null,
             'position' => 0,
         ];

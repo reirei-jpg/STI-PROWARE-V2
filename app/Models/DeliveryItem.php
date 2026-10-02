@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -49,5 +50,16 @@ class DeliveryItem extends Model
     public function purchaseOrderItem(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrderItem::class);
+    }
+
+    /**
+     * The stock movement that added this item to stock. There is none while
+     * its eStore Item Code is not linked to a product yet.
+     *
+     * @return HasOne<StockMovement, $this>
+     */
+    public function stockMovement(): HasOne
+    {
+        return $this->hasOne(StockMovement::class);
     }
 }

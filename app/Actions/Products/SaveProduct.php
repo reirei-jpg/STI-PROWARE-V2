@@ -9,37 +9,56 @@ use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductVariants;
+use App\Services\Stock\DeliveredStock;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
  * Saves a product from the Add / Edit Product form: its details, photos
- * (in the order shown, first = main), options and variants.
+ * (in the order shown, first = main), packs, options and variants.
  *
  * Variants are rebuilt from the options. A variant that still exists keeps
- * its eStore Item Code and price; variants whose combination no longer
- * exists are removed.
+ * its eStore Item Code, pack, price and stock; variants whose combination
+ * no longer exists are removed (the form refuses this for a variant with
+ * stock).
+ *
+ * When a variant gets an eStore Item Code, deliveries of that item that
+ * arrived before it was linked are added to stock.
  */
 class SaveProduct
 {
-    public function handle(Product $product, SaveProductRequest $request): Product
+    public function __construct(private DeliveredStock $deliveredStock) {}
+
+    /**
+     * @return int pieces of earlier deliveries added to stock
+     */
+    public function handle(Product $product, SaveProductRequest $request): int
     {
         $status = ProductStatus::from((string) $request->input('status'));
+        $soldByPiece = $request->boolean('sold_by_piece');
         $newPhotoPaths = [];
         $removedPhotoPaths = [];
+        $piecesAdded = 0;
 
         try {
-            DB::transaction(function () use ($product, $request, $status, &$newPhotoPaths, &$removedPhotoPaths): void {
+            DB::transaction(function () use ($product, $request, $status, $soldByPiece, &$newPhotoPaths, &$removedPhotoPaths, &$piecesAdded): void {
                 $product->fill([
                     'name' => trim((string) $request->input('name')),
-                    'price_centavos' => $request->centavos('price'),
-                    'sale_price_centavos' => $status === ProductStatus::OnSale ? $request->centavos('sale_price') : null,
+                    'sold_by_piece' => $soldByPiece,
+                    'price_centavos' => $soldByPiece ? $request->centavos('price') : null,
+                    'sale_price_centavos' => $soldByPiece && $status === ProductStatus::OnSale ? $request->centavos('sale_price') : null,
                     'status' => $status,
                 ])->save();
 
                 $removedPhotoPaths = $this->syncPhotos($product, $request, $newPhotoPaths);
-                $this->syncOptionsAndVariants($product, $request);
+                $packIdsByKey = $this->savePacks($product, $request);
+                $this->syncOptionsAndVariants($product, $request, $packIdsByKey, $soldByPiece);
+                $product->packs()->whereNotIn('id', array_values($packIdsByKey))->delete();
+
+                foreach ($product->variants()->whereNotNull('estore_item_code')->get() as $variant) {
+                    $piecesAdded += $this->deliveredStock->addWaitingFor($variant, $request->user());
+                }
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($newPhotoPaths);
@@ -49,7 +68,40 @@ class SaveProduct
 
         Storage::disk('public')->delete($removedPhotoPaths);
 
-        return $product;
+        return $piecesAdded;
+    }
+
+    /**
+     * Create and update the packs in the form, in the order shown. Packs
+     * removed from the form are deleted after the variants stop using them.
+     *
+     * @return array<string, int> pack id by the pack's key in the form
+     */
+    private function savePacks(Product $product, SaveProductRequest $request): array
+    {
+        $idsByKey = [];
+
+        foreach ($request->packs() as $position => $pack) {
+            $attributes = [
+                'name' => $pack['name'],
+                'pieces' => $pack['pieces'],
+                'sold_to_students' => $pack['sold_to_students'],
+                'price_centavos' => $pack['sold_to_students'] ? $pack['price_centavos'] : null,
+                'position' => $position,
+            ];
+
+            if ($pack['id'] !== null) {
+                $existing = $product->packs()->findOrFail($pack['id']);
+                $existing->update($attributes);
+                $idsByKey[$pack['key']] = $existing->id;
+
+                continue;
+            }
+
+            $idsByKey[$pack['key']] = $product->packs()->create($attributes)->id;
+        }
+
+        return $idsByKey;
     }
 
     /**
@@ -97,7 +149,10 @@ class SaveProduct
         return array_values($removed->map(fn (ProductPhoto $photo): string => $photo->path)->all());
     }
 
-    private function syncOptionsAndVariants(Product $product, SaveProductRequest $request): void
+    /**
+     * @param  array<string, int>  $packIdsByKey
+     */
+    private function syncOptionsAndVariants(Product $product, SaveProductRequest $request, array $packIdsByKey, bool $soldByPiece): void
     {
         $options = $request->options();
 
@@ -107,7 +162,7 @@ class SaveProduct
             $product->options()->create([...$option, 'position' => $position]);
         }
 
-        /** @var array<int, array{combination?: string|null, estore_item_code?: string|null, price?: string|null}> $submitted */
+        /** @var array<int, array{combination?: string|null, estore_item_code?: string|null, estore_pack_key?: string|null, price?: string|null}> $submitted */
         $submitted = $request->input('variants', []);
         $submittedByKey = [];
 
@@ -124,11 +179,13 @@ class SaveProduct
 
         foreach (ProductVariants::combinations($options) as $position => $combination) {
             $input = $submittedByKey[$combination['combination']] ?? [];
-            $price = $input['price'] ?? null;
+            $price = $soldByPiece ? ($input['price'] ?? null) : null;
+            $packKey = $input['estore_pack_key'] ?? null;
 
             $attributes = [
                 'choices' => $combination['choices'],
                 'estore_item_code' => ItemCode::normalize($input['estore_item_code'] ?? null),
+                'estore_pack_id' => $packKey === null || $packKey === '' ? null : $packIdsByKey[$packKey],
                 'price_centavos' => $price === null || $price === '' ? null : SaveProductRequest::toCentavos((string) $price),
                 'position' => $position,
             ];
