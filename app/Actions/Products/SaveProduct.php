@@ -52,7 +52,8 @@ class SaveProduct
                     'name' => trim((string) $request->input('name')),
                     'sold_by_piece' => $soldByPiece,
                     'price_centavos' => $soldByPiece ? $request->centavos('price') : null,
-                    'sale_price_centavos' => $soldByPiece && $status === ProductStatus::OnSale ? $request->centavos('sale_price') : null,
+                    // The sale price and end come from Put on Sale; a product
+                    // on sale stays On Sale while it is edited.
                     'status' => $status,
                     'low_stock_alert_at' => $request->integer('low_stock_alert_at'),
                 ])->save();

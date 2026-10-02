@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Boxes,
+    Flame,
+    Hourglass,
     ImageIcon,
     Link2,
     Package,
@@ -19,6 +21,7 @@ import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
 import ProductStatusBadge from '@/components/product-status-badge';
+import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { formatDateTime, formatPeso } from '@/lib/format';
 import type {
     Paginated,
@@ -53,6 +56,10 @@ function filterQuery(filters: ProductFilters): Record<string, string> {
         query.stock = filters.stock;
     }
 
+    if (filters.stock === 'slow' && filters.slow_days !== 18) {
+        query.slow_days = String(filters.slow_days);
+    }
+
     return query;
 }
 
@@ -61,13 +68,17 @@ export default function ProductsIndex({
     filters,
     itemsToLinkCount,
     lowStockCount,
+    slowMovingCount,
 }: {
     products: Paginated<ProductListItem>;
     filters: ProductFilters;
     itemsToLinkCount: number;
     lowStockCount: number;
+    slowMovingCount: number;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const [slowDays, setSlowDays] = useState(String(filters.slow_days));
+    const [selling, setSelling] = useState<number | null>(null);
     const isFiltered =
         filters.search !== null ||
         filters.status !== null ||
@@ -231,8 +242,87 @@ export default function ProductsIndex({
                                 {lowStockCount.toLocaleString('en-PH')}
                             </span>
                         </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                showList({
+                                    ...filters,
+                                    stock:
+                                        filters.stock === 'slow'
+                                            ? null
+                                            : 'slow',
+                                })
+                            }
+                            aria-pressed={filters.stock === 'slow'}
+                            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                filters.stock === 'slow'
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-red-50 text-red-700 hover:bg-red-100'
+                            }`}
+                        >
+                            <Hourglass size={14} />
+                            Slow-moving
+                            <span
+                                className={`rounded-full px-1.5 text-[11px] font-black ${
+                                    filters.stock === 'slow'
+                                        ? 'bg-white/25'
+                                        : 'bg-red-100'
+                                }`}
+                            >
+                                {slowMovingCount.toLocaleString('en-PH')}
+                            </span>
+                        </button>
                     </div>
                 </section>
+
+                {filters.stock === 'slow' && (
+                    <section className="flex flex-col gap-3 rounded-3xl border border-red-100 bg-red-50/60 p-5 text-sm text-red-900 md:flex-row md:items-center md:justify-between">
+                        <p className="leading-6">
+                            <b>Slow-moving:</b> Available products in stock that
+                            first arrived at least this many days ago and sold
+                            nothing since. Put them on sale to clear them. Until
+                            students can buy through PROWARE, nothing has sales
+                            yet, so this lists items in stock that long.
+                        </p>
+                        <form
+                            className="flex shrink-0 items-center gap-2"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                const days = Number(slowDays);
+
+                                if (
+                                    Number.isInteger(days) &&
+                                    days >= 1 &&
+                                    days <= 365
+                                ) {
+                                    showList({ ...filters, slow_days: days });
+                                }
+                            }}
+                        >
+                            <span className="font-bold">No sales for</span>
+                            <input
+                                value={slowDays}
+                                onChange={(event) =>
+                                    setSlowDays(
+                                        event.target.value
+                                            .replace(/\D/g, '')
+                                            .slice(0, 3),
+                                    )
+                                }
+                                inputMode="numeric"
+                                className="h-9 w-16 rounded-lg border border-red-200 bg-white px-2 text-right text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-red-100"
+                                aria-label="Days without sales"
+                            />
+                            <span className="font-bold">days</span>
+                            <button
+                                type="submit"
+                                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white hover:bg-red-700"
+                            >
+                                Show
+                            </button>
+                        </form>
+                    </section>
+                )}
 
                 <Panel
                     title="All Products"
@@ -263,6 +353,7 @@ export default function ProductsIndex({
                                             search: null,
                                             status: null,
                                             stock: null,
+                                            slow_days: filters.slow_days,
                                         });
                                     }}
                                     className={`mt-6 ${primaryButtonClasses}`}
@@ -340,6 +431,27 @@ export default function ProductsIndex({
                                                             product.status_label
                                                         }
                                                     />
+                                                    {product.sale_ends_at && (
+                                                        <p className="mt-1 text-xs font-bold text-red-700">
+                                                            until{' '}
+                                                            {formatDateTime(
+                                                                product.sale_ends_at,
+                                                            )}
+                                                        </p>
+                                                    )}
+                                                    {filters.stock ===
+                                                        'slow' && (
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            In stock since{' '}
+                                                            {formatDateTime(
+                                                                product.first_received_at,
+                                                            )}
+                                                            {' · '}
+                                                            {product.last_sale_at
+                                                                ? `last sale ${formatDateTime(product.last_sale_at)}`
+                                                                : 'no sales yet'}
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-4 text-right">
                                                     <StudentPrice
@@ -395,6 +507,30 @@ export default function ProductsIndex({
                                                             <Boxes size={15} />
                                                             Stock
                                                         </Link>
+                                                        {(product.status ===
+                                                            'on_sale' ||
+                                                            (product.status ===
+                                                                'available' &&
+                                                                product.stock_on_hand >
+                                                                    0)) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setSelling(
+                                                                        product.id,
+                                                                    )
+                                                                }
+                                                                className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                                            >
+                                                                <Flame
+                                                                    size={15}
+                                                                />
+                                                                {product.status ===
+                                                                'on_sale'
+                                                                    ? 'Change sale'
+                                                                    : 'Put on Sale'}
+                                                            </button>
+                                                        )}
                                                         <Link
                                                             href={ProductController.edit(
                                                                 product.id,
@@ -420,6 +556,11 @@ export default function ProductsIndex({
                     )}
                 </Panel>
             </div>
+
+            <PutOnSaleDialog
+                productId={selling}
+                onClose={() => setSelling(null)}
+            />
         </>
     );
 }
@@ -456,9 +597,20 @@ function StudentPrice({ product }: { product: ProductListItem }) {
                     key={pack.name}
                     className="inline-flex items-baseline gap-1"
                 >
-                    <span className="text-sm font-black text-blue-700">
-                        {formatPeso(pack.price_centavos)}
-                    </span>
+                    {pack.sale_price_centavos !== null ? (
+                        <>
+                            <span className="text-xs text-slate-400 line-through">
+                                {formatPeso(pack.price_centavos)}
+                            </span>
+                            <span className="text-sm font-black text-red-600">
+                                {formatPeso(pack.sale_price_centavos)}
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-sm font-black text-blue-700">
+                            {formatPeso(pack.price_centavos)}
+                        </span>
+                    )}
                     <span className="text-xs text-slate-500">
                         / {pack.name} of {pack.pieces}
                     </span>

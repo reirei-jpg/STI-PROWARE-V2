@@ -27,9 +27,29 @@ export type LowStockData = {
     alert_at: number;
 };
 
+export type SaleEndingData = {
+    kind: 'sale_ending';
+    product_id: number;
+    product_name: string;
+    ends_at: string | null;
+};
+
+export type SaleEndedData = {
+    kind: 'sale_ended';
+    product_id: number;
+    product_name: string;
+    /** "₱80.00 / pc" */
+    normal_price: string;
+};
+
 export type StaffNotification = {
     id: string;
-    data: PurchaseOrderUploadedData | DeliveryReminderData | LowStockData;
+    data:
+        | PurchaseOrderUploadedData
+        | DeliveryReminderData
+        | LowStockData
+        | SaleEndingData
+        | SaleEndedData;
     read: boolean;
     created_at: string | null;
 };

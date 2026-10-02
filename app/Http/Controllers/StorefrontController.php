@@ -16,7 +16,7 @@ use Inertia\Response;
  * Add to Cart or Preorder.
  *
  * - Coming Soon: Preorder products.
- * - On Sale: On Sale products that have stock.
+ * - On Sale: On Sale products that have stock, the soonest-ending first.
  * - All Merchandise: Available and On Sale products that were ever
  *   received, newest first, sold-out ones last. Products never received
  *   stay hidden, and Draft products are never shown.
@@ -55,7 +55,7 @@ class StorefrontController extends Controller
                 ->where('status', ProductStatus::OnSale)
                 ->whereHas('variants', fn (Builder $variants) => $variants->where('stock_on_hand', '>', 0))
                 ->with(self::RELATIONS)
-                ->latest('updated_at')
+                ->orderBy('sale_ends_at')
                 ->latest('id')
                 ->limit(8)
                 ->get()

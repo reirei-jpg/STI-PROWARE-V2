@@ -6,7 +6,13 @@ export type StorefrontPrice = {
     piece_from: boolean;
     /** The sale price when On Sale. */
     sale_centavos: number | null;
-    packs: { name: string; pieces: number; price_centavos: number }[];
+    packs: {
+        name: string;
+        pieces: number;
+        price_centavos: number;
+        /** The pack's sale price while the product is On Sale. */
+        sale_price_centavos: number | null;
+    }[];
 };
 
 export type StorefrontTileProduct = {
@@ -19,6 +25,8 @@ export type StorefrontTileProduct = {
     almost_sold_out: boolean;
     /** Only given when few are left ("Only 3 left"). */
     pieces_left: number | null;
+    /** When the sale ends, for an On Sale product. */
+    sale_ends_at: string | null;
 };
 
 export type StorefrontVariantAvailability =

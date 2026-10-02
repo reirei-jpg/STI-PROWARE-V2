@@ -21,7 +21,7 @@ use App\Models\ProductVariant;
 final class StorefrontProduct
 {
     /**
-     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null}
+     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null}
      */
     public static function tile(Product $product): array
     {
@@ -38,6 +38,7 @@ final class StorefrontProduct
             'sold_out' => ! $isPreorder && $stock === 0,
             'almost_sold_out' => $almostSoldOut,
             'pieces_left' => $almostSoldOut ? $stock : null,
+            'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
         ];
     }
 
@@ -82,10 +83,12 @@ final class StorefrontProduct
      * The price per piece (the lowest, with "From" when sizes differ), the
      * sale price when On Sale, and each pack students can buy.
      *
-     * @return array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int}>}
+     * @return array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}
      */
     private static function price(Product $product): array
     {
+        $onSale = $product->status === ProductStatus::OnSale;
+
         $piecePrices = $product->sold_by_piece
             ? $product->variants
                 ->map(fn (ProductVariant $variant): ?int => $variant->price_centavos ?? $product->price_centavos)
@@ -96,13 +99,14 @@ final class StorefrontProduct
         return [
             'piece_centavos' => $piecePrices->isEmpty() ? ($product->sold_by_piece ? $product->price_centavos : null) : (int) $piecePrices->min(),
             'piece_from' => $piecePrices->count() > 1,
-            'sale_centavos' => $product->status === ProductStatus::OnSale ? $product->sale_price_centavos : null,
+            'sale_centavos' => $onSale ? $product->sale_price_centavos : null,
             'packs' => array_values($product->packs
                 ->where('sold_to_students', true)
                 ->map(fn (ProductPack $pack): array => [
                     'name' => $pack->name,
                     'pieces' => $pack->pieces,
                     'price_centavos' => (int) $pack->price_centavos,
+                    'sale_price_centavos' => $onSale ? $pack->sale_price_centavos : null,
                 ])
                 ->all()),
         ];

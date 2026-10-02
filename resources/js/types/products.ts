@@ -9,13 +9,25 @@ export type ProductListItem = {
     /** Price per piece; null when students cannot buy it by the piece. */
     price_centavos: number | null;
     sale_price_centavos: number | null;
-    packs_for_sale: { name: string; pieces: number; price_centavos: number }[];
+    packs_for_sale: {
+        name: string;
+        pieces: number;
+        price_centavos: number;
+        /** While the product is On Sale, if this pack is discounted. */
+        sale_price_centavos: number | null;
+    }[];
     /** Pieces in stock across all variants. */
     stock_on_hand: number;
     /** Pieces at which the Specialist is warned, per variant. */
     low_stock_alert_at: number;
     /** On sale to students with a variant at or below that number. */
     low_stock: boolean;
+    /** When the sale ends, for an On Sale product. */
+    sale_ends_at: string | null;
+    /** When stock first arrived; null if it never did. */
+    first_received_at: string | null;
+    /** When something was last sold; null if nothing was. */
+    last_sale_at: string | null;
     photo_url: string | null;
     variants_count: number;
     updated_at: string | null;
@@ -24,7 +36,32 @@ export type ProductListItem = {
 export type ProductFilters = {
     search: string | null;
     status: ProductStatus | null;
-    stock: 'low' | null;
+    stock: 'low' | 'slow' | null;
+    /** Slow-moving means no sales for this many days. */
+    slow_days: number;
+};
+
+/** What the Put on Sale pop-up loads. */
+export type ProductSaleDetails = {
+    id: number;
+    name: string;
+    status: ProductStatus;
+    sold_by_piece: boolean;
+    /** The lowest normal price per piece. */
+    piece_price_centavos: number | null;
+    stock_on_hand: number;
+    /** What one piece costs the school; null when unknown. */
+    cost_per_piece_centavos: number | null;
+    packs: {
+        id: number;
+        name: string;
+        pieces: number;
+        price_centavos: number;
+        sale_price_centavos: number | null;
+    }[];
+    /** The running sale, if the product is On Sale. */
+    sale: { sale_price_centavos: number | null; ends_at: string | null } | null;
+    max_days: number;
 };
 
 export type ProductOptionInput = {
@@ -50,8 +87,9 @@ export type EditableProduct = {
     name: string;
     sold_by_piece: boolean;
     price: string;
-    sale_price: string;
     status: ProductStatus;
+    /** When the sale ends, for an On Sale product. */
+    sale_ends_at: string | null;
     low_stock_alert_at: string;
     photos: { id: number; url: string; label: string }[];
     packs: ProductPackInput[];

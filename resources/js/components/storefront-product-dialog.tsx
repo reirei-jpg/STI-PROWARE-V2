@@ -9,7 +9,7 @@ import {
 import { useEffect, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
-import { PriceLines } from '@/components/storefront-tile';
+import { PriceLines, saleEndsText } from '@/components/storefront-tile';
 import {
     Dialog,
     DialogClose,
@@ -113,7 +113,9 @@ export default function StorefrontProductDialog({
                                         ? 'Coming soon · preorder it now'
                                         : shown.sold_out
                                           ? 'Out of stock for now'
-                                          : 'Official STI merchandise'}
+                                          : shown.sale_ends_at
+                                            ? `On sale · ${saleEndsText(shown.sale_ends_at).toLowerCase()}`
+                                            : 'Official STI merchandise'}
                                 </DialogDescription>
                             </div>
                             <DialogClose className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">

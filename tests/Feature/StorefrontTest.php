@@ -116,7 +116,7 @@ test('a tile shows the price per piece, the sale price and the packs students ca
     $tiles = collect($this->get('/')->inertiaProps('merchandise.data'))->keyBy('name');
 
     expect($tiles['TM Polo']['price'])->toBe(['piece_centavos' => 35000, 'piece_from' => true, 'sale_centavos' => null, 'packs' => []])
-        ->and($tiles['Ballpen']['price'])->toBe(['piece_centavos' => null, 'piece_from' => false, 'sale_centavos' => null, 'packs' => [['name' => 'Box', 'pieces' => 12, 'price_centavos' => 10000]]])
+        ->and($tiles['Ballpen']['price'])->toBe(['piece_centavos' => null, 'piece_from' => false, 'sale_centavos' => null, 'packs' => [['name' => 'Box', 'pieces' => 12, 'price_centavos' => 10000, 'sale_price_centavos' => null]]])
         ->and($tiles['Lanyard']['price'])->toMatchArray(['piece_centavos' => 8000, 'sale_centavos' => 5000]);
 });
 

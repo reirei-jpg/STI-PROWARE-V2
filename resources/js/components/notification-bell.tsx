@@ -137,6 +137,33 @@ export default function NotificationBell() {
 }
 
 function NotificationText({ data }: { data: StaffNotification['data'] }) {
+    if (data.kind === 'sale_ending') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Sale ending tomorrow: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Ends {formatDateTime(data.ends_at)}. Open it to extend the
+                    sale, or let it go back to its normal price.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'sale_ended') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-slate-900">
+                    Sale ended: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    It is back to {data.normal_price}.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'low_stock') {
         return (
             <>

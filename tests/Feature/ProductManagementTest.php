@@ -126,15 +126,19 @@ test('a product without options gets one default variant', function () {
         ->estore_item_code->toBe('PRCU01-01');
 });
 
-test('an on sale product keeps its sale price', function () {
+test('editing a product that is on sale keeps its sale', function () {
+    $product = Product::factory()->create(['status' => ProductStatus::OnSale, 'price_centavos' => 35000, 'sale_price_centavos' => 30000, 'sale_ends_at' => now()->addDays(3)]);
+    ProductVariant::factory()->for($product)->create();
+
     $this->actingAs(User::factory()->specialist()->create())
-        ->post(route('products.store'), productForm(['status' => 'on_sale', 'sale_price' => '300']))
+        ->put(route('products.update', $product), productForm(['status' => 'on_sale', 'name' => 'Lanyard']))
         ->assertSessionHasNoErrors();
 
-    expect(Product::sole())
+    expect($product->refresh())
+        ->name->toBe('Lanyard')
         ->status->toBe(ProductStatus::OnSale)
-        ->price_centavos->toBe(35000)
-        ->sale_price_centavos->toBe(30000);
+        ->sale_price_centavos->toBe(30000)
+        ->sale_ends_at->not->toBeNull();
 });
 
 test('a draft can be saved without a photo but other statuses cannot', function (string $status, bool $allowed) {
@@ -163,10 +167,8 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
     'no price per piece' => [['price' => ''], 'price', 'Enter the price per piece.'],
     'no low-stock number' => [['low_stock_alert_at' => ''], 'low_stock_alert_at', 'Enter the number of pieces to be warned at, e.g. 5.'],
     'price in words' => [['price' => 'three fifty'], 'price', 'Enter the price per piece in pesos, e.g. 350 or 350.50.'],
-    'on sale without sale price' => [['status' => 'on_sale'], 'sale_price', 'Enter the sale price for a product On Sale.'],
-    'sale price not lower' => [['status' => 'on_sale', 'sale_price' => '350'], 'sale_price', 'The sale price must be lower than the price per piece.'],
+    'on sale from the form' => [['status' => 'on_sale', 'sale_price' => '300'], 'status', 'Choose Draft, Preorder or Available. To put a product on sale, use Put on Sale on the Products list.'],
     'not sold by the piece or by a pack' => [['sold_by_piece' => '0', 'price' => ''], 'sold_by_piece', 'Choose how students buy it: by the piece, by a pack, or both.'],
-    'on sale but not sold by the piece' => [['sold_by_piece' => '0', 'status' => 'on_sale', 'packs' => [packInput(['sold_to_students' => '1', 'price' => '900'])]], 'status', 'On Sale lowers the price per piece. Sell it by the piece, or choose another status.'],
     'pack of one piece' => [['packs' => [packInput(['pieces' => '1'])]], 'packs.0.pieces', 'A pack has at least 2 pieces.'],
     'pack without its number of pieces' => [['packs' => [packInput(['pieces' => ''])]], 'packs.0.pieces', 'Enter how many pieces are in one pack.'],
     'pack sold without a price' => [['packs' => [packInput(['sold_to_students' => '1', 'price' => ''])]], 'packs.0.price', 'Enter the price students pay for one Pack.'],
@@ -292,7 +294,7 @@ test('the list can be searched by name and filtered by status', function () {
             ->has('products.data', 1)
             ->where('products.data.0.name', '42nd Anniversary Shirt')
             ->where('products.data.0.status_label', 'Preorder')
-            ->where('filters', ['search' => 'anniversary', 'status' => 'preorder', 'stock' => null])
+            ->where('filters', ['search' => 'anniversary', 'status' => 'preorder', 'stock' => null, 'slow_days' => 18])
         );
 });
 

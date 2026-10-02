@@ -24,7 +24,7 @@ export default function StorefrontTile({
 }) {
     const openSignIn = useSignInPrompt();
     const comingSoon = product.status === 'preorder';
-    const onSale = product.price.sale_centavos !== null;
+    const onSale = product.status === 'on_sale';
 
     return (
         <article
@@ -60,6 +60,14 @@ export default function StorefrontTile({
                             SALE
                         </span>
                     )}
+
+                    {onSale &&
+                        !product.sold_out &&
+                        product.sale_ends_at !== null && (
+                            <span className="absolute top-2 right-2 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-black text-red-600 shadow-sm">
+                                {saleEndsText(product.sale_ends_at)}
+                            </span>
+                        )}
 
                     {comingSoon && (
                         <span className="absolute top-2 left-2 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-black text-amber-950">
@@ -245,15 +253,25 @@ export function PriceLines({
                     key={pack.name}
                     className="flex flex-wrap items-baseline gap-x-1"
                 >
+                    {pack.sale_price_centavos !== null && (
+                        <span className="text-xs text-slate-400 line-through">
+                            {formatPeso(pack.price_centavos)}
+                        </span>
+                    )}
                     <span
                         className={cn(
-                            'font-black text-blue-700',
+                            'font-black',
+                            pack.sale_price_centavos !== null
+                                ? 'text-red-600'
+                                : 'text-blue-700',
                             price.piece_centavos === null
                                 ? mainSize
                                 : 'text-sm',
                         )}
                     >
-                        {formatPeso(pack.price_centavos)}
+                        {formatPeso(
+                            pack.sale_price_centavos ?? pack.price_centavos,
+                        )}
                     </span>
                     <span className="text-xs text-slate-500">
                         / {pack.name} of {pack.pieces}
@@ -262,4 +280,27 @@ export function PriceLines({
             ))}
         </div>
     );
+}
+
+/**
+ * "Ends today", "Ends tomorrow" or "Ends in 3 days", by calendar day.
+ */
+export function saleEndsText(endsAt: string): string {
+    const end = new Date(endsAt);
+    const today = new Date();
+    const days = Math.round(
+        (new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() -
+            new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                today.getDate(),
+            ).getTime()) /
+            86_400_000,
+    );
+
+    if (days <= 0) {
+        return 'Ends today';
+    }
+
+    return days === 1 ? 'Ends tomorrow' : `Ends in ${days} days`;
 }

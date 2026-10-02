@@ -45,6 +45,14 @@ class SaveProductRequest extends FormRequest
         $productId = $product instanceof Product ? $product->id : null;
         $soldByPiece = $this->boolean('sold_by_piece');
 
+        // On Sale is set only through Put on Sale; a product already on sale
+        // stays On Sale while it is edited.
+        $statuses = [ProductStatus::Draft, ProductStatus::Preorder, ProductStatus::Available];
+
+        if ($product instanceof Product && $product->status === ProductStatus::OnSale) {
+            $statuses[] = ProductStatus::OnSale;
+        }
+
         return [
             'name' => ['required', 'string', 'max:120'],
             'sold_by_piece' => ['required', 'boolean'],
@@ -55,15 +63,8 @@ class SaveProductRequest extends FormRequest
                 'gt:0',
                 'max:1000000',
             ],
-            'status' => ['required', Rule::enum(ProductStatus::class)],
+            'status' => ['required', Rule::in(array_map(fn (ProductStatus $status): string => $status->value, $statuses))],
             'low_stock_alert_at' => ['required', 'integer', 'min:0', 'max:100000'],
-            'sale_price' => [
-                Rule::requiredIf($soldByPiece && $this->input('status') === ProductStatus::OnSale->value),
-                'nullable',
-                'decimal:0,2',
-                'gt:0',
-                'lt:price',
-            ],
 
             'packs' => ['nullable', 'array', 'max:'.self::MAX_PACKS],
             'packs.*.key' => ['required', 'string', 'max:40', 'distinct'],
@@ -122,9 +123,7 @@ class SaveProductRequest extends FormRequest
             'low_stock_alert_at.required' => 'Enter the number of pieces to be warned at, e.g. 5.',
             'low_stock_alert_at.integer' => 'Enter the number of pieces as a whole number.',
             'low_stock_alert_at.min' => 'The number cannot be below 0.',
-            'sale_price.required' => 'Enter the sale price for a product On Sale.',
-            'sale_price.decimal' => 'Enter the sale price in pesos, e.g. 300 or 299.50.',
-            'sale_price.lt' => 'The sale price must be lower than the price per piece.',
+            'status.in' => 'Choose Draft, Preorder or Available. To put a product on sale, use Put on Sale on the Products list.',
             'packs.max' => 'A product can have up to '.self::MAX_PACKS.' packs.',
             'packs.*.name.required' => 'Name the pack, e.g. Pack or Box.',
             'packs.*.pieces.required' => 'Enter how many pieces are in one pack.',
@@ -248,10 +247,6 @@ class SaveProductRequest extends FormRequest
 
         if (! $this->boolean('sold_by_piece') && ! $sellsAPack) {
             $validator->errors()->add('sold_by_piece', 'Choose how students buy it: by the piece, by a pack, or both.');
-        }
-
-        if (! $this->boolean('sold_by_piece') && $this->input('status') === ProductStatus::OnSale->value) {
-            $validator->errors()->add('status', 'On Sale lowers the price per piece. Sell it by the piece, or choose another status.');
         }
 
         $keys = array_column($packs, 'key');

@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     ArrowRight,
     Boxes,
+    Flame,
     ImagePlus,
     Link2,
     LoaderCircle,
@@ -18,6 +19,7 @@ import ProductStockController from '@/actions/App/Http/Controllers/ProductStockC
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
+import { formatDateTime } from '@/lib/format';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
 import { variantCombinations } from '@/lib/product-variants';
 import { cn } from '@/lib/utils';
@@ -51,7 +53,6 @@ type ProductFormData = {
     sold_by_piece: boolean;
     price: string;
     status: ProductStatus;
-    sale_price: string;
     low_stock_alert_at: string;
     photos: PhotoInput[];
     packs: ProductPackInput[];
@@ -87,12 +88,6 @@ const statuses: { value: ProductStatus; label: string; description: string }[] =
             description:
                 'Shown in All Merchandise. Students can add it to their cart.',
         },
-        {
-            value: 'on_sale',
-            label: 'On Sale',
-            description:
-                'Shown under On Sale at a lower price, to clear slow-moving stock.',
-        },
     ];
 
 const inputClasses =
@@ -110,7 +105,6 @@ export default function ProductForm({
         sold_by_piece: product?.sold_by_piece ?? true,
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
-        sale_price: product?.sale_price ?? '',
         low_stock_alert_at: product?.low_stock_alert_at ?? '5',
         photos:
             product?.photos.map((photo) => ({
@@ -174,10 +168,6 @@ export default function ProductForm({
             sold_by_piece: current.sold_by_piece,
             price: current.sold_by_piece ? current.price : '',
             status: current.status,
-            sale_price:
-                current.sold_by_piece && current.status === 'on_sale'
-                    ? current.sale_price
-                    : '',
             low_stock_alert_at: current.low_stock_alert_at,
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
@@ -1146,62 +1136,59 @@ export default function ProductForm({
 
                 <Panel
                     title="Where it shows"
-                    description="Choose how students see this product on the storefront."
+                    description="Choose how students see this product on the storefront. To put it on sale, use Put on Sale on the Products list."
                 >
-                    <div className="grid gap-3 p-6 md:grid-cols-2 xl:grid-cols-4">
-                        {statuses.map((status) => (
-                            <label
-                                key={status.value}
-                                className={cn(
-                                    'cursor-pointer rounded-2xl border-2 p-4 transition',
-                                    data.status === status.value
-                                        ? 'border-[#0D6EFD] bg-blue-50'
-                                        : 'border-slate-200 bg-white hover:border-slate-300',
-                                )}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <input
-                                        type="radio"
-                                        name="status"
-                                        value={status.value}
-                                        checked={data.status === status.value}
-                                        onChange={() =>
-                                            setData('status', status.value)
-                                        }
-                                        className="h-4 w-4 accent-[#0D6EFD]"
-                                    />
-                                    <span className="font-black text-slate-900">
-                                        {status.label}
-                                    </span>
-                                </span>
-                                <span className="mt-2 block text-sm leading-5 text-slate-500">
-                                    {status.description}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-
-                    {data.status === 'on_sale' && (
-                        <div className="border-t border-slate-100 px-6 py-5">
-                            <div className="max-w-sm">
-                                <Field
-                                    label="Sale price"
-                                    hint={
-                                        data.price && data.sale_price
-                                            ? `Students see ₱${data.price} crossed out, then ₱${data.sale_price}.`
-                                            : 'Must be lower than the student price.'
-                                    }
-                                    error={errors.sale_price}
-                                >
-                                    <PesoInput
-                                        value={data.sale_price}
-                                        onChange={(value) =>
-                                            setData('sale_price', value)
-                                        }
-                                        placeholder="300"
-                                    />
-                                </Field>
+                    {data.status === 'on_sale' ? (
+                        <div className="m-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+                            <Flame size={20} className="mt-0.5 shrink-0" />
+                            <div>
+                                <p className="font-black">
+                                    On Sale
+                                    {product?.sale_ends_at &&
+                                        ` until ${formatDateTime(product.sale_ends_at)}`}
+                                </p>
+                                <p className="mt-1 leading-6">
+                                    It goes back to Available by itself when the
+                                    sale ends. To change the sale price or the
+                                    days, or to end the sale now, use the
+                                    buttons on the Products list.
+                                </p>
                             </div>
+                        </div>
+                    ) : (
+                        <div className="grid gap-3 p-6 md:grid-cols-3">
+                            {statuses.map((status) => (
+                                <label
+                                    key={status.value}
+                                    className={cn(
+                                        'cursor-pointer rounded-2xl border-2 p-4 transition',
+                                        data.status === status.value
+                                            ? 'border-[#0D6EFD] bg-blue-50'
+                                            : 'border-slate-200 bg-white hover:border-slate-300',
+                                    )}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <input
+                                            type="radio"
+                                            name="status"
+                                            value={status.value}
+                                            checked={
+                                                data.status === status.value
+                                            }
+                                            onChange={() =>
+                                                setData('status', status.value)
+                                            }
+                                            className="h-4 w-4 accent-[#0D6EFD]"
+                                        />
+                                        <span className="font-black text-slate-900">
+                                            {status.label}
+                                        </span>
+                                    </span>
+                                    <span className="mt-2 block text-sm leading-5 text-slate-500">
+                                        {status.description}
+                                    </span>
+                                </label>
+                            ))}
                         </div>
                     )}
                     <div className="px-6 pb-6">

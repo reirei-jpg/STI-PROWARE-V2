@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Products\SaveProduct;
 use App\Enums\ProductStatus;
+use App\Enums\StockMovementType;
 use App\Http\Requests\FilterProductsRequest;
 use App\Http\Requests\SaveProductRequest;
 use App\Models\Product;
@@ -12,6 +13,7 @@ use App\Models\ProductPack;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
+use App\Models\StockMovement;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,22 +29,36 @@ class ProductController extends Controller
 {
     /**
      * List the products, most recently changed first, with a name search, a
-     * status filter and a "Low stock" filter.
+     * status filter and the "Low stock" and "Slow-moving" filters.
      */
     public function index(FilterProductsRequest $request): Response
     {
         $search = $request->search();
         $status = $request->status();
-        $lowStockOnly = $request->lowStockOnly();
+        $stockFilter = $request->stockFilter();
+        $slowDays = $request->slowMovingDays();
+
+        $movementsOfThisProduct = fn () => StockMovement::query()
+            ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
+            ->whereColumn('product_variants.product_id', 'products.id');
 
         $products = Product::query()
             ->with(['mainPhoto', 'packs'])
             ->withCount('variants')
             ->withSum('variants', 'stock_on_hand')
             ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at')])
+            ->addSelect([
+                'first_received_at' => $movementsOfThisProduct()->selectRaw('min(stock_movements.created_at)'),
+                'last_sale_at' => $movementsOfThisProduct()
+                    ->selectRaw('max(stock_movements.created_at)')
+                    ->where('stock_movements.quantity', '<', 0)
+                    ->where('stock_movements.type', '!=', StockMovementType::Correction),
+            ])
+            ->withCasts(['first_received_at' => 'datetime', 'last_sale_at' => 'datetime'])
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->when($status, fn (Builder $query, ProductStatus $chosen) => $query->where('status', $chosen))
-            ->when($lowStockOnly, fn (Builder $query) => $query->lowOnStock())
+            ->when($stockFilter === 'low', fn (Builder $query) => $query->lowOnStock())
+            ->when($stockFilter === 'slow', fn (Builder $query) => $query->slowMoving($slowDays))
             ->latest('updated_at')
             ->latest('id')
             ->paginate(20)
@@ -61,12 +77,16 @@ class ProductController extends Controller
                         'name' => $pack->name,
                         'pieces' => $pack->pieces,
                         'price_centavos' => (int) $pack->price_centavos,
+                        'sale_price_centavos' => $product->status === ProductStatus::OnSale ? $pack->sale_price_centavos : null,
                     ])
                     ->values()
                     ->all(),
                 'stock_on_hand' => (int) $product->getAttribute('variants_sum_stock_on_hand'),
                 'low_stock_alert_at' => $product->low_stock_alert_at,
                 'low_stock' => LowStockAlerts::isSold($product) && (bool) $product->getAttribute('has_variant_at_alert'),
+                'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
+                'first_received_at' => $product->getAttribute('first_received_at')?->toIso8601String(),
+                'last_sale_at' => $product->getAttribute('last_sale_at')?->toIso8601String(),
                 'photo_url' => $product->mainPhoto?->url(),
                 'variants_count' => $product->variants_count,
                 'updated_at' => $product->updated_at?->toIso8601String(),
@@ -77,9 +97,11 @@ class ProductController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status?->value,
-                'stock' => $lowStockOnly ? 'low' : null,
+                'stock' => $stockFilter,
+                'slow_days' => $slowDays,
             ],
             'lowStockCount' => Product::query()->lowOnStock()->count(),
+            'slowMovingCount' => Product::query()->slowMoving($slowDays)->count(),
             'itemsToLinkCount' => PurchaseOrderItem::query()
                 ->notLinkedToProduct()
                 ->distinct()
@@ -125,8 +147,8 @@ class ProductController extends Controller
                 'name' => $product->name,
                 'sold_by_piece' => $product->sold_by_piece,
                 'price' => $product->price_centavos === null ? '' : $this->pesos($product->price_centavos),
-                'sale_price' => $product->sale_price_centavos === null ? '' : $this->pesos($product->sale_price_centavos),
                 'status' => $product->status->value,
+                'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
                 'low_stock_alert_at' => (string) $product->low_stock_alert_at,
                 'photos' => $product->photos->map(fn (ProductPhoto $photo): array => [
                     'id' => $photo->id,

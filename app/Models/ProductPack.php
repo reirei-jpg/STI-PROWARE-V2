@@ -20,11 +20,12 @@ use Illuminate\Support\Carbon;
  * @property int $pieces
  * @property bool $sold_to_students
  * @property int|null $price_centavos
+ * @property int|null $sale_price_centavos while the product is On Sale, if this pack is discounted
  * @property int $position
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'pieces', 'sold_to_students', 'price_centavos', 'position'])]
+#[Fillable(['name', 'pieces', 'sold_to_students', 'price_centavos', 'sale_price_centavos', 'position'])]
 class ProductPack extends Model
 {
     /** @use HasFactory<ProductPackFactory> */
@@ -39,6 +40,7 @@ class ProductPack extends Model
             'pieces' => 'integer',
             'sold_to_students' => 'boolean',
             'price_centavos' => 'integer',
+            'sale_price_centavos' => 'integer',
         ];
     }
 
