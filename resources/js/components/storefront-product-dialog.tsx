@@ -29,7 +29,7 @@ const availabilityText: Record<StorefrontVariantAvailability, string> = {
     coming_soon: 'Coming soon',
     in_stock: 'In stock',
     almost_sold_out: 'Almost sold out',
-    sold_out: 'Sold out',
+    sold_out: 'Out of stock',
 };
 
 const availabilityClasses: Record<StorefrontVariantAvailability, string> = {
@@ -112,7 +112,7 @@ export default function StorefrontProductDialog({
                                     {comingSoon
                                         ? 'Coming soon · preorder it now'
                                         : shown.sold_out
-                                          ? 'Sold out for now'
+                                          ? 'Out of stock for now'
                                           : 'Official STI merchandise'}
                                 </DialogDescription>
                             </div>
@@ -253,7 +253,7 @@ export default function StorefrontProductDialog({
 
                                 {shown.sold_out ? (
                                     <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
-                                        Sold out for now
+                                        Out of stock for now
                                     </p>
                                 ) : (
                                     <button

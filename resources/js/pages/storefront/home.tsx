@@ -4,22 +4,30 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import StorefrontProductDialog from '@/components/storefront-product-dialog';
-import StorefrontTile from '@/components/storefront-tile';
+import StorefrontTile, { PlaceholderTile } from '@/components/storefront-tile';
 import TileCarousel from '@/components/tile-carousel';
 import type { StorefrontFilters, StorefrontTileProduct } from '@/types';
 
 const feedChoices: { value: StorefrontFilters['show']; label: string }[] = [
     { value: null, label: 'All' },
-    { value: 'in_stock', label: 'In stock' },
-    { value: 'sold_out', label: 'Sold out' },
+    { value: 'in_stock', label: 'Available' },
+    { value: 'sold_out', label: 'Out of Stock' },
 ];
+
+/** Empty tiles shown where a section has no products yet (approved layout). */
+const PLACEHOLDER_COMING_SOON = 10;
+const PLACEHOLDER_ON_SALE = 4;
+const PLACEHOLDER_FEED = 20;
 
 /**
  * The public storefront dashboard: anyone can scroll and browse; signing in
  * is only asked for at Add to Cart or Preorder. Coming Soon shows Preorder
  * products, On Sale the products being cleared, and All Merchandise every
- * product that arrived, newest first and sold-out ones last. Tapping a tile
- * opens the product's view.
+ * product that arrived, newest first and out-of-stock ones last. Tapping a
+ * tile opens the product's view.
+ *
+ * All three sections always show, as in the approved layout: a section
+ * with no products yet keeps its empty tiles and says so.
  */
 export default function StorefrontHome({
     comingSoon,
@@ -53,16 +61,9 @@ export default function StorefrontHome({
                     </p>
                 </section>
 
-                {comingSoon.length > 0 && (
-                    <ComingSoonCarousel
-                        products={comingSoon}
-                        onView={setViewing}
-                    />
-                )}
+                <ComingSoonCarousel products={comingSoon} onView={setViewing} />
 
-                {onSale.length > 0 && (
-                    <OnSaleSection products={onSale} onView={setViewing} />
-                )}
+                <OnSaleSection products={onSale} onView={setViewing} />
 
                 <MerchandiseFeed
                     merchandise={merchandise}
@@ -76,6 +77,17 @@ export default function StorefrontHome({
                 onClose={() => setViewing(null)}
             />
         </>
+    );
+}
+
+/**
+ * A short line under a section that has no products yet.
+ */
+function EmptyNote({ children }: { children: ReactNode }) {
+    return (
+        <p className="mt-3 text-center text-sm font-semibold text-slate-500">
+            {children}
+        </p>
     );
 }
 
@@ -126,20 +138,39 @@ function ComingSoonCarousel({
                     </span>
                 }
                 title="Coming Soon"
-                description="Preorder now. These are being ordered from STI Head Office."
+                description="Ordered from STI Head Office and on the way."
             />
 
             <TileCarousel
                 label="Coming Soon"
-                tiles={products.map((product) => (
-                    <StorefrontTile
-                        key={product.id}
-                        product={product}
-                        onView={onView}
-                        className="w-full"
-                    />
-                ))}
+                tiles={
+                    products.length > 0
+                        ? products.map((product) => (
+                              <StorefrontTile
+                                  key={product.id}
+                                  product={product}
+                                  onView={onView}
+                                  className="w-full"
+                              />
+                          ))
+                        : Array.from(
+                              { length: PLACEHOLDER_COMING_SOON },
+                              (_, index) => (
+                                  <PlaceholderTile
+                                      key={index}
+                                      comingSoon
+                                      className="w-full"
+                                  />
+                              ),
+                          )
+                }
             />
+            {products.length === 0 && (
+                <EmptyNote>
+                    No preorders yet. New items appear here as soon as they are
+                    set for preorder.
+                </EmptyNote>
+            )}
         </section>
     );
 }
@@ -170,14 +201,24 @@ function OnSaleSection({
             />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                {products.map((product) => (
-                    <StorefrontTile
-                        key={product.id}
-                        product={product}
-                        onView={onView}
-                    />
-                ))}
+                {products.length > 0
+                    ? products.map((product) => (
+                          <StorefrontTile
+                              key={product.id}
+                              product={product}
+                              onView={onView}
+                          />
+                      ))
+                    : Array.from(
+                          { length: PLACEHOLDER_ON_SALE },
+                          (_, index) => <PlaceholderTile key={index} sale />,
+                      )}
             </div>
+            {products.length === 0 && (
+                <EmptyNote>
+                    Nothing on sale right now. Check back for lower prices.
+                </EmptyNote>
+            )}
         </section>
     );
 }
@@ -251,7 +292,7 @@ function MerchandiseFeed({
                     </span>
                 }
                 title="All Merchandise"
-                description="Everything at the PROWARE store, newest first."
+                description="Everything available at the PROWARE store."
                 actions={
                     <div className="flex flex-wrap items-center gap-2">
                         <label className="flex h-9 w-56 items-center gap-2 rounded-full bg-white px-3 text-slate-400 shadow-sm focus-within:ring-2 focus-within:ring-blue-100">
@@ -287,32 +328,41 @@ function MerchandiseFeed({
                 }
             />
 
-            {merchandise.data.length === 0 ? (
+            {merchandise.data.length === 0 && !isFiltered ? (
+                <>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+                        {Array.from(
+                            { length: PLACEHOLDER_FEED },
+                            (_, index) => (
+                                <PlaceholderTile key={index} />
+                            ),
+                        )}
+                    </div>
+                    <EmptyNote>
+                        No merchandise yet. New items appear here as soon as
+                        they arrive at the PROWARE store.
+                    </EmptyNote>
+                </>
+            ) : merchandise.data.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
                     <Store size={40} className="mx-auto text-slate-300" />
                     <h3 className="mt-3 text-lg font-black text-slate-800">
-                        {isFiltered
-                            ? 'No merchandise matches your search'
-                            : 'No merchandise yet'}
+                        No merchandise matches your search
                     </h3>
                     <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                        {isFiltered
-                            ? 'Try another name, or show all merchandise.'
-                            : 'New items appear here as soon as they arrive at the PROWARE store. Check back soon.'}
+                        Try another name, or show all merchandise.
                     </p>
-                    {isFiltered && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setSearch('');
-                                showFeed({ search: null, show: null });
-                            }}
-                            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700"
-                        >
-                            <X size={16} />
-                            Show all merchandise
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSearch('');
+                            showFeed({ search: null, show: null });
+                        }}
+                        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700"
+                    >
+                        <X size={16} />
+                        Show all merchandise
+                    </button>
                 </div>
             ) : (
                 <InfiniteScroll

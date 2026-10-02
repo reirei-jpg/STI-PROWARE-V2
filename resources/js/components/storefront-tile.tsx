@@ -10,8 +10,8 @@ import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
  *
  * Badges: SALE (original price crossed out before the sale price), COMING
  * SOON with a Preorder button, "Only 3 left" when almost sold out, and
- * SOLD OUT (greyed, no button). Add to Cart and Preorder ask a signed-out
- * visitor to sign in first.
+ * OUT OF STOCK (greyed, no button). Add to Cart and Preorder ask a
+ * signed-out visitor to sign in first.
  */
 export default function StorefrontTile({
     product,
@@ -78,7 +78,7 @@ export default function StorefrontTile({
                     {product.sold_out && (
                         <span className="absolute inset-0 flex items-center justify-center bg-slate-900/40">
                             <span className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-black tracking-wide text-white">
-                                SOLD OUT
+                                OUT OF STOCK
                             </span>
                         </span>
                     )}
@@ -94,7 +94,7 @@ export default function StorefrontTile({
 
                 {product.sold_out ? (
                     <span className="mt-auto inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
-                        Sold out
+                        Out of stock
                     </span>
                 ) : (
                     <button
@@ -115,6 +115,85 @@ export default function StorefrontTile({
                         {comingSoon ? 'Preorder' : 'Add to Cart'}
                     </button>
                 )}
+            </div>
+        </article>
+    );
+}
+
+/**
+ * An empty tile from the approved storefront layout, shown where a section
+ * has no products yet so the layout keeps its shape: grey picture, name and
+ * price bars, and the button (not clickable). `sale` and `comingSoon` add
+ * the SALE or COMING SOON badge and matching look.
+ */
+export function PlaceholderTile({
+    sale = false,
+    comingSoon = false,
+    className,
+}: {
+    sale?: boolean;
+    comingSoon?: boolean;
+    className?: string;
+}) {
+    return (
+        <article
+            aria-hidden="true"
+            className={cn(
+                'flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm',
+                className,
+            )}
+        >
+            <div className="relative flex aspect-square items-center justify-center bg-slate-100 text-slate-300">
+                <ImageIcon size={36} />
+
+                {sale && (
+                    <span className="absolute top-2 left-2 rounded-lg bg-red-500 px-2 py-1 text-[11px] font-black text-white">
+                        SALE
+                    </span>
+                )}
+
+                {comingSoon && (
+                    <span className="absolute top-2 left-2 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-black text-amber-950">
+                        COMING SOON
+                    </span>
+                )}
+            </div>
+
+            <div className="flex flex-1 flex-col gap-2 p-3">
+                <div className="space-y-1.5">
+                    <div className="h-3 w-11/12 rounded-full bg-slate-100" />
+                    <div className="h-3 w-2/3 rounded-full bg-slate-100" />
+                </div>
+
+                <div className="mt-auto flex items-center gap-2 pt-1">
+                    {sale && (
+                        <div className="relative h-3 w-10 rounded-full bg-slate-200">
+                            <span className="absolute top-1/2 -right-0.5 -left-0.5 h-px bg-slate-500" />
+                        </div>
+                    )}
+                    <div
+                        className={cn(
+                            'h-5 w-16 rounded-full',
+                            sale ? 'bg-red-200' : 'bg-blue-100',
+                        )}
+                    />
+                </div>
+
+                <span
+                    className={cn(
+                        'mt-1 inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-black opacity-60',
+                        comingSoon
+                            ? 'bg-amber-400 text-amber-950'
+                            : 'bg-[#0D6EFD] text-white',
+                    )}
+                >
+                    {comingSoon ? (
+                        <CalendarClock size={14} />
+                    ) : (
+                        <ShoppingCart size={14} />
+                    )}
+                    {comingSoon ? 'Preorder' : 'Add to Cart'}
+                </span>
             </div>
         </article>
     );
