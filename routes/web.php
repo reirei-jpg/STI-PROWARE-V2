@@ -8,9 +8,11 @@ use App\Http\Controllers\ProductStockController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseOrderDeliveryController;
 use App\Http\Controllers\PurchaseOrderScanController;
+use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'storefront/home')->name('home');
+Route::get('/', [StorefrontController::class, 'home'])->name('home');
+Route::get('merchandise/{product}', [StorefrontController::class, 'show'])->name('storefront.product');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
