@@ -5,7 +5,10 @@ export type DeliveryListItem = {
     delivery_receipt_number: string | null;
     note: string | null;
     recorded_by: string;
-    quantity_received: number;
+    /** Pieces this delivery added to stock. */
+    pieces_added_to_stock: number;
+    /** Items in it that are not linked to a product, so not in stock. */
+    items_not_in_stock: number;
     order_numbers: string[];
 };
 

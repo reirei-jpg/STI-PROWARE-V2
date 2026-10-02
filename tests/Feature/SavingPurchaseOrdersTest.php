@@ -236,12 +236,12 @@ test('the details window gets every detail of the order, items in document order
                 [
                     'row_number' => 1, 'item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain Culinary',
                     'stock_on_hand' => null, 'quantity_ordered' => 20, 'unit_price_centavos' => 2100, 'amount_centavos' => 42000,
-                    'quantity_received' => 0, 'quantity_remaining' => 20,
+                    'quantity_received' => 0, 'quantity_remaining' => 20, 'stock_target' => null,
                 ],
                 [
                     'row_number' => 2, 'item_code' => 'PRCU01-02', 'description' => 'Chibi Keychain Tourism',
                     'stock_on_hand' => 3, 'quantity_ordered' => 10, 'unit_price_centavos' => 2100, 'amount_centavos' => 21000,
-                    'quantity_received' => 0, 'quantity_remaining' => 10,
+                    'quantity_received' => 0, 'quantity_remaining' => 10, 'stock_target' => null,
                 ],
             ],
             'deliveries' => [],

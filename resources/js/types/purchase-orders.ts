@@ -1,3 +1,5 @@
+import type { StockTarget } from './deliveries';
+
 export type ScannedPurchaseOrderItem = {
     row_number: number;
     item_code: string | null;
@@ -53,6 +55,8 @@ export type PurchaseOrderItemDetails = {
     quantity_remaining: number;
     unit_price_centavos: number;
     amount_centavos: number;
+    /** The product its deliveries go into; null while not linked. */
+    stock_target: StockTarget | null;
 };
 
 export type PurchaseOrderDetails = {
@@ -128,5 +132,13 @@ export type OrderDeliveryRecord = {
         item_code: string;
         description: string;
         quantity_received: number;
+        /** What went into stock; null while the item is not linked. */
+        added_to_stock: {
+            product_name: string;
+            units_received: number;
+            unit_name: string;
+            pieces_per_unit: number;
+            pieces: number;
+        } | null;
     }[];
 };

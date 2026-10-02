@@ -16,6 +16,7 @@ import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
 import { formatDateOrdered } from '@/lib/format';
+import { formatConversion, formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { WaitingItemGroup, WaitingItemRow } from '@/types';
 
@@ -99,6 +100,27 @@ export default function RecordDelivery({
         0,
     );
     const hasProblems = rows.some((row) => rowProblem(row) !== null);
+
+    // What saving adds to stock, in pieces, and how many typed items are
+    // not linked to a product (recorded, but not added to stock).
+    const groupReceivedNow = (group: WaitingItemGroup) =>
+        group.rows.reduce(
+            (sum, row) =>
+                sum +
+                (wholeNumber(data.quantities[row.purchase_order_item_id]) ?? 0),
+            0,
+        );
+    const piecesIntoStock = groups.reduce(
+        (sum, group) =>
+            sum +
+            (group.stock_target
+                ? groupReceivedNow(group) * group.stock_target.pieces_per_unit
+                : 0),
+        0,
+    );
+    const notLinkedReceived = groups.filter(
+        (group) => group.stock_target === null && groupReceivedNow(group) > 0,
+    ).length;
 
     const visibleGroups = groups.filter((group) => {
         const term = search.trim().toLowerCase().replace(/^#/, '');
@@ -329,36 +351,67 @@ export default function RecordDelivery({
                                       ? `Only ${remaining.toLocaleString('en-PH')} left to receive for this item.`
                                       : null;
 
+                            const target = group.stock_target;
+
                             return (
                                 <Panel
                                     key={group.item_code}
                                     title={`${group.item_code} · ${group.description}`}
-                                    description={`${remaining.toLocaleString('en-PH')} still to come across ${group.rows.length} ${group.rows.length === 1 ? 'order' : 'orders'}`}
+                                    description={`${
+                                        target
+                                            ? formatUnits(
+                                                  remaining,
+                                                  target.unit_name,
+                                              )
+                                            : `${remaining.toLocaleString('en-PH')} (as ordered on the eStore)`
+                                    } still to come across ${group.rows.length} ${group.rows.length === 1 ? 'order' : 'orders'}`}
                                     actions={
                                         <label className="grid gap-1">
                                             <span className="text-xs font-bold tracking-wide text-slate-400 uppercase">
                                                 Total received for this item
                                             </span>
-                                            <input
-                                                value={
-                                                    groupTotals[
-                                                        group.item_code
-                                                    ] ?? ''
-                                                }
-                                                onChange={(event) =>
-                                                    setGroupTotal(
-                                                        group,
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                inputMode="numeric"
-                                                placeholder="0"
-                                                className={cn(
-                                                    inputClasses,
-                                                    'w-44 text-right',
+                                            <span className="flex items-center gap-2">
+                                                <input
+                                                    value={
+                                                        groupTotals[
+                                                            group.item_code
+                                                        ] ?? ''
+                                                    }
+                                                    onChange={(event) =>
+                                                        setGroupTotal(
+                                                            group,
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    className={cn(
+                                                        inputClasses,
+                                                        'w-36 text-right',
+                                                    )}
+                                                    aria-label={`Total received for ${group.item_code}`}
+                                                />
+                                                {target && (
+                                                    <span className="w-14 text-sm font-bold text-slate-500">
+                                                        {unitWord(
+                                                            typedTotal ?? 0,
+                                                            target.unit_name,
+                                                        )}
+                                                    </span>
                                                 )}
-                                                aria-label={`Total received for ${group.item_code}`}
-                                            />
+                                            </span>
+                                            {target &&
+                                                totalProblem === null &&
+                                                (typedTotal ?? 0) > 0 && (
+                                                    <span className="text-xs font-bold text-emerald-700">
+                                                        Into stock:{' '}
+                                                        {formatConversion(
+                                                            typedTotal ?? 0,
+                                                            target.unit_name,
+                                                            target.pieces_per_unit,
+                                                        )}
+                                                    </span>
+                                                )}
                                             <InputError
                                                 message={
                                                     totalProblem ?? undefined
@@ -400,6 +453,13 @@ export default function RecordDelivery({
                                                             row
                                                                 .purchase_order_item_id
                                                         ];
+                                                    const receivedNow =
+                                                        wholeNumber(
+                                                            data.quantities[
+                                                                row
+                                                                    .purchase_order_item_id
+                                                            ],
+                                                        ) ?? 0;
 
                                                     return (
                                                         <tr
@@ -429,49 +489,90 @@ export default function RecordDelivery({
                                                                     : '—'}
                                                             </td>
                                                             <td className="px-5 py-4 text-right font-black text-slate-800">
-                                                                {row.quantity_ordered.toLocaleString(
-                                                                    'en-PH',
-                                                                )}
+                                                                <Quantity
+                                                                    value={
+                                                                        row.quantity_ordered
+                                                                    }
+                                                                    target={
+                                                                        target
+                                                                    }
+                                                                />
                                                             </td>
                                                             <td className="px-5 py-4 text-right text-emerald-700">
-                                                                {row.quantity_received.toLocaleString(
-                                                                    'en-PH',
-                                                                )}
+                                                                <Quantity
+                                                                    value={
+                                                                        row.quantity_received
+                                                                    }
+                                                                    target={
+                                                                        target
+                                                                    }
+                                                                />
                                                             </td>
                                                             <td className="px-5 py-4 text-right font-black text-amber-700">
-                                                                {row.quantity_remaining.toLocaleString(
-                                                                    'en-PH',
-                                                                )}
+                                                                <Quantity
+                                                                    value={
+                                                                        row.quantity_remaining
+                                                                    }
+                                                                    target={
+                                                                        target
+                                                                    }
+                                                                />
                                                             </td>
                                                             <td className="px-5 py-4">
-                                                                <input
-                                                                    value={
-                                                                        data
-                                                                            .quantities[
-                                                                            row
-                                                                                .purchase_order_item_id
-                                                                        ] ?? ''
-                                                                    }
-                                                                    onChange={(
-                                                                        event,
-                                                                    ) =>
-                                                                        setRowQuantity(
-                                                                            row,
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                    inputMode="numeric"
-                                                                    placeholder="0"
-                                                                    className={cn(
-                                                                        inputClasses,
-                                                                        'ml-auto w-32 text-right',
-                                                                        problem &&
-                                                                            'border-red-300',
+                                                                <span className="flex items-center justify-end gap-2">
+                                                                    <input
+                                                                        value={
+                                                                            data
+                                                                                .quantities[
+                                                                                row
+                                                                                    .purchase_order_item_id
+                                                                            ] ??
+                                                                            ''
+                                                                        }
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setRowQuantity(
+                                                                                row,
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                            )
+                                                                        }
+                                                                        inputMode="numeric"
+                                                                        placeholder="0"
+                                                                        className={cn(
+                                                                            inputClasses,
+                                                                            'ml-auto w-32 text-right',
+                                                                            problem &&
+                                                                                'border-red-300',
+                                                                        )}
+                                                                        aria-label={`Received now for Order #${row.order_number ?? ''}`}
+                                                                    />
+                                                                    {target && (
+                                                                        <span className="w-14 text-left text-sm font-bold text-slate-500">
+                                                                            {unitWord(
+                                                                                receivedNow,
+                                                                                target.unit_name,
+                                                                            )}
+                                                                        </span>
                                                                     )}
-                                                                    aria-label={`Received now for Order #${row.order_number ?? ''}`}
-                                                                />
+                                                                </span>
+                                                                {target &&
+                                                                    problem ===
+                                                                        null &&
+                                                                    receivedNow >
+                                                                        0 && (
+                                                                        <p className="mt-1 text-right text-xs font-bold text-emerald-700">
+                                                                            Into
+                                                                            stock:{' '}
+                                                                            {formatConversion(
+                                                                                receivedNow,
+                                                                                target.unit_name,
+                                                                                target.pieces_per_unit,
+                                                                            )}
+                                                                        </p>
+                                                                    )}
                                                                 <InputError
                                                                     className="mt-1 text-right"
                                                                     message={
@@ -493,11 +594,18 @@ export default function RecordDelivery({
                         <div className="sticky bottom-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-lg sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm text-slate-500">
-                                    Total received now
+                                    Going into stock when you save
                                 </p>
                                 <p className="text-2xl font-black text-slate-900">
-                                    {totalReceived.toLocaleString('en-PH')}
+                                    {formatUnits(piecesIntoStock, 'Piece')}
                                 </p>
+                                {notLinkedReceived > 0 && (
+                                    <p className="mt-1 text-xs font-bold text-amber-700">
+                                        {notLinkedReceived === 1
+                                            ? '1 item is not linked to a product: it is recorded, but not added to stock.'
+                                            : `${notLinkedReceived} items are not linked to a product: they are recorded, but not added to stock.`}
+                                    </p>
+                                )}
                                 <InputError message={errors.items} />
                             </div>
                             <button
@@ -529,9 +637,10 @@ export default function RecordDelivery({
 }
 
 /**
- * Where this item goes in stock once saved: the linked product and how
- * many pieces each eStore unit adds, or a warning that it is not linked to
- * a product yet, so it will not be added to stock.
+ * How Head Office sends this item (by the piece or by a pack, and how many
+ * pieces are in one) and the product it goes into, or a warning that it is
+ * not linked to a product yet, so it will not be added to stock and its
+ * numbers are as ordered on the eStore.
  */
 function StockTargetNote({ group }: { group: WaitingItemGroup }) {
     const target = group.stock_target;
@@ -542,7 +651,9 @@ function StockTargetNote({ group }: { group: WaitingItemGroup }) {
                 <span className="inline-flex items-center gap-2">
                     <Unlink size={16} className="shrink-0" />
                     Not linked to a product yet, so it will not be added to
-                    stock. You can still record it and link it later.
+                    stock, and PROWARE does not know if Head Office counts it by
+                    the piece or by the pack. The numbers below are as ordered
+                    on the eStore.
                 </span>
                 <Link
                     href={ItemLinkController.index({
@@ -557,18 +668,47 @@ function StockTargetNote({ group }: { group: WaitingItemGroup }) {
     }
 
     return (
-        <div className="flex items-center gap-2 border-b border-emerald-100 bg-emerald-50 px-6 py-3 text-sm text-emerald-800">
-            <Boxes size={16} className="shrink-0" />
+        <div className="flex flex-col gap-1 border-b border-emerald-100 bg-emerald-50 px-6 py-3 text-sm text-emerald-900 sm:flex-row sm:items-center sm:gap-6">
+            <span className="inline-flex items-center gap-2">
+                <Boxes size={16} className="shrink-0" />
+                Head Office sends this{' '}
+                <span className="rounded-lg bg-white px-2 py-0.5 font-black text-emerald-800 shadow-sm">
+                    {target.pieces_per_unit > 1
+                        ? `by the ${target.unit_name} (${target.pieces_per_unit.toLocaleString('en-PH')} pcs each)`
+                        : 'by the piece'}
+                </span>
+            </span>
             <span>
                 Goes into stock:{' '}
                 <span className="font-black">
                     {target.product_name}
                     {target.has_options && ` (${target.variant_label})`}
                 </span>
-                {target.pieces_per_unit > 1
-                    ? ` · Head Office sends it by the ${target.unit_name}: 1 ${target.unit_name} = ${target.pieces_per_unit.toLocaleString('en-PH')} pieces`
-                    : ' · by the piece'}
             </span>
         </div>
+    );
+}
+
+/**
+ * A number with its unit beside it, e.g. "10 Packs" or "5 pcs". For an
+ * item not linked to a product the unit is not known, so only the number
+ * is shown (the note above the table says it is as ordered on the eStore).
+ */
+function Quantity({
+    value,
+    target,
+}: {
+    value: number;
+    target: WaitingItemGroup['stock_target'];
+}) {
+    return (
+        <span className="inline-flex items-baseline justify-end gap-1">
+            {value.toLocaleString('en-PH')}
+            {target && (
+                <span className="text-xs font-bold text-slate-500">
+                    {unitWord(value, target.unit_name)}
+                </span>
+            )}
+        </span>
     );
 }

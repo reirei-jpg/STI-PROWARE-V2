@@ -99,4 +99,21 @@ class ProductVariant extends Model
             ? $this->product->name
             : "{$this->product->name} ({$this->label()})";
     }
+
+    /**
+     * Where deliveries of this variant's eStore item go in stock, and how
+     * Head Office sends it: by the Piece (1 piece each) or by a pack.
+     *
+     * @return array{product_name: string, variant_label: string, has_options: bool, unit_name: string, pieces_per_unit: int}
+     */
+    public function stockTarget(): array
+    {
+        return [
+            'product_name' => $this->product->name,
+            'variant_label' => $this->label(),
+            'has_options' => $this->choices !== [],
+            'unit_name' => $this->estorePack->name ?? 'Piece',
+            'pieces_per_unit' => $this->estorePack->pieces ?? 1,
+        ];
+    }
 }

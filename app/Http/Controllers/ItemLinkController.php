@@ -71,6 +71,7 @@ class ItemLinkController extends Controller
                 return [
                     'item_code' => $item->item_code,
                     'description' => $latest->description,
+                    'unit_price_centavos' => $latest->unit_price_centavos,
                     'category' => $latest->purchaseOrder->category,
                     'latest_order_number' => $latest->purchaseOrder->order_number,
                     'latest_date_ordered' => $latest->purchaseOrder->date_ordered->toDateString(),

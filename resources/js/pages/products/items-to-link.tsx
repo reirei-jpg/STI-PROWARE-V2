@@ -15,7 +15,7 @@ import LinkItemDialog from '@/components/link-item-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
-import { formatDateOrdered } from '@/lib/format';
+import { formatDateOrdered, formatPeso } from '@/lib/format';
 import type { ItemsToLinkFilters, ItemToLink, Paginated } from '@/types';
 
 const primaryButtonClasses =
@@ -101,7 +101,7 @@ export default function ItemsToLink({
 
                 <Panel
                     title="Not Linked Yet"
-                    description="Items that already arrived come first: they are waiting to be added to stock."
+                    description="Items that already arrived come first: they are waiting to be added to stock. Quantities are as ordered on the eStore, because PROWARE does not know yet if Head Office counts each item by the piece or by the pack."
                 >
                     {items.data.length === 0 ? (
                         <div className="px-6 py-16 text-center">
@@ -192,6 +192,12 @@ export default function ItemsToLink({
                                                     </p>
                                                     <p className="mt-1 font-semibold text-slate-800">
                                                         {item.description}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-slate-500">
+                                                        eStore Unit Price:{' '}
+                                                        {formatPeso(
+                                                            item.unit_price_centavos,
+                                                        )}
                                                     </p>
                                                 </td>
                                                 <td className="px-5 py-4 text-slate-700">

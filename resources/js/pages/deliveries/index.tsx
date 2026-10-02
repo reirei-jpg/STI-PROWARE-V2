@@ -7,6 +7,7 @@ import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
 import { formatDateOrdered } from '@/lib/format';
+import { formatUnits } from '@/lib/units';
 import type { DeliveryFilters, DeliveryListItem, Paginated } from '@/types';
 
 const primaryButtonClasses =
@@ -189,7 +190,7 @@ export default function DeliveriesIndex({
                                             <TableHeading>DR #</TableHeading>
                                             <TableHeading>Orders</TableHeading>
                                             <TableHeading align="right">
-                                                Total Received
+                                                Added to Stock
                                             </TableHeading>
                                             <TableHeading>
                                                 Recorded By
@@ -241,9 +242,21 @@ export default function DeliveriesIndex({
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-5 py-4 text-right text-base font-black text-emerald-700">
-                                                    {delivery.quantity_received.toLocaleString(
-                                                        'en-PH',
+                                                <td className="px-5 py-4 text-right">
+                                                    <p className="text-base font-black text-emerald-700">
+                                                        {delivery.pieces_added_to_stock >
+                                                        0
+                                                            ? `+${formatUnits(delivery.pieces_added_to_stock, 'Piece')}`
+                                                            : '—'}
+                                                    </p>
+                                                    {delivery.items_not_in_stock >
+                                                        0 && (
+                                                        <p className="mt-1 text-xs font-bold text-amber-700">
+                                                            {delivery.items_not_in_stock ===
+                                                            1
+                                                                ? '1 item not linked to a product yet'
+                                                                : `${delivery.items_not_in_stock} items not linked to a product yet`}
+                                                        </p>
                                                     )}
                                                 </td>
                                                 <td className="px-5 py-4 font-semibold text-slate-700">

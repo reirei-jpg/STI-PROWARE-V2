@@ -23,6 +23,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { formatConversion, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { OrderDeliveryRecord, PurchaseOrderDetails } from '@/types';
 
@@ -192,6 +193,37 @@ export default function PurchaseOrderDetailsDialog({
                                                 </Cell>
                                                 <Cell className="font-semibold text-slate-900">
                                                     {item.description}
+                                                    <span className="mt-1 block text-xs font-medium">
+                                                        {item.stock_target ? (
+                                                            <span className="text-emerald-700">
+                                                                Head Office
+                                                                sends it{' '}
+                                                                {item
+                                                                    .stock_target
+                                                                    .pieces_per_unit >
+                                                                1
+                                                                    ? `by the ${item.stock_target.unit_name} (${item.stock_target.pieces_per_unit.toLocaleString('en-PH')} pcs each)`
+                                                                    : 'by the piece'}{' '}
+                                                                · stock of{' '}
+                                                                {
+                                                                    item
+                                                                        .stock_target
+                                                                        .product_name
+                                                                }
+                                                                {item
+                                                                    .stock_target
+                                                                    .has_options &&
+                                                                    ` (${item.stock_target.variant_label})`}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-amber-700">
+                                                                Not linked to a
+                                                                product · as
+                                                                ordered on the
+                                                                eStore
+                                                            </span>
+                                                        )}
+                                                    </span>
                                                 </Cell>
                                                 <Cell
                                                     right
@@ -203,17 +235,29 @@ export default function PurchaseOrderDetailsDialog({
                                                     right
                                                     className="font-black text-slate-800"
                                                 >
-                                                    {item.quantity_ordered.toLocaleString(
-                                                        'en-PH',
-                                                    )}
+                                                    <Quantity
+                                                        value={
+                                                            item.quantity_ordered
+                                                        }
+                                                        unitName={
+                                                            item.stock_target
+                                                                ?.unit_name
+                                                        }
+                                                    />
                                                 </Cell>
                                                 <Cell
                                                     right
                                                     className="font-black text-emerald-700"
                                                 >
-                                                    {item.quantity_received.toLocaleString(
-                                                        'en-PH',
-                                                    )}
+                                                    <Quantity
+                                                        value={
+                                                            item.quantity_received
+                                                        }
+                                                        unitName={
+                                                            item.stock_target
+                                                                ?.unit_name
+                                                        }
+                                                    />
                                                 </Cell>
                                                 <Cell
                                                     right
@@ -225,9 +269,15 @@ export default function PurchaseOrderDetailsDialog({
                                                             : 'text-slate-400',
                                                     )}
                                                 >
-                                                    {item.quantity_remaining.toLocaleString(
-                                                        'en-PH',
-                                                    )}
+                                                    <Quantity
+                                                        value={
+                                                            item.quantity_remaining
+                                                        }
+                                                        unitName={
+                                                            item.stock_target
+                                                                ?.unit_name
+                                                        }
+                                                    />
                                                 </Cell>
                                                 <Cell
                                                     right
@@ -370,7 +420,7 @@ function DeliverySummary({
                                     details.quantity_ordered_total -
                                     details.quantity_received_total
                                 ).toLocaleString('en-PH')}{' '}
-                                have not arrived?
+                                (as ordered on the eStore) have not arrived?
                             </p>
                             <p className="mt-1 text-sm text-red-700">
                                 Use this when Head Office says the rest will not
@@ -463,18 +513,45 @@ function DeliveryHistory({
                                         .join(' · ')}
                                 </p>
                             </div>
-                            <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                            <ul className="mt-2 space-y-2 text-sm text-slate-700">
                                 {delivery.items.map((item) => (
                                     <li key={item.item_code}>
                                         <span className="font-mono font-bold text-blue-700">
                                             {item.item_code}
                                         </span>{' '}
-                                        {item.description} —{' '}
-                                        <span className="font-black">
-                                            {item.quantity_received.toLocaleString(
-                                                'en-PH',
-                                            )}
-                                        </span>
+                                        {item.description}
+                                        {item.added_to_stock ? (
+                                            <span className="mt-0.5 block text-emerald-700">
+                                                Received{' '}
+                                                <span className="font-black">
+                                                    {formatConversion(
+                                                        item.added_to_stock
+                                                            .units_received,
+                                                        item.added_to_stock
+                                                            .unit_name,
+                                                        item.added_to_stock
+                                                            .pieces_per_unit,
+                                                    )}
+                                                </span>{' '}
+                                                added to the stock of{' '}
+                                                {
+                                                    item.added_to_stock
+                                                        .product_name
+                                                }
+                                            </span>
+                                        ) : (
+                                            <span className="mt-0.5 block text-amber-700">
+                                                Received{' '}
+                                                <span className="font-black">
+                                                    {item.quantity_received.toLocaleString(
+                                                        'en-PH',
+                                                    )}
+                                                </span>{' '}
+                                                (as ordered on the eStore) · not
+                                                in stock yet: not linked to a
+                                                product
+                                            </span>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
@@ -512,6 +589,23 @@ function Detail({
                 </dd>
             )}
         </div>
+    );
+}
+
+/**
+ * A number with its unit beside it, e.g. "10 Packs" or "5 pcs"; just the
+ * number for an item not linked to a product (its unit is not known).
+ */
+function Quantity({ value, unitName }: { value: number; unitName?: string }) {
+    return (
+        <span className="inline-flex items-baseline justify-end gap-1">
+            {value.toLocaleString('en-PH')}
+            {unitName && (
+                <span className="text-xs font-bold text-slate-500">
+                    {unitWord(value, unitName)}
+                </span>
+            )}
+        </span>
     );
 }
 

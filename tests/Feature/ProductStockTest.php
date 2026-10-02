@@ -47,14 +47,16 @@ function draftProductWithCode(string $code): array
 }
 
 test('a delivery of an item linked to a product goes into its stock', function () {
-    $variant = ProductVariant::factory()->create(['estore_item_code' => 'UTMP02-03']);
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->create(['name' => 'TM Polo']))
+        ->create(['estore_item_code' => 'UTMP02-03']);
     $order = orderWith(['UTMP02-03' => 10]);
 
     $this->actingAs($this->specialist)
         ->post(route('deliveries.store'), deliveryOf($order, 'UTMP02-03', 6))
         ->assertRedirect(route('deliveries.index'))
         ->assertInertiaFlash('toast.type', 'success')
-        ->assertInertiaFlash('toast.message', 'Delivery recorded: 6 received.');
+        ->assertInertiaFlash('toast.message', 'Delivery recorded. Added to stock: TM Polo — 6 pcs.');
 
     expect($variant->refresh()->stock_on_hand)->toBe(6)
         ->and(StockMovement::sole())
@@ -74,8 +76,10 @@ test('an item Head Office sends by the pack adds the pieces in each pack', funct
     $order = orderWith(['PRLY01-01' => 5]);
     $this->actingAs($this->specialist);
 
-    $this->post(route('deliveries.store'), deliveryOf($order, 'PRLY01-01', 2));
-    $this->post(route('deliveries.store'), deliveryOf($order, 'PRLY01-01', 1));
+    $this->post(route('deliveries.store'), deliveryOf($order, 'PRLY01-01', 2))
+        ->assertInertiaFlash('toast.message', 'Delivery recorded. Added to stock: Lanyard — 2 Packs × 50 = 100 pcs.');
+    $this->post(route('deliveries.store'), deliveryOf($order, 'PRLY01-01', 1))
+        ->assertInertiaFlash('toast.message', 'Delivery recorded. Added to stock: Lanyard — 1 Pack × 50 = 50 pcs.');
 
     expect($variant->refresh()->stock_on_hand)->toBe(150)
         ->and(StockMovement::query()->orderBy('id')->get()->map->only(['units_received', 'unit_name', 'pieces_per_unit', 'quantity', 'balance_after'])->all())->toBe([
@@ -91,10 +95,77 @@ test('an item not linked to a product is recorded but not added to stock', funct
         ->post(route('deliveries.store'), deliveryOf($order, 'SSIF001-001', 1000))
         ->assertRedirect(route('deliveries.index'))
         ->assertInertiaFlash('toast.type', 'warning')
-        ->assertInertiaFlash('toast.message', 'Delivery recorded: 1000 received. 1 item is not linked to a product yet, so it was not added to stock. Link it in Products › Items to Link.');
+        ->assertInertiaFlash('toast.message', 'Delivery recorded. Not added to stock yet, because it is not linked to a product: SSIF001-001 (1,000 as ordered on the eStore). Link it in Products › Items to Link.');
 
     expect(StockMovement::count())->toBe(0)
         ->and($order->items()->sole()->quantity_delivered)->toBe(1000);
+});
+
+test('the message after saving lists what went into stock and what did not', function () {
+    ProductVariant::factory()
+        ->for(Product::factory()->create(['name' => 'TM Polo']))
+        ->create(['combination' => 'Size: S/M', 'choices' => [['option' => 'Size', 'choice' => 'S/M']], 'estore_item_code' => 'UTMP02-03']);
+    $order = orderWith(['UTMP02-03' => 10, 'SSIF001-001' => 3000, 'SSRF001-001' => 500]);
+
+    $this->actingAs($this->specialist)
+        ->post(route('deliveries.store'), [
+            'received_on' => now()->toDateString(),
+            'items' => [
+                ['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 3],
+                ['purchase_order_item_id' => itemOf($order, 'SSIF001-001'), 'quantity_received' => 1000],
+                ['purchase_order_item_id' => itemOf($order, 'SSRF001-001'), 'quantity_received' => 500],
+            ],
+        ])
+        ->assertInertiaFlash('toast.type', 'warning')
+        ->assertInertiaFlash('toast.message', 'Delivery recorded. Added to stock: TM Polo (S/M) — 3 pcs. Not added to stock yet, because they are not linked to a product: SSIF001-001 (1,000 as ordered on the eStore); SSRF001-001 (500 as ordered on the eStore). Link them in Products › Items to Link.');
+});
+
+test('the deliveries list shows the pieces each delivery added to stock', function () {
+    $product = Product::factory()->create(['name' => 'Lanyard']);
+    $pack = ProductPack::factory()->for($product)->create(['name' => 'Pack', 'pieces' => 50]);
+    ProductVariant::factory()->for($product)->create(['estore_item_code' => 'PRLY01-01', 'estore_pack_id' => $pack->id]);
+    $order = orderWith(['PRLY01-01' => 5, 'SSIF001-001' => 3000]);
+
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+        'received_on' => now()->toDateString(),
+        'items' => [
+            ['purchase_order_item_id' => itemOf($order, 'PRLY01-01'), 'quantity_received' => 2],
+            ['purchase_order_item_id' => itemOf($order, 'SSIF001-001'), 'quantity_received' => 1000],
+        ],
+    ]);
+
+    $this->get(route('deliveries.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('deliveries.data.0.pieces_added_to_stock', 100)
+            ->where('deliveries.data.0.items_not_in_stock', 1)
+        );
+});
+
+test('the order details say how each item is sent and what each delivery added to stock', function () {
+    $product = Product::factory()->create(['name' => 'Lanyard']);
+    $pack = ProductPack::factory()->for($product)->create(['name' => 'Pack', 'pieces' => 50]);
+    ProductVariant::factory()->for($product)->create(['estore_item_code' => 'PRLY01-01', 'estore_pack_id' => $pack->id]);
+    $order = orderWith(['PRLY01-01' => 5, 'SSIF001-001' => 3000]);
+    $this->actingAs($this->specialist);
+    $this->post(route('deliveries.store'), deliveryOf($order, 'PRLY01-01', 2));
+
+    $this->getJson(route('purchase-orders.show', $order))
+        ->assertOk()
+        ->assertJsonPath('items.0.stock_target', [
+            'product_name' => 'Lanyard',
+            'variant_label' => 'Default',
+            'has_options' => false,
+            'unit_name' => 'Pack',
+            'pieces_per_unit' => 50,
+        ])
+        ->assertJsonPath('items.1.stock_target', null)
+        ->assertJsonPath('deliveries.0.items.0.added_to_stock', [
+            'product_name' => 'Lanyard',
+            'units_received' => 2,
+            'unit_name' => 'Pack',
+            'pieces_per_unit' => 50,
+            'pieces' => 100,
+        ]);
 });
 
 test('linking an item adds the deliveries that arrived before it, and later ones go in by themselves', function () {
@@ -262,6 +333,7 @@ test('items to link lists each eStore item not on a product yet, received ones f
             ->where('items.data.0.waiting_for_stock', 1000)
             ->where('items.data.1.item_code', 'PRCU01-01')
             ->where('items.data.1.description', 'Item PRCU01-01')
+            ->where('items.data.1.unit_price_centavos', $received->items()->where('item_code', 'PRCU01-01')->value('unit_price_centavos'))
             ->where('items.data.1.quantity_ordered', 25)
             ->where('items.data.1.orders_count', 2)
             ->where('items.data.1.latest_order_number', '30722')

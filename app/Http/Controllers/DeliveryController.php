@@ -10,8 +10,11 @@ use App\Models\Delivery;
 use App\Models\DeliveryItem;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
+use App\Models\StockMovement;
+use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,7 +35,11 @@ class DeliveryController extends Controller
 
         $deliveries = Delivery::query()
             ->with(['recorder', 'items.purchaseOrderItem.purchaseOrder'])
-            ->withSum('items', 'quantity_received')
+            ->withCount(['items as items_not_in_stock_count' => fn (Builder $query) => $query->whereDoesntHave('stockMovement')])
+            ->addSelect(['pieces_added_to_stock' => StockMovement::query()
+                ->selectRaw('coalesce(sum(stock_movements.quantity), 0)')
+                ->join('delivery_items', 'delivery_items.id', '=', 'stock_movements.delivery_item_id')
+                ->whereColumn('delivery_items.delivery_id', 'deliveries.id')])
             ->when($search, fn (Builder $query, string $term) => $query->where(
                 fn (Builder $inner) => $inner
                     ->whereLike('sales_invoice_number', "%{$term}%")
@@ -52,7 +59,8 @@ class DeliveryController extends Controller
                 'delivery_receipt_number' => $delivery->delivery_receipt_number,
                 'note' => $delivery->note,
                 'recorded_by' => $delivery->recorder->name,
-                'quantity_received' => (int) $delivery->getAttribute('items_sum_quantity_received'),
+                'pieces_added_to_stock' => (int) $delivery->getAttribute('pieces_added_to_stock'),
+                'items_not_in_stock' => (int) $delivery->getAttribute('items_not_in_stock_count'),
                 'order_numbers' => $delivery->items
                     ->map(fn (DeliveryItem $item): ?string => $item->purchaseOrderItem->purchaseOrder->order_number)
                     ->filter()
@@ -99,7 +107,7 @@ class DeliveryController extends Controller
             ->map(fn ($items, string $itemCode): array => [
                 'item_code' => $itemCode,
                 'description' => $items->first()->description,
-                'stock_target' => $this->stockTarget($linkedVariants->get($itemCode)),
+                'stock_target' => $linkedVariants->get($itemCode)?->stockTarget(),
                 'rows' => $items->map(fn (PurchaseOrderItem $item): array => [
                     'purchase_order_item_id' => $item->id,
                     'order_number' => $item->purchaseOrder->order_number,
@@ -127,20 +135,45 @@ class DeliveryController extends Controller
             $request->receivedQuantities(),
         );
 
-        $items = $delivery->items()->withExists('stockMovement')->get();
-        $total = $items->sum('quantity_received');
-        $notInStock = $items->where('stock_movement_exists', false)->count();
+        $addedToStock = StockMovement::query()
+            ->with('variant.product')
+            ->whereIn('delivery_item_id', $delivery->items()->select('id'))
+            ->orderBy('id')
+            ->get()
+            ->groupBy('product_variant_id')
+            ->map(function (Collection $movements): string {
+                $first = $movements->firstOrFail();
 
-        $message = "Delivery recorded: {$total} received.";
+                return $first->variant->displayName().' — '.Units::conversion(
+                    (int) $movements->sum('units_received'),
+                    (string) $first->unit_name,
+                    (int) $first->pieces_per_unit,
+                );
+            })
+            ->values();
 
-        if ($notInStock > 0) {
-            $message .= $notInStock === 1
-                ? ' 1 item is not linked to a product yet, so it was not added to stock. Link it in Products › Items to Link.'
-                : " {$notInStock} items are not linked to a product yet, so they were not added to stock. Link them in Products › Items to Link.";
+        $notLinked = $delivery->items()
+            ->with('purchaseOrderItem')
+            ->whereDoesntHave('stockMovement')
+            ->get()
+            ->groupBy(fn (DeliveryItem $item): string => $item->purchaseOrderItem->item_code)
+            ->map(fn (Collection $items, string $itemCode): string => $itemCode.' ('.number_format((int) $items->sum('quantity_received')).' as ordered on the eStore)')
+            ->values();
+
+        $message = 'Delivery recorded.';
+
+        if ($addedToStock->isNotEmpty()) {
+            $message .= ' Added to stock: '.$this->listed($addedToStock->all()).'.';
+        }
+
+        if ($notLinked->isNotEmpty()) {
+            $message .= $notLinked->count() === 1
+                ? ' Not added to stock yet, because it is not linked to a product: '.$this->listed($notLinked->all()).'. Link it in Products › Items to Link.'
+                : ' Not added to stock yet, because they are not linked to a product: '.$this->listed($notLinked->all()).'. Link them in Products › Items to Link.';
         }
 
         Inertia::flash('toast', [
-            'type' => $notInStock > 0 ? 'warning' : 'success',
+            'type' => $notLinked->isNotEmpty() ? 'warning' : 'success',
             'message' => $message,
         ]);
 
@@ -148,24 +181,16 @@ class DeliveryController extends Controller
     }
 
     /**
-     * Where an item's deliveries go in stock: the product variant its eStore
-     * Item Code is linked to, and how many pieces each eStore unit adds.
-     * Null while the code is not linked to a product.
+     * The first three lines joined with "; ", then how many more there are.
      *
-     * @return array{product_name: string, variant_label: string, has_options: bool, unit_name: string, pieces_per_unit: int}|null
+     * @param  array<int, string>  $lines
      */
-    private function stockTarget(?ProductVariant $variant): ?array
+    private function listed(array $lines): string
     {
-        if ($variant === null) {
-            return null;
-        }
+        $shown = implode('; ', array_slice($lines, 0, 3));
 
-        return [
-            'product_name' => $variant->product->name,
-            'variant_label' => $variant->label(),
-            'has_options' => $variant->choices !== [],
-            'unit_name' => $variant->estorePack->name ?? 'Piece',
-            'pieces_per_unit' => $variant->estorePack->pieces ?? 1,
-        ];
+        return count($lines) > 3
+            ? $shown.'; and '.(count($lines) - 3).' more'
+            : $shown;
     }
 }

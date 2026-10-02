@@ -69,6 +69,8 @@ export type ProductFromItem = {
 export type ItemToLink = {
     item_code: string;
     description: string;
+    /** Head Office's price per eStore unit on the latest order. */
+    unit_price_centavos: number;
     category: string | null;
     latest_order_number: string | null;
     latest_date_ordered: string;

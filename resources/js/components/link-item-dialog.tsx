@@ -10,6 +10,8 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { formatPeso } from '@/lib/format';
+import { formatConversion } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { ItemToLink, LinkableProduct } from '@/types';
 
@@ -119,13 +121,21 @@ function LinkItemForm({
         });
     };
 
+    const chosenPack = product?.packs.find(
+        (pack) => String(pack.id) === data.pack_id,
+    );
     const piecesPerUnit =
         data.sent_by === 'pack'
-            ? (product?.packs.find((pack) => String(pack.id) === data.pack_id)
-                  ?.pieces ?? null)
+            ? (chosenPack?.pieces ?? null)
             : data.sent_by === 'new_pack'
               ? Number(data.new_pack_pieces) || null
               : 1;
+    const unitName =
+        data.sent_by === 'pack'
+            ? (chosenPack?.name ?? 'Pack')
+            : data.sent_by === 'new_pack'
+              ? data.new_pack_name.trim() || 'Pack'
+              : 'Piece';
 
     const submit = () => {
         form.post(ItemLinkController.store().url, {
@@ -301,6 +311,15 @@ function LinkItemForm({
                         <p className="text-sm font-black text-slate-700">
                             3. How does Head Office send it?
                         </p>
+                        <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+                            On the eStore, Head Office charges{' '}
+                            <span className="font-black text-slate-800">
+                                {formatPeso(item.unit_price_centavos)}
+                            </span>{' '}
+                            for each one you order. If that is the price of one
+                            piece, choose <b>By the piece</b>. If it is the
+                            price of a whole pack or box, choose that pack.
+                        </p>
                         <div className="grid gap-2">
                             <SentByChoice
                                 label="By the piece"
@@ -403,11 +422,24 @@ function LinkItemForm({
 
                 {product && item.waiting_for_stock > 0 && (
                     <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                        {item.waiting_for_stock.toLocaleString('en-PH')} already
-                        received.{' '}
-                        {piecesPerUnit === null
-                            ? 'Enter the pieces in one pack to see how many go into stock.'
-                            : `Linking adds ${(item.waiting_for_stock * piecesPerUnit).toLocaleString('en-PH')} ${item.waiting_for_stock * piecesPerUnit === 1 ? 'piece' : 'pieces'} to stock.`}
+                        Already received:{' '}
+                        {item.waiting_for_stock.toLocaleString('en-PH')} (as
+                        ordered on the eStore).{' '}
+                        {piecesPerUnit === null ? (
+                            'Enter the pieces in one pack to see how many go into stock.'
+                        ) : (
+                            <>
+                                With this choice,{' '}
+                                <span className="font-black">
+                                    {formatConversion(
+                                        item.waiting_for_stock,
+                                        unitName,
+                                        piecesPerUnit,
+                                    )}
+                                </span>{' '}
+                                go into stock.
+                            </>
+                        )}
                     </p>
                 )}
             </div>

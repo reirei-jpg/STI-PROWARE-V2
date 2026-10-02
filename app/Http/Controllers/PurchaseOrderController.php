@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Http\Requests\FilterPurchaseOrdersRequest;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
+use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
@@ -215,10 +216,16 @@ class PurchaseOrderController extends Controller
             ->whereHas('items.purchaseOrderItem', fn (Builder $query) => $query->where('purchase_order_id', $purchaseOrder->id))
             ->with(['items' => fn ($query) => $query
                 ->whereHas('purchaseOrderItem', fn (Builder $item) => $item->where('purchase_order_id', $purchaseOrder->id))
-                ->with('purchaseOrderItem')])
+                ->with(['purchaseOrderItem', 'stockMovement.variant.product'])])
             ->latest('received_on')
             ->latest('id')
             ->get();
+
+        $linkedVariants = ProductVariant::query()
+            ->with(['product', 'estorePack'])
+            ->whereIn('estore_item_code', $purchaseOrder->items->pluck('item_code')->unique()->values())
+            ->get()
+            ->keyBy('estore_item_code');
 
         return response()->json([
             'id' => $purchaseOrder->id,
@@ -251,6 +258,7 @@ class PurchaseOrderController extends Controller
                 'quantity_remaining' => $item->quantityRemaining(),
                 'unit_price_centavos' => $item->unit_price_centavos,
                 'amount_centavos' => $item->amount_centavos,
+                'stock_target' => $linkedVariants->get($item->item_code)?->stockTarget(),
             ])->all(),
             'deliveries' => $deliveries->map(fn (Delivery $delivery): array => [
                 'id' => $delivery->id,
@@ -262,6 +270,13 @@ class PurchaseOrderController extends Controller
                     'item_code' => $item->purchaseOrderItem->item_code,
                     'description' => $item->purchaseOrderItem->description,
                     'quantity_received' => $item->quantity_received,
+                    'added_to_stock' => $item->stockMovement === null ? null : [
+                        'product_name' => $item->stockMovement->variant->displayName(),
+                        'units_received' => (int) $item->stockMovement->units_received,
+                        'unit_name' => (string) $item->stockMovement->unit_name,
+                        'pieces_per_unit' => (int) $item->stockMovement->pieces_per_unit,
+                        'pieces' => $item->stockMovement->quantity,
+                    ],
                 ])->values()->all(),
             ])->all(),
         ]);
