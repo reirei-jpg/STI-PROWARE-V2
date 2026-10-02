@@ -127,6 +127,7 @@ class ProductController extends Controller
                 'item_code' => $orderedItem->item_code,
                 'description' => $orderedItem->description,
             ],
+            'today' => now()->toDateString(),
         ]);
     }
 
@@ -177,6 +178,7 @@ class ProductController extends Controller
                 ])->all(),
             ],
             'fromItem' => null,
+            'today' => now()->toDateString(),
         ]);
     }
 

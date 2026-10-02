@@ -98,9 +98,12 @@ const inputClasses =
 export default function ProductForm({
     product,
     fromItem,
+    today,
 }: {
     product: EditableProduct | null;
     fromItem: ProductFromItem | null;
+    /** Today in the school's time zone, "YYYY-MM-DD". */
+    today: string;
 }) {
     const form = useForm<ProductFormData>({
         name: product?.name ?? fromItem?.description.slice(0, 120) ?? '',
@@ -154,6 +157,14 @@ export default function ProductForm({
     );
     const variantInput = (key: string): VariantInput =>
         data.variant_inputs[key] ?? emptyVariantInput;
+
+    // A new close date cannot be before today; a date already saved that
+    // has passed (preorders closed) may stay as it is.
+    const closeDateInPast =
+        data.status === 'preorder' &&
+        data.preorders_close_on !== '' &&
+        data.preorders_close_on < today &&
+        data.preorders_close_on !== (product?.preorders_close_on ?? '');
 
     // New packs get a key of their own until they are saved.
     const nextPackNumber = useRef(1);
@@ -1215,18 +1226,26 @@ export default function ProductForm({
                                 <Field
                                     label="Preorders close on"
                                     hint="The last day students can preorder. You can move it later on the Preorders page to collect more."
-                                    error={errors.preorders_close_on}
+                                    error={
+                                        closeDateInPast
+                                            ? 'The close date cannot be in the past.'
+                                            : errors.preorders_close_on
+                                    }
                                 >
                                     <input
                                         type="date"
                                         value={data.preorders_close_on}
+                                        min={today}
                                         onChange={(event) =>
                                             setData(
                                                 'preorders_close_on',
                                                 event.target.value,
                                             )
                                         }
-                                        className={inputClasses}
+                                        className={cn(
+                                            inputClasses,
+                                            closeDateInPast && 'border-red-300',
+                                        )}
                                     />
                                 </Field>
                             </div>
@@ -1246,7 +1265,7 @@ export default function ProductForm({
                     </Link>
                     <button
                         type="submit"
-                        disabled={processing}
+                        disabled={processing || closeDateInPast}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         data-test="save-product-button"
                     >
