@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    CalendarClock,
     ClipboardList,
     FileScan,
     LayoutDashboard,
@@ -7,6 +8,7 @@ import {
     Truck,
 } from 'lucide-react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
+import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
@@ -19,6 +21,7 @@ import type { Auth, NavItem, UserRole } from '@/types';
 const workspaceNames: Record<UserRole, string> = {
     specialist: 'Specialist Workspace',
     school_admin: 'School Admin Workspace',
+    student: 'Student',
 };
 
 /**
@@ -58,6 +61,11 @@ function useStaffMenuItems(): NavItem[] {
                 title: 'Products',
                 href: ProductController.index(),
                 icon: Package,
+            },
+            {
+                title: 'Preorders',
+                href: PreorderController.index(),
+                icon: CalendarClock,
             },
         );
     }

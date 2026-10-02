@@ -1,6 +1,7 @@
 import { CalendarClock, ImageIcon, ShoppingCart } from 'lucide-react';
+import { usePreorder } from '@/components/preorder-dialog';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
-import { formatPeso } from '@/lib/format';
+import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
 
@@ -23,6 +24,7 @@ export default function StorefrontTile({
     className?: string;
 }) {
     const openSignIn = useSignInPrompt();
+    const preorder = usePreorder();
     const comingSoon = product.status === 'preorder';
     const onSale = product.status === 'on_sale';
 
@@ -100,14 +102,28 @@ export default function StorefrontTile({
             <div className="flex flex-1 flex-col gap-2 p-3 pt-1.5">
                 <PriceLines price={product.price} />
 
+                {comingSoon && product.preorders_close_on && (
+                    <p className="text-[11px] font-bold text-amber-700">
+                        {product.accepts_preorders
+                            ? `Preorder until ${formatDateOrdered(product.preorders_close_on)}`
+                            : 'Preorders closed'}
+                    </p>
+                )}
+
                 {product.sold_out ? (
                     <span className="mt-auto inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
                         Out of stock
                     </span>
+                ) : comingSoon && !product.accepts_preorders ? (
+                    <span className="mt-auto inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
+                        Preorders closed
+                    </span>
                 ) : (
                     <button
                         type="button"
-                        onClick={openSignIn}
+                        onClick={
+                            comingSoon ? () => preorder(product) : openSignIn
+                        }
                         className={cn(
                             'mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition',
                             comingSoon

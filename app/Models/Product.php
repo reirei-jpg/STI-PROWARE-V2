@@ -33,10 +33,11 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $sale_started_at
  * @property Carbon|null $sale_ends_at
  * @property Carbon|null $sale_ending_notified_at when the "sale ending tomorrow" notice was sent
+ * @property Carbon|null $preorders_close_on last day students can preorder a Preorder product
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at'])]
+#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'preorders_close_on'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -56,7 +57,26 @@ class Product extends Model
             'sale_started_at' => 'datetime',
             'sale_ends_at' => 'datetime',
             'sale_ending_notified_at' => 'datetime',
+            'preorders_close_on' => 'date',
         ];
+    }
+
+    /**
+     * Students can preorder it: it is a Preorder product and its close date
+     * (the last day) has not passed.
+     */
+    public function acceptsPreorders(): bool
+    {
+        return $this->status === ProductStatus::Preorder
+            && ($this->preorders_close_on === null || ! $this->preorders_close_on->endOfDay()->isPast());
+    }
+
+    /**
+     * @return HasMany<Preorder, $this>
+     */
+    public function preorders(): HasMany
+    {
+        return $this->hasMany(Preorder::class);
     }
 
     /**

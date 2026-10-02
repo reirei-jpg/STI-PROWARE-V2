@@ -121,12 +121,12 @@ function SignInPromptDialog({
                     )}
 
                     <p className="mt-6 border-t border-slate-100 pt-5 text-sm text-slate-500">
-                        STI staff?{' '}
+                        Staff, or a student with a PROWARE account?{' '}
                         <Link
                             href={login()}
                             className="font-bold text-blue-700 hover:underline"
                         >
-                            Sign in with your staff account
+                            Sign in with your email and password
                         </Link>
                     </p>
                 </div>

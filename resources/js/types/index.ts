@@ -2,6 +2,7 @@ export type * from './auth';
 export type * from './deliveries';
 export type * from './navigation';
 export type * from './notifications';
+export type * from './preorders';
 export type * from './products';
 export type * from './purchase-orders';
 export type * from './storefront';

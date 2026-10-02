@@ -27,6 +27,9 @@ export type StorefrontTileProduct = {
     pieces_left: number | null;
     /** When the sale ends, for an On Sale product. */
     sale_ends_at: string | null;
+    /** The last day students can preorder, for a Preorder product. */
+    preorders_close_on: string | null;
+    accepts_preorders: boolean;
 };
 
 export type StorefrontVariantAvailability =
@@ -39,6 +42,7 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
     photos: { url: string; label: string | null }[];
     options: { name: string; choices: string[] }[];
     variants: {
+        id: number;
         label: string;
         price_centavos: number | null;
         availability: StorefrontVariantAvailability;

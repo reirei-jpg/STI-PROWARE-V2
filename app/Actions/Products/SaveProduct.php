@@ -56,6 +56,9 @@ class SaveProduct
                     // on sale stays On Sale while it is edited.
                     'status' => $status,
                     'low_stock_alert_at' => $request->integer('low_stock_alert_at'),
+                    'preorders_close_on' => $status === ProductStatus::Preorder
+                        ? $request->input('preorders_close_on')
+                        : $product->preorders_close_on,
                 ])->save();
 
                 $removedPhotoPaths = $this->syncPhotos($product, $request, $newPhotoPaths);

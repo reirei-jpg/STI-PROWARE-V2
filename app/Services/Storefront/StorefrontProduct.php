@@ -21,7 +21,7 @@ use App\Models\ProductVariant;
 final class StorefrontProduct
 {
     /**
-     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null}
+     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, accepts_preorders: bool}
      */
     public static function tile(Product $product): array
     {
@@ -39,6 +39,8 @@ final class StorefrontProduct
             'almost_sold_out' => $almostSoldOut,
             'pieces_left' => $almostSoldOut ? $stock : null,
             'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
+            'preorders_close_on' => $isPreorder ? $product->preorders_close_on?->toDateString() : null,
+            'accepts_preorders' => $product->acceptsPreorders(),
         ];
     }
 
@@ -65,6 +67,7 @@ final class StorefrontProduct
                 $stock = $variant->stock_on_hand;
 
                 return [
+                    'id' => $variant->id,
                     'label' => $variant->label(),
                     'price_centavos' => $product->sold_by_piece ? ($variant->price_centavos ?? $product->price_centavos) : null,
                     'availability' => match (true) {

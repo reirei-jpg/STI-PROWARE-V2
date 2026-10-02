@@ -11,7 +11,8 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Seed the application's database with the demo staff accounts.
+     * Seed the application's database with the demo staff accounts and the
+     * demo student.
      */
     public function run(): void
     {
@@ -26,5 +27,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'liza.garcia.adm2026@proware.sti.edu.ph',
             'password' => 'Demo@2026!',
         ]);
+
+        $this->call(DemoStudentSeeder::class);
     }
 }

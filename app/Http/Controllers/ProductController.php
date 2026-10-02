@@ -149,6 +149,7 @@ class ProductController extends Controller
                 'price' => $product->price_centavos === null ? '' : $this->pesos($product->price_centavos),
                 'status' => $product->status->value,
                 'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
+                'preorders_close_on' => $product->preorders_close_on?->toDateString() ?? '',
                 'low_stock_alert_at' => (string) $product->low_stock_alert_at,
                 'photos' => $product->photos->map(fn (ProductPhoto $photo): array => [
                     'id' => $photo->id,

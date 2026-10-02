@@ -14,6 +14,7 @@ import type { Auth, UserRole } from '@/types';
 const roleLabels: Record<UserRole, string> = {
     specialist: 'PROWARE Specialist',
     school_admin: 'School Admin',
+    student: 'Student',
 };
 
 /**

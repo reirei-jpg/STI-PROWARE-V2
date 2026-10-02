@@ -61,6 +61,16 @@ class UserFactory extends Factory
         ]);
     }
 
+    /**
+     * A student account (signs in on the storefront).
+     */
+    public function student(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Student,
+        ]);
+    }
+
     public function unverified(): static
     {
         return $this->state(fn (array $attributes) => [

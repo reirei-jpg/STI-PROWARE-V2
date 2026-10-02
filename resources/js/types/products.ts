@@ -90,6 +90,8 @@ export type EditableProduct = {
     status: ProductStatus;
     /** When the sale ends, for an On Sale product. */
     sale_ends_at: string | null;
+    /** Last day students can preorder ("YYYY-MM-DD"), or empty. */
+    preorders_close_on: string;
     low_stock_alert_at: string;
     photos: { id: number; url: string; label: string }[];
     packs: ProductPackInput[];

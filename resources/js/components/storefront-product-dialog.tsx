@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
+import { usePreorder } from '@/components/preorder-dialog';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
 import { PriceLines, saleEndsText } from '@/components/storefront-tile';
 import {
@@ -17,7 +18,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { formatPeso } from '@/lib/format';
+import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
     StorefrontProductDetails,
@@ -53,6 +54,7 @@ export default function StorefrontProductDialog({
     onClose: () => void;
 }) {
     const openSignIn = useSignInPrompt();
+    const preorder = usePreorder();
     const http = useHttp<Record<string, never>, StorefrontProductDetails>({});
     const [details, setDetails] = useState<StorefrontProductDetails | null>(
         null,
@@ -253,14 +255,33 @@ export default function StorefrontProductDialog({
                                     )
                                 )}
 
+                                {comingSoon && shown.preorders_close_on && (
+                                    <p className="text-sm font-bold text-amber-700">
+                                        {shown.accepts_preorders
+                                            ? `Preorder until ${formatDateOrdered(shown.preorders_close_on)}`
+                                            : `Preorders closed on ${formatDateOrdered(shown.preorders_close_on)}`}
+                                    </p>
+                                )}
+
                                 {shown.sold_out ? (
                                     <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
                                         Out of stock for now
                                     </p>
+                                ) : comingSoon && !shown.accepts_preorders ? (
+                                    <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
+                                        Preorders closed
+                                    </p>
                                 ) : (
                                     <button
                                         type="button"
-                                        onClick={openSignIn}
+                                        onClick={
+                                            comingSoon && product
+                                                ? () => {
+                                                      onClose();
+                                                      preorder(product);
+                                                  }
+                                                : openSignIn
+                                        }
                                         className={cn(
                                             'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition',
                                             comingSoon

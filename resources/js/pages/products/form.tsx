@@ -53,6 +53,7 @@ type ProductFormData = {
     sold_by_piece: boolean;
     price: string;
     status: ProductStatus;
+    preorders_close_on: string;
     low_stock_alert_at: string;
     photos: PhotoInput[];
     packs: ProductPackInput[];
@@ -105,6 +106,7 @@ export default function ProductForm({
         sold_by_piece: product?.sold_by_piece ?? true,
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
+        preorders_close_on: product?.preorders_close_on ?? '',
         low_stock_alert_at: product?.low_stock_alert_at ?? '5',
         photos:
             product?.photos.map((photo) => ({
@@ -168,6 +170,8 @@ export default function ProductForm({
             sold_by_piece: current.sold_by_piece,
             price: current.sold_by_piece ? current.price : '',
             status: current.status,
+            preorders_close_on:
+                current.status === 'preorder' ? current.preorders_close_on : '',
             low_stock_alert_at: current.low_stock_alert_at,
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
@@ -1189,6 +1193,29 @@ export default function ProductForm({
                                     </span>
                                 </label>
                             ))}
+                        </div>
+                    )}
+                    {data.status === 'preorder' && (
+                        <div className="border-t border-slate-100 bg-amber-50/40 px-6 py-5">
+                            <div className="max-w-sm">
+                                <Field
+                                    label="Preorders close on"
+                                    hint="The last day students can preorder. You can move it later on the Preorders page to collect more."
+                                    error={errors.preorders_close_on}
+                                >
+                                    <input
+                                        type="date"
+                                        value={data.preorders_close_on}
+                                        onChange={(event) =>
+                                            setData(
+                                                'preorders_close_on',
+                                                event.target.value,
+                                            )
+                                        }
+                                        className={inputClasses}
+                                    />
+                                </Field>
+                            </div>
                         </div>
                     )}
                     <div className="px-6 pb-6">

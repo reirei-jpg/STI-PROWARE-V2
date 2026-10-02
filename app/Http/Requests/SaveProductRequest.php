@@ -65,6 +65,11 @@ class SaveProductRequest extends FormRequest
             ],
             'status' => ['required', Rule::in(array_map(fn (ProductStatus $status): string => $status->value, $statuses))],
             'low_stock_alert_at' => ['required', 'integer', 'min:0', 'max:100000'],
+            'preorders_close_on' => [
+                Rule::requiredIf($this->input('status') === ProductStatus::Preorder->value),
+                'nullable',
+                'date_format:Y-m-d',
+            ],
 
             'packs' => ['nullable', 'array', 'max:'.self::MAX_PACKS],
             'packs.*.key' => ['required', 'string', 'max:40', 'distinct'],
@@ -124,6 +129,8 @@ class SaveProductRequest extends FormRequest
             'low_stock_alert_at.integer' => 'Enter the number of pieces as a whole number.',
             'low_stock_alert_at.min' => 'The number cannot be below 0.',
             'status.in' => 'Choose Draft, Preorder or Available. To put a product on sale, use Put on Sale on the Products list.',
+            'preorders_close_on.required' => 'Choose the last day students can preorder.',
+            'preorders_close_on.date_format' => 'Choose a valid date.',
             'packs.max' => 'A product can have up to '.self::MAX_PACKS.' packs.',
             'packs.*.name.required' => 'Name the pack, e.g. Pack or Box.',
             'packs.*.pieces.required' => 'Enter how many pieces are in one pack.',
@@ -190,6 +197,7 @@ class SaveProductRequest extends FormRequest
                 }
 
                 $this->validatePacks($validator);
+                $this->validatePreorderCloseDate($validator);
                 $this->validateItemCodes($validator);
                 $this->validateVariantsWithStockAreKept($validator);
             },
@@ -260,6 +268,26 @@ class SaveProductRequest extends FormRequest
             if ($key !== null && $key !== '' && ! in_array($key, $keys, true)) {
                 $validator->errors()->add("variants.{$index}.estore_pack_key", 'That pack was removed. Choose how Head Office sends this item again.');
             }
+        }
+    }
+
+    /**
+     * A new close date for preorders cannot be in the past. A date already
+     * saved may have passed (preorders closed) and can be kept as it is.
+     */
+    private function validatePreorderCloseDate(Validator $validator): void
+    {
+        $date = $this->input('preorders_close_on');
+
+        if ($this->input('status') !== ProductStatus::Preorder->value || ! is_string($date) || $date === '') {
+            return;
+        }
+
+        $product = $this->route('product');
+        $unchanged = $product instanceof Product && $product->preorders_close_on?->toDateString() === $date;
+
+        if (! $unchanged && $date < now()->toDateString()) {
+            $validator->errors()->add('preorders_close_on', 'The close date cannot be in the past.');
         }
     }
 

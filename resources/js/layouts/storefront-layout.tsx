@@ -1,12 +1,20 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutDashboard, Search, ShoppingCart } from 'lucide-react';
+import {
+    CalendarClock,
+    LayoutDashboard,
+    LogOut,
+    Search,
+    ShoppingCart,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
+import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
+import { PreorderProvider } from '@/components/preorder-dialog';
 import {
     MicrosoftLogo,
     SignInPromptProvider,
     useSignInPrompt,
 } from '@/components/sign-in-prompt';
-import { dashboard, home } from '@/routes';
+import { dashboard, home, logout } from '@/routes';
 
 /**
  * The public storefront layout: anyone can browse without signing in.
@@ -19,20 +27,24 @@ export default function StorefrontLayout({
 }) {
     return (
         <SignInPromptProvider>
-            <div className="min-h-screen bg-[#F3F7FA]">
-                <StorefrontTopBar />
+            <PreorderProvider>
+                <div className="min-h-screen bg-[#F3F7FA]">
+                    <StorefrontTopBar />
 
-                <main className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8">
-                    {children}
-                </main>
+                    <main className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8">
+                        {children}
+                    </main>
 
-                <footer className="border-t border-slate-200 bg-white">
-                    <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-6 text-sm text-slate-500 md:flex-row md:justify-between md:px-8">
-                        <p className="font-bold text-slate-700">STI PROWARE</p>
-                        <p>Official STI merchandise</p>
-                    </div>
-                </footer>
-            </div>
+                    <footer className="border-t border-slate-200 bg-white">
+                        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-6 text-sm text-slate-500 md:flex-row md:justify-between md:px-8">
+                            <p className="font-bold text-slate-700">
+                                STI PROWARE
+                            </p>
+                            <p>Official STI merchandise</p>
+                        </div>
+                    </footer>
+                </div>
+            </PreorderProvider>
         </SignInPromptProvider>
     );
 }
@@ -77,7 +89,29 @@ function StorefrontTopBar() {
                     <ShoppingCart size={20} />
                 </button>
 
-                {auth.user ? (
+                {auth.user?.role === 'student' ? (
+                    <>
+                        <Link
+                            href={StudentPreorderController.index()}
+                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-amber-400 px-4 text-sm font-black text-amber-950 transition hover:bg-amber-300"
+                        >
+                            <CalendarClock size={17} />
+                            <span className="hidden sm:inline">
+                                My Preorders
+                            </span>
+                        </Link>
+                        <Link
+                            href={logout()}
+                            method="post"
+                            as="button"
+                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                            title={`Signed in as ${auth.user.name}`}
+                        >
+                            <LogOut size={17} />
+                            <span className="hidden sm:inline">Log out</span>
+                        </Link>
+                    </>
+                ) : auth.user ? (
                     <Link
                         href={dashboard()}
                         className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white transition hover:bg-blue-700"

@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ItemLinkController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PreorderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\ProductStockController;
@@ -10,13 +12,20 @@ use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseOrderDeliveryController;
 use App\Http\Controllers\PurchaseOrderScanController;
 use App\Http\Controllers\StorefrontController;
+use App\Http\Controllers\StudentPreorderController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
 Route::get('merchandise/{product}', [StorefrontController::class, 'show'])->name('storefront.product');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    Route::middleware('role:student')->group(function () {
+        Route::get('my-preorders', [StudentPreorderController::class, 'index'])->name('my-preorders.index');
+        Route::post('merchandise/{product}/preorder', [StudentPreorderController::class, 'store'])->name('my-preorders.store');
+        Route::delete('my-preorders/{preorder}', [StudentPreorderController::class, 'destroy'])->name('my-preorders.destroy');
+    });
 
     Route::middleware('role:specialist,school_admin')->group(function () {
         Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
@@ -33,6 +42,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('purchase-orders/scan', [PurchaseOrderScanController::class, 'destroy'])->name('purchase-orders.scan.destroy');
         Route::patch('purchase-orders/{purchaseOrder}/expected-delivery', [PurchaseOrderDeliveryController::class, 'setExpectedDate'])->name('purchase-orders.expected-delivery');
         Route::post('purchase-orders/{purchaseOrder}/close', [PurchaseOrderDeliveryController::class, 'close'])->name('purchase-orders.close');
+
+        Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');
+        Route::get('preorders/export', [PreorderController::class, 'export'])->name('preorders.export');
+        Route::get('preorders/{product}', [PreorderController::class, 'show'])->name('preorders.show');
+        Route::patch('preorders/{product}/close-date', [PreorderController::class, 'updateCloseDate'])->name('preorders.close-date');
 
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
         Route::get('deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
