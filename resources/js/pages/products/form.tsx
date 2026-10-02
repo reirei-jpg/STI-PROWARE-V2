@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
+import EndSaleButton from '@/components/end-sale-button';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
@@ -1143,21 +1144,34 @@ export default function ProductForm({
                     description="Choose how students see this product on the storefront. To put it on sale, use Put on Sale on the Products list."
                 >
                     {data.status === 'on_sale' ? (
-                        <div className="m-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-                            <Flame size={20} className="mt-0.5 shrink-0" />
-                            <div>
-                                <p className="font-black">
-                                    On Sale
-                                    {product?.sale_ends_at &&
-                                        ` until ${formatDateTime(product.sale_ends_at)}`}
-                                </p>
-                                <p className="mt-1 leading-6">
-                                    It goes back to Available by itself when the
-                                    sale ends. To change the sale price or the
-                                    days, or to end the sale now, use the
-                                    buttons on the Products list.
-                                </p>
+                        <div className="m-6 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex items-start gap-3">
+                                <Flame size={20} className="mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="font-black">
+                                        On Sale
+                                        {product?.sale_ends_at &&
+                                            ` until ${formatDateTime(product.sale_ends_at)}`}
+                                    </p>
+                                    <p className="mt-1 leading-6">
+                                        It goes back to Available by itself when
+                                        the sale ends. To end it now, press End
+                                        sale. To change the sale price or the
+                                        days, use Change sale on the Products
+                                        list.
+                                    </p>
+                                </div>
                             </div>
+                            {product && (
+                                <EndSaleButton
+                                    productId={product.id}
+                                    productName={product.name}
+                                    onEnded={() =>
+                                        setData('status', 'available')
+                                    }
+                                    className="shrink-0 self-start"
+                                />
+                            )}
                         </div>
                     ) : (
                         <div className="grid gap-3 p-6 md:grid-cols-3">

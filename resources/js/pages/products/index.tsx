@@ -20,6 +20,7 @@ import ProductStockController from '@/actions/App/Http/Controllers/ProductStockC
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
+import EndSaleButton from '@/components/end-sale-button';
 import ProductStatusBadge from '@/components/product-status-badge';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { formatDateTime, formatPeso } from '@/lib/format';
@@ -530,6 +531,17 @@ export default function ProductsIndex({
                                                                     ? 'Change sale'
                                                                     : 'Put on Sale'}
                                                             </button>
+                                                        )}
+                                                        {product.status ===
+                                                            'on_sale' && (
+                                                            <EndSaleButton
+                                                                productId={
+                                                                    product.id
+                                                                }
+                                                                productName={
+                                                                    product.name
+                                                                }
+                                                            />
                                                         )}
                                                         <Link
                                                             href={ProductController.edit(
