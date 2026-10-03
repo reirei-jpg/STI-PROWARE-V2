@@ -9,6 +9,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
 use App\Notifications\PurchaseOrderUploaded;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -55,6 +56,46 @@ test('a school admin can look at student orders, products and stock, but not cha
 
     expect($order->refresh()->status)->toBe(OrderStatus::Placed)
         ->and($variant->refresh()->stock_on_hand)->toBe(10);
+});
+
+test('the school admin dashboard sums up sales, orders, stock, purchase orders and cancellations', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-10-08 10:00', 'Asia/Manila'));
+    $specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
+    $juan = User::factory()->student()->create(['name' => 'Juan Dela Cruz']);
+
+    $lanyard = Product::factory()->create(['name' => 'STI Lanyard', 'status' => ProductStatus::Available, 'low_stock_alert_at' => 5]);
+    $lanyardVariant = ProductVariant::factory()->for($lanyard)->create(['stock_on_hand' => 2]);
+    $mug = Product::factory()->create(['name' => 'STI Mug', 'status' => ProductStatus::Available]);
+    ProductVariant::factory()->for($mug)->create(['stock_on_hand' => 0]);
+
+    $today = Order::factory()->for($juan, 'student')->create(['status' => OrderStatus::PickedUp, 'total_centavos' => 16000, 'picked_up_at' => now()]);
+    $today->items()->create(['product_id' => $lanyard->id, 'product_variant_id' => $lanyardVariant->id, 'product_name' => 'STI Lanyard', 'unit_name' => 'Piece', 'pieces_per_unit' => 1, 'quantity' => 2, 'unit_price_centavos' => 8000, 'line_total_centavos' => 16000]);
+    Order::factory()->for($juan, 'student')->create(['status' => OrderStatus::PickedUp, 'total_centavos' => 30000, 'picked_up_at' => now()->subDays(2)]);
+    Order::factory()->for($juan, 'student')->create(['status' => OrderStatus::PickedUp, 'total_centavos' => 99900, 'picked_up_at' => now()->subWeeks(2)]);
+    Order::factory()->create();
+    Order::factory()->create(['status' => OrderStatus::Ready, 'total_centavos' => 12500]);
+    $cancelled = Order::factory()->for($juan, 'student')->create([
+        'status' => OrderStatus::Cancelled, 'cancelled_at' => now()->subDay(), 'cancel_reason' => 'The ballpens were damaged.', 'handled_by' => $specialist->id,
+    ]);
+
+    PurchaseOrder::factory()->create(['order_number' => '30801', 'delivery_status' => 'awaiting', 'expected_delivery_date' => '2026-10-09']);
+    PurchaseOrder::factory()->create(['delivery_status' => 'partially_received']);
+
+    $this->actingAs(User::factory()->schoolAdmin()->create(['name' => 'Liza Garcia']))
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('tasks', null)
+            ->where('overview.today', ['orders' => 1, 'centavos' => 16000])
+            ->where('overview.week', ['orders' => 2, 'centavos' => 46000, 'cancelled' => 1])
+            ->where('overview.orders', ['to_prepare' => 1, 'ready' => 1, 'ready_centavos' => 12500])
+            ->where('overview.stock', ['low_products' => 2, 'out_of_stock_products' => 1])
+            ->where('overview.purchase_orders', ['awaiting' => 1, 'partially_received' => 1, 'expected_this_week' => 1, 'next_expected' => '30801'])
+            ->where('overview.best_sellers', [['product_id' => $lanyard->id, 'name' => 'STI Lanyard', 'pieces' => 2]])
+            ->where('overview.cancellations.0', [
+                'number' => $cancelled->number, 'student_name' => 'Juan Dela Cruz', 'reason' => 'The ballpens were damaged.',
+                'cancelled_by' => 'Carlo Mendoza', 'cancelled_at' => $cancelled->cancelled_at->toIso8601String(),
+            ])
+        );
 });
 
 test('saving a purchase order notifies every school admin and nobody else', function () {
