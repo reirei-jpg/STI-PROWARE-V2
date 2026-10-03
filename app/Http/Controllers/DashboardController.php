@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+use App\Services\Dashboard\SpecialistTasks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -9,16 +11,21 @@ use Inertia\Response;
 
 /**
  * Where signing in lands: the staff dashboard, or the storefront for a
- * student (students have no staff pages).
+ * student (students have no staff pages). The Specialist's dashboard is a
+ * to-do list for today.
  */
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): Response|RedirectResponse
+    public function __invoke(Request $request, SpecialistTasks $tasks): Response|RedirectResponse
     {
-        if ($request->user()?->isStudent()) {
+        $user = $request->user();
+
+        if ($user?->isStudent()) {
             return to_route('home');
         }
 
-        return Inertia::render('dashboard');
+        return Inertia::render('dashboard', [
+            'tasks' => $user?->role === UserRole::Specialist ? $tasks->all() : null,
+        ]);
     }
 }
