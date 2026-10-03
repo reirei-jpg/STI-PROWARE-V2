@@ -5,18 +5,13 @@
  */
 export const optionPresets: Record<string, string[]> = {
     size: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'],
+    // The programs STI College Ormoc offers (given by the user, Oct 2026).
     program: [
-        'Information Technology',
-        'Computer Science',
-        'Computer Engineering',
-        'Business Administration',
-        'Accountancy',
-        'Accounting Information Systems',
-        'Hospitality Management',
-        'Tourism Management',
-        'Culinary Arts',
-        'Multimedia Arts',
-        'Communication',
+        'BSIT',
+        'BSHM',
+        'BSTM',
+        'Grade 11 (Senior High)',
+        'Grade 12 (Senior High)',
     ],
     color: [
         'Black',
