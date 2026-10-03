@@ -208,10 +208,6 @@ class SaveProduct
             $submittedByKey[(string) ($variant['combination'] ?? '')] = $variant;
         }
 
-        // Codes may move between this product's variants; clear them first so
-        // the "each code once" rule is never broken halfway through saving.
-        $product->variants()->update(['estore_item_code' => null]);
-
         $existingByKey = $product->variants()->get()->keyBy('combination');
         $keptIds = [];
 

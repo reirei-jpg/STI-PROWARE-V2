@@ -7,9 +7,9 @@ use App\Enums\UserRole;
 use App\Http\Requests\FilterPurchaseOrdersRequest;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
-use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\PurchaseOrderUploaded;
 use App\Services\EstorePo\EstorePoParser;
@@ -17,6 +17,7 @@ use App\Services\EstorePo\PendingPurchaseOrderScan;
 use App\Services\EstorePo\ScannedPurchaseOrder;
 use App\Services\EstorePo\ScannedPurchaseOrderItem;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
+use App\Services\Stock\LinkedItems;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -216,16 +217,12 @@ class PurchaseOrderController extends Controller
             ->whereHas('items.purchaseOrderItem', fn (Builder $query) => $query->where('purchase_order_id', $purchaseOrder->id))
             ->with(['items' => fn ($query) => $query
                 ->whereHas('purchaseOrderItem', fn (Builder $item) => $item->where('purchase_order_id', $purchaseOrder->id))
-                ->with(['purchaseOrderItem', 'stockMovement.variant.product'])])
+                ->with(['purchaseOrderItem', 'stockMovements.variant.product'])])
             ->latest('received_on')
             ->latest('id')
             ->get();
 
-        $linkedVariants = ProductVariant::query()
-            ->with(['product', 'estorePack'])
-            ->whereIn('estore_item_code', $purchaseOrder->items->pluck('item_code')->unique()->values())
-            ->get()
-            ->keyBy('estore_item_code');
+        $linkedVariants = LinkedItems::variantsByCode($purchaseOrder->items->pluck('item_code')->all());
 
         return response()->json([
             'id' => $purchaseOrder->id,
@@ -258,7 +255,7 @@ class PurchaseOrderController extends Controller
                 'quantity_remaining' => $item->quantityRemaining(),
                 'unit_price_centavos' => $item->unit_price_centavos,
                 'amount_centavos' => $item->amount_centavos,
-                'stock_target' => $linkedVariants->get($item->item_code)?->stockTarget(),
+                'stock_target' => $linkedVariants->has($item->item_code) ? LinkedItems::target($linkedVariants->get($item->item_code)) : null,
             ])->all(),
             'deliveries' => $deliveries->map(fn (Delivery $delivery): array => [
                 'id' => $delivery->id,
@@ -270,13 +267,13 @@ class PurchaseOrderController extends Controller
                     'item_code' => $item->purchaseOrderItem->item_code,
                     'description' => $item->purchaseOrderItem->description,
                     'quantity_received' => $item->quantity_received,
-                    'added_to_stock' => $item->stockMovement === null ? null : [
-                        'product_name' => $item->stockMovement->variant->displayName(),
-                        'units_received' => (int) $item->stockMovement->units_received,
-                        'unit_name' => (string) $item->stockMovement->unit_name,
-                        'pieces_per_unit' => (int) $item->stockMovement->pieces_per_unit,
-                        'pieces' => $item->stockMovement->quantity,
-                    ],
+                    'added_to_stock' => array_values($item->stockMovements->map(fn (StockMovement $movement): array => [
+                        'product_name' => $movement->variant->displayName(),
+                        'units_received' => (int) $movement->units_received,
+                        'unit_name' => (string) $movement->unit_name,
+                        'pieces_per_unit' => (int) $movement->pieces_per_unit,
+                        'pieces' => $movement->quantity,
+                    ])->all()),
                 ])->values()->all(),
             ])->all(),
         ]);

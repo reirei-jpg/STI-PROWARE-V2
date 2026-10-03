@@ -73,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('products/items-to-link', [ItemLinkController::class, 'index'])->name('item-links.index');
         Route::get('products/items-to-link/products', [ItemLinkController::class, 'products'])->name('item-links.products');
         Route::post('products/items-to-link', [ItemLinkController::class, 'store'])->name('item-links.store');
+        Route::post('products/items-to-link/split', [ItemLinkController::class, 'split'])->name('item-links.split');
         Route::get('products/{product}/sale', [ProductSaleController::class, 'show'])->name('products.sale.show');
         Route::post('products/{product}/sale', [ProductSaleController::class, 'store'])->name('products.sale.store');
         Route::delete('products/{product}/sale', [ProductSaleController::class, 'destroy'])->name('products.sale.destroy');

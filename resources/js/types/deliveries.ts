@@ -31,7 +31,9 @@ export type WaitingItemRow = {
 
 /**
  * The product variant an item code's deliveries go into, and how many
- * pieces each eStore unit adds (e.g. 1 Pack = 50 pieces).
+ * pieces each eStore unit adds (e.g. 1 Pack = 50 pieces). When several
+ * variants share the code (e.g. every color), split_into lists them and
+ * each delivery is counted per variant.
  */
 export type StockTarget = {
     product_name: string;
@@ -39,6 +41,13 @@ export type StockTarget = {
     has_options: boolean;
     unit_name: string;
     pieces_per_unit: number;
+    split_into: SplitVariant[];
+};
+
+export type SplitVariant = {
+    id: number;
+    label: string;
+    stock_on_hand: number;
 };
 
 /** Every order still waiting for one item code, oldest order first. */

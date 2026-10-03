@@ -152,8 +152,7 @@ class SaveProductRequest extends FormRequest
 
     /**
      * Checks that need the whole form: repeated choices, too many variants,
-     * and eStore Item Codes that are repeated or already used by another
-     * product.
+     * and eStore Item Codes already used by another product.
      *
      * @return array<int, callable(Validator): void>
      */
@@ -364,13 +363,18 @@ class SaveProductRequest extends FormRequest
         return ((int) $whole) * 100 + (int) str_pad(substr($fraction, 0, 2), 2, '0');
     }
 
+    /**
+     * A code belongs to one product. Several of its variants may share it
+     * (e.g. one umbrella code for every color); then Head Office sends it
+     * the same way for all of them.
+     */
     private function validateItemCodes(Validator $validator): void
     {
         $product = $this->route('product');
         $productId = $product instanceof Product ? $product->id : null;
-        $seen = [];
+        $packKeyByCode = [];
 
-        /** @var array<int, array{estore_item_code?: string|null}> $variants */
+        /** @var array<int, array{estore_item_code?: string|null, estore_pack_key?: string|null}> $variants */
         $variants = $this->input('variants', []);
 
         foreach ($variants as $index => $variant) {
@@ -380,13 +384,17 @@ class SaveProductRequest extends FormRequest
                 continue;
             }
 
-            if (isset($seen[$code])) {
-                $validator->errors()->add("variants.{$index}.estore_item_code", "The eStore Item Code {$code} is used twice.");
+            $packKey = (string) ($variant['estore_pack_key'] ?? '');
+
+            if (array_key_exists($code, $packKeyByCode)) {
+                if ($packKeyByCode[$code] !== $packKey) {
+                    $validator->errors()->add("variants.{$index}.estore_pack_key", "Variants that share {$code} must be sent the same way by Head Office.");
+                }
 
                 continue;
             }
 
-            $seen[$code] = true;
+            $packKeyByCode[$code] = $packKey;
 
             $usedElsewhere = ProductVariant::query()
                 ->where('estore_item_code', $code)

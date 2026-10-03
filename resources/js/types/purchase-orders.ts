@@ -132,13 +132,16 @@ export type OrderDeliveryRecord = {
         item_code: string;
         description: string;
         quantity_received: number;
-        /** What went into stock; null while the item is not linked. */
+        /**
+         * What went into stock: one entry, or one per variant when the
+         * variants share the code. Empty while not linked (or not split).
+         */
         added_to_stock: {
             product_name: string;
             units_received: number;
             unit_name: string;
             pieces_per_unit: number;
             pieces: number;
-        } | null;
+        }[];
     }[];
 };

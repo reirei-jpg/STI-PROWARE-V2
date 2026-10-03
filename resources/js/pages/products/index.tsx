@@ -68,12 +68,15 @@ export default function ProductsIndex({
     products,
     filters,
     itemsToLinkCount,
+    itemsToSplitCount,
     lowStockCount,
     slowMovingCount,
 }: {
     products: Paginated<ProductListItem>;
     filters: ProductFilters;
     itemsToLinkCount: number;
+    /** Shared codes that arrived but are not split by variant yet. */
+    itemsToSplitCount: number;
     lowStockCount: number;
     slowMovingCount: number;
 }) {
@@ -132,11 +135,11 @@ export default function ProductsIndex({
                             >
                                 <Link2 size={18} />
                                 Items to Link
-                                {itemsToLinkCount > 0 && (
+                                {itemsToLinkCount + itemsToSplitCount > 0 && (
                                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
-                                        {itemsToLinkCount.toLocaleString(
-                                            'en-PH',
-                                        )}
+                                        {(
+                                            itemsToLinkCount + itemsToSplitCount
+                                        ).toLocaleString('en-PH')}
                                     </span>
                                 )}
                             </Link>
@@ -177,6 +180,35 @@ export default function ProductsIndex({
                         >
                             <Link2 size={17} />
                             Link Items
+                        </Link>
+                    </section>
+                )}
+
+                {itemsToSplitCount > 0 && (
+                    <section className="flex flex-col gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                                <Boxes size={20} />
+                            </span>
+                            <div>
+                                <p className="font-black text-emerald-900">
+                                    {itemsToSplitCount === 1
+                                        ? '1 delivered item is waiting to be split into stock'
+                                        : `${itemsToSplitCount.toLocaleString('en-PH')} delivered items are waiting to be split into stock`}
+                                </p>
+                                <p className="mt-1 text-sm text-emerald-800">
+                                    Their code is shared by every variant (e.g.
+                                    every color). Enter how many of each arrived
+                                    so each variant gets its stock.
+                                </p>
+                            </div>
+                        </div>
+                        <Link
+                            href={ItemLinkController.index()}
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
+                        >
+                            <Boxes size={17} />
+                            Split into stock
                         </Link>
                     </section>
                 )}

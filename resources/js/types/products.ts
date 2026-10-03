@@ -126,6 +126,18 @@ export type ItemToLink = {
     waiting_for_stock: number;
 };
 
+/** A shared code's deliveries that arrived but are not split by variant yet. */
+export type ItemToSplit = {
+    item_code: string;
+    description: string;
+    product_name: string;
+    unit_name: string;
+    pieces_per_unit: number;
+    units_waiting: number;
+    pieces_waiting: number;
+    split_into: { id: number; label: string; stock_on_hand: number }[];
+};
+
 export type ItemsToLinkFilters = {
     search: string | null;
 };

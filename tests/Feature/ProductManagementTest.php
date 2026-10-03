@@ -203,16 +203,23 @@ test('an option with no choices yet does not block saving and is not saved', fun
         ->and($product->variants->pluck('combination')->all())->toBe(['Size: S', 'Size: M']);
 });
 
-test('an eStore Item Code cannot be used twice', function () {
-    $this->actingAs(User::factory()->specialist()->create())
-        ->post(route('products.store'), productForm([
-            'options' => [['name' => 'Size', 'choices' => ['S', 'M']]],
-            'variants' => [
-                ['combination' => 'Size: S', 'estore_item_code' => 'PRSH01-01', 'price' => ''],
-                ['combination' => 'Size: M', 'estore_item_code' => 'prsh01 - 01', 'price' => ''],
-            ],
-        ]))
-        ->assertSessionHasErrors(['variants.1.estore_item_code' => 'The eStore Item Code PRSH01-01 is used twice.']);
+test('variants of one product can share an eStore Item Code, sent the same way', function () {
+    $this->actingAs(User::factory()->specialist()->create());
+    $form = fn (string $secondPackKey) => productForm([
+        'options' => [['name' => 'Color', 'choices' => ['Black', 'Red']]],
+        'packs' => [packInput(['key' => 'new-1', 'pieces' => '10'])],
+        'variants' => [
+            ['combination' => 'Color: Black', 'estore_item_code' => 'PRUM01-01', 'estore_pack_key' => '', 'price' => ''],
+            ['combination' => 'Color: Red', 'estore_item_code' => 'prum01 - 01', 'estore_pack_key' => $secondPackKey, 'price' => ''],
+        ],
+    ]);
+
+    $this->post(route('products.store'), $form('new-1'))
+        ->assertSessionHasErrors(['variants.1.estore_pack_key' => 'Variants that share PRUM01-01 must be sent the same way by Head Office.']);
+
+    $this->post(route('products.store'), $form(''))->assertSessionHasNoErrors();
+
+    expect(Product::sole()->variants->pluck('estore_item_code')->all())->toBe(['PRUM01-01', 'PRUM01-01']);
 });
 
 test('an eStore Item Code already on another product is refused', function () {

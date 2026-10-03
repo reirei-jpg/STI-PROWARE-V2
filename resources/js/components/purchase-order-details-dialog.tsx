@@ -520,25 +520,24 @@ function DeliveryHistory({
                                             {item.item_code}
                                         </span>{' '}
                                         {item.description}
-                                        {item.added_to_stock ? (
-                                            <span className="mt-0.5 block text-emerald-700">
-                                                Received{' '}
-                                                <span className="font-black">
-                                                    {formatConversion(
-                                                        item.added_to_stock
-                                                            .units_received,
-                                                        item.added_to_stock
-                                                            .unit_name,
-                                                        item.added_to_stock
-                                                            .pieces_per_unit,
-                                                    )}
-                                                </span>{' '}
-                                                added to the stock of{' '}
-                                                {
-                                                    item.added_to_stock
-                                                        .product_name
-                                                }
-                                            </span>
+                                        {item.added_to_stock.length > 0 ? (
+                                            item.added_to_stock.map((added) => (
+                                                <span
+                                                    key={added.product_name}
+                                                    className="mt-0.5 block text-emerald-700"
+                                                >
+                                                    Received{' '}
+                                                    <span className="font-black">
+                                                        {formatConversion(
+                                                            added.units_received,
+                                                            added.unit_name,
+                                                            added.pieces_per_unit,
+                                                        )}
+                                                    </span>{' '}
+                                                    added to the stock of{' '}
+                                                    {added.product_name}
+                                                </span>
+                                            ))
                                         ) : (
                                             <span className="mt-0.5 block text-amber-700">
                                                 Received{' '}

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -53,13 +53,15 @@ class DeliveryItem extends Model
     }
 
     /**
-     * The stock movement that added this item to stock. There is none while
-     * its eStore Item Code is not linked to a product yet.
+     * The stock movements that added this item to stock: one, or one per
+     * variant when the variants share its eStore Item Code and the delivery
+     * was split. There are none while it is not linked to a product yet (or
+     * not split yet).
      *
-     * @return HasOne<StockMovement, $this>
+     * @return HasMany<StockMovement, $this>
      */
-    public function stockMovement(): HasOne
+    public function stockMovements(): HasMany
     {
-        return $this->hasOne(StockMovement::class);
+        return $this->hasMany(StockMovement::class);
     }
 }

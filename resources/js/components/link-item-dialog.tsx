@@ -23,6 +23,7 @@ type SentBy = 'piece' | 'pack' | 'new_pack';
 type LinkForm = {
     item_code: string;
     product_variant_id: string;
+    link_to: 'variant' | 'all';
     sent_by: SentBy;
     pack_id: string;
     new_pack_name: string;
@@ -63,6 +64,7 @@ function LinkItemForm({
     const form = useForm<LinkForm>({
         item_code: item.item_code,
         product_variant_id: '',
+        link_to: 'variant',
         sent_by: 'piece',
         pack_id: '',
         new_pack_name: 'Pack',
@@ -116,10 +118,17 @@ function LinkItemForm({
         setData({
             ...data,
             product_variant_id: free.length === 1 ? String(free[0].id) : '',
+            link_to: 'variant',
             sent_by: 'piece',
             pack_id: '',
         });
     };
+
+    // Every variant can share the code only while none has a code of its own.
+    const canShare =
+        product !== null &&
+        product.variants.length > 1 &&
+        product.variants.every((variant) => variant.estore_item_code === null);
 
     const chosenPack = product?.packs.find(
         (pack) => String(pack.id) === data.pack_id,
@@ -256,6 +265,41 @@ function LinkItemForm({
                         <p className="text-sm font-black text-slate-700">
                             2. Which variant is it?
                         </p>
+                        {canShare && (
+                            <label
+                                className={cn(
+                                    'flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition',
+                                    data.link_to === 'all'
+                                        ? 'border-[#0D6EFD] bg-blue-50 text-blue-800'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
+                                )}
+                            >
+                                <input
+                                    type="radio"
+                                    name="product_variant_id"
+                                    checked={data.link_to === 'all'}
+                                    onChange={() =>
+                                        setData({
+                                            ...data,
+                                            link_to: 'all',
+                                            product_variant_id: String(
+                                                product.variants[0].id,
+                                            ),
+                                        })
+                                    }
+                                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#0D6EFD]"
+                                />
+                                <span>
+                                    All {product.variants.length} variants share
+                                    this code
+                                    <span className="block text-xs font-normal text-slate-500">
+                                        e.g. one umbrella code for every color.
+                                        When it arrives, you enter how many of
+                                        each you received.
+                                    </span>
+                                </span>
+                            </label>
+                        )}
                         <div className="grid gap-2 sm:grid-cols-2">
                             {product.variants.map((variant) => {
                                 const taken = variant.estore_item_code !== null;
@@ -267,8 +311,9 @@ function LinkItemForm({
                                             'flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition',
                                             taken
                                                 ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400'
-                                                : data.product_variant_id ===
-                                                    String(variant.id)
+                                                : data.link_to === 'variant' &&
+                                                    data.product_variant_id ===
+                                                        String(variant.id)
                                                   ? 'cursor-pointer border-[#0D6EFD] bg-blue-50 text-blue-800'
                                                   : 'cursor-pointer border-slate-200 bg-white text-slate-700 hover:border-slate-300',
                                         )}
@@ -278,14 +323,18 @@ function LinkItemForm({
                                             name="product_variant_id"
                                             disabled={taken}
                                             checked={
+                                                data.link_to === 'variant' &&
                                                 data.product_variant_id ===
-                                                String(variant.id)
+                                                    String(variant.id)
                                             }
                                             onChange={() =>
-                                                setData(
-                                                    'product_variant_id',
-                                                    String(variant.id),
-                                                )
+                                                setData({
+                                                    ...data,
+                                                    link_to: 'variant',
+                                                    product_variant_id: String(
+                                                        variant.id,
+                                                    ),
+                                                })
                                             }
                                             className="h-4 w-4 shrink-0 accent-[#0D6EFD]"
                                         />
@@ -420,28 +469,42 @@ function LinkItemForm({
                     </section>
                 )}
 
-                {product && item.waiting_for_stock > 0 && (
-                    <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                        Already received:{' '}
-                        {item.waiting_for_stock.toLocaleString('en-PH')} (as
-                        ordered on the eStore).{' '}
-                        {piecesPerUnit === null ? (
-                            'Enter the pieces in one pack to see how many go into stock.'
-                        ) : (
-                            <>
-                                With this choice,{' '}
-                                <span className="font-black">
-                                    {formatConversion(
-                                        item.waiting_for_stock,
-                                        unitName,
-                                        piecesPerUnit,
-                                    )}
-                                </span>{' '}
-                                go into stock.
-                            </>
-                        )}
-                    </p>
-                )}
+                {product &&
+                    item.waiting_for_stock > 0 &&
+                    data.link_to === 'all' && (
+                        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            Already received:{' '}
+                            {item.waiting_for_stock.toLocaleString('en-PH')} (as
+                            ordered on the eStore). After linking, it shows
+                            under "Received, split it into stock" on this page,
+                            where you enter how many of each variant it was.
+                        </p>
+                    )}
+
+                {product &&
+                    item.waiting_for_stock > 0 &&
+                    data.link_to === 'variant' && (
+                        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                            Already received:{' '}
+                            {item.waiting_for_stock.toLocaleString('en-PH')} (as
+                            ordered on the eStore).{' '}
+                            {piecesPerUnit === null ? (
+                                'Enter the pieces in one pack to see how many go into stock.'
+                            ) : (
+                                <>
+                                    With this choice,{' '}
+                                    <span className="font-black">
+                                        {formatConversion(
+                                            item.waiting_for_stock,
+                                            unitName,
+                                            piecesPerUnit,
+                                        )}
+                                    </span>{' '}
+                                    go into stock.
+                                </>
+                            )}
+                        </p>
+                    )}
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">

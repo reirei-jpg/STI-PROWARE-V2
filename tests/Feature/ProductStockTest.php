@@ -158,15 +158,16 @@ test('the order details say how each item is sent and what each delivery added t
             'has_options' => false,
             'unit_name' => 'Pack',
             'pieces_per_unit' => 50,
+            'split_into' => [],
         ])
         ->assertJsonPath('items.1.stock_target', null)
-        ->assertJsonPath('deliveries.0.items.0.added_to_stock', [
+        ->assertJsonPath('deliveries.0.items.0.added_to_stock', [[
             'product_name' => 'Lanyard',
             'units_received' => 2,
             'unit_name' => 'Pack',
             'pieces_per_unit' => 50,
             'pieces' => 100,
-        ]);
+        ]]);
 });
 
 test('linking an item adds the deliveries that arrived before it, and later ones go in by themselves', function () {
@@ -396,6 +397,7 @@ test('the record delivery form shows where each item goes in stock', function ()
                 'has_options' => false,
                 'unit_name' => 'Pack',
                 'pieces_per_unit' => 50,
+                'split_into' => [],
             ])
             ->where('groups.1.item_code', 'SSIF001-001')
             ->where('groups.1.stock_target', null)

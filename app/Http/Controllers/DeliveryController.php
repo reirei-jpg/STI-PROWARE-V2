@@ -8,9 +8,9 @@ use App\Http\Requests\FilterDeliveriesRequest;
 use App\Http\Requests\RecordDeliveryRequest;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
-use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
+use App\Services\Stock\LinkedItems;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +35,7 @@ class DeliveryController extends Controller
 
         $deliveries = Delivery::query()
             ->with(['recorder', 'items.purchaseOrderItem.purchaseOrder'])
-            ->withCount(['items as items_not_in_stock_count' => fn (Builder $query) => $query->whereDoesntHave('stockMovement')])
+            ->withCount(['items as items_not_in_stock_count' => fn (Builder $query) => $query->whereDoesntHave('stockMovements')])
             ->addSelect(['pieces_added_to_stock' => StockMovement::query()
                 ->selectRaw('coalesce(sum(stock_movements.quantity), 0)')
                 ->join('delivery_items', 'delivery_items.id', '=', 'stock_movements.delivery_item_id')
@@ -96,18 +96,14 @@ class DeliveryController extends Controller
             ->with('purchaseOrder')
             ->get();
 
-        $linkedVariants = ProductVariant::query()
-            ->with(['product', 'estorePack'])
-            ->whereIn('estore_item_code', $waiting->pluck('item_code')->unique()->values())
-            ->get()
-            ->keyBy('estore_item_code');
+        $linkedVariants = LinkedItems::variantsByCode($waiting->pluck('item_code')->all());
 
         $groups = $waiting
             ->groupBy('item_code')
             ->map(fn ($items, string $itemCode): array => [
                 'item_code' => $itemCode,
                 'description' => $items->first()->description,
-                'stock_target' => $linkedVariants->get($itemCode)?->stockTarget(),
+                'stock_target' => $linkedVariants->has($itemCode) ? LinkedItems::target($linkedVariants->get($itemCode)) : null,
                 'rows' => $items->map(fn (PurchaseOrderItem $item): array => [
                     'purchase_order_item_id' => $item->id,
                     'order_number' => $item->purchaseOrder->order_number,
@@ -133,6 +129,7 @@ class DeliveryController extends Controller
             $request->user(),
             $request->deliveryDetails(),
             $request->receivedQuantities(),
+            $request->splitsByCode(),
         );
 
         $addedToStock = StockMovement::query()
@@ -154,7 +151,7 @@ class DeliveryController extends Controller
 
         $notLinked = $delivery->items()
             ->with('purchaseOrderItem')
-            ->whereDoesntHave('stockMovement')
+            ->whereDoesntHave('stockMovements')
             ->get()
             ->groupBy(fn (DeliveryItem $item): string => $item->purchaseOrderItem->item_code)
             ->map(fn (Collection $items, string $itemCode): string => $itemCode.' ('.number_format((int) $items->sum('quantity_received')).' as ordered on the eStore)')

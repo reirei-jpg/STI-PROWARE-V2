@@ -60,6 +60,10 @@ type ProductFormData = {
     packs: ProductPackInput[];
     options: ProductOptionInput[];
     variant_inputs: Record<string, VariantInput>;
+    /** Every variant shares one eStore Item Code (e.g. every color). */
+    shares_item_code: boolean;
+    shared_item_code: string;
+    shared_pack_key: string;
 };
 
 const emptyVariantInput: VariantInput = {
@@ -105,6 +109,18 @@ export default function ProductForm({
     /** Today in the school's time zone, "YYYY-MM-DD". */
     today: string;
 }) {
+    // A saved product whose variants all have the same code shares it.
+    const savedVariants = product?.variants ?? [];
+    const savedSharedVariant =
+        savedVariants.length > 1 &&
+        savedVariants[0].estore_item_code !== '' &&
+        savedVariants.every(
+            (variant) =>
+                variant.estore_item_code === savedVariants[0].estore_item_code,
+        )
+            ? savedVariants[0]
+            : null;
+
     const form = useForm<ProductFormData>({
         name: product?.name ?? fromItem?.description.slice(0, 120) ?? '',
         sold_by_piece: product?.sold_by_piece ?? true,
@@ -140,6 +156,10 @@ export default function ProductForm({
                     },
                 }
               : {},
+        shares_item_code: savedSharedVariant !== null,
+        shared_item_code:
+            savedSharedVariant?.estore_item_code ?? fromItem?.item_code ?? '',
+        shared_pack_key: savedSharedVariant?.estore_pack_key ?? '',
     });
 
     const { data, setData, processing } = form;
@@ -157,6 +177,19 @@ export default function ProductForm({
     );
     const variantInput = (key: string): VariantInput =>
         data.variant_inputs[key] ?? emptyVariantInput;
+    // Sharing one code only applies when there are several variants.
+    const sharesItemCode = data.shares_item_code && combinations.length > 1;
+    /** The code and pack a variant is saved with, shared or its own. */
+    const savedCodeAndPack = (key: string) =>
+        sharesItemCode
+            ? {
+                  estore_item_code: data.shared_item_code,
+                  estore_pack_key: data.shared_pack_key,
+              }
+            : {
+                  estore_item_code: variantInput(key).estore_item_code,
+                  estore_pack_key: variantInput(key).estore_pack_key,
+              };
 
     // A new close date cannot be before today; a date already saved that
     // has passed (preorders closed) may stay as it is.
@@ -206,8 +239,7 @@ export default function ProductForm({
 
                 return {
                     combination: combination.key,
-                    estore_item_code: input.estore_item_code,
-                    estore_pack_key: input.estore_pack_key,
+                    ...savedCodeAndPack(combination.key),
                     price: current.sold_by_piece ? input.price : '',
                 };
             }),
@@ -334,7 +366,7 @@ export default function ProductForm({
     const variantsUsingPack = (key: string) =>
         combinations.filter(
             (combination) =>
-                variantInput(combination.key).estore_pack_key === key,
+                savedCodeAndPack(combination.key).estore_pack_key === key,
         );
 
     const packLabel = (pack: ProductPackInput) =>
@@ -346,10 +378,18 @@ export default function ProductForm({
         fromItem !== null &&
         !combinations.some(
             (combination) =>
-                variantInput(combination.key)
+                savedCodeAndPack(combination.key)
                     .estore_item_code.trim()
                     .toUpperCase() === fromItem.item_code,
         );
+
+    // Server errors for the shared code come back on the variants.
+    const sharedCodeError = combinations
+        .map((_, index) => errors[`variants.${index}.estore_item_code`])
+        .find(Boolean);
+    const sharedPackError = combinations
+        .map((_, index) => errors[`variants.${index}.estore_pack_key`])
+        .find(Boolean);
 
     const firstPhotoError = data.photos
         .map((_, index) => errors[`photos.${index}.file`])
@@ -969,20 +1009,119 @@ export default function ProductForm({
                                 {fromItem.item_code}
                             </span>{' '}
                             is not on any variant yet. Type it on the variant
-                            that matches {fromItem.description}.
+                            that matches {fromItem.description}, or choose "One
+                            code for all variants" if every variant comes under
+                            this code.
                         </p>
+                    )}
+                    {combinations.length > 1 && (
+                        <div className="space-y-4 border-b border-slate-100 px-6 py-5">
+                            <div>
+                                <p className="text-sm font-black text-slate-700">
+                                    eStore Item Code
+                                </p>
+                                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                    <CodeModeChoice
+                                        checked={!sharesItemCode}
+                                        onChange={() =>
+                                            setData('shares_item_code', false)
+                                        }
+                                        title="Each variant has its own code"
+                                        description="e.g. Chibi Keychain IT and Chibi Keychain HRM are different eStore items."
+                                    />
+                                    <CodeModeChoice
+                                        checked={sharesItemCode}
+                                        onChange={() =>
+                                            setData({
+                                                ...data,
+                                                shares_item_code: true,
+                                                shared_item_code:
+                                                    data.shared_item_code ||
+                                                    (combinations
+                                                        .map(
+                                                            (combination) =>
+                                                                variantInput(
+                                                                    combination.key,
+                                                                )
+                                                                    .estore_item_code,
+                                                        )
+                                                        .find(Boolean) ??
+                                                        ''),
+                                            })
+                                        }
+                                        title="One code for all variants"
+                                        description="e.g. one STI Umbrella code for every color. When it arrives, you enter how many of each you received."
+                                    />
+                                </div>
+                            </div>
+                            {sharesItemCode && (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <label className="grid gap-1.5">
+                                        <span className="text-sm font-black text-slate-700">
+                                            eStore Item Code for all variants
+                                        </span>
+                                        <input
+                                            value={data.shared_item_code}
+                                            onChange={(event) =>
+                                                setData(
+                                                    'shared_item_code',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            maxLength={40}
+                                            placeholder="e.g. PRUM01-01"
+                                            className={cn(
+                                                inputClasses,
+                                                'font-mono uppercase',
+                                            )}
+                                        />
+                                        <InputError message={sharedCodeError} />
+                                    </label>
+                                    <label className="grid gap-1.5">
+                                        <span className="text-sm font-black text-slate-700">
+                                            Head Office sends it by
+                                        </span>
+                                        <select
+                                            value={data.shared_pack_key}
+                                            onChange={(event) =>
+                                                setData(
+                                                    'shared_pack_key',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className={inputClasses}
+                                        >
+                                            <option value="">Piece</option>
+                                            {data.packs.map((pack) => (
+                                                <option
+                                                    key={pack.key}
+                                                    value={pack.key}
+                                                >
+                                                    {packLabel(pack)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError message={sharedPackError} />
+                                    </label>
+                                </div>
+                            )}
+                        </div>
                     )}
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-225">
                             <thead className="bg-slate-50">
                                 <tr>
                                     <TableHeading>Variant</TableHeading>
-                                    <TableHeading>
-                                        eStore Item Code
-                                    </TableHeading>
-                                    <TableHeading>
-                                        Head Office sends it by
-                                    </TableHeading>
+                                    {!sharesItemCode && (
+                                        <>
+                                            <TableHeading>
+                                                eStore Item Code
+                                            </TableHeading>
+                                            <TableHeading>
+                                                Head Office sends it by
+                                            </TableHeading>
+                                        </>
+                                    )}
                                     <TableHeading>
                                         Price per piece (optional)
                                     </TableHeading>
@@ -1002,97 +1141,117 @@ export default function ProductForm({
                                         <td className="px-5 py-4 font-black text-slate-900">
                                             {combination.label}
                                         </td>
-                                        <td className="px-5 py-4">
-                                            <input
-                                                value={
-                                                    variantInput(
-                                                        combination.key,
-                                                    ).estore_item_code
-                                                }
-                                                onChange={(event) =>
-                                                    updateVariant(
-                                                        combination.key,
-                                                        'estore_item_code',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                maxLength={40}
-                                                placeholder="e.g. PRCU01-01"
-                                                className={cn(
-                                                    inputClasses,
-                                                    'font-mono uppercase',
-                                                )}
-                                                aria-label={`eStore Item Code for ${combination.label}`}
-                                            />
-                                            <InputError
-                                                className="mt-1"
-                                                message={
-                                                    errors[
-                                                        `variants.${index}.estore_item_code`
-                                                    ]
-                                                }
-                                            />
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <select
-                                                value={
-                                                    variantInput(
-                                                        combination.key,
-                                                    ).estore_pack_key
-                                                }
-                                                onChange={(event) =>
-                                                    updateVariant(
-                                                        combination.key,
-                                                        'estore_pack_key',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                className={cn(
-                                                    inputClasses,
-                                                    'w-48',
-                                                )}
-                                                aria-label={`How Head Office sends ${combination.label}`}
-                                            >
-                                                <option value="">Piece</option>
-                                                {data.packs.map((pack) => (
-                                                    <option
-                                                        key={pack.key}
-                                                        value={pack.key}
-                                                    >
-                                                        {packLabel(pack)}
-                                                    </option>
-                                                ))}
-                                                {variantInput(combination.key)
-                                                    .estore_pack_key !== '' &&
-                                                    !data.packs.some(
-                                                        (pack) =>
-                                                            pack.key ===
+                                        {!sharesItemCode && (
+                                            <>
+                                                <td className="px-5 py-4">
+                                                    <input
+                                                        value={
                                                             variantInput(
                                                                 combination.key,
-                                                            ).estore_pack_key,
-                                                    ) && (
-                                                        <option
-                                                            value={
-                                                                variantInput(
-                                                                    combination.key,
-                                                                )
-                                                                    .estore_pack_key
-                                                            }
-                                                        >
-                                                            Removed pack —
-                                                            choose again
+                                                            ).estore_item_code
+                                                        }
+                                                        onChange={(event) =>
+                                                            updateVariant(
+                                                                combination.key,
+                                                                'estore_item_code',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        maxLength={40}
+                                                        placeholder="e.g. PRCU01-01"
+                                                        className={cn(
+                                                            inputClasses,
+                                                            'font-mono uppercase',
+                                                        )}
+                                                        aria-label={`eStore Item Code for ${combination.label}`}
+                                                    />
+                                                    <InputError
+                                                        className="mt-1"
+                                                        message={
+                                                            errors[
+                                                                `variants.${index}.estore_item_code`
+                                                            ]
+                                                        }
+                                                    />
+                                                </td>
+                                                <td className="px-5 py-4">
+                                                    <select
+                                                        value={
+                                                            variantInput(
+                                                                combination.key,
+                                                            ).estore_pack_key
+                                                        }
+                                                        onChange={(event) =>
+                                                            updateVariant(
+                                                                combination.key,
+                                                                'estore_pack_key',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            inputClasses,
+                                                            'w-48',
+                                                        )}
+                                                        aria-label={`How Head Office sends ${combination.label}`}
+                                                    >
+                                                        <option value="">
+                                                            Piece
                                                         </option>
-                                                    )}
-                                            </select>
-                                            <InputError
-                                                className="mt-1"
-                                                message={
-                                                    errors[
-                                                        `variants.${index}.estore_pack_key`
-                                                    ]
-                                                }
-                                            />
-                                        </td>
+                                                        {data.packs.map(
+                                                            (pack) => (
+                                                                <option
+                                                                    key={
+                                                                        pack.key
+                                                                    }
+                                                                    value={
+                                                                        pack.key
+                                                                    }
+                                                                >
+                                                                    {packLabel(
+                                                                        pack,
+                                                                    )}
+                                                                </option>
+                                                            ),
+                                                        )}
+                                                        {variantInput(
+                                                            combination.key,
+                                                        ).estore_pack_key !==
+                                                            '' &&
+                                                            !data.packs.some(
+                                                                (pack) =>
+                                                                    pack.key ===
+                                                                    variantInput(
+                                                                        combination.key,
+                                                                    )
+                                                                        .estore_pack_key,
+                                                            ) && (
+                                                                <option
+                                                                    value={
+                                                                        variantInput(
+                                                                            combination.key,
+                                                                        )
+                                                                            .estore_pack_key
+                                                                    }
+                                                                >
+                                                                    Removed pack
+                                                                    — choose
+                                                                    again
+                                                                </option>
+                                                            )}
+                                                    </select>
+                                                    <InputError
+                                                        className="mt-1"
+                                                        message={
+                                                            errors[
+                                                                `variants.${index}.estore_pack_key`
+                                                            ]
+                                                        }
+                                                    />
+                                                </td>
+                                            </>
+                                        )}
                                         <td className="px-5 py-4">
                                             <PesoInput
                                                 value={
@@ -1663,5 +1822,48 @@ function OptionEditor({
                 />
             </div>
         </div>
+    );
+}
+
+/**
+ * One of the two ways variants get their eStore Item Code: each its own,
+ * or one code shared by all of them.
+ */
+function CodeModeChoice({
+    checked,
+    onChange,
+    title,
+    description,
+}: {
+    checked: boolean;
+    onChange: () => void;
+    title: string;
+    description: string;
+}) {
+    return (
+        <label
+            className={cn(
+                'flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-4 transition',
+                checked
+                    ? 'border-[#0D6EFD] bg-blue-50'
+                    : 'border-slate-200 bg-white hover:border-slate-300',
+            )}
+        >
+            <input
+                type="radio"
+                name="item_code_mode"
+                checked={checked}
+                onChange={onChange}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#0D6EFD]"
+            />
+            <span>
+                <span className="block text-sm font-black text-slate-900">
+                    {title}
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-slate-500">
+                    {description}
+                </span>
+            </span>
+        </label>
     );
 }

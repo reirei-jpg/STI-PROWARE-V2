@@ -62,8 +62,19 @@ export default function RecordDelivery({
     const errors = form.errors as Record<string, string | undefined>;
     const [search, setSearch] = useState('');
     const [groupTotals, setGroupTotals] = useState<Record<string, string>>({});
+    // Pieces counted per variant, for codes shared by several variants.
+    const [splitCounts, setSplitCounts] = useState<
+        Record<string, Record<number, string>>
+    >({});
 
     const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
+    const splitGroups = useMemo(
+        () =>
+            groups.filter(
+                (group) => (group.stock_target?.split_into.length ?? 0) > 1,
+            ),
+        [groups],
+    );
 
     // Server errors point at a row by its position in the list sent.
     const rowErrors = useMemo(() => {
@@ -99,8 +110,6 @@ export default function RecordDelivery({
             (wholeNumber(data.quantities[row.purchase_order_item_id]) ?? 0),
         0,
     );
-    const hasProblems = rows.some((row) => rowProblem(row) !== null);
-
     // What saving adds to stock, in pieces, and how many typed items are
     // not linked to a product (recorded, but not added to stock).
     const groupReceivedNow = (group: WaitingItemGroup) =>
@@ -110,6 +119,59 @@ export default function RecordDelivery({
                 (wholeNumber(data.quantities[row.purchase_order_item_id]) ?? 0),
             0,
         );
+
+    /** Pieces counted per variant of a shared code; null if one is not a number. */
+    const countedPieces = (group: WaitingItemGroup): number | null => {
+        let total = 0;
+
+        for (const variant of group.stock_target?.split_into ?? []) {
+            const pieces = wholeNumber(
+                splitCounts[group.item_code]?.[variant.id],
+            );
+
+            if (pieces === null) {
+                return null;
+            }
+
+            total += pieces;
+        }
+
+        return total;
+    };
+
+    /** Why a shared code's counts do not fit what the orders receive. */
+    const splitProblem = (group: WaitingItemGroup): string | null => {
+        const target = group.stock_target;
+        const counted = countedPieces(group);
+
+        if (target === null || counted === null) {
+            return counted === null ? 'Enter whole numbers.' : null;
+        }
+
+        const remaining = group.rows.reduce(
+            (sum, row) => sum + row.quantity_remaining,
+            0,
+        );
+        const arriving = groupReceivedNow(group) * target.pieces_per_unit;
+
+        if (counted % target.pieces_per_unit !== 0) {
+            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but Head Office sends this by the ${target.unit_name} of ${target.pieces_per_unit} pcs, so the total must be a multiple of ${target.pieces_per_unit}.`;
+        }
+
+        if (counted / target.pieces_per_unit > remaining) {
+            return `Only ${formatUnits(remaining * target.pieces_per_unit, 'Piece')} left to receive for this item.`;
+        }
+
+        if (counted !== arriving) {
+            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but the orders below receive ${formatUnits(arriving, 'Piece')}. Make them match.`;
+        }
+
+        return null;
+    };
+
+    const hasProblems =
+        rows.some((row) => rowProblem(row) !== null) ||
+        splitGroups.some((group) => splitProblem(group) !== null);
     const piecesIntoStock = groups.reduce(
         (sum, group) =>
             sum +
@@ -148,8 +210,10 @@ export default function RecordDelivery({
      */
     const setGroupTotal = (group: WaitingItemGroup, value: string) => {
         setGroupTotals({ ...groupTotals, [group.item_code]: value });
+        shareOut(group, wholeNumber(value));
+    };
 
-        const total = wholeNumber(value);
+    const shareOut = (group: WaitingItemGroup, total: number | null) => {
         const remaining = group.rows.reduce(
             (sum, row) => sum + row.quantity_remaining,
             0,
@@ -172,6 +236,32 @@ export default function RecordDelivery({
         setData('quantities', quantities);
     };
 
+    /**
+     * A shared code is counted per variant (e.g. 5 Black, 3 Red); the total
+     * fills the orders, oldest first, in Head Office's unit.
+     */
+    const setSplitCount = (
+        group: WaitingItemGroup,
+        variantId: number,
+        value: string,
+    ) => {
+        const counts = {
+            ...splitCounts[group.item_code],
+            [variantId]: value.replace(/\D/g, '').slice(0, 7),
+        };
+        setSplitCounts({ ...splitCounts, [group.item_code]: counts });
+
+        const target = group.stock_target;
+        const pieces = Object.values(counts).reduce(
+            (sum, count) => sum + (wholeNumber(count) ?? 0),
+            0,
+        );
+
+        if (target && pieces % target.pieces_per_unit === 0) {
+            shareOut(group, pieces / target.pieces_per_unit);
+        }
+    };
+
     const submit = () => {
         form.transform((current) => ({
             received_on: current.received_on,
@@ -182,6 +272,16 @@ export default function RecordDelivery({
                 purchase_order_item_id: row.purchase_order_item_id,
                 quantity_received:
                     current.quantities[row.purchase_order_item_id] ?? '',
+            })),
+            splits: splitGroups.map((group) => ({
+                item_code: group.item_code,
+                pieces: (group.stock_target?.split_into ?? []).map(
+                    (variant) => ({
+                        product_variant_id: variant.id,
+                        pieces:
+                            splitCounts[group.item_code]?.[variant.id] ?? '',
+                    }),
+                ),
             })),
         }));
 
@@ -352,6 +452,9 @@ export default function RecordDelivery({
                                       : null;
 
                             const target = group.stock_target;
+                            const isSplit =
+                                (target?.split_into.length ?? 0) > 1;
+                            const counted = countedPieces(group);
 
                             return (
                                 <Panel
@@ -366,61 +469,103 @@ export default function RecordDelivery({
                                             : `${remaining.toLocaleString('en-PH')} (as ordered on the eStore)`
                                     } still to come across ${group.rows.length} ${group.rows.length === 1 ? 'order' : 'orders'}`}
                                     actions={
-                                        <label className="grid gap-1">
-                                            <span className="text-xs font-bold tracking-wide text-slate-400 uppercase">
-                                                Total received for this item
-                                            </span>
-                                            <span className="flex items-center gap-2">
-                                                <input
-                                                    value={
-                                                        groupTotals[
-                                                            group.item_code
-                                                        ] ?? ''
-                                                    }
-                                                    onChange={(event) =>
-                                                        setGroupTotal(
-                                                            group,
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    inputMode="numeric"
-                                                    placeholder="0"
-                                                    className={cn(
-                                                        inputClasses,
-                                                        'w-36 text-right',
+                                        isSplit && target ? (
+                                            <div className="grid gap-1 text-right">
+                                                <span className="text-xs font-bold tracking-wide text-slate-400 uppercase">
+                                                    Total received for this item
+                                                </span>
+                                                <span className="text-2xl font-black text-slate-900">
+                                                    {formatUnits(
+                                                        counted ?? 0,
+                                                        'Piece',
                                                     )}
-                                                    aria-label={`Total received for ${group.item_code}`}
+                                                </span>
+                                                <span className="text-xs text-slate-500">
+                                                    from your counts below
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <label className="grid gap-1">
+                                                <span className="text-xs font-bold tracking-wide text-slate-400 uppercase">
+                                                    Total received for this item
+                                                </span>
+                                                <span className="flex items-center gap-2">
+                                                    <input
+                                                        value={
+                                                            groupTotals[
+                                                                group.item_code
+                                                            ] ?? ''
+                                                        }
+                                                        onChange={(event) =>
+                                                            setGroupTotal(
+                                                                group,
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        inputMode="numeric"
+                                                        placeholder="0"
+                                                        className={cn(
+                                                            inputClasses,
+                                                            'w-36 text-right',
+                                                        )}
+                                                        aria-label={`Total received for ${group.item_code}`}
+                                                    />
+                                                    {target && (
+                                                        <span className="w-14 text-sm font-bold text-slate-500">
+                                                            {unitWord(
+                                                                typedTotal ?? 0,
+                                                                target.unit_name,
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                {target &&
+                                                    totalProblem === null &&
+                                                    (typedTotal ?? 0) > 0 && (
+                                                        <span className="text-xs font-bold text-emerald-700">
+                                                            Into stock:{' '}
+                                                            {formatConversion(
+                                                                typedTotal ?? 0,
+                                                                target.unit_name,
+                                                                target.pieces_per_unit,
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                <InputError
+                                                    message={
+                                                        totalProblem ??
+                                                        undefined
+                                                    }
                                                 />
-                                                {target && (
-                                                    <span className="w-14 text-sm font-bold text-slate-500">
-                                                        {unitWord(
-                                                            typedTotal ?? 0,
-                                                            target.unit_name,
-                                                        )}
-                                                    </span>
-                                                )}
-                                            </span>
-                                            {target &&
-                                                totalProblem === null &&
-                                                (typedTotal ?? 0) > 0 && (
-                                                    <span className="text-xs font-bold text-emerald-700">
-                                                        Into stock:{' '}
-                                                        {formatConversion(
-                                                            typedTotal ?? 0,
-                                                            target.unit_name,
-                                                            target.pieces_per_unit,
-                                                        )}
-                                                    </span>
-                                                )}
-                                            <InputError
-                                                message={
-                                                    totalProblem ?? undefined
-                                                }
-                                            />
-                                        </label>
+                                            </label>
+                                        )
                                     }
                                 >
                                     <StockTargetNote group={group} />
+                                    {isSplit && target && (
+                                        <SplitCounts
+                                            group={group}
+                                            counts={
+                                                splitCounts[group.item_code] ??
+                                                {}
+                                            }
+                                            onChange={(variantId, value) =>
+                                                setSplitCount(
+                                                    group,
+                                                    variantId,
+                                                    value,
+                                                )
+                                            }
+                                            problem={
+                                                splitProblem(group) ??
+                                                errors[
+                                                    `splits.${splitGroups.indexOf(group)}`
+                                                ] ??
+                                                null
+                                            }
+                                        />
+                                    )}
                                     <div className="overflow-x-auto">
                                         <table className="w-full min-w-200">
                                             <thead className="bg-slate-50">
@@ -682,9 +827,73 @@ function StockTargetNote({ group }: { group: WaitingItemGroup }) {
                 Goes into stock:{' '}
                 <span className="font-black">
                     {target.product_name}
-                    {target.has_options && ` (${target.variant_label})`}
+                    {target.split_into.length > 1
+                        ? ' — count how many of each arrived below'
+                        : target.has_options && ` (${target.variant_label})`}
                 </span>
             </span>
+        </div>
+    );
+}
+
+/**
+ * For a code shared by several variants (e.g. every color): a box per
+ * variant for the pieces counted. The total fills the orders below.
+ */
+function SplitCounts({
+    group,
+    counts,
+    onChange,
+    problem,
+}: {
+    group: WaitingItemGroup;
+    counts: Record<number, string>;
+    onChange: (variantId: number, value: string) => void;
+    problem: string | null;
+}) {
+    const target = group.stock_target;
+
+    if (target === null) {
+        return null;
+    }
+
+    return (
+        <div className="border-b border-slate-100 px-6 py-4">
+            <p className="text-sm font-black text-slate-700">
+                How many of each did you receive? (pcs)
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                {target.split_into.map((variant) => (
+                    <label
+                        key={variant.id}
+                        className="grid gap-1 rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                    >
+                        <span className="truncate text-sm font-black text-slate-800">
+                            {variant.label}
+                        </span>
+                        <span className="flex items-center gap-2">
+                            <input
+                                value={counts[variant.id] ?? ''}
+                                onChange={(event) =>
+                                    onChange(variant.id, event.target.value)
+                                }
+                                inputMode="numeric"
+                                placeholder="0"
+                                className={cn(inputClasses, 'text-right')}
+                                aria-label={`Pieces of ${variant.label} received`}
+                            />
+                            <span className="text-sm font-bold text-slate-500">
+                                pcs
+                            </span>
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                            In stock now:{' '}
+                            {formatUnits(variant.stock_on_hand, 'Piece')}
+                        </span>
+                    </label>
+                ))}
+            </div>
+            <InputError className="mt-2" message={problem ?? undefined} />
         </div>
     );
 }

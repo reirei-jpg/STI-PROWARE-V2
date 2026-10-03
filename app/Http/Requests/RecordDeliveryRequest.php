@@ -3,6 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\PurchaseOrderItem;
+use App\Services\EstorePo\ItemCode;
+use App\Services\Stock\LinkedItems;
+use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -10,7 +13,9 @@ use Illuminate\Validation\Validator;
 /**
  * A delivery that arrived: when, the optional Sales Invoice # and Delivery
  * Receipt #, and how many of each waiting item were received. Receiving
- * more than what is left of an item is refused.
+ * more than what is left of an item is refused. For an item shared by
+ * several variants (e.g. every color), the pieces counted for each variant
+ * must add up to what is received.
  */
 class RecordDeliveryRequest extends FormRequest
 {
@@ -27,6 +32,11 @@ class RecordDeliveryRequest extends FormRequest
             'items' => ['required', 'array'],
             'items.*.purchase_order_item_id' => ['required', 'integer', 'distinct', 'exists:purchase_order_items,id'],
             'items.*.quantity_received' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            'splits' => ['nullable', 'array'],
+            'splits.*.item_code' => ['required', 'string', 'max:40'],
+            'splits.*.pieces' => ['present', 'array'],
+            'splits.*.pieces.*.product_variant_id' => ['required', 'integer'],
+            'splits.*.pieces.*.pieces' => ['nullable', 'integer', 'min:0', 'max:1000000'],
         ];
     }
 
@@ -42,6 +52,8 @@ class RecordDeliveryRequest extends FormRequest
             'items.required' => 'There are no items waiting for delivery.',
             'items.*.quantity_received.integer' => 'Enter a whole number.',
             'items.*.quantity_received.min' => 'The quantity cannot be negative.',
+            'splits.*.pieces.*.pieces.integer' => 'Enter whole numbers.',
+            'splits.*.pieces.*.pieces.min' => 'A count cannot be negative.',
         ];
     }
 
@@ -86,8 +98,89 @@ class RecordDeliveryRequest extends FormRequest
                         $validator->errors()->add("items.{$index}.quantity_received", "Only {$item->quantityRemaining()} left to receive for Order #{$order->order_number}.");
                     }
                 }
+
+                $this->validateSplits($validator, $items->all(), $received);
             },
         ];
+    }
+
+    /**
+     * An item whose code is shared by several variants (e.g. every color)
+     * needs the pieces counted for each variant, adding up to what is
+     * received for it.
+     *
+     * @param  array<int, PurchaseOrderItem>  $items  by id
+     * @param  array<int, int>  $received  quantity by ordered item id
+     */
+    private function validateSplits(Validator $validator, array $items, array $received): void
+    {
+        $unitsByCode = [];
+
+        foreach ($received as $itemId => $quantity) {
+            $code = $items[$itemId]->item_code ?? null;
+
+            if ($code !== null) {
+                $unitsByCode[$code] = ($unitsByCode[$code] ?? 0) + $quantity;
+            }
+        }
+
+        $splits = $this->splitsByCode();
+        $variantsByCode = LinkedItems::variantsByCode(array_unique([...array_keys($unitsByCode), ...array_keys($splits)]));
+        $indexByCode = array_flip(array_keys($splits));
+
+        foreach ($variantsByCode as $code => $variants) {
+            if ($variants->count() < 2) {
+                continue;
+            }
+
+            $key = isset($indexByCode[$code]) ? "splits.{$indexByCode[$code]}" : 'items';
+            $counted = $splits[$code] ?? [];
+            $piecesPerUnit = $variants->firstOrFail()->estorePack->pieces ?? 1;
+            $unitName = $variants->firstOrFail()->estorePack->name ?? 'Piece';
+            $arriving = ($unitsByCode[$code] ?? 0) * $piecesPerUnit;
+            $countedPieces = array_sum($counted);
+
+            if (array_diff(array_keys($counted), $variants->modelKeys()) !== []) {
+                $validator->errors()->add($key, "The choices for {$code} changed. Reload the page and count again.");
+            } elseif ($arriving === 0 && $countedPieces === 0) {
+                continue;
+            } elseif ($arriving > 0 && $countedPieces === 0) {
+                $validator->errors()->add($key, "{$code} is shared by several variants. Enter how many of each arrived.");
+            } elseif ($countedPieces % $piecesPerUnit !== 0) {
+                $validator->errors()->add($key, 'Your counts add up to '.Units::count($countedPieces, 'Piece').", but Head Office sends this by the {$unitName} of {$piecesPerUnit} pcs, so the total must be a multiple of {$piecesPerUnit}.");
+            } elseif ($countedPieces !== $arriving) {
+                $validator->errors()->add($key, 'Your counts add up to '.Units::count($countedPieces, 'Piece').', but the orders below receive '.Units::count($arriving, 'Piece').'. Make them match.');
+            }
+        }
+    }
+
+    /**
+     * The pieces counted for each variant of a shared code, by code.
+     *
+     * @return array<string, array<int, int>> pieces by variant id
+     */
+    public function splitsByCode(): array
+    {
+        $splits = [];
+
+        /** @var array<int, array{item_code?: string, pieces?: array<int, array{product_variant_id?: int|string, pieces?: int|string|null}>}> $rows */
+        $rows = $this->input('splits', []);
+
+        foreach ($rows as $row) {
+            $code = ItemCode::normalize($row['item_code'] ?? null);
+
+            if ($code === null) {
+                continue;
+            }
+
+            $splits[$code] ??= [];
+
+            foreach ($row['pieces'] ?? [] as $count) {
+                $splits[$code][(int) ($count['product_variant_id'] ?? 0)] = (int) ($count['pieces'] ?? 0);
+            }
+        }
+
+        return $splits;
     }
 
     /**

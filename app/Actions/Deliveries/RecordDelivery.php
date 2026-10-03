@@ -3,6 +3,7 @@
 namespace App\Actions\Deliveries;
 
 use App\Models\Delivery;
+use App\Models\DeliveryItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
@@ -17,7 +18,8 @@ use Illuminate\Validation\ValidationException;
  * sets a new one when Head Office calls about the rest.
  *
  * Items whose eStore Item Code is linked to a product are added to stock
- * right away; the others wait until the Specialist links them.
+ * right away; the others wait until the Specialist links them. An item
+ * shared by several variants goes into each variant as counted.
  */
 class RecordDelivery
 {
@@ -26,10 +28,11 @@ class RecordDelivery
     /**
      * @param  array{received_on: string, sales_invoice_number?: ?string, delivery_receipt_number?: ?string, note?: ?string}  $details
      * @param  array<int, int>  $quantities  quantity received by ordered item id
+     * @param  array<string, array<int, int>>  $splitsByCode  for codes shared by several variants: pieces by variant id
      */
-    public function handle(User $recordedBy, array $details, array $quantities): Delivery
+    public function handle(User $recordedBy, array $details, array $quantities, array $splitsByCode = []): Delivery
     {
-        return DB::transaction(function () use ($recordedBy, $details, $quantities): Delivery {
+        return DB::transaction(function () use ($recordedBy, $details, $quantities, $splitsByCode): Delivery {
             // Lock the items so two people recording at once cannot both
             // receive the same remaining quantity.
             $items = PurchaseOrderItem::query()
@@ -73,7 +76,18 @@ class RecordDelivery
                 $order->refreshDeliveryProgress();
             }
 
-            $this->deliveredStock->add($delivery->items()->get(), $recordedBy);
+            $deliveryItems = $delivery->items()->with('purchaseOrderItem')->orderBy('id')->get();
+            $splits = [];
+
+            foreach ($splitsByCode as $code => $piecesByVariant) {
+                $splits += DeliveredStock::allocate(
+                    $deliveryItems->filter(fn (DeliveryItem $item): bool => $item->purchaseOrderItem->item_code === $code),
+                    $piecesByVariant,
+                    DeliveredStock::piecesPerUnit($code),
+                );
+            }
+
+            $this->deliveredStock->add($deliveryItems, $recordedBy, $splits);
 
             return $delivery;
         });

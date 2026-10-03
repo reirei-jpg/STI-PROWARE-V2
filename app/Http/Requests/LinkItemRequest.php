@@ -12,8 +12,9 @@ use Illuminate\Validation\Validator;
 
 /**
  * Link an eStore item to a product variant from Items to Link: which
- * variant it is, and whether Head Office sends it by the piece, by one of
- * the product's packs, or by a new pack typed here.
+ * variant it is (or all of them, when they share the code), and whether
+ * Head Office sends it by the piece, by one of the product's packs, or by a
+ * new pack typed here.
  */
 class LinkItemRequest extends FormRequest
 {
@@ -25,6 +26,7 @@ class LinkItemRequest extends FormRequest
         return [
             'item_code' => ['required', 'string', 'max:40'],
             'product_variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'link_to' => ['nullable', 'in:variant,all'],
             'sent_by' => ['required', 'in:piece,pack,new_pack'],
             'pack_id' => ['required_if:sent_by,pack', 'nullable', 'integer'],
             'new_pack_name' => ['required_if:sent_by,new_pack', 'nullable', 'string', 'max:30'],
@@ -81,7 +83,13 @@ class LinkItemRequest extends FormRequest
 
                 $variant = $this->variant();
 
-                if ($variant->estore_item_code !== null) {
+                if ($this->linksAllVariants()) {
+                    $withCode = $variant->product->variants()->whereNotNull('estore_item_code')->first();
+
+                    if ($withCode !== null) {
+                        $validator->errors()->add('product_variant_id', "{$withCode->label()} already has its own eStore Item Code {$withCode->estore_item_code}, so the variants cannot all share {$code}. Choose one variant instead.");
+                    }
+                } elseif ($variant->estore_item_code !== null) {
                     $validator->errors()->add('product_variant_id', "This variant already has the eStore Item Code {$variant->estore_item_code}. Choose another variant.");
                 }
 
@@ -99,6 +107,15 @@ class LinkItemRequest extends FormRequest
     public function itemCode(): string
     {
         return (string) ItemCode::normalize((string) $this->input('item_code'));
+    }
+
+    /**
+     * Every variant of the product shares this code (e.g. one umbrella code
+     * for every color), instead of the one variant chosen.
+     */
+    public function linksAllVariants(): bool
+    {
+        return $this->input('link_to') === 'all';
     }
 
     public function variant(): ProductVariant
