@@ -27,7 +27,9 @@ const PLACEHOLDER_FEED = 20;
  * tile opens the product's view.
  *
  * All three sections always show, as in the approved layout: a section
- * with no products yet keeps its empty tiles and says so.
+ * with no products yet keeps its empty tiles and says so, and Coming Soon
+ * and On Sale fill the rest of a row with empty tiles when they have only a
+ * few products.
  */
 export default function StorefrontHome({
     comingSoon,
@@ -78,6 +80,14 @@ export default function StorefrontHome({
             />
         </>
     );
+}
+
+/**
+ * How many empty tiles finish the last row, so a section with only a few
+ * products keeps the full row of the approved layout.
+ */
+function emptySpaces(products: number, perRow: number): number {
+    return (perRow - (products % perRow)) % perRow;
 }
 
 /**
@@ -143,27 +153,31 @@ function ComingSoonCarousel({
 
             <TileCarousel
                 label="Coming Soon"
-                tiles={
-                    products.length > 0
-                        ? products.map((product) => (
-                              <StorefrontTile
-                                  key={product.id}
-                                  product={product}
-                                  onView={onView}
-                                  className="w-full"
-                              />
-                          ))
-                        : Array.from(
-                              { length: PLACEHOLDER_COMING_SOON },
-                              (_, index) => (
-                                  <PlaceholderTile
-                                      key={index}
-                                      comingSoon
-                                      className="w-full"
-                                  />
-                              ),
-                          )
-                }
+                tiles={[
+                    ...products.map((product) => (
+                        <StorefrontTile
+                            key={product.id}
+                            product={product}
+                            onView={onView}
+                            className="w-full"
+                        />
+                    )),
+                    ...Array.from(
+                        {
+                            length:
+                                products.length === 0
+                                    ? PLACEHOLDER_COMING_SOON
+                                    : Math.max(0, 5 - products.length),
+                        },
+                        (_, index) => (
+                            <PlaceholderTile
+                                key={`placeholder-${index}`}
+                                comingSoon
+                                className="w-full"
+                            />
+                        ),
+                    ),
+                ]}
             />
             {products.length === 0 && (
                 <EmptyNote>
@@ -201,18 +215,24 @@ function OnSaleSection({
             />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                {products.length > 0
-                    ? products.map((product) => (
-                          <StorefrontTile
-                              key={product.id}
-                              product={product}
-                              onView={onView}
-                          />
-                      ))
-                    : Array.from(
-                          { length: PLACEHOLDER_ON_SALE },
-                          (_, index) => <PlaceholderTile key={index} sale />,
-                      )}
+                {products.map((product) => (
+                    <StorefrontTile
+                        key={product.id}
+                        product={product}
+                        onView={onView}
+                    />
+                ))}
+                {Array.from(
+                    {
+                        length:
+                            products.length === 0
+                                ? PLACEHOLDER_ON_SALE
+                                : emptySpaces(products.length, 4),
+                    },
+                    (_, index) => (
+                        <PlaceholderTile key={`placeholder-${index}`} sale />
+                    ),
+                )}
             </div>
             {products.length === 0 && (
                 <EmptyNote>
