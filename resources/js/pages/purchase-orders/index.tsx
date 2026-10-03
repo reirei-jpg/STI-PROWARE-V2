@@ -345,7 +345,7 @@ export default function PurchaseOrdersIndex({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex items-center gap-2 text-sm font-black text-blue-700 hover:underline"
+                            className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                         >
                             <X size={15} />
                             Clear search and all filters
@@ -547,11 +547,11 @@ export default function PurchaseOrdersIndex({
                                                                             purchaseOrder,
                                                                         )
                                                                     }
-                                                                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-black text-blue-700 hover:underline"
+                                                                    className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                                 >
                                                                     <CalendarClock
                                                                         size={
-                                                                            13
+                                                                            15
                                                                         }
                                                                     />
                                                                     {purchaseOrder.expected_delivery_date

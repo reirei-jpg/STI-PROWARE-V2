@@ -210,7 +210,7 @@ function LinkItemForm({
                                     setProduct(null);
                                     setData('product_variant_ids', []);
                                 }}
-                                className="text-sm font-black text-blue-700 underline underline-offset-2"
+                                className="rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                             >
                                 Change
                             </button>
@@ -291,7 +291,7 @@ function LinkItemForm({
                                                   ),
                                         )
                                     }
-                                    className="text-xs font-black text-blue-700 underline underline-offset-2"
+                                    className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                 >
                                     {allFreeTicked ? 'Untick all' : 'Tick all'}
                                 </button>

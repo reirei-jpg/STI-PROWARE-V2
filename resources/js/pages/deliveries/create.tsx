@@ -804,7 +804,7 @@ function StockTargetNote({ group }: { group: WaitingItemGroup }) {
                     href={ItemLinkController.index({
                         query: { search: group.item_code },
                     })}
-                    className="shrink-0 font-black text-amber-900 underline underline-offset-2"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-2 text-sm font-black text-white transition hover:bg-amber-700"
                 >
                     Link it now
                 </Link>

@@ -1,3 +1,4 @@
+import { CalendarClock } from 'lucide-react';
 import { formatDateOrdered } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import type { PreorderProductSummary } from '@/types';
@@ -33,8 +34,9 @@ export function CloseDate({
                 <button
                     type="button"
                     onClick={onChange}
-                    className="block text-xs font-black text-blue-700 underline underline-offset-2"
+                    className="mt-1 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                 >
+                    <CalendarClock size={15} />
                     {product.accepts_preorders
                         ? 'Change date'
                         : 'Reopen / change date'}

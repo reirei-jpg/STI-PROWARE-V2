@@ -552,7 +552,7 @@ export default function ProductForm({
                                                     ),
                                                 )
                                             }
-                                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-black text-red-600 transition hover:bg-red-50"
+                                            className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-black text-red-700 transition hover:bg-red-100"
                                         >
                                             <Trash2 size={14} />
                                             Remove
@@ -1740,7 +1740,7 @@ function OptionEditor({
                 <button
                     type="button"
                     onClick={onRemove}
-                    className="inline-flex items-center gap-1 self-start rounded-lg px-2 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 md:self-auto"
+                    className="inline-flex items-center gap-1.5 self-start rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700 transition hover:bg-red-100 md:self-auto"
                 >
                     <Trash2 size={15} />
                     Remove option
@@ -1830,7 +1830,7 @@ function OptionEditor({
                     <button
                         type="button"
                         onClick={addChoice}
-                        className="rounded-lg px-2.5 py-1 text-xs font-black text-blue-700 hover:bg-blue-50"
+                        className="rounded-xl bg-[#0D6EFD] px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700"
                     >
                         Add
                     </button>

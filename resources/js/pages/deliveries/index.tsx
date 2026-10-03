@@ -124,7 +124,7 @@ export default function DeliveriesIndex({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex items-center gap-2 text-sm font-black text-blue-700 hover:underline"
+                            className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                         >
                             <X size={15} />
                             Clear search and all filters
