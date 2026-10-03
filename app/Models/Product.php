@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
 use Database\Factories\ProductFactory;
@@ -137,7 +138,7 @@ class Product extends Model
     /**
      * Available products with stock that first arrived at least $days ago
      * and sold nothing in the last $days: candidates for Put on Sale. A sale
-     * is any stock taken out that is not a correction.
+     * is an order placed for it that was not cancelled.
      *
      * @param  Builder<self>  $query
      */
@@ -151,7 +152,7 @@ class Product extends Model
             ->whereHas('variants.stockMovements', fn (Builder $movements) => $movements->where('created_at', '<=', $since))
             ->whereDoesntHave('variants.stockMovements', fn (Builder $movements) => $movements
                 ->where('created_at', '>', $since)
-                ->where('quantity', '<', 0)
-                ->where('type', '!=', StockMovementType::Correction));
+                ->where('type', StockMovementType::Sale)
+                ->whereHas('orderItem.order', fn (Builder $orders) => $orders->where('status', '!=', OrderStatus::Cancelled)));
     }
 }

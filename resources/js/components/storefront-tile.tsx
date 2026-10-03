@@ -1,6 +1,6 @@
 import { CalendarClock, ImageIcon, ShoppingCart } from 'lucide-react';
+import { useAddToCart } from '@/components/add-to-cart-dialog';
 import { usePreorder } from '@/components/preorder-dialog';
-import { useSignInPrompt } from '@/components/sign-in-prompt';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
@@ -12,7 +12,7 @@ import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
  * Badges: SALE (original price crossed out before the sale price), COMING
  * SOON with a Preorder button, "Only 3 left" when almost sold out, and
  * OUT OF STOCK (greyed, no button). Add to Cart and Preorder ask a
- * signed-out visitor to sign in first.
+ * signed-out visitor to sign in first, then open their pickers.
  */
 export default function StorefrontTile({
     product,
@@ -23,7 +23,7 @@ export default function StorefrontTile({
     onView: (product: StorefrontTileProduct) => void;
     className?: string;
 }) {
-    const openSignIn = useSignInPrompt();
+    const addToCart = useAddToCart();
     const preorder = usePreorder();
     const comingSoon = product.status === 'preorder';
     const onSale = product.status === 'on_sale';
@@ -121,8 +121,8 @@ export default function StorefrontTile({
                 ) : (
                     <button
                         type="button"
-                        onClick={
-                            comingSoon ? () => preorder(product) : openSignIn
+                        onClick={() =>
+                            comingSoon ? preorder(product) : addToCart(product)
                         }
                         className={cn(
                             'mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition',

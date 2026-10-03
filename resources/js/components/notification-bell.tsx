@@ -12,9 +12,11 @@ import { formatUnits } from '@/lib/units';
 import type { StaffNotification } from '@/types';
 
 /**
- * The staff bell (as in V1): a red count of unread notifications and a list
- * of the latest ones — uploaded orders for the School Admin, delivery
- * reminders for the Specialist. Opening one shows that purchase order.
+ * The bell (as in V1): a red count of unread notifications and a list of
+ * the latest ones — uploaded orders for the School Admin; deliveries, stock,
+ * sales and new student orders for the Specialist; order and preorder
+ * notices for a student (in the storefront top bar). Opening one shows what
+ * it is about.
  */
 export default function NotificationBell() {
     const { notifications, auth } = usePage().props;
@@ -89,7 +91,9 @@ export default function NotificationBell() {
                         <p className="mt-1 text-xs text-slate-400">
                             {auth.user.role === 'specialist'
                                 ? 'You will be reminded here the day before and on the day of an expected delivery.'
-                                : 'You will be notified here when the Specialist uploads a purchase order.'}
+                                : auth.user.role === 'student'
+                                  ? 'You will be told here when your order is ready for pickup, or when an item you preordered arrives.'
+                                  : 'You will be notified here when the Specialist uploads a purchase order.'}
                         </p>
                     </div>
                 ) : (
@@ -137,6 +141,67 @@ export default function NotificationBell() {
 }
 
 function NotificationText({ data }: { data: StaffNotification['data'] }) {
+    if (data.kind === 'order_placed') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-slate-900">
+                    New order {data.order_number}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.student_name} · {data.items_count}{' '}
+                    {data.items_count === 1 ? 'item' : 'items'} ·{' '}
+                    {formatPeso(data.total_centavos)} to pay in cash. Prepare
+                    it, then mark it Ready for pickup.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'order_ready') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Order {data.order_number} is ready for pickup
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Pick it up at the PROWARE office and pay{' '}
+                    {formatPeso(data.total_centavos)} in cash
+                    {data.pick_up_by
+                        ? ` by ${formatDateOrdered(data.pick_up_by)}`
+                        : ''}
+                    .
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'order_cancelled') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Order {data.order_number} was cancelled
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.reason ?? 'Please ask the PROWARE office.'}
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'preorder_arrived') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-amber-800">
+                    Your preordered item is here: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    You can now add it to your cart and order it. It is not held
+                    for you, so order soon.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'sale_ending') {
         return (
             <>

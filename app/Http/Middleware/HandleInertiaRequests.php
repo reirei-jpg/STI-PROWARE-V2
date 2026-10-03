@@ -43,13 +43,15 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'notifications' => fn (): ?array => $this->notifications($request),
+            'cart_count' => fn (): ?int => $request->user()?->isStudent() ? $request->user()->cartItems()->count() : null,
         ];
     }
 
     /**
-     * The signed-in staff member's latest notifications for the bell in the
-     * top bar: uploaded orders for the School Admin, delivery reminders for
-     * the Specialist.
+     * The signed-in user's latest notifications for the bell in the top bar:
+     * uploaded orders for the School Admin; delivery, stock, sale and new
+     * order notices for the Specialist; order and preorder notices for a
+     * student.
      *
      * The notification data is whatever the notification stored (see
      * PurchaseOrderUploaded and ExpectedDeliveryReminder), decoded from the

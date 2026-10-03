@@ -42,6 +42,38 @@ export type SaleEndedData = {
     normal_price: string;
 };
 
+export type OrderPlacedData = {
+    kind: 'order_placed';
+    order_id: number;
+    /** "PW-0042" */
+    order_number: string | null;
+    student_name: string;
+    total_centavos: number;
+    items_count: number;
+};
+
+export type OrderReadyData = {
+    kind: 'order_ready';
+    order_id: number;
+    order_number: string | null;
+    total_centavos: number;
+    pick_up_by: string | null;
+};
+
+export type OrderCancelledData = {
+    kind: 'order_cancelled';
+    order_id: number;
+    order_number: string | null;
+    reason: string | null;
+};
+
+export type PreorderArrivedData = {
+    kind: 'preorder_arrived';
+    product_id: number;
+    product_name: string;
+};
+
+/** A notification in the bell: staff ones, and the student's own (orders, preorders). */
 export type StaffNotification = {
     id: string;
     data:
@@ -49,7 +81,11 @@ export type StaffNotification = {
         | DeliveryReminderData
         | LowStockData
         | SaleEndingData
-        | SaleEndedData;
+        | SaleEndedData
+        | OrderPlacedData
+        | OrderReadyData
+        | OrderCancelledData
+        | PreorderArrivedData;
     read: boolean;
     created_at: string | null;
 };

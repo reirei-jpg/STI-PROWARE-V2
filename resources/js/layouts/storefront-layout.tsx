@@ -3,11 +3,16 @@ import {
     CalendarClock,
     LayoutDashboard,
     LogOut,
+    Package,
     Search,
     ShoppingCart,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import CartController from '@/actions/App/Http/Controllers/CartController';
+import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
+import { AddToCartProvider } from '@/components/add-to-cart-dialog';
+import NotificationBell from '@/components/notification-bell';
 import { PreorderProvider } from '@/components/preorder-dialog';
 import {
     MicrosoftLogo,
@@ -28,30 +33,33 @@ export default function StorefrontLayout({
     return (
         <SignInPromptProvider>
             <PreorderProvider>
-                <div className="min-h-screen bg-[#F3F7FA]">
-                    <StorefrontTopBar />
+                <AddToCartProvider>
+                    <div className="min-h-screen bg-[#F3F7FA]">
+                        <StorefrontTopBar />
 
-                    <main className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8">
-                        {children}
-                    </main>
+                        <main className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8">
+                            {children}
+                        </main>
 
-                    <footer className="border-t border-slate-200 bg-white">
-                        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-6 text-sm text-slate-500 md:flex-row md:justify-between md:px-8">
-                            <p className="font-bold text-slate-700">
-                                STI PROWARE
-                            </p>
-                            <p>Official STI merchandise</p>
-                        </div>
-                    </footer>
-                </div>
+                        <footer className="border-t border-slate-200 bg-white">
+                            <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-6 text-sm text-slate-500 md:flex-row md:justify-between md:px-8">
+                                <p className="font-bold text-slate-700">
+                                    STI PROWARE
+                                </p>
+                                <p>Official STI merchandise</p>
+                            </div>
+                        </footer>
+                    </div>
+                </AddToCartProvider>
             </PreorderProvider>
         </SignInPromptProvider>
     );
 }
 
 function StorefrontTopBar() {
-    const { auth } = usePage().props;
+    const { auth, cart_count: cartCount } = usePage().props;
     const openSignIn = useSignInPrompt();
+    const isStudent = auth.user?.role === 'student';
 
     return (
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
@@ -80,17 +88,42 @@ function StorefrontTopBar() {
                     />
                 </label>
 
-                <button
-                    type="button"
-                    onClick={auth.user ? undefined : openSignIn}
-                    className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
-                    aria-label="Cart"
-                >
-                    <ShoppingCart size={20} />
-                </button>
+                {isStudent ? (
+                    <Link
+                        href={CartController.index()}
+                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                        aria-label="Cart"
+                        title="Cart"
+                    >
+                        <ShoppingCart size={20} />
+                        {cartCount !== null && cartCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white">
+                                {cartCount > 99 ? '99+' : cartCount}
+                            </span>
+                        )}
+                    </Link>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={auth.user ? undefined : openSignIn}
+                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                        aria-label="Cart"
+                    >
+                        <ShoppingCart size={20} />
+                    </button>
+                )}
+
+                {isStudent && <NotificationBell />}
 
                 {auth.user?.role === 'student' ? (
                     <>
+                        <Link
+                            href={StudentOrderController.index()}
+                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white transition hover:bg-blue-700"
+                        >
+                            <Package size={17} />
+                            <span className="hidden sm:inline">My Orders</span>
+                        </Link>
                         <Link
                             href={StudentPreorderController.index()}
                             className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-amber-400 px-4 text-sm font-black text-amber-950 transition hover:bg-amber-300"

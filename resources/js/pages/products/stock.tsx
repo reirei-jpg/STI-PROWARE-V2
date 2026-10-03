@@ -248,7 +248,13 @@ function WhatHappened({ movement }: { movement: StockMovementRow }) {
             <p className="font-black text-slate-900">
                 {movement.type_label}
                 {movement.reason_label && ` · ${movement.reason_label}`}
+                {movement.order && ` · ${movement.order.number}`}
             </p>
+            {movement.order && (
+                <p className="mt-1 text-xs text-slate-500">
+                    {movement.order.student_name}
+                </p>
+            )}
             {movement.delivery && (
                 <p className="mt-1 text-xs text-slate-500">
                     {[
@@ -287,8 +293,7 @@ function Change({ movement }: { movement: StockMovementRow }) {
                 {added ? '+' : '−'}
                 {formatUnits(Math.abs(movement.quantity), 'Piece')}
             </p>
-            {movement.type === 'delivery' &&
-                movement.units_received !== null &&
+            {movement.units_received !== null &&
                 movement.unit_name !== null &&
                 movement.pieces_per_unit !== null &&
                 movement.pieces_per_unit > 1 && (

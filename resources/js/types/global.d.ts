@@ -13,6 +13,8 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             notifications: StaffNotifications | null;
+            /** How many lines are in a signed-in student's cart; null for others. */
+            cart_count: number | null;
             [key: string]: unknown;
         };
     }

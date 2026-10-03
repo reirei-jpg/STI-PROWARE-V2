@@ -29,10 +29,11 @@ use Illuminate\Support\Carbon;
  * @property StockCorrectionReason|null $reason
  * @property string|null $note
  * @property int|null $recorded_by
+ * @property int|null $order_item_id the order line a sale took out, or put back when cancelled
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['type', 'quantity', 'balance_after', 'delivery_item_id', 'units_received', 'unit_name', 'pieces_per_unit', 'reason', 'note', 'recorded_by'])]
+#[Fillable(['type', 'quantity', 'balance_after', 'delivery_item_id', 'units_received', 'unit_name', 'pieces_per_unit', 'reason', 'note', 'recorded_by', 'order_item_id'])]
 class StockMovement extends Model
 {
     /** @use HasFactory<StockMovementFactory> */
@@ -67,6 +68,14 @@ class StockMovement extends Model
     public function deliveryItem(): BelongsTo
     {
         return $this->belongsTo(DeliveryItem::class);
+    }
+
+    /**
+     * @return BelongsTo<OrderItem, $this>
+     */
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class);
     }
 
     /**

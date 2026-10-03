@@ -2,17 +2,22 @@
 
 namespace App\Actions\Products;
 
+use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Http\Requests\SaveProductRequest;
 use App\Models\Product;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
+use App\Models\User;
+use App\Notifications\PreorderArrived;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductVariants;
 use App\Services\Stock\DeliveredStock;
 use App\Services\Stock\LowStockAlerts;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -26,7 +31,8 @@ use Illuminate\Support\Facades\Storage;
  *
  * When a variant gets an eStore Item Code, deliveries of that item that
  * arrived before it was linked are added to stock. Changing the low-stock
- * number lets variants now above it be warned again later.
+ * number lets variants now above it be warned again later. When a Preorder
+ * product becomes one students can buy, those who preordered it are told.
  */
 class SaveProduct
 {
@@ -41,6 +47,7 @@ class SaveProduct
     public function handle(Product $product, SaveProductRequest $request): int
     {
         $status = ProductStatus::from((string) $request->input('status'));
+        $wasPreorder = $product->exists && $product->status === ProductStatus::Preorder;
         $soldByPiece = $request->boolean('sold_by_piece');
         $newPhotoPaths = [];
         $removedPhotoPaths = [];
@@ -80,7 +87,26 @@ class SaveProduct
 
         Storage::disk('public')->delete($removedPhotoPaths);
 
+        if ($wasPreorder && LowStockAlerts::isSold($product)) {
+            $this->tellStudentsItArrived($product);
+        }
+
         return $piecesAdded;
+    }
+
+    /**
+     * A Preorder product students can now buy: everyone with an active
+     * preorder for it is told once. Nothing is held for them.
+     */
+    private function tellStudentsItArrived(Product $product): void
+    {
+        $students = User::query()
+            ->whereHas('preorders', fn (Builder $preorders) => $preorders
+                ->where('product_id', $product->id)
+                ->where('status', PreorderStatus::Active))
+            ->get();
+
+        Notification::send($students, new PreorderArrived($product));
     }
 
     /**

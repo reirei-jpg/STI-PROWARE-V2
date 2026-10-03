@@ -18,7 +18,8 @@ use Inertia\Response;
 
 /**
  * A product's stock: how many pieces each variant has, every change to it
- * (deliveries and corrections) with the balance after, and the Specialist's
+ * (deliveries, corrections, student orders and their cancellations) with
+ * the balance after, and the Specialist's
  * Correct stock action.
  */
 class ProductStockController extends Controller
@@ -35,7 +36,7 @@ class ProductStockController extends Controller
         $movements = StockMovement::query()
             ->whereIn('product_variant_id', $product->variants()->select('id'))
             ->when($variantId, fn (Builder $query, int $id) => $query->where('product_variant_id', $id))
-            ->with(['variant', 'recorder', 'deliveryItem.delivery', 'deliveryItem.purchaseOrderItem.purchaseOrder'])
+            ->with(['variant', 'recorder', 'deliveryItem.delivery', 'deliveryItem.purchaseOrderItem.purchaseOrder', 'orderItem.order.student'])
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -56,6 +57,10 @@ class ProductStockController extends Controller
                     'received_on' => $movement->deliveryItem->delivery->received_on->toDateString(),
                     'sales_invoice_number' => $movement->deliveryItem->delivery->sales_invoice_number,
                     'order_number' => $movement->deliveryItem->purchaseOrderItem->purchaseOrder->order_number,
+                ],
+                'order' => $movement->orderItem === null ? null : [
+                    'number' => $movement->orderItem->order->number,
+                    'student_name' => $movement->orderItem->order->student->name,
                 ],
                 'recorded_by' => $movement->recorder?->name,
             ]);

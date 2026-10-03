@@ -8,6 +8,7 @@ use App\Models\ProductOption;
 use App\Models\ProductPack;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
+use App\Services\Shop\ShopPrice;
 
 /**
  * How a product looks to students on the storefront: its tile (photo, name,
@@ -45,16 +46,28 @@ final class StorefrontProduct
     }
 
     /**
-     * The tile plus everything the view pop-up shows.
+     * The tile plus everything the view pop-up and the Add to Cart picker
+     * show: each size or color with today's price per piece and its stock
+     * (to cap how many can be added), and the packs students can buy.
      *
      * @return array<string, mixed>
      */
     public static function details(Product $product): array
     {
         $isPreorder = $product->status === ProductStatus::Preorder;
+        $canBuy = ShopPrice::canBuy($product);
 
         return [
             ...self::tile($product),
+            'buy_packs' => $canBuy ? array_values($product->packs
+                ->where('sold_to_students', true)
+                ->map(fn (ProductPack $pack): array => [
+                    'id' => $pack->id,
+                    'name' => $pack->name,
+                    'pieces' => $pack->pieces,
+                    'price_centavos' => (int) ShopPrice::perPack($pack->setRelation('product', $product)),
+                ])
+                ->all()) : [],
             'photos' => $product->photos->map(fn (ProductPhoto $photo): array => [
                 'url' => $photo->url(),
                 'label' => $photo->label,
@@ -63,13 +76,15 @@ final class StorefrontProduct
                 'name' => $option->name,
                 'choices' => $option->choices,
             ])->all(),
-            'variants' => $product->variants->map(function (ProductVariant $variant) use ($product, $isPreorder): array {
+            'variants' => $product->variants->map(function (ProductVariant $variant) use ($product, $isPreorder, $canBuy): array {
                 $stock = $variant->stock_on_hand;
 
                 return [
                     'id' => $variant->id,
                     'label' => $variant->label(),
                     'price_centavos' => $product->sold_by_piece ? ($variant->price_centavos ?? $product->price_centavos) : null,
+                    'buy_price_centavos' => $canBuy ? ShopPrice::perPiece($variant->setRelation('product', $product)) : null,
+                    'stock_pieces' => $canBuy ? $stock : 0,
                     'availability' => match (true) {
                         $isPreorder => 'coming_soon',
                         $stock === 0 => 'sold_out',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Products\SaveProduct;
+use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
 use App\Http\Requests\FilterProductsRequest;
@@ -51,8 +52,8 @@ class ProductController extends Controller
                 'first_received_at' => $movementsOfThisProduct()->selectRaw('min(stock_movements.created_at)'),
                 'last_sale_at' => $movementsOfThisProduct()
                     ->selectRaw('max(stock_movements.created_at)')
-                    ->where('stock_movements.quantity', '<', 0)
-                    ->where('stock_movements.type', '!=', StockMovementType::Correction),
+                    ->where('stock_movements.type', StockMovementType::Sale)
+                    ->whereHas('orderItem.order', fn (Builder $orders) => $orders->where('status', '!=', OrderStatus::Cancelled)),
             ])
             ->withCasts(['first_received_at' => 'datetime', 'last_sale_at' => 'datetime'])
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))

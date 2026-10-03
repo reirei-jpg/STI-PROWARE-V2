@@ -5,9 +5,11 @@ import {
     FileScan,
     LayoutDashboard,
     Package,
+    ShoppingBag,
     Truck,
 } from 'lucide-react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
+import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
@@ -47,6 +49,11 @@ function useStaffMenuItems(): NavItem[] {
 
     if (auth.user.role === 'specialist') {
         items.push(
+            {
+                title: 'Student Orders',
+                href: OrderController.index(),
+                icon: ShoppingBag,
+            },
             {
                 title: 'Scan eStore PO',
                 href: PurchaseOrderScanController.create(),

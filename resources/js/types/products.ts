@@ -157,7 +157,7 @@ export type StockMovementRow = {
     id: number;
     created_at: string | null;
     variant_label: string;
-    type: 'delivery' | 'correction';
+    type: 'delivery' | 'correction' | 'sale' | 'order_cancelled';
     type_label: string;
     /** + added, − taken out, in pieces. */
     quantity: number;
@@ -172,6 +172,8 @@ export type StockMovementRow = {
         sales_invoice_number: string | null;
         order_number: string | null;
     } | null;
+    /** The student's order, for a sale or a cancelled order. */
+    order: { number: string | null; student_name: string } | null;
     recorded_by: string | null;
 };
 

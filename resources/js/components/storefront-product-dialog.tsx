@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
+import { useAddToCart } from '@/components/add-to-cart-dialog';
 import { usePreorder } from '@/components/preorder-dialog';
-import { useSignInPrompt } from '@/components/sign-in-prompt';
 import { PriceLines, saleEndsText } from '@/components/storefront-tile';
 import {
     Dialog,
@@ -42,9 +42,8 @@ const availabilityClasses: Record<StorefrontVariantAvailability, string> = {
 
 /**
  * The view of one product, opened from its tile: all photos, the price per
- * piece and per pack, and which sizes or colors are in stock. Choosing one
- * and adding it to the cart comes with the cart; for now the button asks a
- * signed-out visitor to sign in.
+ * piece and per pack, and which sizes or colors are in stock. Add to Cart
+ * and Preorder open their pickers (a signed-out visitor is asked to sign in).
  */
 export default function StorefrontProductDialog({
     product,
@@ -53,7 +52,7 @@ export default function StorefrontProductDialog({
     product: StorefrontTileProduct | null;
     onClose: () => void;
 }) {
-    const openSignIn = useSignInPrompt();
+    const addToCart = useAddToCart();
     const preorder = usePreorder();
     const http = useHttp<Record<string, never>, StorefrontProductDetails>({});
     const [details, setDetails] = useState<StorefrontProductDetails | null>(
@@ -274,14 +273,19 @@ export default function StorefrontProductDialog({
                                 ) : (
                                     <button
                                         type="button"
-                                        onClick={
-                                            comingSoon && product
-                                                ? () => {
-                                                      onClose();
-                                                      preorder(product);
-                                                  }
-                                                : openSignIn
-                                        }
+                                        onClick={() => {
+                                            if (product === null) {
+                                                return;
+                                            }
+
+                                            onClose();
+
+                                            if (comingSoon) {
+                                                preorder(product);
+                                            } else {
+                                                addToCart(product);
+                                            }
+                                        }}
                                         className={cn(
                                             'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition',
                                             comingSoon
