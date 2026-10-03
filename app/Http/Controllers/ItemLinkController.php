@@ -170,18 +170,19 @@ class ItemLinkController extends Controller
     }
 
     /**
-     * Put the eStore Item Code on the chosen variant (or on every variant of
-     * the product, when they share it), with how Head Office sends it, then
-     * add its earlier deliveries to stock. A shared code's earlier
-     * deliveries wait to be split by variant.
+     * Put the eStore Item Code on the variant chosen (or on the variants
+     * ticked, which then share it), with how Head Office sends it, then add
+     * its earlier deliveries to stock. A shared code's earlier deliveries
+     * wait to be split by variant.
      */
     public function store(LinkItemRequest $request, DeliveredStock $deliveredStock): RedirectResponse
     {
-        $variant = $request->variant();
+        $variants = $request->variants();
+        $variant = $variants->firstOrFail();
         $code = $request->itemCode();
-        $linkAll = $request->linksAllVariants();
+        $shared = $variants->count() > 1;
 
-        $piecesAdded = DB::transaction(function () use ($request, $variant, $code, $linkAll, $deliveredStock): int {
+        $piecesAdded = DB::transaction(function () use ($request, $variants, $variant, $code, $shared, $deliveredStock): int {
             $packId = match ($request->input('sent_by')) {
                 'pack' => (int) $request->input('pack_id'),
                 'new_pack' => $variant->product->packs()->create([
@@ -194,23 +195,18 @@ class ItemLinkController extends Controller
                 default => null,
             };
 
-            if ($linkAll) {
-                $variant->product->variants()->update(['estore_item_code' => $code, 'estore_pack_id' => $packId]);
+            ProductVariant::query()->whereKey($variants->modelKeys())->update(['estore_item_code' => $code, 'estore_pack_id' => $packId]);
 
-                return 0;
-            }
-
-            $variant->update(['estore_item_code' => $code, 'estore_pack_id' => $packId]);
-
-            return $deliveredStock->addWaitingFor($variant, $request->user());
+            return $shared ? 0 : $deliveredStock->addWaitingFor($variant->refresh(), $request->user());
         });
 
-        if ($linkAll) {
+        if ($shared) {
             $waiting = collect($this->waitingToSplit())->firstWhere('item_code', $code);
+            $labels = $variants->map(fn (ProductVariant $chosen): string => $chosen->label())->implode(', ');
 
             Inertia::flash('toast', [
                 'type' => 'success',
-                'message' => "{$code} is now linked to every variant of {$variant->product->name}. When it arrives, enter how many of each you received."
+                'message' => "{$code} is now linked to {$variant->product->name} ({$labels}). When it arrives, enter how many of each you received."
                     .($waiting !== null ? ' What already arrived is under "Received, split it into stock" above: enter how many of each it was.' : ''),
             ]);
 

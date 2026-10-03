@@ -183,7 +183,7 @@ test('linking an item adds the deliveries that arrived before it, and later ones
 
     $this->post(route('item-links.store'), [
         'item_code' => 'utmp02 – 03',
-        'product_variant_id' => $variant->id,
+        'product_variant_ids' => [$variant->id],
         'sent_by' => 'piece',
     ])
         ->assertSessionHasNoErrors()
@@ -209,7 +209,7 @@ test('linking can add the pack Head Office sends the item in', function () {
 
     $this->post(route('item-links.store'), [
         'item_code' => 'PRBP01-01',
-        'product_variant_id' => $variant->id,
+        'product_variant_ids' => [$variant->id],
         'sent_by' => 'new_pack',
         'new_pack_name' => ' Box ',
         'new_pack_pieces' => '12',
@@ -234,7 +234,7 @@ test('an item can be linked before it arrives', function () {
     orderWith(['PRCU01-01' => 20]);
 
     $this->actingAs($this->specialist)
-        ->post(route('item-links.store'), ['item_code' => 'PRCU01-01', 'product_variant_id' => $variant->id, 'sent_by' => 'piece'])
+        ->post(route('item-links.store'), ['item_code' => 'PRCU01-01', 'product_variant_ids' => [$variant->id], 'sent_by' => 'piece'])
         ->assertInertiaFlash('toast.message', "PRCU01-01 is now linked to {$variant->product->name}. Its deliveries will be added to stock.");
 
     expect($variant->refresh())
@@ -251,10 +251,10 @@ test('linking explains what is wrong', function (array $payload, string $field, 
 })->with([
     'no variant chosen' => [
         fn () => ['item_code' => orderWith(['UTMP02-03' => 10])->items()->value('item_code'), 'sent_by' => 'piece'],
-        'product_variant_id', 'Choose the product and variant this item is.',
+        'product_variant_ids', 'Choose the product and the variant (or variants) this item is.',
     ],
     'a code no uploaded order has' => [
-        fn () => ['item_code' => 'XX01-01', 'product_variant_id' => ProductVariant::factory()->create()->id, 'sent_by' => 'piece'],
+        fn () => ['item_code' => 'XX01-01', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'piece'],
         'item_code', 'No uploaded order has the eStore Item Code XX01-01.',
     ],
     'a code already linked' => [
@@ -262,7 +262,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
             orderWith(['UTMP02-03' => 10]);
             ProductVariant::factory()->for(Product::factory()->create(['name' => 'TM Polo']))->create(['estore_item_code' => 'UTMP02-03']);
 
-            return ['item_code' => 'UTMP02-03', 'product_variant_id' => ProductVariant::factory()->create()->id, 'sent_by' => 'piece'];
+            return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'piece'];
         },
         'item_code', 'UTMP02-03 is already linked to TM Polo.',
     ],
@@ -270,15 +270,15 @@ test('linking explains what is wrong', function (array $payload, string $field, 
         function () {
             orderWith(['UTMP02-03' => 10]);
 
-            return ['item_code' => 'UTMP02-03', 'product_variant_id' => ProductVariant::factory()->create(['estore_item_code' => 'UTMP02-04'])->id, 'sent_by' => 'piece'];
+            return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create(['estore_item_code' => 'UTMP02-04'])->id], 'sent_by' => 'piece'];
         },
-        'product_variant_id', 'This variant already has the eStore Item Code UTMP02-04. Choose another variant.',
+        'product_variant_ids', 'This variant already has the eStore Item Code UTMP02-04. Choose another variant.',
     ],
     'a pack of another product' => [
         function () {
             orderWith(['UTMP02-03' => 10]);
 
-            return ['item_code' => 'UTMP02-03', 'product_variant_id' => ProductVariant::factory()->create()->id, 'sent_by' => 'pack', 'pack_id' => ProductPack::factory()->create()->id];
+            return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'pack', 'pack_id' => ProductPack::factory()->create()->id];
         },
         'pack_id', 'Choose one of this product\'s packs.',
     ],
@@ -286,7 +286,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
         function () {
             orderWith(['UTMP02-03' => 10]);
 
-            return ['item_code' => 'UTMP02-03', 'product_variant_id' => ProductVariant::factory()->create()->id, 'sent_by' => 'new_pack', 'new_pack_name' => 'pcs', 'new_pack_pieces' => '10'];
+            return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'new_pack', 'new_pack_name' => 'pcs', 'new_pack_pieces' => '10'];
         },
         'new_pack_name', 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.',
     ],
@@ -294,7 +294,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
         function () {
             orderWith(['UTMP02-03' => 10]);
 
-            return ['item_code' => 'UTMP02-03', 'product_variant_id' => ProductVariant::factory()->create()->id, 'sent_by' => 'new_pack', 'new_pack_name' => 'Pack', 'new_pack_pieces' => '1'];
+            return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'new_pack', 'new_pack_name' => 'Pack', 'new_pack_pieces' => '1'];
         },
         'new_pack_pieces', 'A pack has at least 2 pieces.',
     ],

@@ -7,14 +7,15 @@ use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use App\Services\EstorePo\ItemCode;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * Link an eStore item to a product variant from Items to Link: which
- * variant it is (or all of them, when they share the code), and whether
- * Head Office sends it by the piece, by one of the product's packs, or by a
- * new pack typed here.
+ * Link an eStore item from Items to Link: which variant it is, or which
+ * variants share it (e.g. sizes S, M and L under one jacket code), and
+ * whether Head Office sends it by the piece, by one of the product's packs,
+ * or by a new pack typed here.
  */
 class LinkItemRequest extends FormRequest
 {
@@ -25,8 +26,8 @@ class LinkItemRequest extends FormRequest
     {
         return [
             'item_code' => ['required', 'string', 'max:40'],
-            'product_variant_id' => ['required', 'integer', 'exists:product_variants,id'],
-            'link_to' => ['nullable', 'in:variant,all'],
+            'product_variant_ids' => ['required', 'array', 'min:1', 'max:'.SaveProductRequest::MAX_VARIANTS],
+            'product_variant_ids.*' => ['integer', 'distinct', 'exists:product_variants,id'],
             'sent_by' => ['required', 'in:piece,pack,new_pack'],
             'pack_id' => ['required_if:sent_by,pack', 'nullable', 'integer'],
             'new_pack_name' => ['required_if:sent_by,new_pack', 'nullable', 'string', 'max:30'],
@@ -40,8 +41,8 @@ class LinkItemRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'product_variant_id.required' => 'Choose the product and variant this item is.',
-            'product_variant_id.exists' => 'That product variant no longer exists. Choose again.',
+            'product_variant_ids.required' => 'Choose the product and the variant (or variants) this item is.',
+            'product_variant_ids.*.exists' => 'A variant you chose no longer exists. Choose again.',
             'sent_by.required' => 'Choose how Head Office sends this item.',
             'pack_id.required_if' => 'Choose the pack Head Office sends it in.',
             'new_pack_name.required_if' => 'Name the pack, e.g. Pack or Box.',
@@ -81,16 +82,21 @@ class LinkItemRequest extends FormRequest
                     return;
                 }
 
-                $variant = $this->variant();
+                $variants = $this->variants();
+                $variant = $variants->firstOrFail();
 
-                if ($this->linksAllVariants()) {
-                    $withCode = $variant->product->variants()->whereNotNull('estore_item_code')->first();
+                if ($variants->pluck('product_id')->unique()->count() > 1) {
+                    $validator->errors()->add('product_variant_ids', 'Choose variants of one product only.');
 
-                    if ($withCode !== null) {
-                        $validator->errors()->add('product_variant_id', "{$withCode->label()} already has its own eStore Item Code {$withCode->estore_item_code}, so the variants cannot all share {$code}. Choose one variant instead.");
-                    }
-                } elseif ($variant->estore_item_code !== null) {
-                    $validator->errors()->add('product_variant_id', "This variant already has the eStore Item Code {$variant->estore_item_code}. Choose another variant.");
+                    return;
+                }
+
+                $withCode = $variants->first(fn (ProductVariant $chosen): bool => $chosen->estore_item_code !== null);
+
+                if ($withCode !== null) {
+                    $validator->errors()->add('product_variant_ids', $variants->count() === 1
+                        ? "This variant already has the eStore Item Code {$withCode->estore_item_code}. Choose another variant."
+                        : "{$withCode->label()} already has its own eStore Item Code {$withCode->estore_item_code}. Untick it.");
                 }
 
                 if ($this->input('sent_by') === 'pack' && ! $variant->product->packs()->whereKey((int) $this->input('pack_id'))->exists()) {
@@ -110,17 +116,22 @@ class LinkItemRequest extends FormRequest
     }
 
     /**
-     * Every variant of the product shares this code (e.g. one umbrella code
-     * for every color), instead of the one variant chosen.
+     * The variants ticked, in the product's order. Several share the code
+     * (e.g. one jacket code for sizes S, M and L).
+     *
+     * @return Collection<int, ProductVariant>
      */
-    public function linksAllVariants(): bool
+    public function variants(): Collection
     {
-        return $this->input('link_to') === 'all';
-    }
+        /** @var array<int, int|string> $ids */
+        $ids = $this->input('product_variant_ids', []);
 
-    public function variant(): ProductVariant
-    {
-        return ProductVariant::query()->with('product')->findOrFail((int) $this->input('product_variant_id'));
+        return ProductVariant::query()
+            ->with('product')
+            ->whereKey(array_map('intval', $ids))
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get();
     }
 
     public function newPackName(): string

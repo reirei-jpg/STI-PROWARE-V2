@@ -120,7 +120,7 @@ test('a shared code sent by the pack is counted in pieces that make whole packs'
     expect([$black->refresh()->stock_on_hand, $red->refresh()->stock_on_hand])->toBe([15, 5]);
 });
 
-test('linking a code to every color, then splitting what already arrived', function () {
+test('linking a code to the colors that share it, then splitting what already arrived', function () {
     $colors = umbrellaColors(code: null);
     [$black, $red, $navy] = $colors->all();
     $order = orderWith(['PRUM01-01' => 20]);
@@ -133,10 +133,11 @@ test('linking a code to every color, then splitting what already arrived', funct
 
     $this->post(route('item-links.store'), [
         'item_code' => 'PRUM01-01',
-        'product_variant_id' => $black->id,
-        'link_to' => 'all',
+        'product_variant_ids' => [$navy->id, $black->id, $red->id],
         'sent_by' => 'piece',
-    ])->assertSessionHasNoErrors();
+    ])
+        ->assertSessionHasNoErrors()
+        ->assertInertiaFlash('toast.message', 'PRUM01-01 is now linked to STI Umbrella (Black, Red, Navy Blue). When it arrives, enter how many of each you received. What already arrived is under "Received, split it into stock" above: enter how many of each it was.');
 
     expect($colors->fresh()->pluck('estore_item_code')->unique()->all())->toBe(['PRUM01-01'])
         ->and(StockMovement::count())->toBe(0);
@@ -164,19 +165,30 @@ test('linking a code to every color, then splitting what already arrived', funct
     $this->get(route('item-links.index'))->assertInertia(fn (Assert $page) => $page->where('toSplit', []));
 });
 
-test('every color can share a code only while none has its own', function () {
-    [$black, $red] = umbrellaColors(code: null)->all();
+test('only some sizes can share a code, and only ones without a code of their own', function () {
+    [$black, $red, $navy] = umbrellaColors(code: null)->all();
     $red->update(['estore_item_code' => 'PRUM01-02']);
     orderWith(['PRUM01-01' => 5]);
+    $link = fn (array $ids) => $this->post(route('item-links.store'), [
+        'item_code' => 'PRUM01-01',
+        'product_variant_ids' => $ids,
+        'sent_by' => 'piece',
+    ]);
+    $this->actingAs($this->specialist);
 
-    $this->actingAs($this->specialist)
-        ->post(route('item-links.store'), [
-            'item_code' => 'PRUM01-01',
-            'product_variant_id' => $black->id,
-            'link_to' => 'all',
-            'sent_by' => 'piece',
-        ])
-        ->assertSessionHasErrors(['product_variant_id' => 'Red already has its own eStore Item Code PRUM01-02, so the variants cannot all share PRUM01-01. Choose one variant instead.']);
+    $link([$black->id, $red->id])
+        ->assertSessionHasErrors(['product_variant_ids' => 'Red already has its own eStore Item Code PRUM01-02. Untick it.']);
+    $link([$black->id, ProductVariant::factory()->create()->id])
+        ->assertSessionHasErrors(['product_variant_ids' => 'Choose variants of one product only.']);
+
+    $link([$black->id, $navy->id])->assertSessionHasNoErrors();
+
+    expect([$black->refresh()->estore_item_code, $red->refresh()->estore_item_code, $navy->refresh()->estore_item_code])
+        ->toBe(['PRUM01-01', 'PRUM01-02', 'PRUM01-01']);
+
+    $splitInto = $this->get(route('deliveries.create'))->inertiaProps('groups.0.stock_target.split_into');
+
+    expect(array_column($splitInto, 'label'))->toBe(['Black', 'Navy Blue']);
 });
 
 test('a code one product\'s colors share still cannot go on another product', function () {
