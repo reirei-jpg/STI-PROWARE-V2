@@ -142,6 +142,14 @@ test('placing an order takes the stock, keeps today\'s prices and tells the spec
     Notification::assertSentTo($this->specialist, OrderPlaced::class, fn (OrderPlaced $notice) => $notice->toArray($this->specialist) === [
         'kind' => 'order_placed', 'order_id' => $order->id, 'order_number' => 'PW-0001', 'student_name' => 'Juan Dela Cruz', 'total_centavos' => 27000, 'items_count' => 2,
     ]);
+
+    // The pick-up date is a plain date: My Orders formats it as a day.
+    $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page
+        ->component('storefront/my-orders')
+        ->where('orders.data.0.number', 'PW-0001')
+        ->where('orders.data.0.pick_up_by', '2026-10-06')
+    );
+    expect((new OrderReady($order))->toArray($this->student)['pick_up_by'])->toBe('2026-10-06');
 });
 
 test('an order cannot be placed when stock ran out after it went in the cart', function () {

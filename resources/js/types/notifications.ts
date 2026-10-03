@@ -57,6 +57,7 @@ export type OrderReadyData = {
     order_id: number;
     order_number: string | null;
     total_centavos: number;
+    /** The last day to pick it up, "2026-10-06". */
     pick_up_by: string | null;
 };
 

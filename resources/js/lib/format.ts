@@ -12,7 +12,8 @@ export function formatPeso(centavos: number | null): string {
 
 /**
  * Show a date ("2026-09-29") and optional time ("10:14") as written by the
- * eStore, without shifting it between time zones.
+ * eStore, without shifting it between time zones. Only the date part of a
+ * longer value ("2026-09-29T23:59:59+08:00") is used.
  */
 export function formatDateOrdered(
     date: string | null,
@@ -22,7 +23,7 @@ export function formatDateOrdered(
         return '—';
     }
 
-    const [year, month, day] = date.split('-').map(Number);
+    const [year, month, day] = date.slice(0, 10).split('-').map(Number);
     const [hours, minutes] = (time ?? '00:00').split(':').map(Number);
 
     return new Intl.DateTimeFormat('en-PH', {

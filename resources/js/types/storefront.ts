@@ -104,6 +104,7 @@ export type OrderRow = {
         line_total_centavos: number;
     }[];
     placed_at: string | null;
+    /** The last day to pick it up, "2026-10-06". */
     pick_up_by: string;
     ready_at: string | null;
     picked_up_at: string | null;

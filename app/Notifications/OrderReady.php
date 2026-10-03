@@ -31,7 +31,7 @@ class OrderReady extends Notification
             'order_id' => $this->order->id,
             'order_number' => $this->order->number,
             'total_centavos' => $this->order->total_centavos,
-            'pick_up_by' => $this->order->pick_up_by->toIso8601String(),
+            'pick_up_by' => $this->order->pick_up_by->toDateString(),
         ];
     }
 }

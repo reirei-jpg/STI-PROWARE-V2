@@ -35,7 +35,7 @@ final class OrderRow
                 'line_total_centavos' => $item->line_total_centavos,
             ])->all()),
             'placed_at' => $order->created_at?->toIso8601String(),
-            'pick_up_by' => $order->pick_up_by->toIso8601String(),
+            'pick_up_by' => $order->pick_up_by->toDateString(),
             'ready_at' => $order->ready_at?->toIso8601String(),
             'picked_up_at' => $order->picked_up_at?->toIso8601String(),
             'cancelled_at' => $order->cancelled_at?->toIso8601String(),
