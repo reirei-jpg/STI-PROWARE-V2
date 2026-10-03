@@ -220,11 +220,29 @@ export default function StorefrontProductDialog({
                                                                 {variant.label}
                                                                 {variant.price_centavos !==
                                                                     null &&
-                                                                    shown.price
-                                                                        .piece_from && (
+                                                                    (shown.price
+                                                                        .piece_from ||
+                                                                        variant.sale_price_centavos !==
+                                                                            null) && (
                                                                         <span className="block text-xs font-normal text-slate-500">
-                                                                            {formatPeso(
-                                                                                variant.price_centavos,
+                                                                            {variant.sale_price_centavos !==
+                                                                            null ? (
+                                                                                <>
+                                                                                    <span className="line-through">
+                                                                                        {formatPeso(
+                                                                                            variant.price_centavos,
+                                                                                        )}
+                                                                                    </span>{' '}
+                                                                                    <span className="font-black text-red-600">
+                                                                                        {formatPeso(
+                                                                                            variant.sale_price_centavos,
+                                                                                        )}
+                                                                                    </span>
+                                                                                </>
+                                                                            ) : (
+                                                                                formatPeso(
+                                                                                    variant.price_centavos,
+                                                                                )
                                                                             )}
                                                                         </span>
                                                                     )}

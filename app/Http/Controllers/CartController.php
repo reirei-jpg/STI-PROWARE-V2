@@ -122,7 +122,7 @@ class CartController extends Controller
             'quantity' => $line->quantity,
             'most_allowed' => $mostAllowed,
             'unit_price_centavos' => $unitPrice,
-            'on_sale' => $product->status === ProductStatus::OnSale,
+            'on_sale' => $line->pack === null ? $variant->salePiecePrice() !== null : $product->status === ProductStatus::OnSale && $line->pack->sale_price_centavos !== null,
             'line_total_centavos' => ($unitPrice ?? 0) * $line->quantity,
             'problem' => $problem,
         ];

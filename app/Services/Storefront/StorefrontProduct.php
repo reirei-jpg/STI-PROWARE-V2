@@ -78,12 +78,14 @@ final class StorefrontProduct
             ])->all(),
             'variants' => $product->variants->map(function (ProductVariant $variant) use ($product, $isPreorder, $canBuy): array {
                 $stock = $variant->stock_on_hand;
+                $variant->setRelation('product', $product);
 
                 return [
                     'id' => $variant->id,
                     'label' => $variant->label(),
-                    'price_centavos' => $product->sold_by_piece ? ($variant->price_centavos ?? $product->price_centavos) : null,
-                    'buy_price_centavos' => $canBuy ? ShopPrice::perPiece($variant->setRelation('product', $product)) : null,
+                    'price_centavos' => $variant->normalPiecePrice(),
+                    'sale_price_centavos' => $variant->salePiecePrice(),
+                    'buy_price_centavos' => $canBuy ? ShopPrice::perPiece($variant) : null,
                     'stock_pieces' => $canBuy ? $stock : 0,
                     'availability' => match (true) {
                         $isPreorder => 'coming_soon',
@@ -98,8 +100,9 @@ final class StorefrontProduct
     }
 
     /**
-     * The price per piece (the lowest, with "From" when sizes differ), the
-     * sale price when On Sale, and each pack students can buy.
+     * The price per piece (the lowest, with "From" when sizes differ), and
+     * while On Sale the lowest sale price with that variant's normal price
+     * crossed out, and each pack students can buy.
      *
      * @return array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}
      */
@@ -107,26 +110,53 @@ final class StorefrontProduct
     {
         $onSale = $product->status === ProductStatus::OnSale;
 
-        $piecePrices = $product->sold_by_piece
-            ? $product->variants
-                ->map(fn (ProductVariant $variant): ?int => $variant->price_centavos ?? $product->price_centavos)
-                ->filter(fn (?int $price): bool => $price !== null)
-                ->unique()
+        $variants = $product->sold_by_piece
+            ? $product->variants->each(fn (ProductVariant $variant) => $variant->setRelation('product', $product))
             : collect();
+        $piecePrices = $variants
+            ->map(fn (ProductVariant $variant): ?int => $variant->normalPiecePrice())
+            ->filter(fn (?int $price): bool => $price !== null)
+            ->unique();
+
+        // The variant on sale at the lowest price, if any.
+        $cheapestOnSale = $variants
+            ->filter(fn (ProductVariant $variant): bool => $variant->salePiecePrice() !== null)
+            ->sortBy(fn (ProductVariant $variant): array => [$variant->salePiecePrice(), $variant->normalPiecePrice()])
+            ->first();
+        $nowPrices = $variants->map(fn (ProductVariant $variant): ?int => $variant->salePiecePrice() ?? $variant->normalPiecePrice())->filter()->unique();
+
+        if ($cheapestOnSale !== null) {
+            return [
+                'piece_centavos' => $cheapestOnSale->normalPiecePrice(),
+                'piece_from' => $nowPrices->count() > 1,
+                'sale_centavos' => $cheapestOnSale->salePiecePrice(),
+                'packs' => self::packPrices($product, $onSale),
+            ];
+        }
 
         return [
             'piece_centavos' => $piecePrices->isEmpty() ? ($product->sold_by_piece ? $product->price_centavos : null) : (int) $piecePrices->min(),
             'piece_from' => $piecePrices->count() > 1,
-            'sale_centavos' => $onSale ? $product->sale_price_centavos : null,
-            'packs' => array_values($product->packs
-                ->where('sold_to_students', true)
-                ->map(fn (ProductPack $pack): array => [
-                    'name' => $pack->name,
-                    'pieces' => $pack->pieces,
-                    'price_centavos' => (int) $pack->price_centavos,
-                    'sale_price_centavos' => $onSale ? $pack->sale_price_centavos : null,
-                ])
-                ->all()),
+            'sale_centavos' => null,
+            'packs' => self::packPrices($product, $onSale),
         ];
+    }
+
+    /**
+     * Each pack students can buy, with its sale price while On Sale.
+     *
+     * @return list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>
+     */
+    private static function packPrices(Product $product, bool $onSale): array
+    {
+        return array_values($product->packs
+            ->where('sold_to_students', true)
+            ->map(fn (ProductPack $pack): array => [
+                'name' => $pack->name,
+                'pieces' => $pack->pieces,
+                'price_centavos' => (int) $pack->price_centavos,
+                'sale_price_centavos' => $onSale ? $pack->sale_price_centavos : null,
+            ])
+            ->all());
     }
 }

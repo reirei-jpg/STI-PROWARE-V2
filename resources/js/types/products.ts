@@ -8,7 +8,10 @@ export type ProductListItem = {
     sold_by_piece: boolean;
     /** Price per piece; null when students cannot buy it by the piece. */
     price_centavos: number | null;
+    /** While On Sale: one sale price for every variant, or the lowest of their own. */
     sale_price_centavos: number | null;
+    /** Sizes have their own sale prices ("Sale from ₱250"). */
+    sale_by_variant: boolean;
     packs_for_sale: {
         name: string;
         pieces: number;
@@ -58,6 +61,17 @@ export type ProductSaleDetails = {
         pieces: number;
         price_centavos: number;
         sale_price_centavos: number | null;
+    }[];
+    /**
+     * The variants by normal price per piece, lowest first. One group: they
+     * all cost the same (e.g. every color) and share one sale price. Several:
+     * each price (e.g. S/M ₱300, XL ₱350) gets its own sale price.
+     */
+    price_groups: {
+        price_centavos: number;
+        /** The sale price they are on now, if any. */
+        sale_price_centavos: number | null;
+        variants: { id: number; label: string; stock_on_hand: number }[];
     }[];
     /** The running sale, if the product is On Sale. */
     sale: { sale_price_centavos: number | null; ends_at: string | null } | null;

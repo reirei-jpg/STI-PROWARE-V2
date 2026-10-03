@@ -11,6 +11,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateTime, formatPeso } from '@/lib/format';
+import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { ProductSaleDetails } from '@/types';
 
@@ -19,6 +20,8 @@ const inputClasses =
 
 type SaleForm = {
     sale_price: string;
+    /** Sale price by normal price, when the variants' prices differ. */
+    group_sale_prices: Record<string, string>;
     pack_sale_prices: Record<string, string>;
     days: string;
 };
@@ -45,7 +48,8 @@ function toPesos(centavos: number | null): string {
 
 /**
  * The pop-up where the Specialist puts a product On Sale, or changes or
- * ends its sale: a sale price per piece (for every size and color),
+ * ends its sale: a sale price per piece (one for all variants with the same
+ * price, e.g. every color; one per price when sizes are priced differently),
  * optional sale prices for packs, and how many days it lasts. It warns,
  * without blocking, when a sale price is below what Head Office charges
  * the school.
@@ -146,8 +150,21 @@ function SaleFormBody({
           )
         : 7;
 
+    // Variants with different normal prices get a sale price per price.
+    const byPrice = details.sold_by_piece && details.price_groups.length > 1;
+
     const form = useForm<SaleForm>({
-        sale_price: toPesos(details.sale?.sale_price_centavos ?? null),
+        sale_price: toPesos(
+            details.sale?.sale_price_centavos ??
+                details.price_groups[0]?.sale_price_centavos ??
+                null,
+        ),
+        group_sale_prices: Object.fromEntries(
+            details.price_groups.map((group) => [
+                String(group.price_centavos),
+                toPesos(group.sale_price_centavos),
+            ]),
+        ),
         pack_sale_prices: Object.fromEntries(
             details.packs.map((pack) => [
                 String(pack.id),
@@ -190,7 +207,11 @@ function SaleFormBody({
             onSubmit={(event) => {
                 event.preventDefault();
                 form.transform((current) => ({
-                    sale_price: details.sold_by_piece ? current.sale_price : '',
+                    sale_price:
+                        details.sold_by_piece && !byPrice
+                            ? current.sale_price
+                            : '',
+                    group_sale_prices: byPrice ? current.group_sale_prices : {},
                     pack_sale_prices: current.pack_sale_prices,
                     days: current.days,
                 }));
@@ -227,19 +248,80 @@ function SaleFormBody({
 
             <div className="space-y-5 overflow-y-auto px-6 py-5">
                 {details.sold_by_piece &&
+                    !byPrice &&
                     details.piece_price_centavos !== null && (
-                        <SalePriceField
-                            label="Sale price per piece"
-                            hint={`Normal price: ${formatPeso(details.piece_price_centavos)} / pc. It applies to every size and color.`}
-                            value={data.sale_price}
-                            onChange={(value) => setData('sale_price', value)}
-                            error={errors.sale_price}
-                            normal={details.piece_price_centavos}
-                            sale={pieceSale}
-                            cost={cost}
-                            unit="piece"
-                        />
+                        <div className="space-y-2">
+                            <SalePriceField
+                                label="Sale price per piece"
+                                hint={`Normal price: ${formatPeso(details.piece_price_centavos)} / pc. Every ${details.price_groups[0]?.variants.length === 1 ? 'piece' : 'variant below'} has this price, so the sale price applies to all.`}
+                                value={data.sale_price}
+                                onChange={(value) =>
+                                    setData('sale_price', value)
+                                }
+                                error={errors.sale_price}
+                                normal={details.piece_price_centavos}
+                                sale={pieceSale}
+                                cost={cost}
+                                unit="piece"
+                            />
+                            {(details.price_groups[0]?.variants.length ?? 0) >
+                                1 && (
+                                <VariantList
+                                    variants={details.price_groups[0].variants}
+                                />
+                            )}
+                        </div>
                     )}
+
+                {byPrice && (
+                    <section className="space-y-3">
+                        <div>
+                            <p className="text-sm font-black text-slate-700">
+                                Sale price per piece
+                            </p>
+                            <p className="text-xs leading-5 text-slate-500">
+                                These variants have different prices, so each
+                                price gets its own sale price. Leave one empty
+                                to keep those variants at their normal price.
+                            </p>
+                        </div>
+                        {details.price_groups.map((group) => {
+                            const key = String(group.price_centavos);
+
+                            return (
+                                <div
+                                    key={key}
+                                    className="space-y-2 rounded-2xl border border-slate-200 p-4"
+                                >
+                                    <SalePriceField
+                                        label={`Normally ${formatPeso(group.price_centavos)} / pc`}
+                                        hint={`For ${group.variants.map((variant) => variant.label).join(', ')}.`}
+                                        value={
+                                            data.group_sale_prices[key] ?? ''
+                                        }
+                                        onChange={(value) =>
+                                            setData('group_sale_prices', {
+                                                ...data.group_sale_prices,
+                                                [key]: value,
+                                            })
+                                        }
+                                        error={
+                                            errors[`group_sale_prices.${key}`]
+                                        }
+                                        normal={group.price_centavos}
+                                        sale={toCentavos(
+                                            data.group_sale_prices[key] ?? '',
+                                        )}
+                                        cost={cost}
+                                        unit="piece"
+                                    />
+                                    <VariantList variants={group.variants} />
+                                </div>
+                            );
+                        })}
+                        <InputError message={errors.sale_price} />
+                    </section>
+                )}
 
                 {details.packs.map((pack) => (
                     <SalePriceField
@@ -355,6 +437,31 @@ function SaleFormBody({
                 </button>
             </div>
         </form>
+    );
+}
+
+/**
+ * The variants a sale price applies to, with their stock.
+ */
+function VariantList({
+    variants,
+}: {
+    variants: ProductSaleDetails['price_groups'][number]['variants'];
+}) {
+    return (
+        <ul className="flex flex-wrap gap-1.5">
+            {variants.map((variant) => (
+                <li
+                    key={variant.id}
+                    className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700"
+                >
+                    {variant.label}{' '}
+                    <span className="font-normal text-slate-500">
+                        · {formatUnits(variant.stock_on_hand, 'Piece')}
+                    </span>
+                </li>
+            ))}
+        </ul>
     );
 }
 

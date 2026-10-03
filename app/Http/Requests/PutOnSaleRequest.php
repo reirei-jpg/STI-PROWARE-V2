@@ -11,10 +11,15 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * The Put on Sale pop-up: a sale price per piece (for every size and
- * color), optional sale prices for the packs students can buy, and how many
- * days the sale lasts. Each sale price must be lower than the normal one.
- * A price below the Head Office cost is allowed; the pop-up warns about it.
+ * The Put on Sale pop-up: sale prices per piece, optional sale prices for
+ * the packs students can buy, and how many days the sale lasts.
+ *
+ * Variants with the same normal price share one sale price (e.g. every
+ * color of an umbrella). When their normal prices differ (e.g. S ₱300, XL
+ * ₱350), each price gets its own sale price, and an empty one leaves those
+ * variants at their normal price. Each sale price must be lower than the
+ * normal one. A price below the Head Office cost is allowed; the pop-up
+ * warns about it.
  */
 class PutOnSaleRequest extends FormRequest
 {
@@ -27,6 +32,8 @@ class PutOnSaleRequest extends FormRequest
     {
         return [
             'sale_price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'group_sale_prices' => ['nullable', 'array'],
+            'group_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
             'pack_sale_prices' => ['nullable', 'array'],
             'pack_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
             'days' => ['required', 'integer', 'min:1', 'max:'.self::MAX_DAYS],
@@ -41,6 +48,8 @@ class PutOnSaleRequest extends FormRequest
         return [
             'sale_price.decimal' => 'Enter the sale price in pesos, e.g. 280 or 279.50.',
             'sale_price.gt' => 'The sale price must be more than ₱0.',
+            'group_sale_prices.*.decimal' => 'Enter the sale price in pesos, e.g. 280 or 279.50.',
+            'group_sale_prices.*.gt' => 'The sale price must be more than ₱0.',
             'pack_sale_prices.*.decimal' => 'Enter the pack\'s sale price in pesos, e.g. 800.',
             'pack_sale_prices.*.gt' => 'The pack\'s sale price must be more than ₱0.',
             'days.required' => 'Enter how many days the sale lasts.',
@@ -84,6 +93,16 @@ class PutOnSaleRequest extends FormRequest
                     $validator->errors()->add('sale_price', 'The sale price must be lower than ₱'.number_format($lowest / 100, 2).', the price per piece.');
                 }
 
+                $groups = self::priceGroups($product);
+
+                foreach ($this->groupSalePrices() as $normal => $sale) {
+                    if (! array_key_exists($normal, $groups)) {
+                        $validator->errors()->add("group_sale_prices.{$normal}", 'The prices changed. Close this and open Put on Sale again.');
+                    } elseif ($sale >= $normal) {
+                        $validator->errors()->add("group_sale_prices.{$normal}", 'The sale price must be lower than ₱'.number_format($normal / 100, 2).', their normal price.');
+                    }
+                }
+
                 foreach ($this->packSalePrices() as $packId => $price) {
                     $pack = $product->packs->firstWhere('id', $packId);
 
@@ -94,7 +113,7 @@ class PutOnSaleRequest extends FormRequest
                     }
                 }
 
-                if ($this->piecePriceCentavos() === null && $this->packSalePrices() === []) {
+                if ($this->piecePriceCentavos() === null && $this->groupSalePrices() === [] && $this->packSalePrices() === []) {
                     $validator->errors()->add($product->sold_by_piece ? 'sale_price' : 'days', 'Enter a sale price for the piece or for a pack.');
                 }
             },
@@ -119,6 +138,59 @@ class PutOnSaleRequest extends FormRequest
         return ! $this->product()->sold_by_piece || $price === null || $price === ''
             ? null
             : SaveProductRequest::toCentavos((string) $price);
+    }
+
+    /**
+     * Sale prices in centavos by the normal price they lower, for products
+     * whose variants have different normal prices; empty ones are left out.
+     *
+     * @return array<int, int>
+     */
+    public function groupSalePrices(): array
+    {
+        if (! $this->product()->sold_by_piece) {
+            return [];
+        }
+
+        /** @var array<int|string, string|null> $prices */
+        $prices = $this->input('group_sale_prices', []);
+        $centavos = [];
+
+        foreach ($prices as $normal => $price) {
+            if ($price !== null && $price !== '') {
+                $centavos[(int) $normal] = SaveProductRequest::toCentavos((string) $price);
+            }
+        }
+
+        return $centavos;
+    }
+
+    /**
+     * The product's variants by their normal price per piece, lowest first.
+     * One group: every variant costs the same (e.g. every color). Several:
+     * sizes with their own prices. Empty when not sold by the piece.
+     *
+     * @return array<int, list<ProductVariant>>
+     */
+    public static function priceGroups(Product $product): array
+    {
+        if (! $product->sold_by_piece) {
+            return [];
+        }
+
+        $groups = [];
+
+        foreach ($product->variants()->with('product')->get() as $variant) {
+            $normal = $variant->normalPiecePrice();
+
+            if ($normal !== null) {
+                $groups[$normal][] = $variant;
+            }
+        }
+
+        ksort($groups);
+
+        return $groups;
     }
 
     /**

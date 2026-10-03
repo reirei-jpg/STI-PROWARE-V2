@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProductStatus;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $estore_item_code
  * @property int|null $estore_pack_id
  * @property int|null $price_centavos
+ * @property int|null $sale_price_centavos its own sale price while On Sale; empty: the product's sale price, if any
  * @property int $stock_on_hand
  * @property Carbon|null $low_stock_notified_at when the low-stock warning was sent; cleared when stock rises above the number
  * @property int $position
@@ -48,6 +50,7 @@ class ProductVariant extends Model
         return [
             'choices' => 'array',
             'price_centavos' => 'integer',
+            'sale_price_centavos' => 'integer',
             'stock_on_hand' => 'integer',
             'low_stock_notified_at' => 'datetime',
         ];
@@ -78,6 +81,30 @@ class ProductVariant extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    /**
+     * The normal price of one piece: its own price, or the product's; null
+     * when the product is not sold by the piece.
+     */
+    public function normalPiecePrice(): ?int
+    {
+        return $this->product->sold_by_piece ? ($this->price_centavos ?? $this->product->price_centavos) : null;
+    }
+
+    /**
+     * Its sale price per piece while the product is On Sale: its own, or the
+     * product's for every variant; null when it is not on sale.
+     */
+    public function salePiecePrice(): ?int
+    {
+        $product = $this->product;
+
+        if ($product->status !== ProductStatus::OnSale || ! $product->sold_by_piece) {
+            return null;
+        }
+
+        return $this->sale_price_centavos ?? $product->sale_price_centavos;
     }
 
     /**

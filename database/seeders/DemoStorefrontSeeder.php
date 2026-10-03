@@ -102,7 +102,7 @@ class DemoStorefrontSeeder extends Seeder
             }
 
             $correctStock->handle($variant, $specialist, StockCorrectionReason::Recount, $item['stock'], 'Demo stock for trying the storefront.');
-            $putOnSale->handle($product->load('packs'), $item['sale'], $packSalePrices, $item['days']);
+            $putOnSale->handle($product->load('packs'), $item['sale'], [], $packSalePrices, $item['days']);
         }
     }
 

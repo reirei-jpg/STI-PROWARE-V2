@@ -44,7 +44,10 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
     variants: {
         id: number;
         label: string;
+        /** Its normal price per piece. */
         price_centavos: number | null;
+        /** Its sale price per piece while On Sale; null when not on sale. */
+        sale_price_centavos: number | null;
         /** Today's price per piece (the sale price while On Sale); null when it cannot be bought by the piece now. */
         buy_price_centavos: number | null;
         /** Pieces in stock, to cap how many can be added; 0 when it cannot be bought now. */

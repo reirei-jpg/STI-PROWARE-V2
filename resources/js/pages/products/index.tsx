@@ -618,7 +618,18 @@ function StudentPrice({ product }: { product: ProductListItem }) {
         <div className="grid justify-items-end gap-1">
             {product.sold_by_piece &&
                 product.price_centavos !== null &&
-                (product.sale_price_centavos !== null ? (
+                (product.sale_price_centavos !== null &&
+                product.sale_by_variant ? (
+                    <span className="inline-flex items-baseline gap-1">
+                        <span className="text-xs text-slate-500">
+                            Sale from
+                        </span>
+                        <span className="text-base font-black text-red-600">
+                            {formatPeso(product.sale_price_centavos)}
+                        </span>
+                        <span className="text-xs text-slate-500">/ pc</span>
+                    </span>
+                ) : product.sale_price_centavos !== null ? (
                     <span className="inline-flex items-baseline gap-2">
                         <span className="text-sm text-slate-400 line-through">
                             {formatPeso(product.price_centavos)}

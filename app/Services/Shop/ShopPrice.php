@@ -9,8 +9,8 @@ use App\Models\ProductVariant;
 use App\Services\Stock\LowStockAlerts;
 
 /**
- * What students pay right now: per piece (the variant's own price, or the
- * product's, or the sale price while On Sale) and per pack (its sale price
+ * What students pay right now: per piece (the variant's sale price while On
+ * Sale, else its own price or the product's) and per pack (its sale price
  * while On Sale, if it has one). Only Available and On Sale products can be
  * bought.
  */
@@ -26,17 +26,7 @@ final class ShopPrice
      */
     public static function perPiece(ProductVariant $variant): ?int
     {
-        $product = $variant->product;
-
-        if (! $product->sold_by_piece) {
-            return null;
-        }
-
-        if ($product->status === ProductStatus::OnSale && $product->sale_price_centavos !== null) {
-            return $product->sale_price_centavos;
-        }
-
-        return $variant->price_centavos ?? $product->price_centavos;
+        return $variant->salePiecePrice() ?? $variant->normalPiecePrice();
     }
 
     /**

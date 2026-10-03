@@ -24,6 +24,7 @@ class EndSale
             ])->save();
 
             $product->packs()->update(['sale_price_centavos' => null]);
+            $product->variants()->update(['sale_price_centavos' => null]);
         });
     }
 }

@@ -241,6 +241,9 @@ export function PriceLines({
             {price.piece_centavos !== null &&
                 (price.sale_centavos !== null ? (
                     <p className="flex flex-wrap items-baseline gap-x-2">
+                        {price.piece_from && (
+                            <span className="text-xs text-slate-500">From</span>
+                        )}
                         <span className="text-xs text-slate-400 line-through">
                             {formatPeso(price.piece_centavos)}
                         </span>

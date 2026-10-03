@@ -202,6 +202,9 @@ function PickerForm({
     const piecesPerUnit = pack?.pieces ?? 1;
     const unitName = pack?.name ?? 'Piece';
     const unitPrice = pack ? pack.price_centavos : variant?.buy_price_centavos;
+    // This size or color by the piece is on sale (sizes may differ).
+    const pieceOnSale =
+        pack === undefined && (variant?.sale_price_centavos ?? null) !== null;
     const most = variant
         ? Math.min(1000, Math.floor(variant.stock_pieces / piecesPerUnit))
         : 0;
@@ -236,11 +239,18 @@ function PickerForm({
                         <p
                             className={cn(
                                 'text-2xl font-black',
-                                details.status === 'on_sale'
+                                pieceOnSale ||
+                                    (pack !== undefined &&
+                                        details.status === 'on_sale')
                                     ? 'text-red-600'
                                     : 'text-blue-700',
                             )}
                         >
+                            {pieceOnSale && variant?.price_centavos && (
+                                <span className="mr-2 text-sm font-normal text-slate-400 line-through">
+                                    {formatPeso(variant.price_centavos)}
+                                </span>
+                            )}
                             {unitPrice !== undefined && unitPrice !== null
                                 ? formatPeso(unitPrice)
                                 : 'Choose below'}

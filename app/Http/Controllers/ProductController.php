@@ -48,6 +48,7 @@ class ProductController extends Controller
             ->with(['mainPhoto', 'packs'])
             ->withCount('variants')
             ->withSum('variants', 'stock_on_hand')
+            ->withMin('variants as lowest_variant_sale_price', 'sale_price_centavos')
             ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at')])
             ->addSelect([
                 'first_received_at' => $movementsOfThisProduct()->selectRaw('min(stock_movements.created_at)'),
@@ -72,7 +73,13 @@ class ProductController extends Controller
                 'status_label' => $product->status->label(),
                 'sold_by_piece' => $product->sold_by_piece,
                 'price_centavos' => $product->price_centavos,
-                'sale_price_centavos' => $product->sale_price_centavos,
+                // One sale price for every variant, or the lowest of their own.
+                'sale_price_centavos' => $product->status === ProductStatus::OnSale
+                    ? ($product->sale_price_centavos ?? $product->getAttribute('lowest_variant_sale_price'))
+                    : null,
+                'sale_by_variant' => $product->status === ProductStatus::OnSale
+                    && $product->sale_price_centavos === null
+                    && $product->getAttribute('lowest_variant_sale_price') !== null,
                 'packs_for_sale' => $product->packs
                     ->where('sold_to_students', true)
                     ->map(fn (ProductPack $pack): array => [

@@ -8,6 +8,7 @@ use App\Enums\ProductStatus;
 use App\Http\Requests\PutOnSaleRequest;
 use App\Models\Product;
 use App\Models\ProductPack;
+use App\Models\ProductVariant;
 use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,8 @@ use Inertia\Inertia;
 class ProductSaleController extends Controller
 {
     /**
-     * What the Put on Sale pop-up needs: normal prices, stock, the Head
+     * What the Put on Sale pop-up needs: normal prices, the variants grouped
+     * by normal price (one sale price per group) with their stock, the Head
      * Office cost per piece (for the below-cost warning) and the running
      * sale, if any.
      */
@@ -28,6 +30,7 @@ class ProductSaleController extends Controller
     {
         $product->load(['packs', 'variants']);
         $isOnSale = $product->status === ProductStatus::OnSale;
+        $priceGroups = PutOnSaleRequest::priceGroups($product);
 
         return response()->json([
             'id' => $product->id,
@@ -48,6 +51,19 @@ class ProductSaleController extends Controller
                 ])
                 ->values()
                 ->all(),
+            'price_groups' => array_map(
+                fn (int $normal, array $variants): array => [
+                    'price_centavos' => $normal,
+                    'sale_price_centavos' => $isOnSale ? $this->sharedSalePrice($variants) : null,
+                    'variants' => array_map(fn (ProductVariant $variant): array => [
+                        'id' => $variant->id,
+                        'label' => $variant->label(),
+                        'stock_on_hand' => $variant->stock_on_hand,
+                    ], $variants),
+                ],
+                array_keys($priceGroups),
+                $priceGroups,
+            ),
             'sale' => $isOnSale ? [
                 'sale_price_centavos' => $product->sale_price_centavos,
                 'ends_at' => $product->sale_ends_at?->toIso8601String(),
@@ -56,11 +72,24 @@ class ProductSaleController extends Controller
         ]);
     }
 
+    /**
+     * The sale price the variants at one normal price are on, if they are.
+     *
+     * @param  list<ProductVariant>  $variants
+     */
+    private function sharedSalePrice(array $variants): ?int
+    {
+        $prices = array_unique(array_map(fn (ProductVariant $variant): ?int => $variant->salePiecePrice(), $variants));
+
+        return count($prices) === 1 ? $prices[0] : null;
+    }
+
     public function store(PutOnSaleRequest $request, Product $product, PutOnSale $putOnSale): RedirectResponse
     {
         $endsAt = $putOnSale->handle(
             $product,
             $request->piecePriceCentavos(),
+            $request->groupSalePrices(),
             $request->packSalePrices(),
             $request->integer('days'),
         );
