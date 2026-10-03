@@ -179,6 +179,14 @@ export default function ProductForm({
         data.variant_inputs[key] ?? emptyVariantInput;
     // Sharing one code only applies when there are several variants.
     const sharesItemCode = data.shares_item_code && combinations.length > 1;
+    // With variants, the price per piece is the default for those without
+    // a price of their own.
+    const hasVariants = combinations.length > 1;
+    const everyVariantPriced =
+        hasVariants &&
+        combinations.every(
+            (combination) => variantInput(combination.key).price.trim() !== '',
+        );
     /** The code and pack a variant is saved with, shared or its own. */
     const savedCodeAndPack = (key: string) =>
         sharesItemCode
@@ -662,8 +670,19 @@ export default function ProductForm({
                                                     : 'Not sold by the piece'
                                             }
                                             disabled={!data.sold_by_piece}
-                                            label="Price per piece"
+                                            label={
+                                                hasVariants
+                                                    ? 'Default price per piece'
+                                                    : 'Price per piece'
+                                            }
                                         />
+                                        {hasVariants && data.sold_by_piece && (
+                                            <p className="mt-1 max-w-56 text-xs leading-5 text-slate-500">
+                                                {everyVariantPriced
+                                                    ? 'Default price. Every variant below has its own price, so this is only used for a variant you leave empty or add later.'
+                                                    : 'Default price, used for every variant below without a price of its own.'}
+                                            </p>
+                                        )}
                                         <InputError
                                             className="mt-1"
                                             message={errors.price}
@@ -1001,7 +1020,7 @@ export default function ProductForm({
 
                 <Panel
                     title="Variants"
-                    description="Every combination of the options. Add the eStore Item Code so deliveries from uploaded purchase orders go into the right variant's stock, and choose how Head Office sends it. Leave the price blank to use the price per piece."
+                    description={`Every combination of the options. Add the eStore Item Code so deliveries from uploaded purchase orders go into the right variant's stock, and choose how Head Office sends it. Give a variant its own price when it costs more or less (e.g. a bigger size); leave it empty to use the default price per piece${data.sold_by_piece && data.price ? ` (₱${data.price})` : ''}.`}
                 >
                     {fromItemCodeMissing && fromItem && (
                         <p className="border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800">
@@ -1123,7 +1142,7 @@ export default function ProductForm({
                                         </>
                                     )}
                                     <TableHeading>
-                                        Price per piece (optional)
+                                        Own price per piece (optional)
                                     </TableHeading>
                                     {product && (
                                         <TableHeading align="right">
