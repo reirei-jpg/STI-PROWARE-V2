@@ -547,7 +547,7 @@ export default function PurchaseOrdersIndex({
                                                                             purchaseOrder,
                                                                         )
                                                                     }
-                                                                    className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                                                    className="mt-2 inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                                 >
                                                                     <CalendarClock
                                                                         size={
@@ -593,7 +593,7 @@ export default function PurchaseOrdersIndex({
                                                                     purchaseOrder.id,
                                                                 )
                                                             }
-                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                         >
                                                             <Eye size={15} />
                                                             View Details

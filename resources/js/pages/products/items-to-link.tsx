@@ -303,7 +303,7 @@ export default function ItemsToLink({
                                                             onClick={() =>
                                                                 setLinking(item)
                                                             }
-                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                         >
                                                             <Link2 size={15} />
                                                             Link to a product
@@ -317,7 +317,7 @@ export default function ItemsToLink({
                                                                     },
                                                                 },
                                                             )}
-                                                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3.5 text-sm font-black text-slate-700 transition hover:bg-slate-100"
                                                         >
                                                             <PackagePlus
                                                                 size={15}

@@ -307,10 +307,10 @@ function TaskRow({ task }: { task: Task }) {
                 as={task.action.method === 'post' ? 'button' : 'a'}
                 preserveScroll
                 className={cn(
-                    'inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl px-4 py-2 text-sm font-black transition sm:self-auto',
+                    'inline-flex h-10 shrink-0 items-center justify-center gap-2 self-start rounded-xl border px-3.5 text-sm font-black transition sm:self-auto',
                     task.action.method === 'post'
-                        ? 'bg-[#0D6EFD] text-white hover:bg-blue-700'
-                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                        ? 'border-[#0D6EFD] bg-[#0D6EFD] text-white hover:bg-blue-700'
+                        : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
                 )}
             >
                 {task.action.label}

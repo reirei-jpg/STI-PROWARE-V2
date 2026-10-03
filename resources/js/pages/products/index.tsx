@@ -535,7 +535,7 @@ export default function ProductsIndex({
                                                             href={ProductStockController.index(
                                                                 product.id,
                                                             )}
-                                                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3.5 text-sm font-black text-slate-700 transition hover:bg-slate-100"
                                                         >
                                                             <Boxes size={15} />
                                                             Stock
@@ -553,7 +553,7 @@ export default function ProductsIndex({
                                                                         product.id,
                                                                     )
                                                                 }
-                                                                className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                                                className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 text-sm font-black text-red-700 transition hover:bg-red-100"
                                                             >
                                                                 <Flame
                                                                     size={15}
@@ -579,7 +579,7 @@ export default function ProductsIndex({
                                                             href={ProductController.edit(
                                                                 product.id,
                                                             )}
-                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                         >
                                                             <Pencil size={15} />
                                                             Edit
