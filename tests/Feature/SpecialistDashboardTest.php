@@ -61,6 +61,26 @@ test('the to-do list puts each task in its group, most urgent first', function (
         );
 });
 
+test('low stock is one row per product, naming its variants', function () {
+    $umbrella = Product::factory()->create(['name' => 'STI Umbrella', 'status' => ProductStatus::Available, 'low_stock_alert_at' => 5]);
+    foreach (['Black' => 4, 'White' => 0, 'Red' => 0, 'Gray' => 0, 'Green' => 0, 'Navy Blue' => 20] as $color => $stock) {
+        ProductVariant::factory()->for($umbrella)->create([
+            'combination' => "Color: {$color}",
+            'choices' => [['option' => 'Color', 'choice' => $color]],
+            'stock_on_hand' => $stock,
+            'position' => $umbrella->variants()->count(),
+        ]);
+    }
+
+    $this->actingAs($this->specialist)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('tasks.now', 1)
+            ->where('tasks.now.0.title', 'Low stock: STI Umbrella')
+            ->where('tasks.now.0.detail', 'White, Red, Gray and 1 more out of stock · Black 4 pcs left. Order more in the eStore.')
+        );
+});
+
 test('a long list shows the first five and how many more', function () {
     Order::factory()->count(7)->create();
 

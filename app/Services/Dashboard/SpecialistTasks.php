@@ -15,6 +15,7 @@ use App\Services\Stock\LinkedItems;
 use App\Services\Stock\Units;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 /**
  * The Specialist's to-do list on the dashboard, most urgent first:
@@ -93,34 +94,86 @@ final class SpecialistTasks
     }
 
     /**
+     * One row per product with variants at or below its warning number,
+     * the emptiest first, e.g. "STI Umbrella: White, Red out of stock ·
+     * Black 4 pcs left".
+     *
      * @return list<array<string, mixed>>
      */
     private function lowStock(): array
     {
-        $query = ProductVariant::query()
+        $atWarning = fn () => ProductVariant::query()
             ->join('products', 'products.id', '=', 'product_variants.product_id')
             ->whereIn('products.status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at')
-            ->select('product_variants.*');
-        $total = $query->count();
+            ->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at');
 
-        $tasks = $query->clone()
-            ->with('product')
-            ->orderBy('product_variants.stock_on_hand')
-            ->orderBy('product_variants.id')
+        $total = $atWarning()->distinct()->count('product_variants.product_id');
+
+        $productIds = $atWarning()
+            ->groupBy('product_variants.product_id')
+            ->selectRaw('product_variants.product_id, min(product_variants.stock_on_hand) as lowest')
+            ->orderBy('lowest')
+            ->orderBy('product_variants.product_id')
             ->limit(self::SHOWN_PER_KIND)
-            ->get()
-            ->map(fn (ProductVariant $variant): array => self::task(
-                key: "low-{$variant->id}",
-                kind: $variant->stock_on_hand === 0 ? 'out_of_stock' : 'low_stock',
-                title: ($variant->stock_on_hand === 0 ? 'Out of stock: ' : 'Low stock: ').$variant->displayName(),
-                detail: Units::count($variant->stock_on_hand, 'Piece').' left · warned at '.Units::count($variant->product->low_stock_alert_at, 'Piece').'. Order more in the eStore.',
-                label: 'See stock',
-                url: route('products.stock', $variant->product_id),
-            ))
+            ->pluck('product_id')
             ->all();
 
-        return [...$tasks, ...self::more($total, 'more low on stock', route('products.index', ['stock' => 'low']))];
+        $variantsByProduct = $atWarning()
+            ->whereIn('product_variants.product_id', $productIds)
+            ->select('product_variants.*')
+            ->with('product')
+            ->orderBy('product_variants.position')
+            ->get()
+            ->groupBy('product_id');
+
+        $tasks = [];
+
+        foreach ($productIds as $productId) {
+            /** @var EloquentCollection<int, ProductVariant> $variants */
+            $variants = $variantsByProduct->get($productId);
+            /** @var ProductVariant $first */
+            $first = $variants->first();
+            $product = $first->product;
+            $out = $variants->filter(fn (ProductVariant $variant): bool => $variant->stock_on_hand === 0);
+            $low = $variants->filter(fn (ProductVariant $variant): bool => $variant->stock_on_hand > 0);
+            $hasOptions = $first->choices !== [];
+
+            $detail = $hasOptions
+                ? implode(' · ', array_filter([
+                    $out->isEmpty() ? null : self::listed($out->map(fn (ProductVariant $variant): string => $variant->label())->all()).' out of stock',
+                    $low->isEmpty() ? null : self::listed($low->map(fn (ProductVariant $variant): string => $variant->label().' '.Units::count($variant->stock_on_hand, 'Piece'))->all()).' left',
+                ]))
+                : Units::count($first->stock_on_hand, 'Piece').' left · warned at '.Units::count($product->low_stock_alert_at, 'Piece');
+
+            $tasks[] = self::task(
+                key: "low-{$productId}",
+                kind: $low->isEmpty() ? 'out_of_stock' : 'low_stock',
+                title: ($low->isEmpty() ? 'Out of stock: ' : 'Low stock: ').$product->name,
+                detail: $detail.'. Order more in the eStore.',
+                label: 'See stock',
+                url: route('products.stock', $productId),
+            );
+        }
+
+        return [...$tasks, ...self::more($total, 'more products low on stock', route('products.index', ['stock' => 'low']))];
+    }
+
+    /**
+     * "White, Red and Gray", or "White, Red, Gray and 4 more".
+     *
+     * @param  array<int, string>  $items
+     */
+    private static function listed(array $items): string
+    {
+        $items = array_values($items);
+        $shown = array_slice($items, 0, 3);
+        $left = count($items) - count($shown);
+
+        if ($left > 0) {
+            return implode(', ', $shown)." and {$left} more";
+        }
+
+        return count($shown) === 1 ? $shown[0] : implode(', ', array_slice($shown, 0, -1)).' and '.end($shown);
     }
 
     /**
