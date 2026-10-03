@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Boxes,
     Flame,
@@ -25,6 +25,7 @@ import ProductStatusBadge from '@/components/product-status-badge';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { formatDateTime, formatPeso } from '@/lib/format';
 import type {
+    Auth,
     Paginated,
     ProductFilters,
     ProductListItem,
@@ -80,6 +81,9 @@ export default function ProductsIndex({
     lowStockCount: number;
     slowMovingCount: number;
 }) {
+    const { auth } = usePage<{ auth: Auth }>().props;
+    // The School Admin only looks; changing products is the Specialist's.
+    const canManage = auth.user.role === 'specialist';
     const [search, setSearch] = useState(filters.search ?? '');
     const [slowDays, setSlowDays] = useState(String(filters.slow_days));
     const [selling, setSelling] = useState<number | null>(null);
@@ -126,35 +130,43 @@ export default function ProductsIndex({
             <div className="space-y-7">
                 <PageHeader
                     title="Products"
-                    description="Merchandise students see on the storefront. Set each product as Draft, Preorder, Available or On Sale."
+                    description={
+                        canManage
+                            ? 'Merchandise students see on the storefront. Set each product as Draft, Preorder, Available or On Sale.'
+                            : 'Merchandise students see on the storefront, with prices and stock. View only: the Specialist manages products.'
+                    }
                     actions={
-                        <>
-                            <Link
-                                href={ItemLinkController.index()}
-                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                            >
-                                <Link2 size={18} />
-                                Items to Link
-                                {itemsToLinkCount + itemsToSplitCount > 0 && (
-                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
-                                        {(
-                                            itemsToLinkCount + itemsToSplitCount
-                                        ).toLocaleString('en-PH')}
-                                    </span>
-                                )}
-                            </Link>
-                            <Link
-                                href={ProductController.create()}
-                                className={primaryButtonClasses}
-                            >
-                                <Plus size={18} />
-                                Add Product
-                            </Link>
-                        </>
+                        canManage && (
+                            <>
+                                <Link
+                                    href={ItemLinkController.index()}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    <Link2 size={18} />
+                                    Items to Link
+                                    {itemsToLinkCount + itemsToSplitCount >
+                                        0 && (
+                                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
+                                            {(
+                                                itemsToLinkCount +
+                                                itemsToSplitCount
+                                            ).toLocaleString('en-PH')}
+                                        </span>
+                                    )}
+                                </Link>
+                                <Link
+                                    href={ProductController.create()}
+                                    className={primaryButtonClasses}
+                                >
+                                    <Plus size={18} />
+                                    Add Product
+                                </Link>
+                            </>
+                        )
                     }
                 />
 
-                {itemsToLinkCount > 0 && (
+                {canManage && itemsToLinkCount > 0 && (
                     <section className="flex flex-col gap-3 rounded-3xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-start gap-3">
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
@@ -184,7 +196,7 @@ export default function ProductsIndex({
                     </section>
                 )}
 
-                {itemsToSplitCount > 0 && (
+                {canManage && itemsToSplitCount > 0 && (
                     <section className="flex flex-col gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-start gap-3">
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
@@ -395,13 +407,15 @@ export default function ProductsIndex({
                                     Clear filters
                                 </button>
                             ) : (
-                                <Link
-                                    href={ProductController.create()}
-                                    className={`mt-6 ${primaryButtonClasses}`}
-                                >
-                                    <Plus size={17} />
-                                    Add Product
-                                </Link>
+                                canManage && (
+                                    <Link
+                                        href={ProductController.create()}
+                                        className={`mt-6 ${primaryButtonClasses}`}
+                                    >
+                                        <Plus size={17} />
+                                        Add Product
+                                    </Link>
+                                )
                             )}
                         </div>
                     ) : (
@@ -540,50 +554,58 @@ export default function ProductsIndex({
                                                             <Boxes size={15} />
                                                             Stock
                                                         </Link>
-                                                        {(product.status ===
-                                                            'on_sale' ||
+                                                        {canManage &&
                                                             (product.status ===
-                                                                'available' &&
-                                                                product.stock_on_hand >
-                                                                    0)) && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    setSelling(
-                                                                        product.id,
-                                                                    )
-                                                                }
-                                                                className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                                                'on_sale' ||
+                                                                (product.status ===
+                                                                    'available' &&
+                                                                    product.stock_on_hand >
+                                                                        0)) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setSelling(
+                                                                            product.id,
+                                                                        )
+                                                                    }
+                                                                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                                                >
+                                                                    <Flame
+                                                                        size={
+                                                                            15
+                                                                        }
+                                                                    />
+                                                                    {product.status ===
+                                                                    'on_sale'
+                                                                        ? 'Change sale'
+                                                                        : 'Put on Sale'}
+                                                                </button>
+                                                            )}
+                                                        {canManage &&
+                                                            product.status ===
+                                                                'on_sale' && (
+                                                                <EndSaleButton
+                                                                    productId={
+                                                                        product.id
+                                                                    }
+                                                                    productName={
+                                                                        product.name
+                                                                    }
+                                                                />
+                                                            )}
+                                                        {canManage && (
+                                                            <Link
+                                                                href={ProductController.edit(
+                                                                    product.id,
+                                                                )}
+                                                                className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                             >
-                                                                <Flame
+                                                                <Pencil
                                                                     size={15}
                                                                 />
-                                                                {product.status ===
-                                                                'on_sale'
-                                                                    ? 'Change sale'
-                                                                    : 'Put on Sale'}
-                                                            </button>
+                                                                Edit
+                                                            </Link>
                                                         )}
-                                                        {product.status ===
-                                                            'on_sale' && (
-                                                            <EndSaleButton
-                                                                productId={
-                                                                    product.id
-                                                                }
-                                                                productName={
-                                                                    product.name
-                                                                }
-                                                            />
-                                                        )}
-                                                        <Link
-                                                            href={ProductController.edit(
-                                                                product.id,
-                                                            )}
-                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                                                        >
-                                                            <Pencil size={15} />
-                                                            Edit
-                                                        </Link>
                                                     </div>
                                                 </td>
                                             </tr>

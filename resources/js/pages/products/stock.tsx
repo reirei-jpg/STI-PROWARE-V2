@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     Boxes,
@@ -18,6 +18,7 @@ import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatConversion, formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
+    Auth,
     Paginated,
     StockCorrectionReasonOption,
     StockMovementRow,
@@ -43,6 +44,9 @@ export default function ProductStock({
     filters: { variant: number | null };
     reasons: StockCorrectionReasonOption[];
 }) {
+    const { auth } = usePage<{ auth: Auth }>().props;
+    // The School Admin only looks; correcting stock is the Specialist's.
+    const canManage = auth.user.role === 'specialist';
     const [correcting, setCorrecting] = useState(false);
 
     const showVariant = (variantId: number | null) =>
@@ -69,21 +73,27 @@ export default function ProductStock({
                                 <ArrowLeft size={18} />
                                 Back to Products
                             </Link>
-                            <Link
-                                href={ProductController.edit(product.id)}
-                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                            >
-                                <Pencil size={18} />
-                                Edit Product
-                            </Link>
-                            <button
-                                type="button"
-                                onClick={() => setCorrecting(true)}
-                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
-                            >
-                                <ClipboardCheck size={18} />
-                                Correct stock
-                            </button>
+                            {canManage && (
+                                <>
+                                    <Link
+                                        href={ProductController.edit(
+                                            product.id,
+                                        )}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    >
+                                        <Pencil size={18} />
+                                        Edit Product
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCorrecting(true)}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
+                                    >
+                                        <ClipboardCheck size={18} />
+                                        Correct stock
+                                    </button>
+                                </>
+                            )}
                         </>
                     }
                 />

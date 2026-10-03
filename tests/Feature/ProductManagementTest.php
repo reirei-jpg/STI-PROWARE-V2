@@ -61,7 +61,8 @@ function packInput(array $overrides = []): array
 test('only the specialist can manage products', function () {
     $this->actingAs(User::factory()->schoolAdmin()->create());
 
-    $this->get(route('products.index'))->assertForbidden();
+    // The School Admin may look at the list, but not change products.
+    $this->get(route('products.index'))->assertOk();
     $this->get(route('products.create'))->assertForbidden();
     $this->post(route('products.store'), productForm())->assertForbidden();
 });

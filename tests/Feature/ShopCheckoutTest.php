@@ -326,9 +326,12 @@ test('only students shop, and only the specialist handles orders', function () {
         ->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1'])
         ->assertForbidden();
 
+    // The School Admin may look at the orders but not handle them.
     $this->actingAs(User::factory()->schoolAdmin()->create())
         ->get(route('orders.index'))
-        ->assertForbidden();
+        ->assertOk();
+    $this->post(route('orders.ready', $order))->assertForbidden();
+    $this->post(route('orders.cancel', $order), ['reason' => 'No'])->assertForbidden();
 
     $this->actingAs($this->student)->get(route('orders.index'))->assertForbidden();
     $this->post(route('orders.ready', $order))->assertForbidden();

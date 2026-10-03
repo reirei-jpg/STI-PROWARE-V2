@@ -183,11 +183,11 @@ test('the stock history can show one variant only', function () {
         ->assertInertia(fn (Assert $page) => $page->has('movements.data', 2));
 });
 
-test('the school admin cannot see or correct stock', function () {
+test('the school admin can see the stock history but cannot correct stock', function () {
     $variant = variantWithStock(10);
     $this->actingAs(User::factory()->schoolAdmin()->create());
 
-    $this->get(route('products.stock', $variant->product_id))->assertForbidden();
+    $this->get(route('products.stock', $variant->product_id))->assertOk();
     $this->post(route('products.stock.correct', $variant->product_id), [
         'product_variant_id' => $variant->id,
         'reason' => 'recount',

@@ -42,9 +42,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('my-orders/{order}/cancel', [StudentOrderController::class, 'cancel'])->name('my-orders.cancel');
     });
 
+    // The School Admin monitors these; only the Specialist acts on them.
     Route::middleware('role:specialist,school_admin')->group(function () {
         Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
         Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('products', [ProductController::class, 'index'])->name('products.index');
+        Route::get('products/{product}/stock', [ProductStockController::class, 'index'])->whereNumber('product')->name('products.stock');
     });
 
     Route::middleware('role:specialist')->group(function () {
@@ -55,7 +59,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('purchase-orders/{purchaseOrder}/expected-delivery', [PurchaseOrderDeliveryController::class, 'setExpectedDate'])->name('purchase-orders.expected-delivery');
         Route::post('purchase-orders/{purchaseOrder}/close', [PurchaseOrderDeliveryController::class, 'close'])->name('purchase-orders.close');
 
-        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::post('orders/{order}/ready', [OrderController::class, 'ready'])->name('orders.ready');
         Route::post('orders/{order}/picked-up', [OrderController::class, 'pickedUp'])->name('orders.picked-up');
         Route::post('orders/{order}/undo-pickup', [OrderController::class, 'undoPickup'])->name('orders.undo-pickup');
@@ -77,9 +80,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('products/{product}/sale', [ProductSaleController::class, 'show'])->name('products.sale.show');
         Route::post('products/{product}/sale', [ProductSaleController::class, 'store'])->name('products.sale.store');
         Route::delete('products/{product}/sale', [ProductSaleController::class, 'destroy'])->name('products.sale.destroy');
-        Route::get('products/{product}/stock', [ProductStockController::class, 'index'])->name('products.stock');
         Route::post('products/{product}/stock-corrections', [ProductStockController::class, 'store'])->name('products.stock.correct');
-        Route::resource('products', ProductController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+        Route::resource('products', ProductController::class)->only(['create', 'store', 'edit', 'update']);
     });
 });
 

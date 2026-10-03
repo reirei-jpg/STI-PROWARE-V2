@@ -1,5 +1,10 @@
 <?php
 
+use App\Enums\OrderStatus;
+use App\Enums\ProductStatus;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
@@ -24,6 +29,32 @@ test('a school admin can see the uploaded purchase orders and their details', fu
         ->assertOk()
         ->assertJsonPath('id', $purchaseOrder->id)
         ->assertJsonCount(1, 'items');
+});
+
+test('a school admin can look at student orders, products and stock, but not change them', function () {
+    $product = Product::factory()->create(['name' => 'STI Lanyard', 'status' => ProductStatus::Available]);
+    $variant = ProductVariant::factory()->for($product)->create(['stock_on_hand' => 10]);
+    $order = Order::factory()->create();
+    $this->actingAs(User::factory()->schoolAdmin()->create());
+
+    $this->get(route('orders.index', ['show' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('orders/index')->where('orders.data.0.number', $order->number));
+    $this->get(route('products.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('products/index')->where('products.data.0.name', 'STI Lanyard'));
+    $this->get(route('products.stock', $product))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('products/stock')->where('variants.0.stock_on_hand', 10));
+
+    $this->post(route('orders.ready', $order))->assertForbidden();
+    $this->post(route('orders.picked-up', $order))->assertForbidden();
+    $this->get(route('products.edit', $product))->assertForbidden();
+    $this->post(route('products.sale.store', $product), ['sale_price' => '50', 'days' => '7'])->assertForbidden();
+    $this->post(route('products.stock.correct', $product), ['product_variant_id' => $variant->id, 'reason' => 'recount', 'actual_count' => '1'])->assertForbidden();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Placed)
+        ->and($variant->refresh()->stock_on_hand)->toBe(10);
 });
 
 test('saving a purchase order notifies every school admin and nobody else', function () {
