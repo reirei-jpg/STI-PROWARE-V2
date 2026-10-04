@@ -16,7 +16,8 @@ const feedChoices: { value: StorefrontFilters['show']; label: string }[] = [
 
 /** Empty tiles shown where a section has no products yet (approved layout). */
 const PLACEHOLDER_COMING_SOON = 10;
-const PLACEHOLDER_ON_SALE = 5;
+/** On Sale shows 4 tiles at a time on a computer, filled with empty tiles when fewer. */
+const ON_SALE_PER_SET = 4;
 const PLACEHOLDER_FEED = 20;
 
 /**
@@ -29,7 +30,7 @@ const PLACEHOLDER_FEED = 20;
  * All three sections always show, as in the approved layout: a section
  * with no products yet keeps its empty tiles and says so. Coming Soon and
  * On Sale are carousels, so many items never make the page long, and fill
- * up to five spaces with empty tiles when they have only a few products.
+ * their first set with empty tiles when they have only a few products.
  */
 export default function StorefrontHome({
     comingSoon,
@@ -207,9 +208,11 @@ function OnSaleSection({
             />
 
             {/* A carousel, like Coming Soon, so many sale items never make
-                the page long. */}
+                the page long. 4 at a time (2 on a phone) keeps the tiles as
+                big as before inside the red box. */}
             <TileCarousel
                 label="On Sale"
+                perSet={{ phone: 2, computer: ON_SALE_PER_SET }}
                 tiles={[
                     ...products.map((product) => (
                         <StorefrontTile
@@ -223,8 +226,11 @@ function OnSaleSection({
                         {
                             length:
                                 products.length === 0
-                                    ? PLACEHOLDER_ON_SALE
-                                    : Math.max(0, 5 - products.length),
+                                    ? ON_SALE_PER_SET
+                                    : Math.max(
+                                          0,
+                                          ON_SALE_PER_SET - products.length,
+                                      ),
                         },
                         (_, index) => (
                             <PlaceholderTile

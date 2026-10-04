@@ -6,8 +6,8 @@ import type { StorefrontTileProduct } from '@/lib/types';
 
 const GAP = 12;
 
-/** Two tiles and part of the next, so it shows there is more to swipe. */
-const TILES_IN_VIEW = 2.3;
+/** Two full tiles fill the red box, as big as before the carousel. */
+const TILES_IN_VIEW = 2;
 
 /**
  * On Sale as one swipeable row, like the website's carousel, so many sale
@@ -22,7 +22,7 @@ export default function OnSaleCarousel({
     width: number;
     onOpen: (product: StorefrontTileProduct) => void;
 }) {
-    const tileWidth = Math.floor((width - GAP * 2) / TILES_IN_VIEW);
+    const tileWidth = Math.floor((width - GAP * (TILES_IN_VIEW - 1)) / TILES_IN_VIEW);
     const canSwipe = products.length > 2;
 
     return (
