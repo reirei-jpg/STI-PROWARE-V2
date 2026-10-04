@@ -1,0 +1,21 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+@import "nativewind/theme";
+
+/*
+ * STI PROWARE design tokens, matched to the website.
+ * The website uses Tailwind's default palette (blue, slate, yellow, red,
+ * emerald, amber), so those class names work here unchanged. Only the values
+ * that are custom to the website are defined below.
+ */
+@theme {
+    --color-brand: #0d6efd;
+    --color-page: #f3f7fa;
+
+    /* Instrument Sans has no true "black" weight, matching the website's fallback. */
+    --font-sans: InstrumentSans_400Regular;
+    --font-sans-medium: InstrumentSans_500Medium;
+    --font-sans-semibold: InstrumentSans_600SemiBold;
+    --font-sans-bold: InstrumentSans_700Bold;
+}
