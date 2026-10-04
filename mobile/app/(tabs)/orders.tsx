@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderStatusPill, {
     dateTierClasses,
+    orderNote,
     orderStripeColors,
 } from '@/components/OrderStatusPill';
 import { ApiError } from '@/lib/api';
@@ -148,30 +149,6 @@ export default function OrdersScreen() {
             }
         />
     );
-}
-
-/** One line under the order: when to pick it up (date-colored), or how it ended. */
-function orderNote(order: StudentOrder): { text: string; className: string } {
-    if (order.status === 'placed' || order.status === 'ready') {
-        const tier = dueDateTier(order.pick_up_by);
-        const ready = order.status === 'ready' ? 'Ready · ' : '';
-        const when =
-            tier === 'overdue'
-                ? `pick-up date passed (${formatDate(order.pick_up_by)})`
-                : tier === 'today'
-                  ? 'last day to pick up is today'
-                  : `pick up by ${formatDate(order.pick_up_by)}`;
-        const text = `${ready}${when}`;
-
-        return {
-            text: text.charAt(0).toUpperCase() + text.slice(1),
-            className: dateTierClasses[tier],
-        };
-    }
-
-    return order.status === 'picked_up'
-        ? { text: `Picked up ${formatDate(order.picked_up_at)}`, className: 'font-sans text-slate-500' }
-        : { text: `Cancelled ${formatDate(order.cancelled_at)}`, className: 'font-sans text-slate-500' };
 }
 
 function OrderRow({ order }: { order: StudentOrder }) {

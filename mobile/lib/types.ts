@@ -150,13 +150,122 @@ export type StudentNotificationData =
           pick_up_by: string | null;
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
-    | { kind: 'preorder_arrived'; product_id: number; product_name: string };
+    | { kind: 'preorder_arrived'; product_id: number; product_name: string }
+    // The Specialist's notices.
+    | {
+          kind: 'order_placed';
+          order_id: number;
+          order_number: string;
+          student_name: string;
+          total_centavos: number;
+          items_count: number;
+      }
+    | {
+          kind: 'low_stock';
+          product_id: number;
+          product_name: string;
+          stock_on_hand: number;
+          alert_at: number;
+      }
+    | {
+          kind: 'delivery_reminder';
+          purchase_order_id: number;
+          order_number: string | null;
+          expected_delivery_date: string | null;
+          when: string;
+          percent_received: number;
+          quantity_remaining: number;
+      }
+    | { kind: 'sale_ending'; product_id: number; product_name: string; ends_at: string | null }
+    | { kind: 'sale_ended'; product_id: number; product_name: string; normal_price: string };
 
 export type StudentNotification = {
     id: string;
     data: StudentNotificationData;
     read: boolean;
     created_at: string | null;
+};
+
+/* ---------- The PROWARE Specialist ---------- */
+
+/** One to-do item, as on the website dashboard. */
+export type SpecialistTask = {
+    key: string;
+    kind: string;
+    title: string;
+    detail: string;
+    action: { label: string; url: string; method: string };
+    /** The phone screen that opens it; null means it is done on the website. */
+    target: { screen: 'order' | 'orders' | 'stock'; id?: number } | null;
+};
+
+export type SpecialistTasks = {
+    now: SpecialistTask[];
+    today: SpecialistTask[];
+    week: SpecialistTask[];
+    cash: {
+        waiting_orders: number;
+        waiting_centavos: number;
+        collected_orders: number;
+        collected_centavos: number;
+    };
+};
+
+/** A student's order on the Specialist's list. */
+export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {
+    handled_by: string | null;
+    can_undo_pickup: boolean;
+};
+
+export type SpecialistOrderCounts = {
+    placed: number;
+    ready: number;
+    picked_up: number;
+    cancelled: number;
+};
+
+/** A product in the stock lookup. */
+export type StockListProduct = {
+    id: number;
+    name: string;
+    photo_url: string | null;
+    status_label: string;
+    stock_on_hand: number;
+    low_stock_alert_at: number;
+    is_low: boolean;
+};
+
+/** One product's stock, as on the website's Stock History page. */
+export type ProductStockView = {
+    product: {
+        id: number;
+        name: string;
+        has_options: boolean;
+        stock_on_hand: number;
+        low_stock_alert_at: number;
+        is_sold: boolean;
+    };
+    variants: {
+        id: number;
+        label: string;
+        stock_on_hand: number;
+        estore_item_code: string | null;
+        sent_by: string | null;
+    }[];
+    movements: Page<{
+        id: number;
+        created_at: string | null;
+        variant_label: string;
+        type: string;
+        type_label: string;
+        quantity: number;
+        balance_after: number;
+        reason_label: string | null;
+        note: string | null;
+        delivery: { received_on: string; sales_invoice_number: string | null; order_number: string | null } | null;
+        order: { number: string | null; student_name: string } | null;
+        recorded_by: string | null;
+    }>;
 };
 
 export type StorefrontHome = {

@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { useAuth } from './auth';
+import { noticeTarget } from './notice-target';
 import { useNotifications } from './notifications';
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -53,23 +54,14 @@ async function ensurePermission(Notifications: NotificationsModule): Promise<boo
 }
 
 /**
- * Opens what a tapped push is about, like tapping it in Notifications: the
- * order (ready, cancelled) or the item that arrived.
+ * Opens what a tapped push is about, like tapping it in Notifications (an
+ * order, an item, a product's stock), or Notifications when the phone has
+ * no screen for it.
  */
 function openFrom(response: {
     notification: { request: { content: { data?: Record<string, unknown> } } };
 }): void {
-    const data = response.notification.request.content.data ?? {};
-    const orderId = Number(data.order_id);
-    const productId = Number(data.product_id);
-
-    if (Number.isInteger(orderId) && orderId > 0) {
-        router.push(`/order/${orderId}`);
-    } else if (Number.isInteger(productId) && productId > 0) {
-        router.push(`/product/${productId}`);
-    } else {
-        router.push('/notifications');
-    }
+    router.push(noticeTarget(response.notification.request.content.data ?? {}) ?? '/notifications');
 }
 
 /**
