@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Banknote, CalendarClock, ImageIcon, Package } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -13,26 +13,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import OrderItemsList from '@/components/OrderItemsList';
+import OrderStatusPill from '@/components/OrderStatusPill';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
+import { formatDate, formatPeso, formatUnits } from '@/lib/format';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
 type Show = 'orders' | 'preorders';
 
-const statusClasses: Record<StudentOrder['status'], [string, string]> = {
-    placed: ['bg-blue-100', 'text-blue-800'],
-    ready: ['bg-emerald-100', 'text-emerald-800'],
-    picked_up: ['bg-slate-100', 'text-slate-700'],
-    cancelled: ['bg-red-100', 'text-red-700'],
-};
-
 /**
- * My Orders and My Preorders, like the website, with a switch between them.
- * Orders not picked up yet come first; an order can be cancelled while it
- * is still Placed, a preorder while preorders for it are open.
+ * My Orders and My Preorders, with a switch between them. Each order is one
+ * short row (number, status, total, pick-up date); tapping it opens the
+ * order with its items and Cancel. Open orders come first.
  */
 export default function OrdersScreen() {
     const insets = useSafeAreaInsets();
@@ -61,15 +54,13 @@ export default function OrdersScreen() {
     };
 
     const header = (
-        <View className="gap-4 pb-4">
+        <View className="gap-4 pb-2">
             <View>
-                <Text className="font-sans-bold text-2xl text-slate-900">
-                    {show === 'orders' ? 'My Orders' : 'My Preorders'}
-                </Text>
-                <Text className="mt-1 font-sans text-sm leading-5 text-slate-500">
+                <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
+                <Text className="mt-1 font-sans text-sm text-slate-500">
                     {show === 'orders'
-                        ? 'Pick up your order and pay in cash at the PROWARE office by its pick-up date, or it is cancelled.'
-                        : 'Items you reserved. There is nothing to pay now; the PROWARE office uses preorders to know how many to order.'}
+                        ? 'Pay in cash when you pick up at the PROWARE office.'
+                        : 'Reserved items. Nothing to pay now.'}
                 </Text>
             </View>
 
@@ -101,7 +92,7 @@ export default function OrdersScreen() {
             paddingTop: insets.top + 16,
             paddingBottom: 32,
             paddingHorizontal: 16,
-            gap: 12,
+            gap: 10,
         },
         ListHeaderComponent: header,
         onEndReachedThreshold: 0.5,
@@ -117,9 +108,7 @@ export default function OrdersScreen() {
             key="orders"
             data={orders.items ?? []}
             keyExtractor={(order) => String(order.id)}
-            renderItem={({ item }) => (
-                <OrderCard order={item} onChanged={orders.replaceItem} />
-            )}
+            renderItem={({ item }) => <OrderRow order={item} />}
             onEndReached={orders.loadMore}
             ListEmptyComponent={
                 orders.items === null ? (
@@ -158,114 +147,61 @@ export default function OrdersScreen() {
     );
 }
 
-function OrderCard({
-    order,
-    onChanged,
-}: {
-    order: StudentOrder;
-    onChanged: (order: StudentOrder) => void;
-}) {
-    const { request } = useAuth();
-    const [cancelling, setCancelling] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [badgeBg, badgeText] = statusClasses[order.status];
+/** One line under the order: what happens next, or how it ended. */
+function orderNote(order: StudentOrder): { text: string; className: string } {
+    switch (order.status) {
+        case 'ready':
+            return {
+                text: `Ready · pick up by ${formatDate(order.pick_up_by)}`,
+                className: 'font-sans-bold text-emerald-700',
+            };
+        case 'placed':
+            return {
+                text: `Pick up by ${formatDate(order.pick_up_by)}`,
+                className: 'font-sans-semibold text-slate-600',
+            };
+        case 'picked_up':
+            return {
+                text: `Picked up ${formatDate(order.picked_up_at)}`,
+                className: 'font-sans text-slate-500',
+            };
+        default:
+            return {
+                text: `Cancelled ${formatDate(order.cancelled_at)}`,
+                className: 'font-sans text-slate-500',
+            };
+    }
+}
+
+function OrderRow({ order }: { order: StudentOrder }) {
     const isOpen = order.status === 'placed' || order.status === 'ready';
-
-    const cancel = (): void => {
-        Alert.alert(
-            `Cancel order ${order.number}?`,
-            'The items go back to the store.',
-            [
-                { text: 'Keep it', style: 'cancel' },
-                {
-                    text: 'Cancel order',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setCancelling(true);
-                        setError(null);
-
-                        try {
-                            const result = await request<{ order: StudentOrder }>(
-                                `/orders/${order.id}/cancel`,
-                                { method: 'POST' },
-                            );
-
-                            onChanged(result.order);
-                        } catch (caught) {
-                            setError(
-                                caught instanceof ApiError
-                                    ? caught.message
-                                    : 'The order could not be cancelled. Please try again.',
-                            );
-                        } finally {
-                            setCancelling(false);
-                        }
-                    },
-                },
-            ],
-        );
-    };
+    const note = orderNote(order);
+    const itemCount = order.items.length;
 
     return (
-        <View
-            className={`overflow-hidden rounded-3xl border border-slate-200 bg-white ${isOpen ? '' : 'opacity-75'}`}
+        <Pressable
+            onPress={() => router.push(`/order/${order.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Order ${order.number}, ${order.status_label}`}
+            className={`flex-row items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 ${isOpen ? '' : 'opacity-70'}`}
         >
-            <View className="flex-row items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
-                <View className="flex-1">
-                    <Text className="font-sans-bold text-lg text-slate-900">
-                        Order {order.number}
+            <View className="flex-1 gap-1">
+                <View className="flex-row items-center justify-between gap-2">
+                    <Text className="font-sans-bold text-base text-slate-900">
+                        {order.number}
                     </Text>
-                    <Text className="font-sans text-xs text-slate-500">
-                        Placed {formatDateTime(order.placed_at)}
-                    </Text>
+                    <OrderStatusPill order={order} />
                 </View>
-                <View className={`rounded-full px-3 py-1 ${badgeBg}`}>
-                    <Text className={`font-sans-bold text-xs ${badgeText}`}>
-                        {order.status_label}
+                <Text className="font-sans text-sm text-slate-600">
+                    {itemCount} {itemCount === 1 ? 'item' : 'items'} ·{' '}
+                    <Text className="font-sans-bold text-slate-900">
+                        {formatPeso(order.total_centavos)}
                     </Text>
-                </View>
+                </Text>
+                <Text className={`text-xs ${note.className}`}>{note.text}</Text>
             </View>
-
-            <OrderItemsList order={order} />
-
-            <View className="gap-3 border-t border-slate-100 px-4 py-3">
-                {isOpen ? (
-                    <View className="flex-row items-start gap-2">
-                        <Banknote size={18} color="#059669" />
-                        <Text className="flex-1 font-sans text-sm leading-5 text-slate-700">
-                            {order.status === 'ready'
-                                ? 'Ready at the PROWARE office. '
-                                : 'The PROWARE office is preparing it. '}
-                            Pay{' '}
-                            <Text className="font-sans-bold">
-                                {formatPeso(order.total_centavos)}
-                            </Text>{' '}
-                            in cash when you pick it up, by{' '}
-                            <Text className="font-sans-bold">{formatDate(order.pick_up_by)}</Text>.
-                        </Text>
-                    </View>
-                ) : order.status === 'picked_up' ? (
-                    <Text className="font-sans text-sm text-slate-600">
-                        Picked up and paid {formatDateTime(order.picked_up_at)}.
-                    </Text>
-                ) : (
-                    <Text className="font-sans text-sm text-slate-600">
-                        Cancelled {formatDateTime(order.cancelled_at)}
-                        {order.cancel_reason ? ` · ${order.cancel_reason}` : ''}
-                    </Text>
-                )}
-
-                {error && (
-                    <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
-                )}
-
-                {order.can_cancel && (
-                    <CancelButton busy={cancelling} onPress={cancel}>
-                        Cancel order
-                    </CancelButton>
-                )}
-            </View>
-        </View>
+            <ChevronRight size={18} color="#94a3b8" />
+        </Pressable>
     );
 }
 
@@ -313,7 +249,7 @@ function PreorderRow({
 
     return (
         <View
-            className={`gap-3 rounded-3xl border border-slate-200 bg-white p-4 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`}
+            className={`gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`}
         >
             <Pressable
                 onPress={() => router.push(`/product/${preorder.product_id}`)}
@@ -321,15 +257,15 @@ function PreorderRow({
                 accessibilityLabel={`View ${preorder.product_name}`}
                 className="flex-row items-center gap-3"
             >
-                <View className="h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
                     {preorder.photo_url ? (
                         <Image
                             source={{ uri: preorder.photo_url }}
-                            style={{ width: 64, height: 64 }}
+                            style={{ width: 56, height: 56 }}
                             resizeMode="cover"
                         />
                     ) : (
-                        <ImageIcon size={22} color="#cbd5e1" />
+                        <ImageIcon size={20} color="#cbd5e1" />
                     )}
                 </View>
                 <View className="flex-1 gap-0.5">
@@ -341,10 +277,11 @@ function PreorderRow({
                         {formatUnits(preorder.quantity, 'Piece')}
                     </Text>
                     <Text className="font-sans text-xs text-slate-500">
-                        {preorder.status_label} {formatDateTime(preorder.created_at)}
-                        {preorder.status === 'active' && preorder.preorders_close_on
-                            ? ` · preorders close ${formatDate(preorder.preorders_close_on)}`
-                            : ''}
+                        {preorder.status === 'cancelled'
+                            ? 'Cancelled'
+                            : preorder.preorders_close_on
+                              ? `Preorders close ${formatDate(preorder.preorders_close_on)}`
+                              : preorder.status_label}
                     </Text>
                 </View>
             </Pressable>
@@ -354,33 +291,17 @@ function PreorderRow({
             )}
 
             {preorder.can_cancel && (
-                <CancelButton busy={cancelling} onPress={cancel}>
-                    Cancel preorder
-                </CancelButton>
+                <Pressable
+                    onPress={cancel}
+                    disabled={cancelling}
+                    accessibilityRole="button"
+                    className={`flex-row items-center justify-center gap-2 self-start rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 ${cancelling ? 'opacity-60' : ''}`}
+                >
+                    {cancelling && <ActivityIndicator size="small" color="#b91c1c" />}
+                    <Text className="font-sans-bold text-sm text-red-700">Cancel preorder</Text>
+                </Pressable>
             )}
         </View>
-    );
-}
-
-function CancelButton({
-    busy,
-    onPress,
-    children,
-}: {
-    busy: boolean;
-    onPress: () => void;
-    children: ReactNode;
-}) {
-    return (
-        <Pressable
-            onPress={onPress}
-            disabled={busy}
-            accessibilityRole="button"
-            className={`flex-row items-center justify-center gap-2 self-start rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 ${busy ? 'opacity-60' : ''}`}
-        >
-            {busy && <ActivityIndicator size="small" color="#b91c1c" />}
-            <Text className="font-sans-bold text-sm text-red-700">{children}</Text>
-        </Pressable>
     );
 }
 
