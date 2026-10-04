@@ -3,13 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\Product;
+use App\Notifications\Channels\PushChannel;
+use App\Notifications\Channels\PushesToPhones;
 use Illuminate\Notifications\Notification;
 
 /**
  * Tells the Specialist that a product's sale ended by itself and it is
  * back to its normal price.
  */
-class SaleEnded extends Notification
+class SaleEnded extends Notification implements PushesToPhones
 {
     public function __construct(public Product $product) {}
 
@@ -18,7 +20,21 @@ class SaleEnded extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', PushChannel::class];
+    }
+
+    /**
+     * "Sale ended: STI Umbrella": the same words as the website's bell.
+     *
+     * @return array{title: string, body: string, data: array<string, scalar|null>}
+     */
+    public function toPush(object $notifiable): array
+    {
+        return [
+            'title' => "Sale ended: {$this->product->name}",
+            'body' => "It is back to {$this->normalPrice()}.",
+            'data' => ['kind' => 'sale_ended', 'product_id' => $this->product->id],
+        ];
     }
 
     /**

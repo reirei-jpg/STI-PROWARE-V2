@@ -5,9 +5,9 @@ namespace App\Services\Shop;
 use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Enums\OrderStatus;
 use App\Models\Order;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\Rule;
 
 /**

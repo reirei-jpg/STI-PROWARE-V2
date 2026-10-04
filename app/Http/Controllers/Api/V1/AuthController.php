@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Signing in and out of the phone app. Only students use the app; staff
- * use the website. Each phone gets its own token, which lasts 30 days.
+ * Signing in and out of the phone app, for students and the PROWARE
+ * Specialist (the School Admin uses the website). Each phone gets its own
+ * token, which lasts 30 days.
  */
 class AuthController extends Controller
 {
@@ -24,8 +25,8 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => 'These credentials do not match our records.']);
         }
 
-        if (! $user->isStudent()) {
-            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students. Staff, please use the website.']);
+        if (! $user->isStudent() && ! $user->isSpecialist()) {
+            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students and the PROWARE Specialist. Please use the website.']);
         }
 
         if (! $user->hasVerifiedEmail()) {
@@ -54,7 +55,10 @@ class AuthController extends Controller
     }
 
     /**
-     * @return array{id: int, name: string, email: string}
+     * Who signed in; the role decides whether the app shows the student's
+     * shop or the Specialist's screens.
+     *
+     * @return array{id: int, name: string, email: string, role: string}
      */
     private static function user(User $user): array
     {
@@ -62,6 +66,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'role' => $user->role->value,
         ];
     }
 }

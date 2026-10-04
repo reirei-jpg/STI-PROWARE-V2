@@ -21,8 +21,9 @@ class OrderItemFactory extends Factory
     {
         return [
             'order_id' => Order::factory(),
-            'product_id' => fn (array $attributes) => ProductVariant::query()->whereKey($attributes['product_variant_id'])->value('product_id'),
+            // The variant first, so the product can be read from it.
             'product_variant_id' => ProductVariant::factory(),
+            'product_id' => fn (array $attributes) => ProductVariant::query()->whereKey($attributes['product_variant_id'])->value('product_id'),
             'product_name' => 'Lanyard',
             'variant_label' => null,
             'unit_name' => 'Piece',
