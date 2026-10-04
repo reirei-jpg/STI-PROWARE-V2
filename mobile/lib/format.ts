@@ -53,6 +53,20 @@ export function formatDateTime(value: string | null): string {
     return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}, ${hours}:${minutes} ${date.getHours() < 12 ? 'AM' : 'PM'}`;
 }
 
+/**
+ * How close a due date ("2026-10-07") is, by calendar day on this phone,
+ * for the date colors used across PROWARE: red overdue, amber today, blue
+ * later.
+ */
+export function dueDateTier(value: string): 'overdue' | 'today' | 'later' {
+    const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+    const due = new Date(year, month - 1, day).getTime();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+    return due < today ? 'overdue' : due === today ? 'today' : 'later';
+}
+
 /** "Pack" -> "Packs", "Box" -> "Boxes". */
 function plural(name: string): string {
     return /(s|x|z|ch|sh)$/i.test(name) ? `${name}es` : `${name}s`;

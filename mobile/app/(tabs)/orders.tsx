@@ -13,10 +13,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import OrderStatusPill from '@/components/OrderStatusPill';
+import OrderStatusPill, {
+    dateTierClasses,
+    orderStripeColors,
+} from '@/components/OrderStatusPill';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatPeso, formatUnits } from '@/lib/format';
+import { dueDateTier, formatDate, formatPeso, formatUnits } from '@/lib/format';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
@@ -147,30 +150,28 @@ export default function OrdersScreen() {
     );
 }
 
-/** One line under the order: what happens next, or how it ended. */
+/** One line under the order: when to pick it up (date-colored), or how it ended. */
 function orderNote(order: StudentOrder): { text: string; className: string } {
-    switch (order.status) {
-        case 'ready':
-            return {
-                text: `Ready · pick up by ${formatDate(order.pick_up_by)}`,
-                className: 'font-sans-bold text-emerald-700',
-            };
-        case 'placed':
-            return {
-                text: `Pick up by ${formatDate(order.pick_up_by)}`,
-                className: 'font-sans-semibold text-slate-600',
-            };
-        case 'picked_up':
-            return {
-                text: `Picked up ${formatDate(order.picked_up_at)}`,
-                className: 'font-sans text-slate-500',
-            };
-        default:
-            return {
-                text: `Cancelled ${formatDate(order.cancelled_at)}`,
-                className: 'font-sans text-slate-500',
-            };
+    if (order.status === 'placed' || order.status === 'ready') {
+        const tier = dueDateTier(order.pick_up_by);
+        const ready = order.status === 'ready' ? 'Ready · ' : '';
+        const when =
+            tier === 'overdue'
+                ? `pick-up date passed (${formatDate(order.pick_up_by)})`
+                : tier === 'today'
+                  ? 'last day to pick up is today'
+                  : `pick up by ${formatDate(order.pick_up_by)}`;
+        const text = `${ready}${when}`;
+
+        return {
+            text: text.charAt(0).toUpperCase() + text.slice(1),
+            className: dateTierClasses[tier],
+        };
     }
+
+    return order.status === 'picked_up'
+        ? { text: `Picked up ${formatDate(order.picked_up_at)}`, className: 'font-sans text-slate-500' }
+        : { text: `Cancelled ${formatDate(order.cancelled_at)}`, className: 'font-sans text-slate-500' };
 }
 
 function OrderRow({ order }: { order: StudentOrder }) {
@@ -183,6 +184,7 @@ function OrderRow({ order }: { order: StudentOrder }) {
             onPress={() => router.push(`/order/${order.id}`)}
             accessibilityRole="button"
             accessibilityLabel={`Order ${order.number}, ${order.status_label}`}
+            style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
             className={`flex-row items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 ${isOpen ? '' : 'opacity-70'}`}
         >
             <View className="flex-1 gap-1">
@@ -203,6 +205,33 @@ function OrderRow({ order }: { order: StudentOrder }) {
             <ChevronRight size={18} color="#94a3b8" />
         </Pressable>
     );
+}
+
+/** When preorders close (date-colored while it can still be changed). */
+function preorderNote(preorder: StudentPreorder): { text: string; className: string } {
+    if (preorder.status === 'cancelled') {
+        return { text: 'Cancelled', className: 'font-sans text-slate-500' };
+    }
+
+    if (preorder.preorders_close_on === null) {
+        return { text: preorder.status_label, className: 'font-sans text-slate-500' };
+    }
+
+    const tier = dueDateTier(preorder.preorders_close_on);
+
+    // Closed preorders still count; there is nothing for the student to do.
+    return tier === 'overdue'
+        ? {
+              text: `Preorders closed ${formatDate(preorder.preorders_close_on)}`,
+              className: 'font-sans text-slate-500',
+          }
+        : {
+              text:
+                  tier === 'today'
+                      ? 'Preorders close today'
+                      : `Preorders close ${formatDate(preorder.preorders_close_on)}`,
+              className: dateTierClasses[tier],
+          };
 }
 
 function PreorderRow({
@@ -247,8 +276,14 @@ function PreorderRow({
         ]);
     };
 
+    const closing = preorderNote(preorder);
+
     return (
         <View
+            style={{
+                borderLeftWidth: 5,
+                borderLeftColor: preorder.status === 'cancelled' ? '#f87171' : '#fbbf24',
+            }}
             className={`gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`}
         >
             <Pressable
@@ -276,13 +311,7 @@ function PreorderRow({
                         {preorder.variant_label ? `${preorder.variant_label} · ` : ''}
                         {formatUnits(preorder.quantity, 'Piece')}
                     </Text>
-                    <Text className="font-sans text-xs text-slate-500">
-                        {preorder.status === 'cancelled'
-                            ? 'Cancelled'
-                            : preorder.preorders_close_on
-                              ? `Preorders close ${formatDate(preorder.preorders_close_on)}`
-                              : preorder.status_label}
-                    </Text>
+                    <Text className={`text-xs ${closing.className}`}>{closing.text}</Text>
                 </View>
             </Pressable>
 

@@ -9,6 +9,21 @@ const statusClasses: Record<StudentOrder['status'], [string, string]> = {
     cancelled: ['bg-red-100', 'text-red-700'],
 };
 
+/** The stripe down a card's left edge, in its status color. */
+export const orderStripeColors: Record<StudentOrder['status'], string> = {
+    placed: '#3b82f6',
+    ready: '#10b981',
+    picked_up: '#cbd5e1',
+    cancelled: '#f87171',
+};
+
+/** The date colors used across PROWARE (see dueDateTier): red overdue, amber today, blue later. */
+export const dateTierClasses = {
+    overdue: 'font-sans-bold text-red-600',
+    today: 'font-sans-bold text-amber-600',
+    later: 'font-sans-bold text-blue-700',
+} as const;
+
 /** "Placed", "Ready for pickup", "Picked up" or "Cancelled", in color. */
 export default function OrderStatusPill({ order }: { order: StudentOrder }) {
     const [background, text] = statusClasses[order.status];

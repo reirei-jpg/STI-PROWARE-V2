@@ -5,10 +5,13 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderItemsList from '@/components/OrderItemsList';
-import OrderStatusPill from '@/components/OrderStatusPill';
+import OrderStatusPill, {
+    dateTierClasses,
+    orderStripeColors,
+} from '@/components/OrderStatusPill';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
+import { dueDateTier, formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { StudentOrder } from '@/lib/types';
 
 /**
@@ -136,9 +139,11 @@ export default function OrderScreen() {
 function NextStep({ order }: { order: StudentOrder }) {
     if (order.status === 'placed' || order.status === 'ready') {
         const ready = order.status === 'ready';
+        const tier = dueDateTier(order.pick_up_by);
 
         return (
             <View
+                style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
                 className={`flex-row items-start gap-3 rounded-2xl border px-4 py-3 ${ready ? 'border-emerald-200 bg-emerald-50' : 'border-blue-100 bg-blue-50'}`}
             >
                 <Banknote size={20} color={ready ? '#047857' : '#1d4ed8'} />
@@ -151,14 +156,20 @@ function NextStep({ order }: { order: StudentOrder }) {
                     Pay{' '}
                     <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> in
                     cash when you pick it up, by{' '}
-                    <Text className="font-sans-bold">{formatDate(order.pick_up_by)}</Text>.
+                    <Text className={dateTierClasses[tier]}>
+                        {tier === 'today' ? 'today' : formatDate(order.pick_up_by)}
+                    </Text>
+                    .
                 </Text>
             </View>
         );
     }
 
     return (
-        <View className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+        <View
+            style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+        >
             <Text className="font-sans text-sm text-slate-600">
                 {order.status === 'picked_up'
                     ? `Picked up and paid ${formatDateTime(order.picked_up_at)}.`
