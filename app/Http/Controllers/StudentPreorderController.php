@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Preorders\CancelPreorderByStudent;
-use App\Enums\PreorderStatus;
+use App\Actions\Preorders\PlacePreorder;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
 use App\Models\Product;
@@ -40,24 +40,13 @@ class StudentPreorderController extends Controller
      * Preorder a size or color. Preordering the same one again changes how
      * many, so a student has one preorder per size or color.
      */
-    public function store(PlacePreorderRequest $request, Product $product): RedirectResponse
+    public function store(PlacePreorderRequest $request, Product $product, PlacePreorder $placePreorder): RedirectResponse
     {
-        $preorder = $request->user()->preorders()->updateOrCreate(
-            [
-                'product_variant_id' => $request->integer('product_variant_id'),
-                'status' => PreorderStatus::Active,
-            ],
-            [
-                'product_id' => $product->id,
-                'quantity' => $request->integer('quantity'),
-            ],
-        );
-
-        $variant = $preorder->variant;
+        $preorder = $placePreorder->handle($request->user(), $product, $request->integer('product_variant_id'), $request->integer('quantity'));
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Preordered {$preorder->quantity} × {$product->name}".($variant->choices === [] ? '' : " ({$variant->label()})").'. You can see it in My Preorders.',
+            'message' => PlacePreorder::message($preorder, $product),
         ]);
 
         return back();
