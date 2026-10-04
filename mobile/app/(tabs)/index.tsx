@@ -257,14 +257,19 @@ export default function HomeScreen() {
                     )}
                 </View>
 
+                {/* Equal widths with room to spare: Android can measure a
+                    label a little short and drop its last word ("Out of"). */}
                 <View className="flex-row gap-2">
                     {CHIPS.map((chip) => (
                         <Pressable
                             key={chip.label}
                             onPress={() => setShow(chip.value)}
-                            className={`rounded-full border px-4 py-2 ${show === chip.value ? 'border-brand bg-brand' : 'border-slate-200 bg-white'}`}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: show === chip.value }}
+                            className={`flex-1 items-center rounded-full border px-2 py-2.5 ${show === chip.value ? 'border-brand bg-brand' : 'border-slate-200 bg-white'}`}
                         >
                             <Text
+                                numberOfLines={1}
                                 className={`font-sans-bold text-xs ${show === chip.value ? 'text-white' : 'text-slate-600'}`}
                             >
                                 {chip.label}

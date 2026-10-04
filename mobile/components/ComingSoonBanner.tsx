@@ -101,8 +101,15 @@ export default function ComingSoonBanner({
                     <Pressable
                         key={product.id}
                         onPress={() => onOpen(product)}
+                        // Preorders closed: still shown, but nothing to open.
+                        disabled={!product.accepts_preorders}
                         accessibilityRole="button"
-                        accessibilityLabel={product.name}
+                        accessibilityLabel={
+                            product.accepts_preorders
+                                ? product.name
+                                : `${product.name}, preorders closed`
+                        }
+                        accessibilityState={{ disabled: !product.accepts_preorders }}
                         style={{ width, height: CARD_HEIGHT }}
                         className="flex-row"
                     >

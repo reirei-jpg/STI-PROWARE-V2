@@ -6,9 +6,20 @@ import { formatDate } from '@/lib/format';
 import type { StorefrontTileProduct } from '@/lib/types';
 
 /**
+ * Out of stock, or Coming Soon with preorders closed: still shown, greyed,
+ * but nothing happens when it is tapped.
+ */
+export function isUnavailable(product: StorefrontTileProduct): boolean {
+    return (
+        product.sold_out || (product.status === 'preorder' && !product.accepts_preorders)
+    );
+}
+
+/**
  * A merchandise tile, like the website's: square photo, name, price and the
  * button. Badges: SALE (and when it ends), COMING SOON, "Only 3 left", and
- * OUT OF STOCK (greyed, no button). Tapping anywhere opens the product.
+ * OUT OF STOCK (greyed, no button). Tapping opens the product, unless it is
+ * unavailable (out of stock, or preorders closed).
  *
  * `compact` is for 3 tiles in a row (On Sale): smaller text, when the sale
  * ends under the price, and no button, since tapping opens the product.
@@ -26,14 +37,19 @@ export default function ProductTile({
 }) {
     const comingSoon = product.status === 'preorder';
     const onSale = product.status === 'on_sale';
+    const unavailable = isUnavailable(product);
 
     return (
         <Pressable
             onPress={() => onOpen(product)}
+            disabled={unavailable}
             accessibilityRole="button"
-            accessibilityLabel={`View ${product.name}`}
+            accessibilityLabel={
+                unavailable ? `${product.name}, unavailable` : `View ${product.name}`
+            }
+            accessibilityState={{ disabled: unavailable }}
             style={{ width }}
-            className={`overflow-hidden rounded-2xl border border-slate-200 bg-white ${product.sold_out ? 'opacity-70' : ''}`}
+            className={`overflow-hidden rounded-2xl border border-slate-200 bg-white ${unavailable ? 'opacity-70' : ''}`}
         >
             <View
                 style={{ width, height: width }}
@@ -105,10 +121,17 @@ export default function ProductTile({
                         {product.name}
                     </Text>
                     <PriceLines price={product.price} small />
-                    {onSale && !product.sold_out && product.sale_ends_at && (
-                        <Text className="mt-auto font-sans-bold text-[10px] text-red-600">
-                            {saleEndsText(product.sale_ends_at)}
+                    {unavailable ? (
+                        <Text className="mt-auto font-sans-bold text-[10px] text-slate-500">
+                            Unavailable for now
                         </Text>
+                    ) : (
+                        onSale &&
+                        product.sale_ends_at && (
+                            <Text className="mt-auto font-sans-bold text-[10px] text-red-600">
+                                {saleEndsText(product.sale_ends_at)}
+                            </Text>
+                        )
                     )}
                 </View>
             ) : (
@@ -134,7 +157,7 @@ export default function ProductTile({
                         {product.sold_out ? (
                             <View className="items-center rounded-xl bg-slate-100 py-2">
                                 <Text className="font-sans-bold text-xs text-slate-500">
-                                    Out of stock
+                                    Unavailable for now
                                 </Text>
                             </View>
                         ) : comingSoon && !product.accepts_preorders ? (
