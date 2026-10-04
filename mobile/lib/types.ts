@@ -69,6 +69,58 @@ export type Page<T> = {
     total: number;
 };
 
+/** One line of the cart, at today's price. */
+export type CartLine = {
+    id: number;
+    product_id: number;
+    product_name: string;
+    photo_url: string | null;
+    variant_label: string | null;
+    unit_name: string;
+    pieces_per_unit: number;
+    quantity: number;
+    most_allowed: number;
+    unit_price_centavos: number | null;
+    on_sale: boolean;
+    line_total_centavos: number;
+    /** What to fix before Place Order, or null. */
+    problem: string | null;
+};
+
+export type CartView = {
+    lines: CartLine[];
+    total_centavos: number;
+    can_place_order: boolean;
+    pick_up_by: string;
+};
+
+/** A student's order, with each item at the price it was ordered at. */
+export type StudentOrder = {
+    id: number;
+    number: string | null;
+    status: 'placed' | 'ready' | 'picked_up' | 'cancelled';
+    status_label: string;
+    student_name: string;
+    total_centavos: number;
+    items: {
+        id: number;
+        product_name: string;
+        variant_label: string | null;
+        unit_name: string;
+        pieces_per_unit: number;
+        quantity: number;
+        unit_price_centavos: number;
+        line_total_centavos: number;
+    }[];
+    placed_at: string | null;
+    pick_up_by: string;
+    ready_at: string | null;
+    picked_up_at: string | null;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    can_cancel: boolean;
+};
+
 export type StorefrontHome = {
     coming_soon: StorefrontTileProduct[];
     on_sale: StorefrontTileProduct[];

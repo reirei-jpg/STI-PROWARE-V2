@@ -157,11 +157,25 @@ export default function ProductScreen() {
 
                         <View className="gap-4 px-4 pt-4">
                             {notice && (
-                                <View className="flex-row items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                                    <CircleCheck size={18} color="#047857" />
-                                    <Text className="flex-1 font-sans-semibold text-sm text-emerald-800">
-                                        {notice}
-                                    </Text>
+                                <View className="gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                                    <View className="flex-row items-start gap-2">
+                                        <CircleCheck size={18} color="#047857" />
+                                        <Text className="flex-1 font-sans-semibold text-sm text-emerald-800">
+                                            {notice}
+                                        </Text>
+                                    </View>
+                                    {!comingSoon && (
+                                        <Pressable
+                                            onPress={() => router.navigate('/cart')}
+                                            accessibilityRole="button"
+                                            className="flex-row items-center justify-center gap-2 self-start rounded-xl border border-emerald-300 bg-white px-4 py-2.5"
+                                        >
+                                            <ShoppingCart size={16} color="#047857" />
+                                            <Text className="font-sans-bold text-sm text-emerald-800">
+                                                View Cart
+                                            </Text>
+                                        </Pressable>
+                                    )}
                                 </View>
                             )}
 

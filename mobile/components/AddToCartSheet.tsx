@@ -7,8 +7,9 @@ import ChoiceChip from '@/components/ChoiceChip';
 import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useCart } from '@/lib/cart';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
-import type { StorefrontProductDetails } from '@/lib/types';
+import type { CartView, StorefrontProductDetails } from '@/lib/types';
 
 /**
  * Add to Cart, like the website's picker: size or color, by the piece or by
@@ -27,6 +28,7 @@ export default function AddToCartSheet({
     onAdded: (message: string) => void;
 }) {
     const { request } = useAuth();
+    const { replace: replaceCart } = useCart();
 
     const soldByPiece = product.variants.some(
         (variant) => variant.buy_price_centavos !== null,
@@ -80,7 +82,7 @@ export default function AddToCartSheet({
         setError(null);
 
         try {
-            const result = await request<{ message: string }>(`/products/${product.id}/cart`, {
+            const result = await request<{ message: string; cart: CartView }>(`/products/${product.id}/cart`, {
                 method: 'POST',
                 body: {
                     product_variant_id: variant.id,
@@ -89,6 +91,7 @@ export default function AddToCartSheet({
                 },
             });
 
+            replaceCart(result.cart);
             onAdded(result.message);
         } catch (caught) {
             setError(
