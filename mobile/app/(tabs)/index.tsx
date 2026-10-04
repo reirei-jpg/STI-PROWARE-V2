@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ComingSoonBanner from '@/components/ComingSoonBanner';
+import OnSaleCarousel from '@/components/OnSaleCarousel';
 import ProductTile from '@/components/ProductTile';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -32,7 +33,7 @@ const GAP = 12;
 
 /**
  * Home: the storefront, like the website. Coming Soon (one item at a time),
- * On Sale, and All Merchandise (newest first, out of stock last) with a
+ * On Sale (one swipeable row), and All Merchandise (newest first, out of stock last) with a
  * search and Available / Out of Stock. More loads as the student scrolls.
  */
 export default function HomeScreen() {
@@ -218,16 +219,11 @@ export default function HomeScreen() {
                         prices.
                     </EmptyNote>
                 ) : (
-                    <View className="flex-row flex-wrap" style={{ gap: GAP }}>
-                        {home.on_sale.map((product) => (
-                            <ProductTile
-                                key={product.id}
-                                product={product}
-                                width={Math.floor((width - SIDE * 2 - 24 - GAP) / 2)}
-                                onOpen={open}
-                            />
-                        ))}
-                    </View>
+                    <OnSaleCarousel
+                        products={home.on_sale}
+                        width={width - SIDE * 2 - 24}
+                        onOpen={open}
+                    />
                 )}
             </View>
 

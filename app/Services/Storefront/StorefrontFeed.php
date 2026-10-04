@@ -46,7 +46,7 @@ final class StorefrontFeed
             ->with(self::RELATIONS)
             ->orderBy('sale_ends_at')
             ->latest('id')
-            ->limit(8)
+            ->limit(20)
             ->get()
             ->map(StorefrontProduct::tile(...))
             ->all());
