@@ -208,11 +208,11 @@ function OnSaleSection({
             />
 
             {/* A carousel, like Coming Soon, so many sale items never make
-                the page long. 4 at a time (2 on a phone) keeps the tiles as
-                big as before inside the red box. */}
+                the page long. 4 at a time on a computer, 3 on a phone, like
+                Coming Soon on a phone. */}
             <TileCarousel
                 label="On Sale"
-                perSet={{ phone: 2, computer: ON_SALE_PER_SET }}
+                perSet={{ phone: 3, computer: ON_SALE_PER_SET }}
                 tiles={[
                     ...products.map((product) => (
                         <StorefrontTile

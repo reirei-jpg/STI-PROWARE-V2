@@ -10,11 +10,14 @@ import type { StorefrontPrice } from '@/lib/types';
 export default function PriceLines({
     price,
     large = false,
+    small = false,
 }: {
     price: StorefrontPrice;
     large?: boolean;
+    /** For narrow tiles (3 in a row). */
+    small?: boolean;
 }) {
-    const mainSize = large ? 'text-2xl' : 'text-base';
+    const mainSize = large ? 'text-2xl' : small ? 'text-sm' : 'text-base';
 
     return (
         <View className="gap-0.5">

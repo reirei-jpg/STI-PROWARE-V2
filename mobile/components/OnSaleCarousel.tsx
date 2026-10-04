@@ -4,10 +4,10 @@ import { ScrollView, Text, View } from 'react-native';
 import ProductTile from '@/components/ProductTile';
 import type { StorefrontTileProduct } from '@/lib/types';
 
-const GAP = 12;
+const GAP = 8;
 
-/** Two full tiles fill the red box, as big as before the carousel. */
-const TILES_IN_VIEW = 2;
+/** Three compact tiles fill the red box. */
+const TILES_IN_VIEW = 3;
 
 /**
  * On Sale as one swipeable row, like the website's carousel, so many sale
@@ -23,7 +23,7 @@ export default function OnSaleCarousel({
     onOpen: (product: StorefrontTileProduct) => void;
 }) {
     const tileWidth = Math.floor((width - GAP * (TILES_IN_VIEW - 1)) / TILES_IN_VIEW);
-    const canSwipe = products.length > 2;
+    const canSwipe = products.length > TILES_IN_VIEW;
 
     return (
         <View className="gap-2">
@@ -40,6 +40,7 @@ export default function OnSaleCarousel({
                         product={product}
                         width={tileWidth}
                         onOpen={onOpen}
+                        compact
                     />
                 ))}
             </ScrollView>
