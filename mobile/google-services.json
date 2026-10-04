@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1072258986067",
+    "project_id": "sti-proware-7ea1c",
+    "storage_bucket": "sti-proware-7ea1c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072258986067:android:240b48891c37fbfc9f16a6",
+        "android_client_info": {
+          "package_name": "sti.proware"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPCWqKGuY-PBQy7b97rAR5n_-ZhiC0DPw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072258986067:android:4e05f9b5c5505ed79f16a6",
+        "android_client_info": {
+          "package_name": "sti.proware.v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPCWqKGuY-PBQy7b97rAR5n_-ZhiC0DPw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

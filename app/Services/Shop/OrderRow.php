@@ -2,8 +2,11 @@
 
 namespace App\Services\Shop;
 
+use App\Actions\Orders\CancelOrderByStudent;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * An order as the student's My Orders and the Specialist's Orders page show
@@ -12,6 +15,37 @@ use App\Models\OrderItem;
  */
 final class OrderRow
 {
+    /**
+     * A page of the student's My Orders (website and phone app): orders not
+     * picked up yet first, newest first, 20 at a time.
+     *
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    public static function studentPage(User $student): LengthAwarePaginator
+    {
+        return $student->orders()
+            ->with(['items', 'student'])
+            ->orderByRaw("case when status in ('placed', 'ready') then 0 else 1 end")
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (Order $order): array => self::forStudent($order));
+    }
+
+    /**
+     * The row on the student's own My Orders (website and phone app), with
+     * whether they may still cancel it.
+     *
+     * @return array<string, mixed>
+     */
+    public static function forStudent(Order $order): array
+    {
+        return [
+            ...self::of($order),
+            'can_cancel' => CancelOrderByStudent::refusal($order) === null,
+        ];
+    }
+
     /**
      * @return array{id: int, number: string|null, status: string, status_label: string, student_name: string, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string, ready_at: string|null, picked_up_at: string|null, cancelled_at: string|null, cancel_reason: string|null}
      */

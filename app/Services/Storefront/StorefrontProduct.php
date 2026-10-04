@@ -46,6 +46,19 @@ final class StorefrontProduct
     }
 
     /**
+     * One product's view as students get it (website pop-up and phone app):
+     * Draft products do not exist for students.
+     *
+     * @return array<string, mixed>
+     */
+    public static function forStudents(Product $product): array
+    {
+        abort_if($product->status === ProductStatus::Draft, 404);
+
+        return self::details($product->load([...StorefrontFeed::RELATIONS, 'photos', 'options']));
+    }
+
+    /**
      * The tile plus everything the view pop-up and the Add to Cart picker
      * show: each size or color with today's price per piece and its stock
      * (to cap how many can be added), and the packs students can buy.

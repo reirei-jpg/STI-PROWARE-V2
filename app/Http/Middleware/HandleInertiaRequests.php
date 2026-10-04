@@ -2,8 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\NotificationRow;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -71,12 +71,7 @@ class HandleInertiaRequests extends Middleware
             ->latest()
             ->limit(10)
             ->get()
-            ->map(fn (DatabaseNotification $notification): array => [
-                'id' => $notification->id,
-                'data' => $notification->data,
-                'read' => $notification->read_at !== null,
-                'created_at' => $notification->created_at?->toIso8601String(),
-            ])
+            ->map(NotificationRow::of(...))
             ->all();
 
         return [

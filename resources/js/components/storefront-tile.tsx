@@ -7,7 +7,9 @@ import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
 
 /**
  * A merchandise tile (TikTok Shop style): square photo, name, price and
- * Add to Cart. Tapping the photo or name opens the product's view.
+ * Add to Cart. Tapping the photo or name opens the product's view, unless
+ * it is unavailable (out of stock, or preorders closed): then it is shown
+ * greyed and nothing opens.
  *
  * Badges: SALE (original price crossed out before the sale price), COMING
  * SOON with a Preorder button, "Only 3 left" when almost sold out, and
@@ -27,20 +29,33 @@ export default function StorefrontTile({
     const preorder = usePreorder();
     const comingSoon = product.status === 'preorder';
     const onSale = product.status === 'on_sale';
+    // Out of stock, or preorders closed: shown, but nothing opens.
+    const unavailable =
+        product.sold_out || (comingSoon && !product.accepts_preorders);
+    const Top = unavailable ? 'div' : 'button';
 
     return (
         <article
             className={cn(
-                'flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
-                product.sold_out && 'opacity-70',
+                'flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm',
+                unavailable
+                    ? 'opacity-70'
+                    : 'transition hover:-translate-y-0.5 hover:shadow-md',
                 className,
             )}
+            aria-label={
+                unavailable ? `${product.name}, unavailable` : undefined
+            }
         >
-            <button
-                type="button"
-                onClick={() => onView(product)}
+            <Top
+                {...(unavailable
+                    ? {}
+                    : {
+                          type: 'button' as const,
+                          onClick: () => onView(product),
+                          'aria-label': `View ${product.name}`,
+                      })}
                 className="text-left"
-                aria-label={`View ${product.name}`}
             >
                 <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 text-slate-300">
                     {product.photo_url ? (
@@ -97,7 +112,7 @@ export default function StorefrontTile({
                 <h3 className="line-clamp-2 px-3 pt-3 text-sm font-bold text-slate-900">
                     {product.name}
                 </h3>
-            </button>
+            </Top>
 
             <div className="flex flex-1 flex-col gap-2 p-3 pt-1.5">
                 <PriceLines price={product.price} />
@@ -112,7 +127,7 @@ export default function StorefrontTile({
 
                 {product.sold_out ? (
                     <span className="mt-auto inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
-                        Out of stock
+                        Unavailable for now
                     </span>
                 ) : comingSoon && !product.accepts_preorders ? (
                     <span className="mt-auto inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">

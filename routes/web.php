@@ -34,6 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');
         Route::post('merchandise/{product}/cart', [CartController::class, 'store'])->name('cart.store');
+        Route::patch('cart-selection', [CartController::class, 'select'])->name('cart.select');
         Route::patch('cart/{cartItem}', [CartController::class, 'update'])->name('cart.update');
         Route::delete('cart/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
 

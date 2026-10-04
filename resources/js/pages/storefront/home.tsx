@@ -16,7 +16,8 @@ const feedChoices: { value: StorefrontFilters['show']; label: string }[] = [
 
 /** Empty tiles shown where a section has no products yet (approved layout). */
 const PLACEHOLDER_COMING_SOON = 10;
-const PLACEHOLDER_ON_SALE = 4;
+/** On Sale shows 4 tiles at a time on a computer, filled with empty tiles when fewer. */
+const ON_SALE_PER_SET = 4;
 const PLACEHOLDER_FEED = 20;
 
 /**
@@ -27,9 +28,9 @@ const PLACEHOLDER_FEED = 20;
  * tile opens the product's view.
  *
  * All three sections always show, as in the approved layout: a section
- * with no products yet keeps its empty tiles and says so, and Coming Soon
- * and On Sale fill the rest of a row with empty tiles when they have only a
- * few products.
+ * with no products yet keeps its empty tiles and says so. Coming Soon and
+ * On Sale are carousels, so many items never make the page long, and fill
+ * their first set with empty tiles when they have only a few products.
  */
 export default function StorefrontHome({
     comingSoon,
@@ -80,14 +81,6 @@ export default function StorefrontHome({
             />
         </>
     );
-}
-
-/**
- * How many empty tiles finish the last row, so a section with only a few
- * products keeps the full row of the approved layout.
- */
-function emptySpaces(products: number, perRow: number): number {
-    return (perRow - (products % perRow)) % perRow;
 }
 
 /**
@@ -214,26 +207,41 @@ function OnSaleSection({
                 description="Limited stock at a lower price. Get them while they last."
             />
 
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                {products.map((product) => (
-                    <StorefrontTile
-                        key={product.id}
-                        product={product}
-                        onView={onView}
-                    />
-                ))}
-                {Array.from(
-                    {
-                        length:
-                            products.length === 0
-                                ? PLACEHOLDER_ON_SALE
-                                : emptySpaces(products.length, 4),
-                    },
-                    (_, index) => (
-                        <PlaceholderTile key={`placeholder-${index}`} sale />
+            {/* A carousel, like Coming Soon, so many sale items never make
+                the page long. 4 at a time on a computer, 3 on a phone, like
+                Coming Soon on a phone. */}
+            <TileCarousel
+                label="On Sale"
+                perSet={{ phone: 3, computer: ON_SALE_PER_SET }}
+                tiles={[
+                    ...products.map((product) => (
+                        <StorefrontTile
+                            key={product.id}
+                            product={product}
+                            onView={onView}
+                            className="w-full"
+                        />
+                    )),
+                    ...Array.from(
+                        {
+                            length:
+                                products.length === 0
+                                    ? ON_SALE_PER_SET
+                                    : Math.max(
+                                          0,
+                                          ON_SALE_PER_SET - products.length,
+                                      ),
+                        },
+                        (_, index) => (
+                            <PlaceholderTile
+                                key={`placeholder-${index}`}
+                                sale
+                                className="w-full"
+                            />
+                        ),
                     ),
-                )}
-            </div>
+                ]}
+            />
             {products.length === 0 && (
                 <EmptyNote>
                     Nothing on sale right now. Check back for lower prices.

@@ -17,10 +17,11 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Turns a student's cart into an order: checks every item can still be
- * bought and is in stock, keeps each line with today's price, takes the
- * pieces out of stock (held until pickup, recorded as "Sale · PW-0001"),
- * empties the cart and tells the Specialist.
+ * Turns the ticked items in a student's cart into an order: checks each can
+ * still be bought and is in stock, keeps each line with today's price,
+ * takes the pieces out of stock (held until pickup, recorded as "Sale ·
+ * PW-0001"), removes them from the cart (unticked items stay) and tells
+ * the Specialist.
  */
 class PlaceOrder
 {
@@ -29,10 +30,12 @@ class PlaceOrder
     public function handle(User $student): Order
     {
         $order = DB::transaction(function () use ($student): Order {
-            $cart = $student->cartItems()->with(['variant.product', 'pack.product'])->orderBy('id')->get();
+            $cart = $student->cartItems()->where('selected', true)->with(['variant.product', 'pack.product'])->orderBy('id')->get();
 
             if ($cart->isEmpty()) {
-                throw ValidationException::withMessages(['cart' => 'Your cart is empty.']);
+                throw ValidationException::withMessages(['cart' => $student->cartItems()->exists()
+                    ? 'Tick the items you want to order.'
+                    : 'Your cart is empty.']);
             }
 
             // Lock the variants so two students cannot take the last pieces.
@@ -90,7 +93,8 @@ class PlaceOrder
             }
 
             $order->forceFill(['total_centavos' => $total])->save();
-            $student->cartItems()->delete();
+            // Only what was ordered leaves the cart; unticked items stay for later.
+            $student->cartItems()->whereKey($cart->modelKeys())->delete();
 
             foreach ($variants as $variant) {
                 $this->lowStockAlerts->check($variant);
@@ -102,6 +106,15 @@ class PlaceOrder
         Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new OrderPlaced($order));
 
         return $order;
+    }
+
+    /**
+     * "Order PW-0001 placed. Pick it up and pay in cash at the PROWARE office
+     * by Oct 7, 2026." (website and phone app).
+     */
+    public static function message(Order $order): string
+    {
+        return "Order {$order->number} placed. Pick it up and pay in cash at the PROWARE office by {$order->pick_up_by->format('M j, Y')}.";
     }
 
     /**

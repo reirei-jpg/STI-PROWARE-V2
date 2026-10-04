@@ -14,6 +14,14 @@ return [
     |
     */
 
+    // Push notifications to the student phone app (Firebase Cloud Messaging).
+    // The service-account key file is private and never committed.
+    'fcm' => [
+        'credentials' => env('FCM_CREDENTIALS', storage_path('app/private/firebase-service-account.json')),
+        'ca_bundle' => env('FCM_CA_BUNDLE'),
+        'channel_id' => 'orders',
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

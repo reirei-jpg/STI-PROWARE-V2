@@ -38,9 +38,30 @@ final class Cart
             ]);
         }
 
-        $line->update(['quantity' => $newQuantity]);
+        // Adding it again means they want it: tick it for the next order.
+        $line->update(['quantity' => $newQuantity, 'selected' => true]);
 
         return $line;
+    }
+
+    /**
+     * Tick or untick some of the student's own lines for the next Place
+     * Order (one line, or "Select all"). Other students' lines are never
+     * touched.
+     *
+     * @param  list<int>  $cartItemIds
+     */
+    public function select(User $student, array $cartItemIds, bool $selected): void
+    {
+        $student->cartItems()->whereKey($cartItemIds)->update(['selected' => $selected]);
+    }
+
+    /**
+     * "Added 2 Boxes of STI Ballpen to your cart." (website and phone app).
+     */
+    public static function addedMessage(ProductVariant $variant, ?ProductPack $pack, int $quantity): string
+    {
+        return 'Added '.Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} to your cart.";
     }
 
     public function changeQuantity(CartItem $line, int $quantity): void

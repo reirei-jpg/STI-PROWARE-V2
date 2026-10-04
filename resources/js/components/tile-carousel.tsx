@@ -19,25 +19,27 @@ function useMediaQuery(query: string): boolean {
 }
 
 /**
- * A carousel of tiles: 3 at a time on a phone, 5 on a computer. It moves
- * to the next set every 7 seconds and loops back to the start. It pauses
- * while the pointer or keyboard focus is on it, and does not move by
- * itself for people who turned off animations. Arrows (computer), swipe
- * (phone) and the dots move it by hand.
+ * A carousel of tiles: 3 at a time on a phone, 5 on a computer (or as many
+ * as `perSet` says). It moves to the next set every 7 seconds and loops
+ * back to the start. It pauses while the pointer or keyboard focus is on
+ * it, and does not move by itself for people who turned off animations.
+ * Arrows (computer), swipe (phone) and the dots move it by hand.
  */
 export default function TileCarousel({
     label,
     tiles,
+    perSet = { phone: 3, computer: 5 },
 }: {
     label: string;
     tiles: ReactNode[];
+    perSet?: { phone: number; computer: number };
 }) {
     const isWide = useMediaQuery('(min-width: 768px)');
     const prefersReducedMotion = useMediaQuery(
         '(prefers-reduced-motion: reduce)',
     );
 
-    const tilesPerSet = isWide ? 5 : 3;
+    const tilesPerSet = isWide ? perSet.computer : perSet.phone;
     const gapRem = isWide ? 1 : 0.5;
     const setCount = Math.max(1, Math.ceil(tiles.length / tilesPerSet));
 

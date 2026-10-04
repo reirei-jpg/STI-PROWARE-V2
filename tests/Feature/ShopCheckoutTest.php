@@ -172,6 +172,74 @@ test('an order cannot be placed when stock ran out after it went in the cart', f
     );
 });
 
+test('only the ticked items are ordered and the unticked ones stay in the cart', function () {
+    [, $ballpen] = ballpen(stock: 10);
+    $umbrella = ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Umbrella', 'price_centavos' => 35000]))->create(['stock_on_hand' => 5]);
+    CartItem::factory()->for($this->student, 'student')->for($ballpen, 'variant')->create(['quantity' => 2]);
+    $later = CartItem::factory()->for($this->student, 'student')->for($umbrella, 'variant')->create(['quantity' => 1, 'selected' => false]);
+
+    $this->actingAs($this->student)->post(route('my-orders.store'))->assertSessionHasNoErrors();
+
+    expect(Order::query()->sole()->items()->pluck('product_name')->all())->toBe(['STI Ballpen'])
+        ->and(Order::query()->sole()->total_centavos)->toBe(3000)
+        ->and($this->student->cartItems()->pluck('id')->all())->toBe([$later->id])
+        ->and($ballpen->refresh()->stock_on_hand)->toBe(8)
+        ->and($umbrella->refresh()->stock_on_hand)->toBe(5);
+});
+
+test('the cart totals only ticked items, and an unticked item\'s problem does not block the order', function () {
+    [, $ballpen] = ballpen(stock: 10);
+    $soldOut = ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Umbrella', 'price_centavos' => 35000]))->create(['stock_on_hand' => 0]);
+    CartItem::factory()->for($this->student, 'student')->for($ballpen, 'variant')->create(['quantity' => 2]);
+    CartItem::factory()->for($this->student, 'student')->for($soldOut, 'variant')->create(['quantity' => 1, 'selected' => false]);
+
+    $this->actingAs($this->student)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('selected_count', 1)
+        ->where('total_centavos', 3000)
+        ->where('can_place_order', true)
+        ->where('lines.1.selected', false)
+        ->where('lines.1.problem', 'Out of stock. Remove it, or untick it to order the rest.')
+    );
+});
+
+test('a ticked line counts only other ticked lines of the same size when checking stock', function () {
+    [, $variant, $box] = ballpen(stock: 12);
+    CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create(['quantity' => 12]);
+    CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->for($box, 'pack')->create(['quantity' => 1, 'selected' => false]);
+
+    $this->actingAs($this->student)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('can_place_order', true)
+        ->where('lines.0.problem', null)
+    );
+});
+
+test('a student ticks and unticks only their own cart lines', function () {
+    [, $variant] = ballpen();
+    $mine = CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create();
+    $theirs = CartItem::factory()->for($variant, 'variant')->create();
+
+    $this->actingAs($this->student)
+        ->patch(route('cart.select'), ['cart_item_ids' => [$mine->id, $theirs->id], 'selected' => false])
+        ->assertSessionHasNoErrors();
+
+    expect($mine->refresh()->selected)->toBeFalse()
+        ->and($theirs->refresh()->selected)->toBeTrue();
+});
+
+test('placing an order with nothing ticked asks to tick the items, and adding an item again ticks it', function () {
+    [$product, $variant] = ballpen();
+    $line = CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create(['selected' => false]);
+
+    $this->actingAs($this->student)
+        ->post(route('my-orders.store'))
+        ->assertSessionHasErrors(['cart' => 'Tick the items you want to order.']);
+    expect(Order::count())->toBe(0);
+
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1']);
+
+    expect($line->refresh()->selected)->toBeTrue();
+});
+
 test('a student can cancel a placed order and the stock goes back', function () {
     [, $variant] = ballpen(stock: 10);
     $order = placedOrder($variant, 4);
