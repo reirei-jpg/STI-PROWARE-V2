@@ -14,6 +14,7 @@ import { useState } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import InputError from '@/components/input-error';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -21,23 +22,48 @@ import { home } from '@/routes';
 import type { CartLine } from '@/types';
 
 /**
- * The student's cart at today's prices, and Place Order. They pay in cash
- * at the PROWARE office when they pick the order up; the items are held
- * for them until the pick-up date.
+ * Tick or untick lines for the next Place Order. The tick changes at once;
+ * the total follows when the server answers.
+ */
+function selectLines(ids: number[], selected: boolean): void {
+    router
+        .optimistic<{ lines: CartLine[] }>((props) => ({
+            lines: props.lines.map((line) =>
+                ids.includes(line.id) ? { ...line, selected } : line,
+            ),
+        }))
+        .patch(
+            CartController.select().url,
+            { cart_item_ids: ids, selected },
+            { preserveScroll: true },
+        );
+}
+
+/**
+ * The student's cart at today's prices, and Place Order for the ticked
+ * items (the rest stay in the cart for later). They pay in cash at the
+ * PROWARE office when they pick the order up; the items are held for them
+ * until the pick-up date.
  */
 export default function Cart({
     lines,
+    selected_count: selectedCount,
     total_centavos: total,
     can_place_order: canPlaceOrder,
     pick_up_by: pickUpBy,
 }: {
     lines: CartLine[];
+    selected_count: number;
     total_centavos: number;
     can_place_order: boolean;
     pick_up_by: string;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const placeOrder = useForm({});
+    const allTicked = lines.every((line) => line.selected);
+    const tickedHaveProblems = lines.some(
+        (line) => line.selected && line.problem !== null,
+    );
 
     return (
         <>
@@ -79,6 +105,22 @@ export default function Cart({
                 ) : (
                     <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]">
                         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                            <label className="flex cursor-pointer items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-700">
+                                <Checkbox
+                                    checked={allTicked}
+                                    onCheckedChange={() =>
+                                        selectLines(
+                                            lines.map((line) => line.id),
+                                            !allTicked,
+                                        )
+                                    }
+                                    className="size-5"
+                                />
+                                Select all
+                                <span className="font-bold text-slate-500">
+                                    ({selectedCount} of {lines.length})
+                                </span>
+                            </label>
                             <ul className="divide-y divide-slate-100">
                                 {lines.map((line) => (
                                     <CartLineRow key={line.id} line={line} />
@@ -89,7 +131,8 @@ export default function Cart({
                         <aside className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
                             <div className="flex items-baseline justify-between">
                                 <span className="text-sm font-bold text-slate-600">
-                                    Total
+                                    Total ({selectedCount}{' '}
+                                    {selectedCount === 1 ? 'item' : 'items'})
                                 </span>
                                 <span className="text-2xl font-black text-slate-900">
                                     {formatPeso(total)}
@@ -113,10 +156,17 @@ export default function Cart({
 
                             <InputError message={errors.cart} />
 
-                            {!canPlaceOrder && (
-                                <p className="text-sm text-red-600">
-                                    Fix the items marked in red first.
+                            {selectedCount === 0 ? (
+                                <p className="text-sm text-slate-600">
+                                    Tick the items you want to order.
                                 </p>
+                            ) : (
+                                tickedHaveProblems && (
+                                    <p className="text-sm text-red-600">
+                                        Fix or untick the items marked in red
+                                        first.
+                                    </p>
+                                )
                             )}
 
                             <button
@@ -138,7 +188,14 @@ export default function Cart({
                                     />
                                 )}
                                 Place Order
+                                {selectedCount > 0 && ` (${selectedCount})`}
                             </button>
+                            {selectedCount > 0 &&
+                                selectedCount < lines.length && (
+                                    <p className="text-center text-xs text-slate-500">
+                                        Unticked items stay in your cart.
+                                    </p>
+                                )}
                         </aside>
                     </div>
                 )}
@@ -190,11 +247,25 @@ function CartLineRow({ line }: { line: CartLine }) {
         <li
             className={cn(
                 'flex flex-col gap-3 p-4 sm:flex-row sm:items-center',
-                line.problem && 'bg-red-50/60',
+                line.problem && line.selected && 'bg-red-50/60',
+                !line.selected && 'bg-slate-50/70',
             )}
         >
             <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 text-slate-300">
+                <Checkbox
+                    checked={line.selected}
+                    onCheckedChange={(checked) =>
+                        selectLines([line.id], checked === true)
+                    }
+                    aria-label={`Order ${line.product_name}`}
+                    className="size-5"
+                />
+                <div
+                    className={cn(
+                        'flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 text-slate-300',
+                        !line.selected && 'opacity-60',
+                    )}
+                >
                     {line.photo_url ? (
                         <img
                             src={line.photo_url}

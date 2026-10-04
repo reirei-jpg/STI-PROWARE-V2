@@ -77,6 +77,8 @@ export type CartLine = {
     unit_name: string;
     pieces_per_unit: number;
     quantity: number;
+    /** Ticked for the next Place Order (the same on the website and the app). */
+    selected: boolean;
     /** The most of this piece or pack that can be ordered now. */
     most_allowed: number;
     unit_price_centavos: number | null;

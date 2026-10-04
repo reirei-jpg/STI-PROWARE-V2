@@ -79,6 +79,8 @@ export type CartLine = {
     unit_name: string;
     pieces_per_unit: number;
     quantity: number;
+    /** Ticked for the next Place Order (the same on the website). */
+    selected: boolean;
     most_allowed: number;
     unit_price_centavos: number | null;
     on_sale: boolean;
@@ -89,6 +91,8 @@ export type CartLine = {
 
 export type CartView = {
     lines: CartLine[];
+    /** How many lines are ticked; only these are ordered and totalled. */
+    selected_count: number;
     total_centavos: number;
     can_place_order: boolean;
     pick_up_by: string;

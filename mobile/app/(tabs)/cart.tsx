@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import {
     Banknote,
+    Check,
     CircleCheck,
     ImageIcon,
     ShoppingCart,
@@ -98,6 +99,33 @@ export default function CartScreen() {
     }
 
     const lines = cart?.lines ?? [];
+    const ticked = lines.filter((line) => line.selected);
+    const allTicked = ticked.length === lines.length;
+    const tickedHaveProblems = ticked.some((line) => line.problem !== null);
+
+    // The tick changes at once; the total follows when the server answers.
+    const selectLines = async (ids: number[], selected: boolean): Promise<void> => {
+        if (cart) {
+            replace({
+                ...cart,
+                lines: cart.lines.map((line) =>
+                    ids.includes(line.id) ? { ...line, selected } : line,
+                ),
+            });
+        }
+
+        try {
+            const result = await request<{ cart: CartView }>('/cart-selection', {
+                method: 'PATCH',
+                body: { cart_item_ids: ids, selected },
+            });
+
+            replace(result.cart);
+        } catch {
+            setError('The tick could not be saved. Pull down to try again.');
+            refresh().catch(() => undefined);
+        }
+    };
 
     return (
         <View className="flex-1 bg-page">
@@ -143,12 +171,32 @@ export default function CartScreen() {
                     </View>
                 ) : (
                     <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                        <Pressable
+                            onPress={() =>
+                                selectLines(
+                                    lines.map((line) => line.id),
+                                    !allTicked,
+                                )
+                            }
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: allTicked }}
+                            className="flex-row items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3"
+                        >
+                            <TickBox ticked={allTicked} />
+                            <Text className="font-sans-bold text-sm text-slate-700">
+                                Select all
+                            </Text>
+                            <Text className="font-sans-semibold text-sm text-slate-500">
+                                ({ticked.length} of {lines.length})
+                            </Text>
+                        </Pressable>
                         {lines.map((line, position) => (
                             <CartLineRow
                                 key={line.id}
                                 line={line}
                                 first={position === 0}
                                 onChanged={replace}
+                                onTick={() => selectLines([line.id], !line.selected)}
                             />
                         ))}
                     </View>
@@ -173,15 +221,23 @@ export default function CartScreen() {
                     {error && (
                         <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
                     )}
-                    {!cart.can_place_order && (
-                        <Text className="font-sans-semibold text-sm text-red-600">
-                            Fix the items marked in red first.
+                    {ticked.length === 0 ? (
+                        <Text className="font-sans-semibold text-sm text-slate-600">
+                            Tick the items you want to order.
                         </Text>
+                    ) : (
+                        tickedHaveProblems && (
+                            <Text className="font-sans-semibold text-sm text-red-600">
+                                Fix or untick the items marked in red first.
+                            </Text>
+                        )
                     )}
 
                     <View className="flex-row items-center gap-3">
                         <View className="flex-1">
-                            <Text className="font-sans text-xs text-slate-500">Total</Text>
+                            <Text className="font-sans text-xs text-slate-500">
+                                Total ({ticked.length} {ticked.length === 1 ? 'item' : 'items'})
+                            </Text>
                             <Text className="font-sans-bold text-xl text-slate-900">
                                 {formatPeso(cart.total_centavos)}
                             </Text>
@@ -194,12 +250,28 @@ export default function CartScreen() {
                         >
                             {placing && <ActivityIndicator color="#ffffff" />}
                             <Text className="font-sans-bold text-base text-white">
-                                Place Order
+                                Place Order{ticked.length > 0 ? ` (${ticked.length})` : ''}
                             </Text>
                         </Pressable>
                     </View>
+                    {ticked.length > 0 && ticked.length < lines.length && (
+                        <Text className="text-center font-sans text-xs text-slate-500">
+                            Unticked items stay in your cart.
+                        </Text>
+                    )}
                 </View>
             )}
+        </View>
+    );
+}
+
+/** A tick box for choosing what to order. */
+function TickBox({ ticked }: { ticked: boolean }) {
+    return (
+        <View
+            className={`h-6 w-6 items-center justify-center rounded-md border-2 ${ticked ? 'border-brand bg-brand' : 'border-slate-300 bg-white'}`}
+        >
+            {ticked && <Check size={16} color="#ffffff" strokeWidth={3} />}
         </View>
     );
 }
@@ -208,10 +280,12 @@ function CartLineRow({
     line,
     first,
     onChanged,
+    onTick,
 }: {
     line: CartLine;
     first: boolean;
     onChanged: (cart: CartView) => void;
+    onTick: () => void;
 }) {
     const { request } = useAuth();
     const [quantityText, setQuantityText] = useState(String(line.quantity));
@@ -276,10 +350,21 @@ function CartLineRow({
 
     return (
         <View
-            className={`gap-3 p-4 ${first ? '' : 'border-t border-slate-100'} ${line.problem ? 'bg-red-50/60' : ''} ${busy ? 'opacity-60' : ''}`}
+            className={`gap-3 p-4 ${first ? '' : 'border-t border-slate-100'} ${line.problem && line.selected ? 'bg-red-50/60' : ''} ${line.selected ? '' : 'bg-slate-50'} ${busy ? 'opacity-60' : ''}`}
         >
-            <View className="flex-row gap-3">
-                <View className="h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+            <View className="flex-row items-center gap-3">
+                <Pressable
+                    onPress={onTick}
+                    hitSlop={10}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: line.selected }}
+                    accessibilityLabel={`Order ${line.product_name}`}
+                >
+                    <TickBox ticked={line.selected} />
+                </Pressable>
+                <View
+                    className={`h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-slate-100 ${line.selected ? '' : 'opacity-60'}`}
+                >
                     {line.photo_url ? (
                         <Image
                             source={{ uri: line.photo_url }}
