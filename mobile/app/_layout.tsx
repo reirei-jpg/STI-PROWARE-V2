@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart';
+import { NotificationsProvider } from '@/lib/notifications';
 
 /**
  * Signed-in students see the tabs; everyone else sees the login.
@@ -36,6 +37,7 @@ function RootNavigator() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="product/[id]" />
                 <Stack.Screen name="order/[id]" />
+                <Stack.Screen name="notifications" />
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>
@@ -63,7 +65,9 @@ export default function RootLayout() {
 
             <AuthProvider>
                 <CartProvider>
-                    <RootNavigator />
+                    <NotificationsProvider>
+                        <RootNavigator />
+                    </NotificationsProvider>
                 </CartProvider>
             </AuthProvider>
         </SafeAreaProvider>

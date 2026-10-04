@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Clock, Flame, Search, Store, X } from 'lucide-react-native';
+import { Bell, Clock, Flame, Search, Store, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -18,6 +18,7 @@ import OnSaleCarousel from '@/components/OnSaleCarousel';
 import ProductTile from '@/components/ProductTile';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useNotifications } from '@/lib/notifications';
 import type { Page, StorefrontHome, StorefrontTileProduct } from '@/lib/types';
 
 type Show = 'in_stock' | 'sold_out' | null;
@@ -40,6 +41,7 @@ export default function HomeScreen() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const { user, request } = useAuth();
+    const { unreadCount, refresh: refreshNotifications } = useNotifications();
 
     const tileWidth = Math.floor((width - SIDE * 2 - GAP) / 2);
     const firstName = user?.name.split(' ')[0] ?? '';
@@ -127,7 +129,8 @@ export default function HomeScreen() {
             request<StorefrontHome>('/storefront')
                 .then(setHome)
                 .catch(() => undefined);
-        }, [request]),
+            refreshNotifications().catch(() => undefined);
+        }, [request, refreshNotifications]),
     );
 
     // Search as the student types, after a short pause.
@@ -180,12 +183,35 @@ export default function HomeScreen() {
     const header = (
         <View className="gap-6 pb-4">
             <View className="rounded-3xl bg-brand px-5 py-6">
-                <Text className="font-sans-semibold text-xs uppercase tracking-wide text-blue-100">
-                    STI PROWARE
-                </Text>
-                <Text className="mt-1 font-sans-bold text-2xl text-white">
-                    Hi, {firstName}
-                </Text>
+                <View className="flex-row items-start justify-between gap-3">
+                    <View className="flex-1">
+                        <Text className="font-sans-semibold text-xs uppercase tracking-wide text-blue-100">
+                            STI PROWARE
+                        </Text>
+                        <Text className="mt-1 font-sans-bold text-2xl text-white">
+                            Hi, {firstName}
+                        </Text>
+                    </View>
+                    <Pressable
+                        onPress={() => router.push('/notifications')}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                            unreadCount > 0
+                                ? `Notifications, ${unreadCount} unread`
+                                : 'Notifications'
+                        }
+                        className="h-11 w-11 items-center justify-center rounded-2xl bg-white/15"
+                    >
+                        <Bell size={22} color="#ffffff" />
+                        {unreadCount > 0 && (
+                            <View className="absolute -right-1 -top-1 min-w-5 items-center rounded-full border-2 border-brand bg-red-500 px-1">
+                                <Text className="font-sans-bold text-[10px] text-white">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </Text>
+                            </View>
+                        )}
+                    </Pressable>
+                </View>
                 <Text className="mt-1 font-sans text-sm leading-5 text-blue-50">
                     Official STI merchandise. Pay in cash when you pick it
                     up at the PROWARE office.

@@ -8,7 +8,7 @@ import type { Page } from './types';
  * A long list from the server, 20 at a time: the first page, more as the
  * student scrolls, and a reload (pull down, or coming back to the screen).
  */
-export function usePagedList<T extends { id: number }>(path: string) {
+export function usePagedList<T extends { id: number | string }>(path: string) {
     const { request } = useAuth();
     const [items, setItems] = useState<T[] | null>(null);
     const [page, setPage] = useState(1);

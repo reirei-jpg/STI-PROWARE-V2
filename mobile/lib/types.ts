@@ -136,6 +136,25 @@ export type StudentPreorder = {
     created_at: string | null;
 };
 
+/** What a student's notice is about (the same notices as the website's bell). */
+export type StudentNotificationData =
+    | {
+          kind: 'order_ready';
+          order_id: number;
+          order_number: string;
+          total_centavos: number;
+          pick_up_by: string | null;
+      }
+    | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
+    | { kind: 'preorder_arrived'; product_id: number; product_name: string };
+
+export type StudentNotification = {
+    id: string;
+    data: StudentNotificationData;
+    read: boolean;
+    created_at: string | null;
+};
+
 export type StorefrontHome = {
     coming_soon: StorefrontTileProduct[];
     on_sale: StorefrontTileProduct[];
