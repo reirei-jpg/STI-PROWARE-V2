@@ -85,3 +85,20 @@ export function unitWord(quantity: number, unitName: string): string {
 export function formatUnits(quantity: number, unitName: string): string {
     return `${quantity.toLocaleString('en-PH')} ${unitWord(quantity, unitName)}`;
 }
+
+/** "2 Boxes × 12 = 24 pcs", or "24 pcs" when sent by the piece (as on the website). */
+export function formatConversion(units: number, unitName: string, piecesPerUnit: number): string {
+    const pieces = formatUnits(units * piecesPerUnit, 'Piece');
+
+    return piecesPerUnit === 1
+        ? pieces
+        : `${formatUnits(units, unitName)} × ${piecesPerUnit.toLocaleString('en-PH')} = ${pieces}`;
+}
+
+/** "2026-10-04" for a day on this phone. */
+export function isoDate(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${date.getFullYear()}-${month}-${day}`;
+}

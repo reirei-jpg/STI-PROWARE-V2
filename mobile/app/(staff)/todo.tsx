@@ -43,11 +43,17 @@ function openLabel(target: NonNullable<SpecialistTask['target']>): string {
         return 'See all orders';
     }
 
+    if (target.screen === 'record_delivery') {
+        return 'Record Delivery';
+    }
+
     return target.id ? 'See stock' : 'See low stock';
 }
 
 function open(target: NonNullable<SpecialistTask['target']>): void {
-    if (target.screen === 'order' && target.id) {
+    if (target.screen === 'record_delivery') {
+        router.push('/record-delivery');
+    } else if (target.screen === 'order' && target.id) {
         router.push(`/staff-order/${target.id}`);
     } else if (target.screen === 'orders') {
         router.navigate('/staff-orders');

@@ -1,12 +1,13 @@
 import { Tabs } from 'expo-router';
-import { Boxes, ClipboardList, Package, UserRound } from 'lucide-react-native';
+import { Boxes, ClipboardList, Package, Truck, UserRound } from 'lucide-react-native';
 
 const BRAND_BLUE = '#0D6EFD';
 const INACTIVE = '#94a3b8';
 
 /**
  * The PROWARE Specialist's tabs: the To-do list (the website dashboard),
- * students' Orders, the Stock lookup, and Profile.
+ * students' Orders, Deliveries (record what arrived), the Stock lookup, and
+ * Profile.
  */
 export default function StaffTabsLayout() {
     return (
@@ -37,6 +38,13 @@ export default function StaffTabsLayout() {
                 options={{
                     title: 'Orders',
                     tabBarIcon: ({ color, size }) => <Package color={color} size={size} />,
+                }}
+            />
+            <Tabs.Screen
+                name="staff-deliveries"
+                options={{
+                    title: 'Deliveries',
+                    tabBarIcon: ({ color, size }) => <Truck color={color} size={size} />,
                 }}
             />
             <Tabs.Screen

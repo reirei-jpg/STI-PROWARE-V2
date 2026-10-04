@@ -196,7 +196,7 @@ export type SpecialistTask = {
     detail: string;
     action: { label: string; url: string; method: string };
     /** The phone screen that opens it; null means it is done on the website. */
-    target: { screen: 'order' | 'orders' | 'stock'; id?: number } | null;
+    target: { screen: 'order' | 'orders' | 'stock' | 'record_delivery'; id?: number } | null;
 };
 
 export type SpecialistTasks = {
@@ -222,6 +222,45 @@ export type SpecialistOrderCounts = {
     ready: number;
     picked_up: number;
     cancelled: number;
+};
+
+/** An eStore item code still waiting to arrive, with its orders, oldest first. */
+export type WaitingDeliveryGroup = {
+    item_code: string;
+    description: string;
+    /** Where it goes into stock; null when not linked to a product yet. */
+    stock_target: {
+        product_name: string;
+        variant_label: string;
+        has_options: boolean;
+        unit_name: string;
+        pieces_per_unit: number;
+        /** Several variants share the code: count how many of each arrived. */
+        split_into: { id: number; label: string; stock_on_hand: number }[];
+    } | null;
+    rows: {
+        purchase_order_item_id: number;
+        order_number: string | null;
+        date_ordered: string;
+        expected_delivery_date: string | null;
+        quantity_ordered: number;
+        quantity_received: number;
+        quantity_remaining: number;
+    }[];
+};
+
+/** A delivery already recorded. */
+export type RecordedDelivery = {
+    id: number;
+    received_on: string;
+    sales_invoice_number: string | null;
+    delivery_receipt_number: string | null;
+    note: string | null;
+    recorded_by: string;
+    recorded_at: string | null;
+    order_numbers: string[];
+    pieces_added_to_stock: number;
+    items_not_in_stock: number;
 };
 
 /** A product in the stock lookup. */
