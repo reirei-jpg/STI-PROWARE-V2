@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import OrderItemsList from '@/components/OrderItemsList';
 import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -88,9 +89,9 @@ export default function CartScreen() {
             <OrderPlaced
                 message={placed.message}
                 order={placed.order}
-                onDone={() => {
+                onDone={(next) => {
                     setPlaced(null);
-                    router.navigate('/');
+                    router.navigate(next === 'orders' ? '/orders?show=orders' : '/');
                 }}
             />
         );
@@ -369,7 +370,7 @@ function OrderPlaced({
 }: {
     message: string;
     order: StudentOrder;
-    onDone: () => void;
+    onDone: (next: 'orders' | 'store') => void;
 }) {
     const insets = useSafeAreaInsets();
 
@@ -394,45 +395,27 @@ function OrderPlaced({
             </View>
 
             <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
-                {order.items.map((item, position) => (
-                    <View
-                        key={item.id}
-                        className={`flex-row items-center gap-3 px-4 py-3 ${position === 0 ? '' : 'border-t border-slate-100'}`}
-                    >
-                        <View className="flex-1">
-                            <Text className="font-sans-bold text-sm text-slate-900">
-                                {item.product_name}
-                            </Text>
-                            <Text className="font-sans text-xs text-slate-500">
-                                {item.variant_label ? `${item.variant_label} · ` : ''}
-                                {formatUnits(item.quantity, item.unit_name)}
-                                {item.pieces_per_unit > 1
-                                    ? ` (${formatUnits(item.quantity * item.pieces_per_unit, 'Piece')})`
-                                    : ''}
-                            </Text>
-                        </View>
-                        <Text className="font-sans-bold text-sm text-slate-900">
-                            {formatPeso(item.line_total_centavos)}
-                        </Text>
-                    </View>
-                ))}
-                <View className="flex-row items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
-                    <Text className="font-sans-bold text-sm text-slate-600">
-                        Total to pay in cash
-                    </Text>
-                    <Text className="font-sans-bold text-lg text-slate-900">
-                        {formatPeso(order.total_centavos)}
-                    </Text>
-                </View>
+                <OrderItemsList order={order} />
             </View>
 
-            <Pressable
-                onPress={onDone}
-                accessibilityRole="button"
-                className="items-center rounded-2xl bg-brand py-4"
-            >
-                <Text className="font-sans-bold text-base text-white">Back to the store</Text>
-            </Pressable>
+            <View className="gap-3">
+                <Pressable
+                    onPress={() => onDone('orders')}
+                    accessibilityRole="button"
+                    className="items-center rounded-2xl bg-brand py-4"
+                >
+                    <Text className="font-sans-bold text-base text-white">See My Orders</Text>
+                </Pressable>
+                <Pressable
+                    onPress={() => onDone('store')}
+                    accessibilityRole="button"
+                    className="items-center rounded-2xl border border-slate-200 bg-white py-4"
+                >
+                    <Text className="font-sans-bold text-base text-slate-700">
+                        Back to the store
+                    </Text>
+                </Pressable>
+            </View>
         </ScrollView>
     );
 }

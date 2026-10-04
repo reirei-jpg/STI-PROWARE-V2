@@ -121,6 +121,21 @@ export type StudentOrder = {
     can_cancel: boolean;
 };
 
+/** A student's preorder (a reservation; nothing to pay). */
+export type StudentPreorder = {
+    id: number;
+    product_id: number;
+    product_name: string;
+    photo_url: string | null;
+    variant_label: string | null;
+    quantity: number;
+    status: 'active' | 'cancelled';
+    status_label: string;
+    preorders_close_on: string | null;
+    can_cancel: boolean;
+    created_at: string | null;
+};
+
 export type StorefrontHome = {
     coming_soon: StorefrontTileProduct[];
     on_sale: StorefrontTileProduct[];

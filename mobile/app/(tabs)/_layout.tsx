@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, ShoppingCart, UserRound } from 'lucide-react-native';
+import { Home, Package, ShoppingCart, UserRound } from 'lucide-react-native';
 
 import { useCart } from '@/lib/cart';
 
@@ -7,8 +7,8 @@ const BRAND_BLUE = '#0D6EFD';
 const INACTIVE = '#94a3b8';
 
 /**
- * The bottom tabs. The Cart tab shows how many items are in the cart.
- * Orders and Preorders are added as they are built.
+ * The bottom tabs. The Cart tab shows how many items are in the cart;
+ * Orders holds both My Orders and My Preorders.
  */
 export default function TabsLayout() {
     const { cart } = useCart();
@@ -53,6 +53,16 @@ export default function TabsLayout() {
                         fontFamily: 'InstrumentSans_700Bold',
                         fontSize: 11,
                     },
+                }}
+            />
+
+            <Tabs.Screen
+                name="orders"
+                options={{
+                    title: 'Orders',
+                    tabBarIcon: ({ color, size }) => (
+                        <Package color={color} size={size} />
+                    ),
                 }}
             />
 

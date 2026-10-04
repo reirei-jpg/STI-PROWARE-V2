@@ -164,18 +164,24 @@ export default function ProductScreen() {
                                             {notice}
                                         </Text>
                                     </View>
-                                    {!comingSoon && (
-                                        <Pressable
-                                            onPress={() => router.navigate('/cart')}
-                                            accessibilityRole="button"
-                                            className="flex-row items-center justify-center gap-2 self-start rounded-xl border border-emerald-300 bg-white px-4 py-2.5"
-                                        >
+                                    <Pressable
+                                        onPress={() =>
+                                            router.navigate(
+                                                comingSoon ? '/orders?show=preorders' : '/cart',
+                                            )
+                                        }
+                                        accessibilityRole="button"
+                                        className="flex-row items-center justify-center gap-2 self-start rounded-xl border border-emerald-300 bg-white px-4 py-2.5"
+                                    >
+                                        {comingSoon ? (
+                                            <CalendarClock size={16} color="#047857" />
+                                        ) : (
                                             <ShoppingCart size={16} color="#047857" />
-                                            <Text className="font-sans-bold text-sm text-emerald-800">
-                                                View Cart
-                                            </Text>
-                                        </Pressable>
-                                    )}
+                                        )}
+                                        <Text className="font-sans-bold text-sm text-emerald-800">
+                                            {comingSoon ? 'See My Preorders' : 'View Cart'}
+                                        </Text>
+                                    </Pressable>
                                 </View>
                             )}
 
