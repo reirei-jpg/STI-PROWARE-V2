@@ -1,19 +1,34 @@
 import Constants from 'expo-constants';
-import { LogOut, Mail, Server, UserRound } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { Bell, BellRing, LogOut, Mail, Server, UserRound } from 'lucide-react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
 import { describeServer } from '@/lib/config';
+import { notificationsAllowed } from '@/lib/push';
 
 /**
- * The student's account on this phone, and Log out.
+ * The student's account on this phone, whether notifications are on (with
+ * a way to turn them on), and Log out. Logging out also stops this phone's
+ * notifications.
  */
 export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const { user, signOut } = useAuth();
     const [signingOut, setSigningOut] = useState(false);
+    const [pushAllowed, setPushAllowed] = useState<boolean | null>(null);
+
+    // Checked each time Profile opens, so it is right after coming back
+    // from the phone's settings.
+    useFocusEffect(
+        useCallback(() => {
+            notificationsAllowed()
+                .then(setPushAllowed)
+                .catch(() => setPushAllowed(null));
+        }, []),
+    );
 
     const confirmSignOut = (): void => {
         Alert.alert('Log out?', 'You will need to sign in again on this phone.', [
@@ -48,7 +63,32 @@ export default function ProfileScreen() {
                 <Row icon={<Server size={18} color="#2563eb" />} label="Server">
                     {describeServer()}
                 </Row>
+                {pushAllowed !== null && (
+                    <Row icon={<Bell size={18} color="#2563eb" />} label="Notifications on this phone">
+                        {pushAllowed ? 'On' : 'Off'}
+                    </Row>
+                )}
             </View>
+
+            {pushAllowed === false && (
+                <View className="mt-4 gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <Text className="font-sans text-sm leading-5 text-amber-900">
+                        Notifications are off, so you will not be told on this
+                        phone when an order is ready. Turn them on in the
+                        phone&apos;s settings.
+                    </Text>
+                    <Pressable
+                        onPress={() => void Linking.openSettings()}
+                        accessibilityRole="button"
+                        className="flex-row items-center justify-center gap-2 self-start rounded-xl border border-amber-300 bg-white px-4 py-2.5"
+                    >
+                        <BellRing size={16} color="#b45309" />
+                        <Text className="font-sans-bold text-sm text-amber-800">
+                            Turn on notifications
+                        </Text>
+                    </Pressable>
+                </View>
+            )}
 
             <Pressable
                 onPress={confirmSignOut}

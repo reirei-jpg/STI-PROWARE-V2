@@ -27,6 +27,20 @@ async function loadNotifications(): Promise<NotificationsModule | null> {
     return import('expo-notifications');
 }
 
+/**
+ * Whether this phone lets the app show notifications: null when push cannot
+ * work in this build (Expo Go).
+ */
+export async function notificationsAllowed(): Promise<boolean | null> {
+    const Notifications = await loadNotifications();
+
+    if (!Notifications) {
+        return null;
+    }
+
+    return (await Notifications.getPermissionsAsync()).granted;
+}
+
 /** Asks for permission (Android 13+ shows a prompt) and returns whether it was given. */
 async function ensurePermission(Notifications: NotificationsModule): Promise<boolean> {
     const current = await Notifications.getPermissionsAsync();
