@@ -2,6 +2,7 @@
 
 namespace App\Services\Shop;
 
+use App\Actions\Orders\CancelOrderByStudent;
 use App\Models\Order;
 use App\Models\OrderItem;
 
@@ -12,6 +13,20 @@ use App\Models\OrderItem;
  */
 final class OrderRow
 {
+    /**
+     * The row on the student's own My Orders (website and phone app), with
+     * whether they may still cancel it.
+     *
+     * @return array<string, mixed>
+     */
+    public static function forStudent(Order $order): array
+    {
+        return [
+            ...self::of($order),
+            'can_cancel' => CancelOrderByStudent::refusal($order) === null,
+        ];
+    }
+
     /**
      * @return array{id: int, number: string|null, status: string, status_label: string, student_name: string, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string, ready_at: string|null, picked_up_at: string|null, cancelled_at: string|null, cancel_reason: string|null}
      */

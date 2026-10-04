@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\Orders\CancelOrder;
+use App\Actions\Orders\CancelOrderByStudent;
 use App\Actions\Orders\PlaceOrder;
-use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Services\Shop\OrderRow;
 use Illuminate\Http\RedirectResponse;
@@ -29,10 +28,7 @@ class StudentOrderController extends Controller
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (Order $order): array => [
-                ...OrderRow::of($order),
-                'can_cancel' => $order->status === OrderStatus::Placed,
-            ]);
+            ->through(fn (Order $order): array => OrderRow::forStudent($order));
 
         return Inertia::render('storefront/my-orders', [
             'orders' => $orders,
@@ -58,22 +54,19 @@ class StudentOrderController extends Controller
      * The student cancels while the order is still Placed; once the office
      * has prepared it, they are asked to talk to the office.
      */
-    public function cancel(Request $request, Order $order, CancelOrder $cancelOrder): RedirectResponse
+    public function cancel(Request $request, Order $order, CancelOrderByStudent $cancelOrder): RedirectResponse
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
-        if ($order->status !== OrderStatus::Placed) {
-            Inertia::flash('toast', [
-                'type' => 'error',
-                'message' => $order->status === OrderStatus::Ready
-                    ? "Order {$order->number} is already prepared, so it can no longer be cancelled here. Please talk to the PROWARE office."
-                    : "Order {$order->number} is already {$order->status->label()}.",
-            ]);
+        $refusal = CancelOrderByStudent::refusal($order);
+
+        if ($refusal !== null) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $refusal]);
 
             return back();
         }
 
-        $cancelOrder->handle($order, $request->user(), 'Cancelled by the student.');
+        $cancelOrder->handle($order, $request->user());
 
         Inertia::flash('toast', [
             'type' => 'success',

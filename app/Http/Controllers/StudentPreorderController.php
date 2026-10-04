@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Preorders\CancelPreorderByStudent;
 use App\Enums\PreorderStatus;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
@@ -28,18 +29,7 @@ class StudentPreorderController extends Controller
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (Preorder $preorder): array => [
-                'id' => $preorder->id,
-                'product_name' => $preorder->product->name,
-                'photo_url' => $preorder->product->mainPhoto?->url(),
-                'variant_label' => $preorder->variant->choices === [] ? null : $preorder->variant->label(),
-                'quantity' => $preorder->quantity,
-                'status' => $preorder->status->value,
-                'status_label' => $preorder->status->label(),
-                'preorders_close_on' => $preorder->product->preorders_close_on?->toDateString(),
-                'can_cancel' => $preorder->status === PreorderStatus::Active && $preorder->product->acceptsPreorders(),
-                'created_at' => $preorder->created_at?->toIso8601String(),
-            ]);
+            ->through(fn (Preorder $preorder): array => CancelPreorderByStudent::row($preorder));
 
         return Inertia::render('storefront/my-preorders', [
             'preorders' => $preorders,
@@ -76,22 +66,20 @@ class StudentPreorderController extends Controller
     /**
      * Cancel a preorder, while preorders for the product are still open.
      */
-    public function destroy(Request $request, Preorder $preorder): RedirectResponse
+    public function destroy(Request $request, Preorder $preorder, CancelPreorderByStudent $cancelPreorder): RedirectResponse
     {
         abort_unless($preorder->user_id === $request->user()->id, 404);
 
         $product = $preorder->product;
+        $refusal = CancelPreorderByStudent::refusal($preorder);
 
-        if ($preorder->status !== PreorderStatus::Active || ! $product->acceptsPreorders()) {
-            Inertia::flash('toast', [
-                'type' => 'error',
-                'message' => "Preorders for {$product->name} are closed, so this preorder can no longer be cancelled here. Please ask the PROWARE office.",
-            ]);
+        if ($refusal !== null) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $refusal]);
 
             return back();
         }
 
-        $preorder->update(['status' => PreorderStatus::Cancelled, 'cancelled_at' => now()]);
+        $cancelPreorder->handle($preorder);
 
         Inertia::flash('toast', [
             'type' => 'success',
