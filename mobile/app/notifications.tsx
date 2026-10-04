@@ -12,14 +12,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
+import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
+import { noticeTarget } from '@/lib/notice-target';
 import { useNotifications } from '@/lib/notifications';
 import type { StudentNotification, StudentNotificationData } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
 /**
  * What a notice says, in the website bell's words and V1's colors: green
- * good news (ready), red cancelled, amber preorder.
+ * good news (ready), red cancelled or urgent, amber waiting (preorder, low
+ * stock), blue in progress (new order, delivery).
  */
 function describe(data: StudentNotificationData): {
     title: string;
@@ -49,6 +51,42 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        // The Specialist's notices, in the bell's words.
+        case 'order_placed':
+            return {
+                title: `New order ${data.order_number}`,
+                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay in cash. Prepare it, then mark it Ready for pickup.`,
+                titleClass: 'text-blue-800',
+                stripe: '#3b82f6',
+            };
+        case 'low_stock':
+            return {
+                title: `${data.stock_on_hand === 0 ? 'Out of stock' : 'Low stock'}: ${data.product_name}`,
+                body: `${formatUnits(data.stock_on_hand, 'Piece')} left · you are warned at ${formatUnits(data.alert_at, 'Piece')}. Order more in the eStore.`,
+                titleClass: data.stock_on_hand === 0 ? 'text-red-700' : 'text-amber-800',
+                stripe: data.stock_on_hand === 0 ? '#f87171' : '#f59e0b',
+            };
+        case 'delivery_reminder':
+            return {
+                title: `Delivery expected ${data.when}${data.order_number ? `: Order #${data.order_number}` : ''}`,
+                body: `${data.percent_received}% received so far · ${data.quantity_remaining.toLocaleString('en-PH')} still to come (as ordered on the eStore)${data.expected_delivery_date ? ` · ${formatDate(data.expected_delivery_date)}` : ''}. Record it on the website.`,
+                titleClass: 'text-blue-800',
+                stripe: '#3b82f6',
+            };
+        case 'sale_ending':
+            return {
+                title: `Sale ending tomorrow: ${data.product_name}`,
+                body: `Ends ${formatDateTime(data.ends_at)}. Extend it on the website, or let it go back to its normal price.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
+        case 'sale_ended':
+            return {
+                title: `Sale ended: ${data.product_name}`,
+                body: `It is back to ${data.normal_price}.`,
+                titleClass: 'text-slate-900',
+                stripe: '#cbd5e1',
+            };
         default:
             return {
                 title: 'Notice from the PROWARE office',
@@ -60,9 +98,9 @@ function describe(data: StudentNotificationData): {
 }
 
 /**
- * The student's notices, newest first, like the website's bell. Tapping one
- * marks it read and opens what it is about: the order, or the item that
- * arrived.
+ * The signed-in student's or Specialist's notices, newest first, like the
+ * website's bell. Tapping one marks it read and opens what it is about (an
+ * order, an item, a product's stock) when the phone has a screen for it.
  */
 export default function NotificationsScreen() {
     const insets = useSafeAreaInsets();
@@ -95,12 +133,10 @@ export default function NotificationsScreen() {
                 .catch(() => undefined);
         }
 
-        const data = notice.data;
+        const target = noticeTarget(notice.data);
 
-        if (data.kind === 'order_ready' || data.kind === 'order_cancelled') {
-            router.push(`/order/${data.order_id}`);
-        } else if (data.kind === 'preorder_arrived') {
-            router.push(`/product/${data.product_id}`);
+        if (target) {
+            router.push(target);
         }
     };
 

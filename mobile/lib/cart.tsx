@@ -35,7 +35,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }, [request]);
 
     useEffect(() => {
-        if (user === null) {
+        // Only students have a cart.
+        if (user === null || user.role !== 'student') {
             setCart(null);
 
             return;

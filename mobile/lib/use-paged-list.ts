@@ -8,9 +8,13 @@ import type { Page } from './types';
  * A long list from the server, 20 at a time: the first page, more as the
  * student scrolls, and a reload (pull down, or coming back to the screen).
  */
-export function usePagedList<T extends { id: number | string }>(path: string) {
+export function usePagedList<T extends { id: number | string }, Extra = Record<string, never>>(
+    path: string,
+) {
     const { request } = useAuth();
     const [items, setItems] = useState<T[] | null>(null);
+    /** Anything else the server sent with the latest page (e.g. counts). */
+    const [extra, setExtra] = useState<Extra | null>(null);
     const [page, setPage] = useState(1);
     const [lastPage, setLastPage] = useState(1);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -20,7 +24,9 @@ export function usePagedList<T extends { id: number | string }>(path: string) {
     const load = useCallback(
         async (pageToLoad: number) => {
             const requestNumber = ++latestRequest.current;
-            const result = await request<Page<T>>(`${path}?page=${pageToLoad}`);
+            const result = await request<Page<T> & Extra>(
+                `${path}${path.includes('?') ? '&' : '?'}page=${pageToLoad}`,
+            );
 
             // A reload started after this one wins.
             if (requestNumber !== latestRequest.current) {
@@ -32,6 +38,7 @@ export function usePagedList<T extends { id: number | string }>(path: string) {
             );
             setPage(result.current_page);
             setLastPage(result.last_page);
+            setExtra(result);
         },
         [path, request],
     );
@@ -72,5 +79,5 @@ export function usePagedList<T extends { id: number | string }>(path: string) {
         );
     }, []);
 
-    return { items, error, loadingMore, reload, loadMore, replaceItem };
+    return { items, extra, error, loadingMore, reload, loadMore, replaceItem };
 }

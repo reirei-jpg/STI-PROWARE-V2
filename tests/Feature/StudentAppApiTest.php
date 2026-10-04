@@ -63,7 +63,7 @@ test('signing in on the app explains what is wrong', function (Closure $makeUser
         ->assertJsonValidationErrors(['email' => $message]);
 })->with([
     'wrong password' => [fn () => User::query()->where('email', 'delacruz.123456@sti.edu.ph')->sole(), 'wrong', 'These credentials do not match our records.'],
-    'staff account' => [fn () => User::factory()->specialist()->create(['password' => 'Demo@2026!']), 'Demo@2026!', 'The PROWARE app is for students. Staff, please use the website.'],
+    'school admin account' => [fn () => User::factory()->schoolAdmin()->create(['password' => 'Demo@2026!']), 'Demo@2026!', 'The PROWARE app is for students and the PROWARE Specialist. Please use the website.'],
     'email not verified' => [fn () => User::factory()->student()->unverified()->create(['password' => 'Demo@2026!']), 'Demo@2026!', 'Verify your email on the PROWARE website first, then sign in here.'],
 ]);
 

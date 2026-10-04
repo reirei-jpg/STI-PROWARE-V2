@@ -17,11 +17,14 @@ import { NotificationsProvider } from '@/lib/notifications';
 import PushHandler from '@/lib/push';
 
 /**
- * Signed-in students see the tabs; everyone else sees the login.
+ * A signed-in student sees the shop; the PROWARE Specialist sees their
+ * To-do, Orders and Stock; everyone else sees the login.
  */
 function RootNavigator() {
     const { user, restoring } = useAuth();
     const isSignedIn = user !== null;
+    const isStudent = user?.role === 'student';
+    const isSpecialist = user?.role === 'specialist';
 
     if (restoring) {
         return null;
@@ -34,10 +37,20 @@ function RootNavigator() {
                 contentStyle: { backgroundColor: '#F3F7FA' },
             }}
         >
-            <Stack.Protected guard={isSignedIn}>
+            <Stack.Protected guard={isStudent}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="product/[id]" />
                 <Stack.Screen name="order/[id]" />
+            </Stack.Protected>
+
+            <Stack.Protected guard={isSpecialist}>
+                <Stack.Screen name="(staff)" />
+                <Stack.Screen name="staff-order/[id]" />
+                <Stack.Screen name="stock/[id]" />
+                <Stack.Screen name="record-delivery" />
+            </Stack.Protected>
+
+            <Stack.Protected guard={isSignedIn}>
                 <Stack.Screen name="notifications" />
             </Stack.Protected>
 

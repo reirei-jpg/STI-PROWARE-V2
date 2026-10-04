@@ -17,11 +17,13 @@ import {
     saveToken,
 } from './session-storage';
 
-/** The signed-in student. */
+/** The signed-in student or PROWARE Specialist. */
 export type SessionUser = {
     id: number;
     name: string;
     email: string;
+    /** Decides whether the app shows the shop or the Specialist's screens. */
+    role: 'student' | 'specialist';
 };
 
 type LoginResponse = { token: string; user: SessionUser };

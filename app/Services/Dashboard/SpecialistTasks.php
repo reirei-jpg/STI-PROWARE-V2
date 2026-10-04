@@ -87,10 +87,11 @@ final class SpecialistTasks
                 label: 'Ready for pickup',
                 url: route('orders.ready', $order),
                 method: 'post',
+                target: ['screen' => 'order', 'id' => $order->id],
             ))
             ->all();
 
-        return [...$tasks, ...self::more($total, 'more orders to prepare', route('orders.index'))];
+        return [...$tasks, ...self::more($total, 'more orders to prepare', route('orders.index'), ['screen' => 'orders'])];
     }
 
     /**
@@ -152,10 +153,11 @@ final class SpecialistTasks
                 detail: $detail.'. Order more in the eStore.',
                 label: 'See stock',
                 url: route('products.stock', $productId),
+                target: ['screen' => 'stock', 'id' => $productId],
             );
         }
 
-        return [...$tasks, ...self::more($total, 'more products low on stock', route('products.index', ['stock' => 'low']))];
+        return [...$tasks, ...self::more($total, 'more products low on stock', route('products.index', ['stock' => 'low']), ['screen' => 'stock'])];
     }
 
     /**
@@ -248,6 +250,7 @@ final class SpecialistTasks
                     detail: $order->percentReceived().'% received so far'.($order->expected_delivery_note ? " · {$order->expected_delivery_note}" : ''),
                     label: 'Record Delivery',
                     url: route('deliveries.create'),
+                    target: ['screen' => 'record_delivery'],
                 );
             })
             ->all());
@@ -272,6 +275,7 @@ final class SpecialistTasks
                 detail: '₱'.number_format($order->total_centavos / 100, 2).' · '.$order->status->label().'. It cancels itself tonight if not picked up.',
                 label: 'Open order',
                 url: route('orders.index', ['show' => 'all', 'search' => $order->number]),
+                target: ['screen' => 'order', 'id' => $order->id],
             ))
             ->all());
     }
@@ -363,9 +367,13 @@ final class SpecialistTasks
     }
 
     /**
-     * @return array{key: string, kind: string, title: string, detail: string, action: array{label: string, url: string, method: string}}
+     * A task. `target` is the phone app's screen for it (an order, a
+     * product's stock, or the list); null means it is done on the website.
+     *
+     * @param  array{screen: string, id?: int}|null  $target
+     * @return array{key: string, kind: string, title: string, detail: string, action: array{label: string, url: string, method: string}, target: array{screen: string, id?: int}|null}
      */
-    private static function task(string $key, string $kind, string $title, string $detail, string $label, string $url, string $method = 'get'): array
+    private static function task(string $key, string $kind, string $title, string $detail, string $label, string $url, string $method = 'get', ?array $target = null): array
     {
         return [
             'key' => $key,
@@ -373,15 +381,17 @@ final class SpecialistTasks
             'title' => $title,
             'detail' => $detail,
             'action' => ['label' => $label, 'url' => $url, 'method' => $method],
+            'target' => $target,
         ];
     }
 
     /**
      * "And 3 more …" when a list is longer than what is shown.
      *
+     * @param  array{screen: string, id?: int}|null  $target
      * @return list<array<string, mixed>>
      */
-    private static function more(int $total, string $what, string $url): array
+    private static function more(int $total, string $what, string $url, ?array $target = null): array
     {
         $left = $total - self::SHOWN_PER_KIND;
 
@@ -392,6 +402,7 @@ final class SpecialistTasks
             detail: '',
             label: 'See all',
             url: $url,
+            target: $target,
         )];
     }
 }

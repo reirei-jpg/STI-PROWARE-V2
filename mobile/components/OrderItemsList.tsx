@@ -7,7 +7,11 @@ import type { StudentOrder } from '@/lib/types';
  * An order's items, each with its unit and the price when it was ordered
  * ("2 Packs (100 pcs) × ₱900.00"), and the total to pay in cash.
  */
-export default function OrderItemsList({ order }: { order: StudentOrder }) {
+export default function OrderItemsList({
+    order,
+}: {
+    order: Pick<StudentOrder, 'items' | 'total_centavos'>;
+}) {
     return (
         <View>
             {order.items.map((item, position) => (

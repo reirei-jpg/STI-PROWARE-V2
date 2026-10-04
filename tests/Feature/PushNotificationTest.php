@@ -1,14 +1,23 @@
 <?php
 
+use App\Enums\ProductStatus;
 use App\Enums\PushResult;
 use App\Models\DeviceToken;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Notifications\ExpectedDeliveryReminder;
+use App\Notifications\LowStockAlert;
 use App\Notifications\OrderCancelled;
 use App\Notifications\OrderPlaced;
 use App\Notifications\OrderReady;
 use App\Notifications\PreorderArrived;
+use App\Notifications\PurchaseOrderUploaded;
+use App\Notifications\SaleEnded;
+use App\Notifications\SaleEndingSoon;
 use App\Services\FcmClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
@@ -119,12 +128,14 @@ function pushMessagesSent(): array
         ->all();
 }
 
-test('registering a phone needs a signed-in student', function () {
+test('registering a phone needs a signed-in student or Specialist', function () {
     $this->putJson(route('api.v1.device-token.store'), ['token' => 'abc'])->assertUnauthorized();
 
-    pushRegister($this, pushPhone(User::factory()->specialist()->create()))->assertForbidden();
-
+    pushRegister($this, pushPhone(User::factory()->schoolAdmin()->create()))->assertForbidden();
     expect(DeviceToken::query()->count())->toBe(0);
+
+    pushRegister($this, pushPhone(User::factory()->specialist()->create()))->assertOk();
+    expect(DeviceToken::query()->count())->toBe(1);
 });
 
 test('a student registers their phone and it is tied to that sign-in', function () {
@@ -273,13 +284,63 @@ test('every phone of the student gets the push and other students do not', funct
     expect(collect(pushMessagesSent())->pluck('token')->sort()->values()->all())->toBe(['phone-token', 'tablet-token']);
 });
 
-test('staff notices are not pushed to phones', function () {
+test('the Specialist\'s notices are pushed with the bell\'s words', function (Closure $notice, string $title, string $body, string $kind) {
     pushFakeCredentials();
     pushFakeFirebase();
     $specialist = User::factory()->specialist()->create();
     DeviceToken::factory()->for($specialist)->create();
 
-    $specialist->notify(new OrderPlaced(Order::factory()->create()));
+    $specialist->notify($notice());
+
+    $message = pushMessagesSent()[0];
+    expect($message['notification'])->toBe(['title' => $title, 'body' => $body])
+        ->and($message['data']['kind'])->toBe($kind);
+})->with([
+    'new order' => [
+        function () {
+            $order = Order::factory()->for(User::factory()->student()->create(['name' => 'Juan Dela Cruz']), 'student')->create(['total_centavos' => 70000]);
+            $order->forceFill(['number' => 'PW-0007'])->save();
+            OrderItem::factory()->for($order)->create();
+
+            return new OrderPlaced($order);
+        },
+        'New order PW-0007',
+        'Juan Dela Cruz · 1 item · ₱700.00 to pay in cash. Prepare it, then mark it Ready for pickup.',
+        'order_placed',
+    ],
+    'low stock' => [
+        fn () => new LowStockAlert(ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Ballpen', 'low_stock_alert_at' => 5]))->create(['stock_on_hand' => 3])),
+        'Low stock: STI Ballpen',
+        '3 pcs left · you are warned at 5 pcs. Order more in the eStore.',
+        'low_stock',
+    ],
+    'delivery expected' => [
+        fn () => new ExpectedDeliveryReminder(orderWith(['PRUM01-01' => 10], ['order_number' => '30801', 'expected_delivery_date' => '2026-10-04']), 'today'),
+        'Delivery expected today: Order #30801',
+        '0% received so far · 10 still to come (as ordered on the eStore) · Oct 4, 2026',
+        'delivery_reminder',
+    ],
+    'sale ending' => [
+        fn () => new SaleEndingSoon(Product::factory()->status(ProductStatus::OnSale)->create(['name' => 'STI Umbrella', 'sale_ends_at' => CarbonImmutable::parse('2026-10-05 17:00', 'Asia/Manila')])),
+        'Sale ending tomorrow: STI Umbrella',
+        'Ends Oct 5, 2026, 5:00 PM. Open it to extend the sale, or let it go back to its normal price.',
+        'sale_ending',
+    ],
+    'sale ended' => [
+        fn () => new SaleEnded(Product::factory()->create(['name' => 'STI Umbrella', 'price_centavos' => 35000])),
+        'Sale ended: STI Umbrella',
+        'It is back to ₱350.00 / pc.',
+        'sale_ended',
+    ],
+]);
+
+test('the School Admin\'s notices are not pushed to phones', function () {
+    pushFakeCredentials();
+    pushFakeFirebase();
+    $schoolAdmin = User::factory()->schoolAdmin()->create();
+    DeviceToken::factory()->for($schoolAdmin)->create();
+
+    $schoolAdmin->notify(new PurchaseOrderUploaded(PurchaseOrder::factory()->create()));
 
     Http::assertNothingSent();
 });
