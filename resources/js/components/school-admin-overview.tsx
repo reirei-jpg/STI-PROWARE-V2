@@ -9,6 +9,7 @@ import {
     Truck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
@@ -18,6 +19,15 @@ import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 type ActivityKind = 'upload' | 'delivery' | 'closed_short';
+
+type ActivityEvent = {
+    kind: ActivityKind;
+    at: string | null;
+    by: string | null;
+    purchase_order_id: number | null;
+    title: string;
+    detail: string;
+};
 
 export type SchoolAdminOverviewData = {
     cards: {
@@ -30,14 +40,10 @@ export type SchoolAdminOverviewData = {
         deliveries_this_week: number;
         recorded_by: string[];
     };
-    activity: {
-        kind: ActivityKind;
-        at: string | null;
-        by: string | null;
-        purchase_order_id: number | null;
-        title: string;
-        detail: string;
-    }[];
+    /** Uploads and short closes, newest first. */
+    purchase_order_activity: ActivityEvent[];
+    /** Deliveries recorded, newest first. */
+    delivery_activity: ActivityEvent[];
     expected: {
         purchase_order_id: number;
         order_number: string | null;
@@ -46,6 +52,8 @@ export type SchoolAdminOverviewData = {
         percent_received: number;
     }[];
 };
+
+type Tab = 'purchase_orders' | 'deliveries';
 
 const activityIcons: Record<ActivityKind, LucideIcon> = {
     upload: FileUp,
@@ -59,10 +67,16 @@ const activityClasses: Record<ActivityKind, string> = {
     closed_short: 'bg-amber-50 text-amber-700',
 };
 
+const purchaseOrderUrl = (id: number | null) =>
+    id === null
+        ? PurchaseOrderController.index().url
+        : PurchaseOrderController.index({ query: { view: id } }).url;
+
 /**
  * The School Admin's dashboard: monitoring the purchase orders the
- * Specialist uploads and the deliveries that arrive (view only). Every line
- * says who did what and when, and opens that purchase order.
+ * Specialist uploads and the deliveries that arrive (view only), in two
+ * tabs. Every line says who did what and when, and opens that purchase
+ * order with its Delivery History.
  */
 export default function SchoolAdminOverview({
     firstName,
@@ -71,13 +85,13 @@ export default function SchoolAdminOverview({
     firstName: string;
     overview: SchoolAdminOverviewData;
 }) {
+    const [tab, setTab] = useState<Tab>('purchase_orders');
     const today = new Intl.DateTimeFormat('en-PH', {
         weekday: 'long',
         month: 'short',
         day: 'numeric',
     }).format(new Date());
     const cards = overview.cards;
-    const purchaseOrders = PurchaseOrderController.index().url;
 
     return (
         <>
@@ -89,173 +103,290 @@ export default function SchoolAdminOverview({
                     description={`${today} · the purchase orders the Specialist uploaded and what has arrived. View only.`}
                 />
 
-                <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                    <OverviewCard
-                        href={purchaseOrders}
+                <div
+                    role="tablist"
+                    aria-label="What to monitor"
+                    className="flex flex-wrap gap-2"
+                >
+                    <TabButton
+                        active={tab === 'purchase_orders'}
+                        onClick={() => setTab('purchase_orders')}
                         icon={ClipboardList}
-                        label="Awaiting delivery"
-                        value={cards.awaiting}
+                        count={cards.awaiting + cards.partially_received}
                     >
-                        purchase {cards.awaiting === 1 ? 'order' : 'orders'}{' '}
-                        with nothing received yet
-                    </OverviewCard>
-                    <OverviewCard
-                        href={purchaseOrders}
-                        icon={Timer}
-                        label="Partially received"
-                        value={cards.partially_received}
-                    >
-                        {cards.partially_received === 0
-                            ? 'none in progress'
-                            : `${cards.partially_percent}% received on average`}
-                    </OverviewCard>
-                    <OverviewCard
-                        href={purchaseOrders}
-                        icon={CheckCircle2}
-                        label="Completed"
-                        value={cards.completed}
-                    >
-                        {cards.completed_short === 0
-                            ? 'all fully delivered'
-                            : `incl. ${cards.completed_short} closed short`}
-                    </OverviewCard>
-                    <OverviewCard
-                        href={DeliveryController.index().url}
+                        Purchase Orders
+                    </TabButton>
+                    <TabButton
+                        active={tab === 'deliveries'}
+                        onClick={() => setTab('deliveries')}
                         icon={Truck}
-                        label="Deliveries this week"
-                        value={cards.deliveries_this_week}
+                        count={cards.deliveries_this_week}
                     >
-                        {cards.recorded_by.length === 0
-                            ? 'none recorded yet'
-                            : `recorded by ${cards.recorded_by.join(', ')}`}
-                    </OverviewCard>
-                </section>
+                        Deliveries
+                    </TabButton>
+                </div>
 
-                <Panel
-                    title="Recent activity"
-                    description="Uploads, deliveries and orders closed short, newest first. Open one to see the full purchase order and its Delivery History."
-                    actions={
-                        <Link
-                            href={DeliveryController.index()}
-                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                        >
-                            <Truck size={15} />
-                            All deliveries
-                        </Link>
-                    }
-                >
-                    {overview.activity.length === 0 ? (
-                        <p className="px-6 py-10 text-center text-sm text-slate-500">
-                            Nothing uploaded or received yet.
-                        </p>
-                    ) : (
-                        <ul className="divide-y divide-slate-100">
-                            {overview.activity.map((event, index) => {
-                                const Icon = activityIcons[event.kind];
+                {tab === 'purchase_orders' ? (
+                    <div className="space-y-7">
+                        <section className="grid gap-5 md:grid-cols-3">
+                            <OverviewCard
+                                href={PurchaseOrderController.index().url}
+                                icon={ClipboardList}
+                                label="Awaiting delivery"
+                                value={cards.awaiting}
+                            >
+                                purchase{' '}
+                                {cards.awaiting === 1 ? 'order' : 'orders'} with
+                                nothing received yet
+                            </OverviewCard>
+                            <OverviewCard
+                                href={PurchaseOrderController.index().url}
+                                icon={Timer}
+                                label="Partially received"
+                                value={cards.partially_received}
+                            >
+                                {cards.partially_received === 0
+                                    ? 'none in progress'
+                                    : `${cards.partially_percent}% received on average`}
+                            </OverviewCard>
+                            <OverviewCard
+                                href={PurchaseOrderController.index().url}
+                                icon={CheckCircle2}
+                                label="Completed"
+                                value={cards.completed}
+                            >
+                                {cards.completed_short === 0
+                                    ? 'all fully delivered'
+                                    : `incl. ${cards.completed_short} closed short`}
+                            </OverviewCard>
+                        </section>
 
-                                return (
-                                    <li key={`${event.kind}-${index}`}>
-                                        <Link
-                                            href={
-                                                event.purchase_order_id
-                                                    ? PurchaseOrderController.index(
-                                                          {
-                                                              query: {
-                                                                  view: event.purchase_order_id,
-                                                              },
-                                                          },
-                                                      ).url
-                                                    : purchaseOrders
-                                            }
-                                            className="flex items-start gap-3 px-6 py-4 transition hover:bg-slate-50"
-                                        >
-                                            <span
-                                                className={cn(
-                                                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                                                    activityClasses[event.kind],
-                                                )}
-                                            >
-                                                <Icon size={19} />
-                                            </span>
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block font-black text-slate-900">
-                                                    {event.title}
-                                                </span>
-                                                <span className="mt-0.5 block text-sm text-slate-600">
-                                                    {event.detail}
-                                                </span>
-                                                <span className="mt-1 block text-xs text-slate-400">
-                                                    {formatDateTime(event.at)}
-                                                    {event.by &&
-                                                        ` · by ${event.by}`}
-                                                </span>
-                                            </span>
-                                        </Link>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                </Panel>
+                        <ActivityPanel
+                            title="Recent purchase orders"
+                            description="Uploaded by the Specialist, and orders closed short, newest first. Open one to see its items and Delivery History."
+                            empty="No purchase order uploaded yet."
+                            events={overview.purchase_order_activity}
+                            seeAllLabel="All purchase orders"
+                            seeAllHref={PurchaseOrderController.index().url}
+                            seeAllIcon={ClipboardList}
+                        />
+                    </div>
+                ) : (
+                    <div className="space-y-7">
+                        <section className="grid gap-5 md:grid-cols-2">
+                            <OverviewCard
+                                href={DeliveryController.index().url}
+                                icon={Truck}
+                                label="Deliveries this week"
+                                value={cards.deliveries_this_week}
+                            >
+                                {cards.recorded_by.length === 0
+                                    ? 'none recorded yet'
+                                    : `recorded by ${cards.recorded_by.join(', ')}`}
+                            </OverviewCard>
+                            <OverviewCard
+                                href={PurchaseOrderController.index().url}
+                                icon={PackageCheck}
+                                label="Expected this week"
+                                value={overview.expected.length}
+                            >
+                                {overview.expected.some((order) => order.late)
+                                    ? 'including late ones'
+                                    : 'as Head Office said'}
+                            </OverviewCard>
+                        </section>
 
-                <Panel
-                    title="Expected this week"
-                    description="Deliveries Head Office said will arrive, and late ones."
-                >
-                    {overview.expected.length === 0 ? (
-                        <p className="px-6 py-10 text-center text-sm text-slate-500">
-                            No delivery is expected this week.
-                        </p>
-                    ) : (
-                        <ul className="divide-y divide-slate-100">
-                            {overview.expected.map((order) => (
-                                <li key={order.purchase_order_id}>
-                                    <Link
-                                        href={
-                                            PurchaseOrderController.index({
-                                                query: {
-                                                    view: order.purchase_order_id,
-                                                },
-                                            }).url
-                                        }
-                                        className="flex items-center justify-between gap-3 px-6 py-4 text-sm transition hover:bg-slate-50"
-                                    >
-                                        <span className="flex items-center gap-3">
-                                            <PackageCheck
-                                                size={18}
-                                                className="text-blue-600"
-                                            />
-                                            <span className="font-black text-slate-900">
-                                                {order.order_number
-                                                    ? `Order #${order.order_number}`
-                                                    : 'Purchase order'}
-                                            </span>
-                                            <span
-                                                className={cn(
-                                                    'rounded-full px-2.5 py-0.5 text-xs font-black',
-                                                    order.late
-                                                        ? 'bg-red-100 text-red-700'
-                                                        : 'bg-blue-100 text-blue-700',
-                                                )}
-                                            >
-                                                {order.late ? 'Late · ' : ''}
-                                                expected{' '}
-                                                {formatDateOrdered(
-                                                    order.expected_delivery_date,
-                                                )}
-                                            </span>
-                                        </span>
-                                        <span className="font-bold text-slate-600">
-                                            {order.percent_received}% received
-                                        </span>
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </Panel>
+                        <ActivityPanel
+                            title="Recent deliveries"
+                            description="What arrived, for which order, with the SI # and DR #, newest first. Open one to see the purchase order."
+                            empty="No delivery recorded yet."
+                            events={overview.delivery_activity}
+                            seeAllLabel="All deliveries"
+                            seeAllHref={DeliveryController.index().url}
+                            seeAllIcon={Truck}
+                        />
+
+                        <ExpectedPanel expected={overview.expected} />
+                    </div>
+                )}
             </div>
         </>
+    );
+}
+
+function TabButton({
+    active,
+    onClick,
+    icon: Icon,
+    count,
+    children,
+}: {
+    active: boolean;
+    onClick: () => void;
+    icon: LucideIcon;
+    count: number;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={onClick}
+            className={cn(
+                'inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-black transition',
+                active
+                    ? 'border-[#0D6EFD] bg-[#0D6EFD] text-white shadow-sm'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+            )}
+        >
+            <Icon size={17} />
+            {children}
+            <span
+                className={cn(
+                    'rounded-full px-2 py-0.5 text-xs font-black',
+                    active ? 'bg-white/25' : 'bg-slate-100 text-slate-600',
+                )}
+            >
+                {count.toLocaleString('en-PH')}
+            </span>
+        </button>
+    );
+}
+
+function ActivityPanel({
+    title,
+    description,
+    empty,
+    events,
+    seeAllLabel,
+    seeAllHref,
+    seeAllIcon: SeeAllIcon,
+}: {
+    title: string;
+    description: string;
+    empty: string;
+    events: ActivityEvent[];
+    seeAllLabel: string;
+    seeAllHref: string;
+    seeAllIcon: LucideIcon;
+}) {
+    return (
+        <Panel
+            title={title}
+            description={description}
+            actions={
+                <Link
+                    href={seeAllHref}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                >
+                    <SeeAllIcon size={15} />
+                    {seeAllLabel}
+                </Link>
+            }
+        >
+            {events.length === 0 ? (
+                <p className="px-6 py-10 text-center text-sm text-slate-500">
+                    {empty}
+                </p>
+            ) : (
+                <ul className="divide-y divide-slate-100">
+                    {events.map((event, index) => {
+                        const Icon = activityIcons[event.kind];
+
+                        return (
+                            <li key={`${event.kind}-${index}`}>
+                                <Link
+                                    href={purchaseOrderUrl(
+                                        event.purchase_order_id,
+                                    )}
+                                    className="flex items-start gap-3 px-6 py-4 transition hover:bg-slate-50"
+                                >
+                                    <span
+                                        className={cn(
+                                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                                            activityClasses[event.kind],
+                                        )}
+                                    >
+                                        <Icon size={19} />
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block font-black text-slate-900">
+                                            {event.title}
+                                        </span>
+                                        <span className="mt-0.5 block text-sm text-slate-600">
+                                            {event.detail}
+                                        </span>
+                                        <span className="mt-1 block text-xs text-slate-400">
+                                            {formatDateTime(event.at)}
+                                            {event.by && ` · by ${event.by}`}
+                                        </span>
+                                    </span>
+                                </Link>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </Panel>
+    );
+}
+
+function ExpectedPanel({
+    expected,
+}: {
+    expected: SchoolAdminOverviewData['expected'];
+}) {
+    return (
+        <Panel
+            title="Expected this week"
+            description="Deliveries Head Office said will arrive, and late ones."
+        >
+            {expected.length === 0 ? (
+                <p className="px-6 py-10 text-center text-sm text-slate-500">
+                    No delivery is expected this week.
+                </p>
+            ) : (
+                <ul className="divide-y divide-slate-100">
+                    {expected.map((order) => (
+                        <li key={order.purchase_order_id}>
+                            <Link
+                                href={purchaseOrderUrl(order.purchase_order_id)}
+                                className="flex items-center justify-between gap-3 px-6 py-4 text-sm transition hover:bg-slate-50"
+                            >
+                                <span className="flex flex-wrap items-center gap-3">
+                                    <PackageCheck
+                                        size={18}
+                                        className="text-blue-600"
+                                    />
+                                    <span className="font-black text-slate-900">
+                                        {order.order_number
+                                            ? `Order #${order.order_number}`
+                                            : 'Purchase order'}
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'rounded-full px-2.5 py-0.5 text-xs font-black',
+                                            order.late
+                                                ? 'bg-red-100 text-red-700'
+                                                : 'bg-blue-100 text-blue-700',
+                                        )}
+                                    >
+                                        {order.late ? 'Late · ' : ''}expected{' '}
+                                        {formatDateOrdered(
+                                            order.expected_delivery_date,
+                                        )}
+                                    </span>
+                                </span>
+                                <span className="font-bold text-slate-600">
+                                    {order.percent_received}% received
+                                </span>
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </Panel>
     );
 }
 

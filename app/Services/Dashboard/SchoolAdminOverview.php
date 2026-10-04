@@ -18,13 +18,18 @@ final class SchoolAdminOverview
     public const ACTIVITY_SHOWN = 10;
 
     /**
-     * @return array{cards: array<string, mixed>, activity: list<array<string, mixed>>, expected: list<array<string, mixed>>}
+     * Two tabs: purchase orders (uploads and short closes) and deliveries.
+     *
+     * @return array{cards: array<string, mixed>, purchase_order_activity: list<array<string, mixed>>, delivery_activity: list<array<string, mixed>>, expected: list<array<string, mixed>>}
      */
     public function all(): array
     {
+        $activity = collect($this->activity());
+
         return [
             'cards' => $this->cards(),
-            'activity' => $this->activity(),
+            'purchase_order_activity' => array_values($activity->whereIn('kind', ['upload', 'closed_short'])->values()->all()),
+            'delivery_activity' => array_values($activity->where('kind', 'delivery')->values()->all()),
             'expected' => $this->expected(),
         ];
     }
@@ -111,11 +116,12 @@ final class SchoolAdminOverview
                 detail: '"'.$order->closed_reason.'" · '.$order->percentReceived().'% received',
             ));
 
+        // Each tab keeps its own newest ten.
         return array_values($uploads
-            ->concat($deliveries)
             ->concat($shortCloses)
             ->sortByDesc('at')
             ->take(self::ACTIVITY_SHOWN)
+            ->concat($deliveries)
             ->values()
             ->all());
     }
