@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PreorderController;
+use App\Http\Controllers\Api\V1\Specialist\DeliveryController;
 use App\Http\Controllers\Api\V1\Specialist\OrderController as SpecialistOrderController;
 use App\Http\Controllers\Api\V1\Specialist\StockController;
 use App\Http\Controllers\Api\V1\Specialist\TaskController;
@@ -57,7 +58,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::delete('preorders/{preorder}', [PreorderController::class, 'destroy'])->name('preorders.destroy');
     });
 
-    // The Specialist's to-do, orders and stock.
+    // The Specialist's to-do, orders, deliveries and stock.
     Route::middleware(['auth:sanctum', 'role:specialist'])->prefix('specialist')->name('specialist.')->group(function () {
         Route::get('tasks', TaskController::class)->name('tasks');
 
@@ -67,6 +68,10 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::post('orders/{order}/picked-up', [SpecialistOrderController::class, 'pickedUp'])->name('orders.picked-up');
         Route::post('orders/{order}/undo-pickup', [SpecialistOrderController::class, 'undoPickup'])->name('orders.undo-pickup');
         Route::post('orders/{order}/cancel', [SpecialistOrderController::class, 'cancel'])->name('orders.cancel');
+
+        Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
+        Route::get('deliveries/waiting', [DeliveryController::class, 'waiting'])->name('deliveries.waiting');
+        Route::post('deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
 
         Route::get('stock', [StockController::class, 'index'])->name('stock.index');
         Route::get('stock/{product}', [StockController::class, 'show'])->name('stock.show');

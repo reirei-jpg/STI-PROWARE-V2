@@ -250,6 +250,7 @@ final class SpecialistTasks
                     detail: $order->percentReceived().'% received so far'.($order->expected_delivery_note ? " · {$order->expected_delivery_note}" : ''),
                     label: 'Record Delivery',
                     url: route('deliveries.create'),
+                    target: ['screen' => 'record_delivery'],
                 );
             })
             ->all());
