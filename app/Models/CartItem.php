@@ -11,18 +11,20 @@ use Illuminate\Support\Carbon;
 
 /**
  * Something in a student's cart: a size or color, by the piece (no pack) or
- * by a pack, and how many. Prices are not kept here; the current price is
- * used until the order is placed.
+ * by a pack, and how many, and whether it is ticked for the next Place
+ * Order. Prices are not kept here; the current price is used until the
+ * order is placed.
  *
  * @property int $id
  * @property int $user_id
  * @property int $product_variant_id
  * @property int|null $product_pack_id
  * @property int $quantity
+ * @property bool $selected ticked for the next Place Order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'product_variant_id', 'product_pack_id', 'quantity'])]
+#[Fillable(['user_id', 'product_variant_id', 'product_pack_id', 'quantity', 'selected'])]
 class CartItem extends Model
 {
     /** @use HasFactory<CartItemFactory> */
@@ -35,6 +37,7 @@ class CartItem extends Model
     {
         return [
             'quantity' => 'integer',
+            'selected' => 'boolean',
         ];
     }
 

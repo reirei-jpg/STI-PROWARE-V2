@@ -31,6 +31,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
 
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');
         Route::post('products/{product}/cart', [CartController::class, 'store'])->name('cart.store');
+        Route::patch('cart-selection', [CartController::class, 'select'])->name('cart.select');
         Route::patch('cart/{cartItem}', [CartController::class, 'update'])->name('cart.update');
         Route::delete('cart/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
 

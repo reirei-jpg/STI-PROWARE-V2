@@ -130,6 +130,12 @@ test('the app\'s cart follows the website\'s rules', function () {
         ->assertJsonPath('cart.can_place_order', true);
 
     $line = CartItem::sole();
+    $this->patchJson(route('api.v1.cart.select'), ['cart_item_ids' => [$line->id], 'selected' => false])
+        ->assertOk()
+        ->assertJsonPath('cart.lines.0.selected', false)
+        ->assertJsonPath('cart.selected_count', 0)
+        ->assertJsonPath('cart.can_place_order', false);
+    $this->patchJson(route('api.v1.cart.select'), ['cart_item_ids' => [$line->id], 'selected' => true])->assertJsonPath('cart.selected_count', 1);
     $this->patchJson(route('api.v1.cart.update', $line), ['quantity' => 0])
         ->assertJsonValidationErrors(['quantity' => 'Keep at least 1, or remove the item.']);
     $this->patchJson(route('api.v1.cart.update', $line), ['quantity' => 5])->assertOk()->assertJsonPath('cart.lines.0.quantity', 5);
@@ -235,7 +241,7 @@ test('the app gets exactly the cart, orders and preorders the website shows', fu
     $appOrders = $this->getJson(route('api.v1.orders.index'))->json('data');
     $appPreorders = $this->getJson(route('api.v1.preorders.index'))->json('data');
 
-    expect($appCart)->toBe(Arr::only($websiteCart, ['lines', 'total_centavos', 'can_place_order', 'pick_up_by']))
+    expect($appCart)->toBe(Arr::only($websiteCart, ['lines', 'selected_count', 'total_centavos', 'can_place_order', 'pick_up_by']))
         ->and($appCart['lines'])->toHaveCount(2);
     expect($appOrders)->toBe($websiteOrders)->toHaveCount(2);
     expect($appPreorders)->toBe($websitePreorders)->toHaveCount(1);

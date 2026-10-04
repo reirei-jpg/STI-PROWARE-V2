@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddToCartRequest;
 use App\Http\Requests\ChangeCartQuantityRequest;
+use App\Http\Requests\SelectCartItemsRequest;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Services\Shop\Cart;
@@ -42,6 +43,16 @@ class CartController extends Controller
         abort_unless($cartItem->user_id === $request->user()->id, 404);
 
         $cart->changeQuantity($cartItem, $request->integer('quantity'));
+
+        return response()->json(['cart' => CartView::for($request->user())]);
+    }
+
+    /**
+     * Tick or untick lines for the next Place Order.
+     */
+    public function select(SelectCartItemsRequest $request, Cart $cart): JsonResponse
+    {
+        $cart->select($request->user(), $request->cartItemIds(), $request->boolean('selected'));
 
         return response()->json(['cart' => CartView::for($request->user())]);
     }
