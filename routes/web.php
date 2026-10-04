@@ -45,6 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:specialist,school_admin')->group(function () {
         Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
         Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
+        Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
     });
 
     Route::middleware('role:specialist')->group(function () {
@@ -66,7 +67,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('preorders/{product}', [PreorderController::class, 'show'])->name('preorders.show');
         Route::patch('preorders/{product}/close-date', [PreorderController::class, 'updateCloseDate'])->name('preorders.close-date');
 
-        Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
         Route::get('deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
         Route::post('deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
 

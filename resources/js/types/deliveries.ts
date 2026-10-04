@@ -5,6 +5,10 @@ export type DeliveryListItem = {
     delivery_receipt_number: string | null;
     note: string | null;
     recorded_by: string;
+    /** When it was recorded in PROWARE. */
+    recorded_at: string | null;
+    /** The purchase orders it was for, to open their details. */
+    orders: { id: number; order_number: string | null }[];
     /** Pieces this delivery added to stock. */
     pieces_added_to_stock: number;
     /** Items in it that are not linked to a product, so not in stock. */

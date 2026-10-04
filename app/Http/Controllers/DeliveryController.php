@@ -59,6 +59,14 @@ class DeliveryController extends Controller
                 'delivery_receipt_number' => $delivery->delivery_receipt_number,
                 'note' => $delivery->note,
                 'recorded_by' => $delivery->recorder->name,
+                'recorded_at' => $delivery->created_at?->toIso8601String(),
+                'orders' => array_values($delivery->items
+                    ->map(fn (DeliveryItem $item): array => [
+                        'id' => $item->purchaseOrderItem->purchaseOrder->id,
+                        'order_number' => $item->purchaseOrderItem->purchaseOrder->order_number,
+                    ])
+                    ->unique('id')
+                    ->all()),
                 'pieces_added_to_stock' => (int) $delivery->getAttribute('pieces_added_to_stock'),
                 'items_not_in_stock' => (int) $delivery->getAttribute('items_not_in_stock_count'),
                 'order_numbers' => $delivery->items

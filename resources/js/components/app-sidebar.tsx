@@ -47,6 +47,15 @@ function useStaffMenuItems(): NavItem[] {
         },
     ];
 
+    // The School Admin monitors what arrived (view only).
+    if (auth.user.role === 'school_admin') {
+        items.push({
+            title: 'Deliveries',
+            href: DeliveryController.index(),
+            icon: Truck,
+        });
+    }
+
     if (auth.user.role === 'specialist') {
         items.push(
             {

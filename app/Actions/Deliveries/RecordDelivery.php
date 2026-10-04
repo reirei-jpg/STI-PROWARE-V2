@@ -2,13 +2,16 @@
 
 namespace App\Actions\Deliveries;
 
+use App\Enums\UserRole;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
+use App\Notifications\DeliveryRecorded;
 use App\Services\Stock\DeliveredStock;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -19,7 +22,8 @@ use Illuminate\Validation\ValidationException;
  *
  * Items whose eStore Item Code is linked to a product are added to stock
  * right away; the others wait until the Specialist links them. An item
- * shared by several variants goes into each variant as counted.
+ * shared by several variants goes into each variant as counted. The School
+ * Admin is told about every delivery recorded.
  */
 class RecordDelivery
 {
@@ -31,6 +35,23 @@ class RecordDelivery
      * @param  array<string, array<int, int>>  $splitsByCode  for codes shared by several variants: pieces by variant id
      */
     public function handle(User $recordedBy, array $details, array $quantities, array $splitsByCode = []): Delivery
+    {
+        $delivery = $this->record($recordedBy, $details, $quantities, $splitsByCode);
+
+        Notification::send(
+            User::query()->where('role', UserRole::SchoolAdmin)->get(),
+            new DeliveryRecorded($delivery->load('recorder')),
+        );
+
+        return $delivery;
+    }
+
+    /**
+     * @param  array{received_on: string, sales_invoice_number?: ?string, delivery_receipt_number?: ?string, note?: ?string}  $details
+     * @param  array<int, int>  $quantities
+     * @param  array<string, array<int, int>>  $splitsByCode
+     */
+    private function record(User $recordedBy, array $details, array $quantities, array $splitsByCode): Delivery
     {
         return DB::transaction(function () use ($recordedBy, $details, $quantities, $splitsByCode): Delivery {
             // Lock the items so two people recording at once cannot both

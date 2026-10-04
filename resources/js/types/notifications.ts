@@ -74,6 +74,29 @@ export type PreorderArrivedData = {
     product_name: string;
 };
 
+export type DeliveryRecordedData = {
+    kind: 'delivery_recorded';
+    delivery_id: number;
+    purchase_order_id: number | null;
+    order_numbers: string[];
+    received_on: string;
+    sales_invoice_number: string | null;
+    delivery_receipt_number: string | null;
+    recorded_by: string;
+    items_count: number;
+    /** Received, as counted on the eStore. */
+    quantity_received: number;
+};
+
+export type PurchaseOrderClosedShortData = {
+    kind: 'purchase_order_closed_short';
+    purchase_order_id: number;
+    order_number: string | null;
+    reason: string | null;
+    closed_by: string | null;
+    percent_received: number;
+};
+
 /** A notification in the bell: staff ones, and the student's own (orders, preorders). */
 export type StaffNotification = {
     id: string;
@@ -86,7 +109,9 @@ export type StaffNotification = {
         | OrderPlacedData
         | OrderReadyData
         | OrderCancelledData
-        | PreorderArrivedData;
+        | PreorderArrivedData
+        | DeliveryRecordedData
+        | PurchaseOrderClosedShortData;
     read: boolean;
     created_at: string | null;
 };

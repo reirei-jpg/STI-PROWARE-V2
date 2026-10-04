@@ -93,7 +93,7 @@ export default function NotificationBell() {
                                 ? 'You will be reminded here the day before and on the day of an expected delivery.'
                                 : auth.user.role === 'student'
                                   ? 'You will be told here when your order is ready for pickup, or when an item you preordered arrives.'
-                                  : 'You will be notified here when the Specialist uploads a purchase order.'}
+                                  : 'You will be notified here when the Specialist uploads a purchase order, records a delivery, or closes an order short.'}
                         </p>
                     </div>
                 ) : (
@@ -141,6 +141,44 @@ export default function NotificationBell() {
 }
 
 function NotificationText({ data }: { data: StaffNotification['data'] }) {
+    if (data.kind === 'delivery_recorded') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Delivery recorded
+                    {data.order_numbers.length > 0 &&
+                        `: Order ${data.order_numbers.map((number) => `#${number}`).join(', ')}`}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.quantity_received.toLocaleString('en-PH')} received
+                    (as ordered on the eStore) · {data.items_count}{' '}
+                    {data.items_count === 1 ? 'item' : 'items'} · received{' '}
+                    {formatDateOrdered(data.received_on)}
+                    {data.sales_invoice_number &&
+                        ` · SI # ${data.sales_invoice_number}`}
+                    {data.delivery_receipt_number &&
+                        ` · DR # ${data.delivery_receipt_number}`}{' '}
+                    · by {data.recorded_by}
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'purchase_order_closed_short') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-amber-800">
+                    Closed short
+                    {data.order_number ? `: Order #${data.order_number}` : ''}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    "{data.reason}" · {data.percent_received}% received
+                    {data.closed_by && ` · by ${data.closed_by}`}
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'order_placed') {
         return (
             <>

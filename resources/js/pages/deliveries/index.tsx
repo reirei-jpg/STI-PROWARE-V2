@@ -2,13 +2,19 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Search, SearchX, Truck, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
+import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import DateRangeFilter from '@/components/date-range-filter';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
-import { formatDateOrdered } from '@/lib/format';
+import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
-import type { DeliveryFilters, DeliveryListItem, Paginated } from '@/types';
+import type {
+    Auth,
+    DeliveryFilters,
+    DeliveryListItem,
+    Paginated,
+} from '@/types';
 
 const primaryButtonClasses =
     'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
@@ -32,7 +38,12 @@ export default function DeliveriesIndex({
     deliveries: Paginated<DeliveryListItem>;
     filters: DeliveryFilters;
 }) {
-    const { errors } = usePage<{ errors: Record<string, string> }>().props;
+    const { errors, auth } = usePage<{
+        errors: Record<string, string>;
+        auth: Auth;
+    }>().props;
+    // The School Admin only looks; recording deliveries is the Specialist's.
+    const canRecord = auth.user.role === 'specialist';
     const [search, setSearch] = useState(filters.search ?? '');
     const firstRender = useRef(true);
     const isFiltered = Boolean(
@@ -83,13 +94,15 @@ export default function DeliveriesIndex({
                     title="Deliveries"
                     description="Everything that arrived from Head Office, newest first. Each delivery updates the orders it belongs to."
                     actions={
-                        <Link
-                            href={DeliveryController.create()}
-                            className={primaryButtonClasses}
-                        >
-                            <Plus size={18} />
-                            Record Delivery
-                        </Link>
+                        canRecord && (
+                            <Link
+                                href={DeliveryController.create()}
+                                className={primaryButtonClasses}
+                            >
+                                <Plus size={18} />
+                                Record Delivery
+                            </Link>
+                        )
                     }
                 />
 
@@ -168,13 +181,15 @@ export default function DeliveriesIndex({
                                     Clear filters
                                 </button>
                             ) : (
-                                <Link
-                                    href={DeliveryController.create()}
-                                    className={`mt-6 ${primaryButtonClasses}`}
-                                >
-                                    <Plus size={17} />
-                                    Record Delivery
-                                </Link>
+                                canRecord && (
+                                    <Link
+                                        href={DeliveryController.create()}
+                                        className={`mt-6 ${primaryButtonClasses}`}
+                                    >
+                                        <Plus size={17} />
+                                        Record Delivery
+                                    </Link>
+                                )
                             )}
                         </div>
                     ) : (
@@ -225,19 +240,26 @@ export default function DeliveriesIndex({
                                                 </td>
                                                 <td className="px-5 py-4">
                                                     <div className="flex flex-wrap gap-1.5">
-                                                        {delivery.order_numbers.map(
-                                                            (orderNumber) => (
-                                                                <span
+                                                        {delivery.orders.map(
+                                                            (order) => (
+                                                                <Link
                                                                     key={
-                                                                        orderNumber
+                                                                        order.id
                                                                     }
-                                                                    className="rounded-full bg-blue-100 px-2.5 py-1 font-mono text-xs font-black text-blue-700"
+                                                                    href={PurchaseOrderController.index(
+                                                                        {
+                                                                            query: {
+                                                                                view: order.id,
+                                                                            },
+                                                                        },
+                                                                    )}
+                                                                    className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-mono text-xs font-black text-blue-700 transition hover:bg-blue-100"
+                                                                    title="Open this purchase order"
                                                                 >
-                                                                    #
-                                                                    {
-                                                                        orderNumber
-                                                                    }
-                                                                </span>
+                                                                    {order.order_number
+                                                                        ? `#${order.order_number}`
+                                                                        : 'Open order'}
+                                                                </Link>
                                                             ),
                                                         )}
                                                     </div>
@@ -259,8 +281,15 @@ export default function DeliveriesIndex({
                                                         </p>
                                                     )}
                                                 </td>
-                                                <td className="px-5 py-4 font-semibold text-slate-700">
-                                                    {delivery.recorded_by}
+                                                <td className="px-5 py-4">
+                                                    <p className="font-semibold text-slate-700">
+                                                        {delivery.recorded_by}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-slate-500">
+                                                        {formatDateTime(
+                                                            delivery.recorded_at,
+                                                        )}
+                                                    </p>
                                                 </td>
                                             </tr>
                                         ))}

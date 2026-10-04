@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Http\Requests\ClosePurchaseOrderRequest;
 use App\Http\Requests\SetExpectedDeliveryRequest;
 use App\Models\PurchaseOrder;
+use App\Models\User;
+use App\Notifications\PurchaseOrderClosedShort;
 use App\Services\Deliveries\DeliveryReminders;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -52,7 +56,7 @@ class PurchaseOrderDeliveryController extends Controller
 
     /**
      * Close an order short, with the reason, when Head Office will not
-     * deliver the rest.
+     * deliver the rest. The School Admin is told.
      */
     public function close(ClosePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
@@ -64,6 +68,11 @@ class PurchaseOrderDeliveryController extends Controller
             'closed_by' => $request->user()->id,
         ]);
         $purchaseOrder->refreshDeliveryProgress();
+
+        Notification::send(
+            User::query()->where('role', UserRole::SchoolAdmin)->get(),
+            new PurchaseOrderClosedShort($purchaseOrder->load('closer')),
+        );
 
         Inertia::flash('toast', [
             'type' => 'success',

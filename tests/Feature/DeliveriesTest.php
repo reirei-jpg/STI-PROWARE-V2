@@ -303,7 +303,7 @@ test('the school admin can only watch deliveries, not record them', function () 
     $order = orderWith(['UTMP02-03' => 10]);
     $this->actingAs(User::factory()->schoolAdmin()->create());
 
-    $this->get(route('deliveries.index'))->assertForbidden();
+    $this->get(route('deliveries.index'))->assertOk();
     $this->get(route('deliveries.create'))->assertForbidden();
     $this->post(route('deliveries.store'), [])->assertForbidden();
     $this->patch(route('purchase-orders.expected-delivery', $order), [])->assertForbidden();
