@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart';
 import { NotificationsProvider } from '@/lib/notifications';
+import PushHandler from '@/lib/push';
 
 /**
  * Signed-in students see the tabs; everyone else sees the login.
@@ -67,6 +68,7 @@ export default function RootLayout() {
                 <CartProvider>
                     <NotificationsProvider>
                         <RootNavigator />
+                        <PushHandler />
                     </NotificationsProvider>
                 </CartProvider>
             </AuthProvider>

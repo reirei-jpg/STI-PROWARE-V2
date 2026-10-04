@@ -8,6 +8,7 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "sti.proware.v2",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#F2DB11",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,7 +27,14 @@
       "expo-font",
       "expo-secure-store",
       "./plugins/with-cleartext-traffic",
-      "./plugins/with-short-native-build-path"
+      "./plugins/with-short-native-build-path",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0D6EFD"
+        }
+      ]
     ],
     "scheme": "stiprowarev2"
   }
