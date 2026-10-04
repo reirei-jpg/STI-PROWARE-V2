@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     Banknote,
     CheckCircle2,
@@ -16,7 +16,7 @@ import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { Auth, OrderRow, Paginated } from '@/types';
+import type { OrderRow, Paginated } from '@/types';
 
 type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
 
@@ -56,9 +56,6 @@ export default function OrdersIndex({
     counts: Record<Exclude<Show, 'all'>, number>;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
-    const { auth } = usePage<{ auth: Auth }>().props;
-    // The School Admin only looks; handling orders is the Specialist's.
-    const canManage = auth.user.role === 'specialist';
     const [cancelling, setCancelling] = useState<SpecialistOrder | null>(null);
     const [busy, setBusy] = useState<number | null>(null);
     const firstRender = useRef(true);
@@ -110,11 +107,7 @@ export default function OrdersIndex({
             <div className="space-y-7">
                 <PageHeader
                     title="Student Orders"
-                    description={
-                        canManage
-                            ? 'Orders students placed on the storefront. Prepare them, mark them Ready for pickup, and mark them Picked up when the student pays in cash. Orders not picked up by their date are cancelled by themselves and their items go back to stock.'
-                            : 'Orders students placed on the storefront, and who handled them. View only: the Specialist prepares the orders and collects the cash.'
-                    }
+                    description="Orders students placed on the storefront. Prepare them, mark them Ready for pickup, and mark them Picked up when the student pays in cash. Orders not picked up by their date are cancelled by themselves and their items go back to stock."
                 />
 
                 <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -219,8 +212,28 @@ export default function OrdersIndex({
                                         <div className="space-y-2 text-sm">
                                             <OrderWhen order={order} />
 
-                                            {canManage &&
-                                                order.status === 'placed' && (
+                                            {order.status === 'placed' && (
+                                                <button
+                                                    type="button"
+                                                    disabled={busy === order.id}
+                                                    onClick={() =>
+                                                        act(
+                                                            OrderController.ready(
+                                                                order.id,
+                                                            ).url,
+                                                            order,
+                                                        )
+                                                    }
+                                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+                                                >
+                                                    <PackageCheck size={16} />
+                                                    Ready for pickup
+                                                </button>
+                                            )}
+
+                                            {(order.status === 'placed' ||
+                                                order.status === 'ready') && (
+                                                <>
                                                     <button
                                                         type="button"
                                                         disabled={
@@ -228,89 +241,54 @@ export default function OrdersIndex({
                                                         }
                                                         onClick={() =>
                                                             act(
-                                                                OrderController.ready(
+                                                                OrderController.pickedUp(
                                                                     order.id,
                                                                 ).url,
                                                                 order,
                                                             )
                                                         }
-                                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+                                                        className={cn(
+                                                            'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-black transition disabled:opacity-60',
+                                                            order.status ===
+                                                                'ready'
+                                                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                                : 'border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50',
+                                                        )}
                                                     >
-                                                        <PackageCheck
-                                                            size={16}
-                                                        />
-                                                        Ready for pickup
+                                                        <Banknote size={16} />
+                                                        Picked up (paid)
                                                     </button>
-                                                )}
-
-                                            {canManage &&
-                                                (order.status === 'placed' ||
-                                                    order.status ===
-                                                        'ready') && (
-                                                    <>
-                                                        <button
-                                                            type="button"
-                                                            disabled={
-                                                                busy ===
-                                                                order.id
-                                                            }
-                                                            onClick={() =>
-                                                                act(
-                                                                    OrderController.pickedUp(
-                                                                        order.id,
-                                                                    ).url,
-                                                                    order,
-                                                                )
-                                                            }
-                                                            className={cn(
-                                                                'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-black transition disabled:opacity-60',
-                                                                order.status ===
-                                                                    'ready'
-                                                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                                                    : 'border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50',
-                                                            )}
-                                                        >
-                                                            <Banknote
-                                                                size={16}
-                                                            />
-                                                            Picked up (paid)
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setCancelling(
-                                                                    order,
-                                                                )
-                                                            }
-                                                            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2 font-black text-red-700 transition hover:bg-red-100"
-                                                        >
-                                                            Cancel order
-                                                        </button>
-                                                    </>
-                                                )}
-
-                                            {canManage &&
-                                                order.can_undo_pickup && (
                                                     <button
                                                         type="button"
-                                                        disabled={
-                                                            busy === order.id
-                                                        }
                                                         onClick={() =>
-                                                            act(
-                                                                OrderController.undoPickup(
-                                                                    order.id,
-                                                                ).url,
-                                                                order,
-                                                            )
+                                                            setCancelling(order)
                                                         }
-                                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                                                        title="Marked by mistake? Put it back to Ready for pickup (today only)."
+                                                        className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2 font-black text-red-700 transition hover:bg-red-100"
                                                     >
-                                                        <Undo2 size={16} />
-                                                        Undo pickup
+                                                        Cancel order
                                                     </button>
-                                                )}
+                                                </>
+                                            )}
+
+                                            {order.can_undo_pickup && (
+                                                <button
+                                                    type="button"
+                                                    disabled={busy === order.id}
+                                                    onClick={() =>
+                                                        act(
+                                                            OrderController.undoPickup(
+                                                                order.id,
+                                                            ).url,
+                                                            order,
+                                                        )
+                                                    }
+                                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                                                    title="Marked by mistake? Put it back to Ready for pickup (today only)."
+                                                >
+                                                    <Undo2 size={16} />
+                                                    Undo pickup
+                                                </button>
+                                            )}
                                         </div>
                                     </li>
                                 ))}

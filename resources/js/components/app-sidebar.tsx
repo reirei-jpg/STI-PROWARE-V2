@@ -47,22 +47,6 @@ function useStaffMenuItems(): NavItem[] {
         },
     ];
 
-    // The School Admin monitors student orders and products (view only).
-    if (auth.user.role === 'school_admin') {
-        items.push(
-            {
-                title: 'Student Orders',
-                href: OrderController.index(),
-                icon: ShoppingBag,
-            },
-            {
-                title: 'Products',
-                href: ProductController.index(),
-                icon: Package,
-            },
-        );
-    }
-
     if (auth.user.role === 'specialist') {
         items.push(
             {
