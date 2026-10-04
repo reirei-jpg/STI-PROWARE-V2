@@ -144,11 +144,11 @@ function NextStep({ order }: { order: StudentOrder }) {
         return (
             <View
                 style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
-                className={`flex-row items-start gap-3 rounded-2xl border px-4 py-3 ${ready ? 'border-emerald-200 bg-emerald-50' : 'border-blue-100 bg-blue-50'}`}
+                className={`flex-row items-start gap-3 rounded-2xl border px-4 py-3 ${ready ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}
             >
-                <Banknote size={20} color={ready ? '#047857' : '#1d4ed8'} />
+                <Banknote size={20} color={ready ? '#047857' : '#b45309'} />
                 <Text
-                    className={`flex-1 font-sans text-sm leading-5 ${ready ? 'text-emerald-900' : 'text-blue-900'}`}
+                    className={`flex-1 font-sans text-sm leading-5 ${ready ? 'text-emerald-900' : 'text-amber-900'}`}
                 >
                     {ready
                         ? 'Ready at the PROWARE office. '

@@ -2,22 +2,27 @@ import { Text, View } from 'react-native';
 
 import type { StudentOrder } from '@/lib/types';
 
+/*
+ * V1's status colors, which the user chose for the whole system (website
+ * and phone): amber is waiting (placed, not paid yet), green is good news
+ * (ready, picked up), red is cancelled.
+ */
 const statusClasses: Record<StudentOrder['status'], [string, string]> = {
-    placed: ['bg-blue-100', 'text-blue-800'],
-    ready: ['bg-emerald-100', 'text-emerald-800'],
-    picked_up: ['bg-slate-100', 'text-slate-700'],
+    placed: ['bg-amber-100', 'text-amber-700'],
+    ready: ['bg-emerald-100', 'text-emerald-700'],
+    picked_up: ['bg-emerald-100', 'text-emerald-700'],
     cancelled: ['bg-red-100', 'text-red-700'],
 };
 
 /** The stripe down a card's left edge, in its status color. */
 export const orderStripeColors: Record<StudentOrder['status'], string> = {
-    placed: '#3b82f6',
+    placed: '#f59e0b',
     ready: '#10b981',
-    picked_up: '#cbd5e1',
+    picked_up: '#10b981',
     cancelled: '#f87171',
 };
 
-/** The date colors used across PROWARE (see dueDateTier): red overdue, amber today, blue later. */
+/** V1's date colors (see dueDateTier): red overdue, amber today, blue later. */
 export const dateTierClasses = {
     overdue: 'font-sans-bold text-red-600',
     today: 'font-sans-bold text-amber-600',
