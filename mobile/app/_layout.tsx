@@ -33,6 +33,7 @@ function RootNavigator() {
         >
             <Stack.Protected guard={isSignedIn}>
                 <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="product/[id]" />
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>
