@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Clock, Flame, Search, Store, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -110,6 +110,25 @@ export default function HomeScreen() {
     useEffect(() => {
         void loadAll();
     }, [loadAll]);
+
+    // Coming back to Home (from a product, the Cart, Orders) shows Coming
+    // Soon and On Sale as they are now on the website, without losing the
+    // student's place in All Merchandise. The first visit is loadAll's.
+    const firstFocus = useRef(true);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (firstFocus.current) {
+                firstFocus.current = false;
+
+                return;
+            }
+
+            request<StorefrontHome>('/storefront')
+                .then(setHome)
+                .catch(() => undefined);
+        }, [request]),
+    );
 
     // Search as the student types, after a short pause.
     const firstSearch = useRef(true);

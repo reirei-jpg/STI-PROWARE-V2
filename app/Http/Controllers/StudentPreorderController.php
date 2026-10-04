@@ -23,16 +23,8 @@ class StudentPreorderController extends Controller
      */
     public function index(Request $request): Response
     {
-        $preorders = $request->user()->preorders()
-            ->with(['product.mainPhoto', 'variant'])
-            ->orderByRaw("case when status = 'active' then 0 else 1 end")
-            ->latest('id')
-            ->paginate(20)
-            ->withQueryString()
-            ->through(fn (Preorder $preorder): array => CancelPreorderByStudent::row($preorder));
-
         return Inertia::render('storefront/my-preorders', [
-            'preorders' => $preorders,
+            'preorders' => CancelPreorderByStudent::studentPage($request->user()),
         ]);
     }
 
@@ -59,7 +51,6 @@ class StudentPreorderController extends Controller
     {
         abort_unless($preorder->user_id === $request->user()->id, 404);
 
-        $product = $preorder->product;
         $refusal = CancelPreorderByStudent::refusal($preorder);
 
         if ($refusal !== null) {
@@ -72,7 +63,7 @@ class StudentPreorderController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Your preorder for {$product->name} was cancelled.",
+            'message' => CancelPreorderByStudent::message($preorder),
         ]);
 
         return back();

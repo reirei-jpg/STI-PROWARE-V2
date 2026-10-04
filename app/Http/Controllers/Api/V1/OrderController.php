@@ -22,12 +22,7 @@ class OrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        return response()->json($request->user()->orders()
-            ->with(['items', 'student'])
-            ->orderByRaw("case when status in ('placed', 'ready') then 0 else 1 end")
-            ->latest('id')
-            ->paginate(20)
-            ->through(fn (Order $order): array => OrderRow::forStudent($order)));
+        return response()->json(OrderRow::studentPage($request->user()));
     }
 
     public function show(Request $request, Order $order): JsonResponse
@@ -45,7 +40,7 @@ class OrderController extends Controller
         $order = $placeOrder->handle($request->user());
 
         return response()->json([
-            'message' => "Order {$order->number} placed. Pick it up and pay in cash at the PROWARE office by {$order->pick_up_by->format('M j, Y')}.",
+            'message' => PlaceOrder::message($order),
             'order' => OrderRow::forStudent($order->load(['items', 'student'])),
         ], 201);
     }
@@ -57,7 +52,7 @@ class OrderController extends Controller
         $cancelOrder->handle($order, $request->user());
 
         return response()->json([
-            'message' => "Order {$order->number} was cancelled.",
+            'message' => CancelOrderByStudent::message($order),
             'order' => OrderRow::forStudent($order->refresh()->load(['items', 'student'])),
         ]);
     }

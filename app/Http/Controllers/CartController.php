@@ -8,7 +8,6 @@ use App\Models\CartItem;
 use App\Models\Product;
 use App\Services\Shop\Cart;
 use App\Services\Shop\CartView;
-use App\Services\Stock\Units;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -40,7 +39,7 @@ class CartController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Added '.Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} to your cart.",
+            'message' => Cart::addedMessage($variant, $pack, $quantity),
         ]);
 
         return back();

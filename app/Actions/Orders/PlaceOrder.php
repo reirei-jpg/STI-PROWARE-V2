@@ -105,6 +105,15 @@ class PlaceOrder
     }
 
     /**
+     * "Order PW-0001 placed. Pick it up and pay in cash at the PROWARE office
+     * by Oct 7, 2026." (website and phone app).
+     */
+    public static function message(Order $order): string
+    {
+        return "Order {$order->number} placed. Pick it up and pay in cash at the PROWARE office by {$order->pick_up_by->format('M j, Y')}.";
+    }
+
+    /**
      * Every item must still be for sale at a price, and the pieces asked for
      * each size or color must be in stock.
      *

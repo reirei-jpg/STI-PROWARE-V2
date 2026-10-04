@@ -5,6 +5,8 @@ namespace App\Services\Shop;
 use App\Actions\Orders\CancelOrderByStudent;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * An order as the student's My Orders and the Specialist's Orders page show
@@ -13,6 +15,23 @@ use App\Models\OrderItem;
  */
 final class OrderRow
 {
+    /**
+     * A page of the student's My Orders (website and phone app): orders not
+     * picked up yet first, newest first, 20 at a time.
+     *
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    public static function studentPage(User $student): LengthAwarePaginator
+    {
+        return $student->orders()
+            ->with(['items', 'student'])
+            ->orderByRaw("case when status in ('placed', 'ready') then 0 else 1 end")
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (Order $order): array => self::forStudent($order));
+    }
+
     /**
      * The row on the student's own My Orders (website and phone app), with
      * whether they may still cancel it.

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterStorefrontRequest;
 use App\Models\Product;
@@ -44,10 +43,6 @@ class StorefrontController extends Controller
      */
     public function show(Product $product): JsonResponse
     {
-        abort_if($product->status === ProductStatus::Draft, 404);
-
-        $product->load([...StorefrontFeed::RELATIONS, 'photos', 'options']);
-
-        return response()->json(StorefrontProduct::details($product));
+        return response()->json(StorefrontProduct::forStudents($product));
     }
 }

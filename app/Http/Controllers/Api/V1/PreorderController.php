@@ -23,12 +23,7 @@ class PreorderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        return response()->json($request->user()->preorders()
-            ->with(['product.mainPhoto', 'variant'])
-            ->orderByRaw("case when status = 'active' then 0 else 1 end")
-            ->latest('id')
-            ->paginate(20)
-            ->through(fn (Preorder $preorder): array => CancelPreorderByStudent::row($preorder)));
+        return response()->json(CancelPreorderByStudent::studentPage($request->user()));
     }
 
     public function store(PlacePreorderRequest $request, Product $product, PlacePreorder $placePreorder): JsonResponse
@@ -48,7 +43,7 @@ class PreorderController extends Controller
         $cancelPreorder->handle($preorder);
 
         return response()->json([
-            'message' => "Your preorder for {$preorder->product->name} was cancelled.",
+            'message' => CancelPreorderByStudent::message($preorder),
             'preorder' => CancelPreorderByStudent::row($preorder->refresh()->load(['product.mainPhoto', 'variant'])),
         ]);
     }

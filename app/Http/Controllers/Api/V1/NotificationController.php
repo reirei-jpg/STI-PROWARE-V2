@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\NotificationRow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 
 /**
  * The student's notifications on the phone app (order ready, order
@@ -23,12 +23,7 @@ class NotificationController extends Controller
         $page = $user->notifications()
             ->latest()
             ->paginate(20)
-            ->through(fn (DatabaseNotification $notification): array => [
-                'id' => $notification->id,
-                'data' => $notification->data,
-                'read' => $notification->read_at !== null,
-                'created_at' => $notification->created_at?->toIso8601String(),
-            ]);
+            ->through(NotificationRow::of(...));
 
         return response()->json([
             ...$page->toArray(),

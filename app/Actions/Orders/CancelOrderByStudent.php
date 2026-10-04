@@ -17,6 +17,14 @@ class CancelOrderByStudent
     public function __construct(private CancelOrder $cancelOrder) {}
 
     /**
+     * "Order PW-0001 was cancelled." (website and phone app).
+     */
+    public static function message(Order $order): string
+    {
+        return "Order {$order->number} was cancelled.";
+    }
+
+    /**
      * Why the student cannot cancel the order now; null when they can.
      */
     public static function refusal(Order $order): ?string

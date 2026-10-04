@@ -43,6 +43,14 @@ final class Cart
         return $line;
     }
 
+    /**
+     * "Added 2 Boxes of STI Ballpen to your cart." (website and phone app).
+     */
+    public static function addedMessage(ProductVariant $variant, ?ProductPack $pack, int $quantity): string
+    {
+        return 'Added '.Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} to your cart.";
+    }
+
     public function changeQuantity(CartItem $line, int $quantity): void
     {
         $this->ensureInStock($line->student, $line->variant, $line->pack, $quantity, $line);

@@ -9,7 +9,6 @@ use App\Models\CartItem;
 use App\Models\Product;
 use App\Services\Shop\Cart;
 use App\Services\Shop\CartView;
-use App\Services\Stock\Units;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,7 +32,7 @@ class CartController extends Controller
         $cart->add($request->user(), $variant, $pack, $quantity);
 
         return response()->json([
-            'message' => 'Added '.Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} to your cart.",
+            'message' => Cart::addedMessage($variant, $pack, $quantity),
             'cart' => CartView::for($request->user()),
         ], 201);
     }

@@ -22,16 +22,8 @@ class StudentOrderController extends Controller
      */
     public function index(Request $request): Response
     {
-        $orders = $request->user()->orders()
-            ->with(['items', 'student'])
-            ->orderByRaw("case when status in ('placed', 'ready') then 0 else 1 end")
-            ->latest('id')
-            ->paginate(20)
-            ->withQueryString()
-            ->through(fn (Order $order): array => OrderRow::forStudent($order));
-
         return Inertia::render('storefront/my-orders', [
-            'orders' => $orders,
+            'orders' => OrderRow::studentPage($request->user()),
         ]);
     }
 
@@ -44,7 +36,7 @@ class StudentOrderController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Order {$order->number} placed. Pick it up and pay in cash at the PROWARE office by {$order->pick_up_by->format('M j, Y')}.",
+            'message' => PlaceOrder::message($order),
         ]);
 
         return to_route('my-orders.index');
@@ -70,7 +62,7 @@ class StudentOrderController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Order {$order->number} was cancelled.",
+            'message' => CancelOrderByStudent::message($order),
         ]);
 
         return back();

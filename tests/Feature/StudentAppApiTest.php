@@ -12,6 +12,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\OrderReady;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Arr;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
@@ -192,6 +193,67 @@ test('preordering and cancelling a preorder on the app', function () {
     $closed = Preorder::factory()->for($this->student, 'student')->for($shirt)->for($variant, 'variant')->create();
     $this->deleteJson(route('api.v1.preorders.destroy', $closed))
         ->assertJsonValidationErrors(['preorder' => 'Preorders for Anniversary Shirt are closed, so this preorder can no longer be cancelled here. Please ask the PROWARE office.']);
+});
+
+test('the app gets exactly the storefront the website shows', function () {
+    [$ballpen] = appBallpen();
+    $shirt = Product::factory()->create(['name' => 'Anniversary Shirt', 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-20']);
+    ProductVariant::factory()->for($shirt)->create();
+    $umbrella = Product::factory()->status(ProductStatus::OnSale)->create(['name' => 'STI Umbrella', 'sale_ends_at' => '2026-10-10 17:00']);
+    StockMovement::factory()->for(ProductVariant::factory()->for($umbrella)->create(['stock_on_hand' => 4]), 'variant')->create();
+    $hoodie = Product::factory()->create(['name' => 'STI Hoodie']);
+    ProductVariant::factory()->for($hoodie)->create(['stock_on_hand' => 0]);
+    StockMovement::factory()->for($hoodie->variants()->sole(), 'variant')->create();
+
+    $website = $this->actingAs($this->student)->get(route('home'));
+    $websiteView = $this->getJson(route('storefront.product', $ballpen))->json();
+    Sanctum::actingAs($this->student);
+    $app = $this->getJson(route('api.v1.storefront.home'))->json();
+    $appMerchandise = $this->getJson(route('api.v1.storefront.merchandise'))->json('data');
+    $appView = $this->getJson(route('api.v1.storefront.product', $ballpen))->json();
+
+    expect($app['coming_soon'])->toBe($website->inertiaProps('comingSoon'))->not->toBe([]);
+    expect($app['on_sale'])->toBe($website->inertiaProps('onSale'))->not->toBe([]);
+    expect($appMerchandise)->toBe($website->inertiaProps('merchandise.data'))->toHaveCount(3);
+    expect($appView)->toBe($websiteView);
+});
+
+test('the app gets exactly the cart, orders and preorders the website shows', function () {
+    [, $variant, $box] = appBallpen();
+    CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create(['quantity' => 2]);
+    CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->for($box, 'pack')->create(['quantity' => 1]);
+    Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::PickedUp]);
+    Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Placed]);
+    $shirt = Product::factory()->create(['name' => 'Anniversary Shirt', 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-20']);
+    Preorder::factory()->for($this->student, 'student')->for($shirt)->for(ProductVariant::factory()->for($shirt), 'variant')->create();
+
+    $websiteCart = $this->actingAs($this->student)->get(route('cart.index'))->inertiaProps();
+    $websiteOrders = $this->get(route('my-orders.index'))->inertiaProps('orders.data');
+    $websitePreorders = $this->get(route('my-preorders.index'))->inertiaProps('preorders.data');
+    Sanctum::actingAs($this->student);
+    $appCart = $this->getJson(route('api.v1.cart.index'))->json();
+    $appOrders = $this->getJson(route('api.v1.orders.index'))->json('data');
+    $appPreorders = $this->getJson(route('api.v1.preorders.index'))->json('data');
+
+    expect($appCart)->toBe(Arr::only($websiteCart, ['lines', 'total_centavos', 'can_place_order', 'pick_up_by']))
+        ->and($appCart['lines'])->toHaveCount(2);
+    expect($appOrders)->toBe($websiteOrders)->toHaveCount(2);
+    expect($appPreorders)->toBe($websitePreorders)->toHaveCount(1);
+});
+
+test('the app gets exactly the notifications the website\'s bell shows', function () {
+    $order = Order::factory()->for($this->student, 'student')->create();
+    $this->student->notify(new OrderReady($order));
+    $this->travel(5)->minutes();
+    $this->student->notify(new OrderReady($order));
+    $this->student->notifications()->latest()->first()->markAsRead();
+
+    $website = $this->actingAs($this->student)->get(route('my-orders.index'))->inertiaProps('notifications');
+    Sanctum::actingAs($this->student);
+    $app = $this->getJson(route('api.v1.notifications.index'))->json();
+
+    expect($app['data'])->toBe($website['recent'])->toHaveCount(2);
+    expect($app['unread_count'])->toBe($website['unread_count'])->toBe(1);
 });
 
 test('the app lists the student\'s notifications and marks them read', function () {
