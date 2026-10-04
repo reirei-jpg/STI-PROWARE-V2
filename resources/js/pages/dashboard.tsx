@@ -5,6 +5,7 @@ import {
     Boxes,
     CalendarClock,
     CheckCircle2,
+    ClipboardList,
     FileScan,
     Flame,
     Hourglass,
@@ -17,10 +18,9 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
+import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import PageHeader from '@/components/page-header';
-import SchoolAdminOverview from '@/components/school-admin-overview';
-import type { SchoolAdminOverviewData } from '@/components/school-admin-overview';
 import { formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
@@ -85,18 +85,14 @@ const taskIconClasses: Partial<Record<Task['kind'], string>> = {
 
 export default function Dashboard({
     tasks,
-    overview,
 }: {
     tasks: SpecialistTasks | null;
-    overview: SchoolAdminOverviewData | null;
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const firstName = auth.user.name.split(' ')[0];
 
     if (tasks === null) {
-        return overview === null ? null : (
-            <SchoolAdminOverview firstName={firstName} overview={overview} />
-        );
+        return <SchoolAdminDashboard firstName={firstName} />;
     }
 
     const hour = new Date().getHours();
@@ -320,5 +316,48 @@ function TaskRow({ task }: { task: Task }) {
                 {task.action.label}
             </Link>
         </li>
+    );
+}
+
+/**
+ * The School Admin only monitors purchase orders.
+ */
+function SchoolAdminDashboard({ firstName }: { firstName: string }) {
+    return (
+        <>
+            <Head title="Dashboard" />
+
+            <div className="space-y-7">
+                <PageHeader
+                    title={`Welcome, ${firstName}`}
+                    description="Here is where your PROWARE work starts."
+                />
+
+                <section className="grid gap-4 md:grid-cols-2">
+                    <Link
+                        href={PurchaseOrderController.index()}
+                        className="group flex items-start gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md"
+                    >
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                            <ClipboardList size={22} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="font-black text-slate-900">
+                                Purchase Orders
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
+                                See every eStore order the Specialist uploaded.
+                                The bell at the top tells you when a new one
+                                arrives.
+                            </p>
+                        </div>
+                        <ArrowRight
+                            size={18}
+                            className="mt-1 shrink-0 text-slate-300 transition group-hover:text-blue-600"
+                        />
+                    </Link>
+                </section>
+            </div>
+        </>
     );
 }
