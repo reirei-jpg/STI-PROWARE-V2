@@ -3,13 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\Order;
+use App\Notifications\Channels\PushChannel;
+use App\Notifications\Channels\PushesToPhones;
 use Illuminate\Notifications\Notification;
 
 /**
  * Tells the student their order is ready at the PROWARE office, and the
- * last day to pick it up and pay in cash.
+ * last day to pick it up and pay in cash. Also pushed to their phones.
  */
-class OrderReady extends Notification
+class OrderReady extends Notification implements PushesToPhones
 {
     public function __construct(public Order $order) {}
 
@@ -18,7 +20,7 @@ class OrderReady extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', PushChannel::class];
     }
 
     /**
@@ -32,6 +34,18 @@ class OrderReady extends Notification
             'order_number' => $this->order->number,
             'total_centavos' => $this->order->total_centavos,
             'pick_up_by' => $this->order->pick_up_by->toDateString(),
+        ];
+    }
+
+    /**
+     * @return array{title: string, body: string, data: array<string, scalar|null>}
+     */
+    public function toPush(object $notifiable): array
+    {
+        return [
+            'title' => "Order {$this->order->number} is ready for pickup",
+            'body' => 'Pick it up at the PROWARE office and pay ₱'.number_format($this->order->total_centavos / 100, 2)." in cash by {$this->order->pick_up_by->format('M j, Y')}.",
+            'data' => ['kind' => 'order_ready', 'order_id' => $this->order->id],
         ];
     }
 }

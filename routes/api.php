@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CartController;
+use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PreorderController;
@@ -20,6 +21,9 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
     Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+
+        Route::put('device-token', [DeviceTokenController::class, 'store'])->name('device-token.store');
+        Route::delete('device-token', [DeviceTokenController::class, 'destroy'])->name('device-token.destroy');
 
         Route::get('storefront', [StorefrontController::class, 'home'])->name('storefront.home');
         Route::get('merchandise', [StorefrontController::class, 'merchandise'])->name('storefront.merchandise');
