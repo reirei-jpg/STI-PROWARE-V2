@@ -28,6 +28,9 @@ enum StockMovementType: string
     /** An open order placed before holds existed: its pieces went back on the shelf, held for it. */
     case ConvertedToHeld = 'converted_to_held';
 
+    /** A free uniform from the enrollment promo: no money, to a named student. */
+    case FreePromo = 'free_promo';
+
     public function label(): string
     {
         return match ($this) {
@@ -37,6 +40,7 @@ enum StockMovementType: string
             self::OrderCancelled => 'Order cancelled',
             self::ReleaseUndone => 'Release undone',
             self::ConvertedToHeld => 'Changed to held',
+            self::FreePromo => 'Free (promo)',
         };
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Services\Deliveries\FollowUp;
+use App\Services\FreeUniforms\PromoRules;
 use App\Services\Shop\OrderRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,8 +14,9 @@ use Inertia\Response;
 /**
  * The Specialist's Maintenance page: settings that change how PROWARE
  * works without changing its code, each with who changed it last: how many
- * days a new order holds its items before it expires, and after how many
- * days a purchase order not complete is to be followed up.
+ * days a new order holds its items before it expires, after how many days
+ * a purchase order not complete is to be followed up, and how many students
+ * must enroll together to get free uniforms.
  */
 class MaintenanceController extends Controller
 {
@@ -31,6 +33,12 @@ class MaintenanceController extends Controller
                 'value' => FollowUp::days(),
                 'choices' => FollowUp::CHOICES,
                 ...Setting::lastChange(Setting::DELIVERY_FOLLOW_UP_DAYS),
+            ],
+            'promoGroupSize' => [
+                'value' => PromoRules::groupSize(),
+                'min' => PromoRules::MIN_GROUP_SIZE,
+                'max' => PromoRules::MAX_GROUP_SIZE,
+                ...Setting::lastChange(Setting::PROMO_GROUP_SIZE),
             ],
         ]);
     }
@@ -73,6 +81,29 @@ class MaintenanceController extends Controller
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => "Purchase orders not complete after {$days} days are now shown to follow up with Head Office.",
+        ]);
+
+        return back();
+    }
+
+    /**
+     * How many students must enroll together for each to get a free
+     * uniform set. Groups already recorded stay as they are.
+     */
+    public function updatePromoGroupSize(Request $request): RedirectResponse
+    {
+        $min = PromoRules::MIN_GROUP_SIZE;
+        $max = PromoRules::MAX_GROUP_SIZE;
+        $size = (int) $request->validate(
+            ['group_size' => ['required', 'integer', "between:{$min},{$max}"]],
+            ['group_size.between' => "Choose {$min} to {$max} students.", 'group_size.required' => "Choose {$min} to {$max} students."],
+        )['group_size'];
+
+        Setting::put(Setting::PROMO_GROUP_SIZE, $size, $request->user());
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "Groups of at least {$size} students who enroll together now get free uniforms. Groups already recorded stay as they are.",
         ]);
 
         return back();

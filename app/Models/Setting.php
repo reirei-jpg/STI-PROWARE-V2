@@ -25,6 +25,8 @@ class Setting extends Model
 
     public const DELIVERY_FOLLOW_UP_DAYS = 'delivery_follow_up_days';
 
+    public const PROMO_GROUP_SIZE = 'promo_group_size';
+
     protected $primaryKey = 'key';
 
     protected $keyType = 'string';

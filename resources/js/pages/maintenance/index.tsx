@@ -1,5 +1,12 @@
 import { Head, useForm } from '@inertiajs/react';
-import { CircleAlert, Clock, History, LoaderCircle, Save } from 'lucide-react';
+import {
+    CircleAlert,
+    Clock,
+    Gift,
+    History,
+    LoaderCircle,
+    Save,
+} from 'lucide-react';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
@@ -32,9 +39,11 @@ type ChoiceSetting = {
 export default function Maintenance({
     holdDays,
     followUpDays,
+    promoGroupSize,
 }: {
     holdDays: NumberSetting;
     followUpDays: ChoiceSetting;
+    promoGroupSize: NumberSetting;
 }) {
     return (
         <>
@@ -58,6 +67,13 @@ export default function Maintenance({
                     description="How purchase orders from Head Office are followed up."
                 >
                     <FollowUpDaysSetting setting={followUpDays} />
+                </Panel>
+
+                <Panel
+                    title="Free Uniforms"
+                    description="The enrollment promo: free uniform sets for students who enroll together."
+                >
+                    <PromoGroupSizeSetting setting={promoGroupSize} />
                 </Panel>
             </div>
         </>
@@ -125,6 +141,39 @@ function FollowUpDaysSetting({ setting }: { setting: ChoiceSetting }) {
 }
 
 /**
+ * How many students must enroll together for each to get a free uniform
+ * set (Free Uniforms page).
+ */
+function PromoGroupSizeSetting({ setting }: { setting: NumberSetting }) {
+    const form = useForm({ group_size: setting.value });
+    const choices = Array.from(
+        { length: setting.max - setting.min + 1 },
+        (_, index) => setting.min + index,
+    );
+
+    return (
+        <SettingRow
+            icon={<Gift size={19} className="text-emerald-600" />}
+            title="Students needed for free uniforms"
+            explanation="Students who enroll together in a group of at least this many each get one uniform set for free: a blouse or polo, and pants. Record them on the Free Uniforms page."
+            example="Example with 5: five friends who enroll on the same day each get a set. A group of 4 does not. Groups already recorded stay as they are."
+            unit="students"
+            setting={setting}
+            choices={choices}
+            chosen={form.data.group_size}
+            onChoose={(size) => form.setData('group_size', size)}
+            error={form.errors.group_size}
+            processing={form.processing}
+            onSave={() =>
+                form.patch(MaintenanceController.updatePromoGroupSize().url, {
+                    preserveScroll: true,
+                })
+            }
+        />
+    );
+}
+
+/**
  * One setting: what it does with an example and who changed it last, then
  * its choices as buttons and Save.
  */
@@ -133,6 +182,7 @@ function SettingRow({
     title,
     explanation,
     example,
+    unit = 'days',
     setting,
     choices,
     chosen,
@@ -145,6 +195,8 @@ function SettingRow({
     title: string;
     explanation: string;
     example: string;
+    /** What the numbers count, e.g. "days" or "students". */
+    unit?: string;
     setting: {
         value: number;
         changed_at: string | null;
@@ -158,6 +210,9 @@ function SettingRow({
     onSave: () => void;
 }) {
     const changed = chosen !== setting.value;
+    // "1 day", "2 days".
+    const counted = (count: number) =>
+        `${count} ${count === 1 ? unit.replace(/s$/, '') : unit}`;
 
     return (
         <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
@@ -190,7 +245,7 @@ function SettingRow({
                 <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
                     Now:{' '}
                     <span className="text-slate-900">
-                        {setting.value} {setting.value === 1 ? 'day' : 'days'}
+                        {counted(setting.value)}
                     </span>
                 </p>
                 <div
@@ -213,7 +268,7 @@ function SettingRow({
                                     : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
                             )}
                         >
-                            {days} {days === 1 ? 'day' : 'days'}
+                            {counted(days)}
                         </button>
                     ))}
                 </div>

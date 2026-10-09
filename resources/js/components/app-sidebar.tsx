@@ -3,6 +3,7 @@ import {
     CalendarClock,
     ClipboardList,
     FileScan,
+    Gift,
     LayoutDashboard,
     Package,
     Settings,
@@ -11,6 +12,7 @@ import {
     Truck,
 } from 'lucide-react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
+import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
@@ -86,6 +88,11 @@ function useStaffMenuItems(): NavItem[] {
                 title: 'Preorders',
                 href: PreorderController.index(),
                 icon: CalendarClock,
+            },
+            {
+                title: 'Free Uniforms',
+                href: FreeUniformController.index(),
+                icon: Gift,
             },
             {
                 title: 'Sales Reports',

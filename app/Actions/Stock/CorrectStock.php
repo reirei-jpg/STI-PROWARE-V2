@@ -25,13 +25,12 @@ class CorrectStock
     /**
      * @param  int  $amount  pieces to take out, or the actual count on the shelf, depending on the reason
      * @param  int|null  $centavosPerPiece  the eStore price per piece, needed when a count adds pieces
-     * @param  array{name: string, enrollment_form_number: string}|null  $recipient  who received pieces given free (promo)
      *
      * @throws ValidationException when the stock changed meanwhile, or added pieces have no eStore price
      */
-    public function handle(ProductVariant $variant, User $correctedBy, StockCorrectionReason $reason, int $amount, ?string $note, ?int $centavosPerPiece = null, ?array $recipient = null): StockMovement
+    public function handle(ProductVariant $variant, User $correctedBy, StockCorrectionReason $reason, int $amount, ?string $note, ?int $centavosPerPiece = null): StockMovement
     {
-        return DB::transaction(function () use ($variant, $correctedBy, $reason, $amount, $note, $centavosPerPiece, $recipient): StockMovement {
+        return DB::transaction(function () use ($variant, $correctedBy, $reason, $amount, $note, $centavosPerPiece): StockMovement {
             // Lock the variant so a delivery saved at the same moment cannot
             // be lost between reading and writing the balance.
             $locked = ProductVariant::query()->lockForUpdate()->findOrFail($variant->id);
@@ -58,8 +57,6 @@ class CorrectStock
                 'cost_centavos' => $change > 0 ? $centavosPerPiece * $change : null,
                 'reason' => $reason,
                 'note' => $note,
-                'recipient_name' => $reason->needsRecipient() ? $recipient['name'] ?? null : null,
-                'enrollment_form_number' => $reason->needsRecipient() ? $recipient['enrollment_form_number'] ?? null : null,
                 'recorded_by' => $correctedBy->id,
             ]);
 

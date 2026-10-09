@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\ProductStatus;
+use App\Enums\StockCorrectionReason;
+use App\Enums\StockMovementType;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -8,7 +10,9 @@ use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
+use App\Models\Setting;
 use App\Models\StockMovement;
+use App\Models\UniformSet;
 use App\Models\User;
 use App\Services\Stock\StockCost;
 use Carbon\CarbonImmutable;
@@ -208,32 +212,48 @@ test('the Selling Price cannot be set below the Cost on the eStore order', funct
         ->assertSessionHasNoErrors();
 });
 
-test('a free uniform (promo) is written down with who got it and what it was worth', function () {
+test('free uniform sets count in Given free at Cost and at Price, never as a sale', function () {
     $variant = costedJacket();
     receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200
+    Setting::put(Setting::PROMO_GROUP_SIZE, 2);
+    $set = UniformSet::factory()->create(['name' => 'BSIT', 'blouse_product_id' => null, 'polo_product_id' => $variant->product_id, 'pants_product_id' => $variant->product_id]);
     $this->actingAs($this->specialist);
 
-    $this->post(route('products.stock.correct', $variant->product), ['product_variant_id' => $variant->id, 'reason' => 'given_free', 'pieces_to_remove' => 2])
-        ->assertSessionHasErrors([
-            'recipient_name' => 'Enter the name of the student who received it.',
-            'enrollment_form_number' => 'Enter the student\'s enrollment form #.',
-        ]);
-
-    $this->post(route('products.stock.correct', $variant->product), [
-        'product_variant_id' => $variant->id, 'reason' => 'given_free', 'pieces_to_remove' => 2,
-        'recipient_name' => 'Maria Santos', 'enrollment_form_number' => '2026-01234',
+    $this->post(route('free-uniforms.store'), [
+        'enrolled_on' => now()->toDateString(),
+        'students' => collect(['Maria Santos' => '2026-01234', 'Juan Dela Cruz' => '2026-01235'])->map(fn (string $form, string $name): array => [
+            'name' => $name, 'enrollment_form_number' => $form, 'uniform_set_id' => $set->id,
+            'top_kind' => 'polo', 'top_variant_id' => $variant->id, 'pants_variant_id' => $variant->id,
+        ])->values()->all(),
     ])->assertSessionHasNoErrors();
 
-    expect($variant->refresh()->stock_on_hand)->toBe(3);
+    expect($variant->refresh()->stock_on_hand)->toBe(1);
 
     $this->get(route('sales-reports.index', ['tab' => 'free']))->assertInertia(fn (Assert $page) => $page
-        ->where('summary.free_pieces', 2)
-        ->where('summary.free_cost_centavos', 2 * 20000)
-        ->where('summary.free_price_centavos', 2 * 40000)
+        ->where('summary.free_pieces', 4)
+        ->where('summary.free_cost_centavos', 4 * 20000)
+        ->where('summary.free_price_centavos', 4 * 40000)
         ->where('summary.price_centavos', 0)
-        ->where('free.data.0.recipient_name', 'Maria Santos')
-        ->where('free.data.0.enrollment_form_number', '2026-01234')
-        ->where('free.data.0.pieces', 2));
+        ->where('free.data.0.recipient_name', 'Juan Dela Cruz')
+        ->where('free.data.0.enrollment_form_number', '2026-01235')
+        ->where('free.data.0.pieces', 1));
+});
+
+test('free uniforms are no longer a reason in Correct Stock, but old ones still count in Given free', function () {
+    $variant = costedJacket();
+    receivedJacketOrder(packs: 1, pricePerPack: 100000);
+    StockMovement::factory()->for($variant, 'variant')->create([
+        'type' => StockMovementType::Correction, 'reason' => StockCorrectionReason::GivenFree, 'quantity' => -1, 'balance_after' => 4,
+        'recipient_name' => 'Maria Santos', 'enrollment_form_number' => '2026-01234',
+    ]);
+    $this->actingAs($this->specialist);
+
+    $this->post(route('products.stock.correct', $variant->product), ['product_variant_id' => $variant->id, 'reason' => 'given_free', 'pieces_to_remove' => 1])
+        ->assertSessionHasErrors(['reason' => 'Choose one of the reasons. Free uniforms are recorded on the Free Uniforms page.']);
+    $this->get(route('products.stock', $variant->product))
+        ->assertInertia(fn (Assert $page) => $page->where('reasons', fn ($reasons) => ! collect($reasons)->contains('value', 'given_free')));
+    $this->get(route('sales-reports.index', ['tab' => 'free']))
+        ->assertInertia(fn (Assert $page) => $page->where('summary.free_pieces', 1)->where('free.data.0.recipient_name', 'Maria Santos'));
 });
 
 test('only the Specialist sees sales reports and sets eStore prices', function () {
