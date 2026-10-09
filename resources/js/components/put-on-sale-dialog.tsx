@@ -526,10 +526,9 @@ function SalePriceField({
                 <span className="flex items-start gap-2 rounded-xl border-l-4 border-red-500 bg-red-50 px-3 py-2 text-xs leading-5 text-red-900">
                     <TriangleAlert size={15} className="mt-0.5 shrink-0" />
                     <span>
-                        This price is below the Cost of {formatPeso(cost)}. You
-                        lose <b>{formatPeso(cost - sale)}</b> on each {unit} at
-                        this price. You can still save it; the Sales Reports
-                        will show it as sold below cost.
+                        This price is below the Cost of {formatPeso(cost)}:
+                        PROWARE would lose <b>{formatPeso(cost - sale)}</b> on
+                        each {unit}. A sale price cannot be lower than the Cost.
                     </span>
                 </span>
             )}

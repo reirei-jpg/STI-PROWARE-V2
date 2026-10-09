@@ -209,7 +209,14 @@ export default function SalesReportsIndex({
                     </section>
                 )}
 
-                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section
+                    className={cn(
+                        'grid gap-4 sm:grid-cols-2',
+                        summary.below_cost_lines > 0
+                            ? 'xl:grid-cols-4'
+                            : 'xl:grid-cols-3',
+                    )}
+                >
                     <Card
                         icon={ShoppingCart}
                         tone="blue"
@@ -235,18 +242,17 @@ export default function SalesReportsIndex({
                         }
                         onClick={() => show({ tab: 'sold' })}
                     />
-                    <Card
-                        icon={Tag}
-                        tone="red"
-                        label="Sold below cost"
-                        value={formatPeso(summary.below_cost_loss_centavos)}
-                        detail={
-                            summary.below_cost_lines === 0
-                                ? 'Nothing sold below its Cost.'
-                                : `lost on ${summary.below_cost_lines} ${summary.below_cost_lines === 1 ? 'sale' : 'sales'}`
-                        }
-                        onClick={() => show({ tab: 'sold' })}
-                    />
+                    {/* Selling below Cost is no longer allowed; older sales may still show. */}
+                    {summary.below_cost_lines > 0 && (
+                        <Card
+                            icon={Tag}
+                            tone="red"
+                            label="Sold below cost"
+                            value={formatPeso(summary.below_cost_loss_centavos)}
+                            detail={`lost on ${summary.below_cost_lines} ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} (Selling Price lower than the Cost)`}
+                            onClick={() => show({ tab: 'sold' })}
+                        />
+                    )}
                     <Card
                         icon={Gift}
                         tone="amber"

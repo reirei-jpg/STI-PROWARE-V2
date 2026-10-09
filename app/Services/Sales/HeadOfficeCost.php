@@ -28,17 +28,34 @@ final class HeadOfficeCost
             return null;
         }
 
-        $latestPrices = PurchaseOrderItem::query()
-            ->whereIn('item_code', $linked->pluck('estore_item_code'))
-            ->orderByDesc('id')
-            ->get(['item_code', 'unit_price_centavos'])
-            ->unique('item_code')
-            ->pluck('unit_price_centavos', 'item_code');
+        $latestPrices = self::latestUnitPrices(array_values(array_filter($linked->pluck('estore_item_code')->all(), 'is_string')));
 
         $costs = $linked
-            ->filter(fn (ProductVariant $variant): bool => $latestPrices->has($variant->estore_item_code))
+            ->filter(fn (ProductVariant $variant): bool => isset($latestPrices[$variant->estore_item_code]))
             ->map(fn (ProductVariant $variant): int => (int) round($latestPrices[$variant->estore_item_code] / ($variant->estorePack->pieces ?? 1)));
 
         return $costs->isEmpty() ? null : (int) $costs->max();
+    }
+
+    /**
+     * The Unit Price of each eStore Item Code on its latest uploaded order.
+     *
+     * @param  list<string>  $itemCodes
+     * @return array<string, int> centavos per eStore unit, by item code
+     */
+    public static function latestUnitPrices(array $itemCodes): array
+    {
+        if ($itemCodes === []) {
+            return [];
+        }
+
+        /** @var array<string, int> */
+        return PurchaseOrderItem::query()
+            ->whereIn('item_code', $itemCodes)
+            ->orderByDesc('id')
+            ->get(['item_code', 'unit_price_centavos'])
+            ->unique('item_code')
+            ->mapWithKeys(fn (PurchaseOrderItem $item): array => [$item->item_code => $item->unit_price_centavos])
+            ->all();
     }
 }

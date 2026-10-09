@@ -16,6 +16,7 @@ use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Services\EstorePo\ItemCode;
+use App\Services\Sales\HeadOfficeCost;
 use App\Services\Stock\LinkedItems;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Database\Eloquent\Builder;
@@ -137,6 +138,8 @@ class ProductController extends Controller
                 'item_code' => $orderedItem->item_code,
                 'description' => $orderedItem->description,
             ],
+            // What PROWARE paid per eStore unit, shown beside the Selling Price.
+            'costs' => $orderedItem === null ? [] : HeadOfficeCost::latestUnitPrices([$orderedItem->item_code]),
             'today' => now()->toDateString(),
         ]);
     }
@@ -188,6 +191,8 @@ class ProductController extends Controller
                 ])->all(),
             ],
             'fromItem' => null,
+            // What PROWARE paid per eStore unit, shown beside the Selling Price.
+            'costs' => HeadOfficeCost::latestUnitPrices(array_values(array_unique(array_filter($product->variants->pluck('estore_item_code')->all(), 'is_string')))),
             'today' => now()->toDateString(),
         ]);
     }

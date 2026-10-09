@@ -164,9 +164,9 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
     expect(Product::count())->toBe(0);
 })->with([
     'no name' => [['name' => ''], 'name', 'Enter the product name.'],
-    'no price per piece' => [['price' => ''], 'price', 'Enter the price per piece.'],
+    'no price per piece' => [['price' => ''], 'price', 'Enter the Selling Price per piece (set by Head Office).'],
     'no low-stock number' => [['low_stock_alert_at' => ''], 'low_stock_alert_at', 'Enter the number of pieces to be warned at, e.g. 5.'],
-    'price in words' => [['price' => 'three fifty'], 'price', 'Enter the price per piece in pesos, e.g. 350 or 350.50.'],
+    'price in words' => [['price' => 'three fifty'], 'price', 'Enter the Selling Price in pesos, e.g. 350 or 350.50.'],
     'on sale from the form' => [['status' => 'on_sale', 'sale_price' => '300'], 'status', 'Choose Draft, Preorder or Available. To put a product on sale, use Put on Sale on the Products list.'],
     'not sold by the piece or by a pack' => [['sold_by_piece' => '0', 'price' => ''], 'sold_by_piece', 'Choose how students buy it: by the piece, by a pack, or both.'],
     'pack of one piece' => [['packs' => [packInput(['pieces' => '1'])]], 'packs.0.pieces', 'A pack has at least 2 pieces.'],

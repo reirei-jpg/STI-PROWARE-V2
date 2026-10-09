@@ -20,7 +20,7 @@ import EndSaleButton from '@/components/end-sale-button';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatPeso } from '@/lib/format';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
 import { variantCombinations } from '@/lib/product-variants';
 import { cn } from '@/lib/utils';
@@ -102,10 +102,13 @@ const inputClasses =
 export default function ProductForm({
     product,
     fromItem,
+    costs,
     today,
 }: {
     product: EditableProduct | null;
     fromItem: ProductFromItem | null;
+    /** What PROWARE paid per eStore unit on the latest order, by item code. */
+    costs: Record<string, number>;
     /** Today in the school's time zone, "YYYY-MM-DD". */
     today: string;
 }) {
@@ -198,6 +201,31 @@ export default function ProductForm({
                   estore_item_code: variantInput(key).estore_item_code,
                   estore_pack_key: variantInput(key).estore_pack_key,
               };
+
+    // The Cost per piece (what PROWARE paid on the eStore order), the
+    // highest of the variants, shown beside the Selling Price.
+    const costPerPiece = combinations.reduce<number | null>(
+        (highest, combination) => {
+            const { estore_item_code: code, estore_pack_key: packKey } =
+                savedCodeAndPack(combination.key);
+            const unitPrice = costs[code.trim().toUpperCase()];
+
+            if (unitPrice === undefined) {
+                return highest;
+            }
+
+            const pieces =
+                Number(
+                    data.packs.find((pack) => pack.key === packKey)?.pieces,
+                ) || 1;
+            const cost = Math.round(unitPrice / pieces);
+
+            return highest === null ? cost : Math.max(highest, cost);
+        },
+        null,
+    );
+    const pesosToCentavos = (value: string) =>
+        value.trim() === '' ? null : Math.round(Number(value) * 100);
 
     // A new close date cannot be before today; a date already saved that
     // has passed (preorders closed) may stay as it is.
@@ -617,7 +645,7 @@ export default function ProductForm({
 
                 <Panel
                     title="Pieces and Packs"
-                    description="Stock is always counted in pieces. Add a pack when Head Office sends this item in packs, or when students can buy a whole pack, e.g. Pack = 50 pieces. Student prices are what students pay, not the Head Office cost."
+                    description="Stock is always counted in pieces. Add a pack when Head Office sends this item in packs, or when students can buy a whole pack, e.g. Pack = 50 pieces. The Selling Price is the price Head Office set; it cannot be below the Cost (what PROWARE paid on the eStore order)."
                 >
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-175">
@@ -628,7 +656,9 @@ export default function ProductForm({
                                     <TableHeading>
                                         Students can buy it
                                     </TableHeading>
-                                    <TableHeading>Student price</TableHeading>
+                                    <TableHeading>
+                                        Selling Price (set by Head Office)
+                                    </TableHeading>
                                     <TableHeading align="right">
                                         <span className="sr-only">Actions</span>
                                     </TableHeading>
@@ -672,10 +702,23 @@ export default function ProductForm({
                                             disabled={!data.sold_by_piece}
                                             label={
                                                 hasVariants
-                                                    ? 'Default price per piece'
-                                                    : 'Price per piece'
+                                                    ? 'Default Selling Price per piece'
+                                                    : 'Selling Price per piece'
                                             }
                                         />
+                                        {costPerPiece !== null && (
+                                            <CostLine
+                                                cost={costPerPiece}
+                                                price={
+                                                    data.sold_by_piece
+                                                        ? pesosToCentavos(
+                                                              data.price,
+                                                          )
+                                                        : null
+                                                }
+                                                unit="piece"
+                                            />
+                                        )}
                                         {hasVariants && data.sold_by_piece && (
                                             <p className="mt-1 max-w-56 text-xs leading-5 text-slate-500">
                                                 {everyVariantPriced
@@ -793,8 +836,27 @@ export default function ProductForm({
                                                     disabled={
                                                         !pack.sold_to_students
                                                     }
-                                                    label={`Price of one ${pack.name || 'pack'}`}
+                                                    label={`Selling Price of one ${pack.name || 'pack'}`}
                                                 />
+                                                {costPerPiece !== null &&
+                                                    pack.sold_to_students &&
+                                                    Number(pack.pieces) > 0 && (
+                                                        <CostLine
+                                                            cost={
+                                                                costPerPiece *
+                                                                Number(
+                                                                    pack.pieces,
+                                                                )
+                                                            }
+                                                            price={pesosToCentavos(
+                                                                pack.price,
+                                                            )}
+                                                            unit={
+                                                                pack.name.trim() ||
+                                                                'pack'
+                                                            }
+                                                        />
+                                                    )}
                                                 <InputError
                                                     className="mt-1"
                                                     message={
@@ -1142,7 +1204,7 @@ export default function ProductForm({
                                         </>
                                     )}
                                     <TableHeading>
-                                        Own price per piece (optional)
+                                        Own Selling Price per piece (optional)
                                     </TableHeading>
                                     {product && (
                                         <TableHeading align="right">
@@ -1478,6 +1540,34 @@ function Field({
             {hint && <span className="text-xs text-slate-500">{hint}</span>}
             <InputError message={error} />
         </label>
+    );
+}
+
+/**
+ * The Cost (what PROWARE paid on the eStore order) beside a Selling Price,
+ * in red when the price is below it (saving is refused then).
+ */
+function CostLine({
+    cost,
+    price,
+    unit,
+}: {
+    cost: number;
+    price: number | null;
+    unit: string;
+}) {
+    const below = price !== null && price < cost;
+
+    return (
+        <p
+            className={cn(
+                'mt-1 max-w-56 text-xs leading-5 font-bold',
+                below ? 'text-red-600' : 'text-slate-500',
+            )}
+        >
+            Cost on the eStore order: {formatPeso(cost)} per {unit}.
+            {below && ' The Selling Price cannot be lower.'}
+        </p>
     );
 }
 

@@ -100,7 +100,7 @@ test('only available products with stock can be put on sale', function (array $a
     'nothing in stock' => [[], 0, 'There is nothing in stock to put on sale.'],
 ]);
 
-test('a sale price below the head office cost is allowed, and the pop-up gets the cost to warn about it', function () {
+test('a sale price cannot go below the Cost, and the pop-up gets the Cost to show it', function () {
     $product = saleProduct();
     orderWith(['PRLY01-01' => 10])->items()->update(['unit_price_centavos' => 6000]);
 
@@ -113,9 +113,12 @@ test('a sale price below the head office cost is allowed, and the pop-up gets th
         ->assertJsonPath('sale', null);
 
     $this->post(route('products.sale.store', $product), ['sale_price' => '40', 'days' => '7'])
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasErrors(['sale_price' => 'The sale price cannot be below the Cost of ₱60.00 per piece (what PROWARE paid on the eStore order).']);
+    expect($product->refresh()->status)->toBe(ProductStatus::Available);
 
-    expect($product->refresh()->sale_price_centavos)->toBe(4000);
+    $this->post(route('products.sale.store', $product), ['sale_price' => '60', 'days' => '7'])
+        ->assertSessionHasNoErrors();
+    expect($product->refresh()->sale_price_centavos)->toBe(6000);
 });
 
 test('the head office cost of an item sent by the pack is per piece', function () {

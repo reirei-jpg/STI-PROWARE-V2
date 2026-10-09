@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductVariants;
+use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Http\FormRequest;
@@ -122,9 +123,9 @@ class SaveProductRequest extends FormRequest
     {
         return [
             'name.required' => 'Enter the product name.',
-            'price.required' => 'Enter the price per piece.',
-            'price.decimal' => 'Enter the price per piece in pesos, e.g. 350 or 350.50.',
-            'price.gt' => 'The price per piece must be more than ₱0.',
+            'price.required' => 'Enter the Selling Price per piece (set by Head Office).',
+            'price.decimal' => 'Enter the Selling Price in pesos, e.g. 350 or 350.50.',
+            'price.gt' => 'The Selling Price must be more than ₱0.',
             'low_stock_alert_at.required' => 'Enter the number of pieces to be warned at, e.g. 5.',
             'low_stock_alert_at.integer' => 'Enter the number of pieces as a whole number.',
             'low_stock_alert_at.min' => 'The number cannot be below 0.',
@@ -198,6 +199,7 @@ class SaveProductRequest extends FormRequest
                 $this->validatePacks($validator);
                 $this->validatePreorderCloseDate($validator);
                 $this->validateItemCodes($validator);
+                $this->validateSellingPricesCoverCost($validator);
                 $this->validateVariantsWithStockAreKept($validator);
             },
         ];
@@ -361,6 +363,57 @@ class SaveProductRequest extends FormRequest
         [$whole, $fraction] = array_pad(explode('.', trim($pesos), 2), 2, '0');
 
         return ((int) $whole) * 100 + (int) str_pad(substr($fraction, 0, 2), 2, '0');
+    }
+
+    /**
+     * The Selling Price (set by Head Office) cannot be below the Cost: what
+     * PROWARE paid on the latest eStore order for the item, per piece (or per
+     * pack for a pack's price). Variants without an eStore Item Code, or
+     * whose code was never ordered, have no Cost yet and are not checked.
+     */
+    private function validateSellingPricesCoverCost(Validator $validator): void
+    {
+        /** @var array<int, array{estore_item_code?: string|null, estore_pack_key?: string|null, price?: string|null}> $variants */
+        $variants = $this->input('variants', []);
+        $packPieces = array_column($this->packs(), 'pieces', 'key');
+        $codes = array_values(array_filter(array_map(fn (array $variant): ?string => ItemCode::normalize($variant['estore_item_code'] ?? null), $variants)));
+        $unitPrices = HeadOfficeCost::latestUnitPrices($codes);
+        $productPrice = $this->boolean('sold_by_piece') ? $this->centavos('price') : null;
+        $highestCost = null;
+
+        foreach ($variants as $index => $variant) {
+            $code = ItemCode::normalize($variant['estore_item_code'] ?? null);
+
+            if ($code === null || ! isset($unitPrices[$code])) {
+                continue;
+            }
+
+            $cost = (int) round($unitPrices[$code] / max(1, $packPieces[(string) ($variant['estore_pack_key'] ?? '')] ?? 1));
+            $highestCost = max($highestCost ?? 0, $cost);
+            $ownPrice = ($variant['price'] ?? '') === '' ? null : self::toCentavos((string) $variant['price']);
+            $price = $this->boolean('sold_by_piece') ? ($ownPrice ?? $productPrice) : null;
+
+            if ($price !== null && $price < $cost) {
+                $validator->errors()->add($ownPrice !== null ? "variants.{$index}.price" : 'price', self::belowCost($price, $cost, 'piece'));
+            }
+        }
+
+        if ($highestCost === null) {
+            return;
+        }
+
+        foreach ($this->packs() as $index => $pack) {
+            $packCost = $highestCost * $pack['pieces'];
+
+            if ($pack['sold_to_students'] && $pack['price_centavos'] !== null && $pack['price_centavos'] < $packCost) {
+                $validator->errors()->add("packs.{$index}.price", self::belowCost($pack['price_centavos'], $packCost, $pack['name']));
+            }
+        }
+    }
+
+    private static function belowCost(int $price, int $cost, string $unit): string
+    {
+        return 'The Selling Price (₱'.number_format($price / 100, 2).') is below the Cost on the eStore order (₱'.number_format($cost / 100, 2)." per {$unit}). Check the price from Head Office.";
     }
 
     /**

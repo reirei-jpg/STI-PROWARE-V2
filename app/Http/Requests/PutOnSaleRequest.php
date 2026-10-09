@@ -6,6 +6,7 @@ use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
+use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -116,8 +117,44 @@ class PutOnSaleRequest extends FormRequest
                 if ($this->piecePriceCentavos() === null && $this->groupSalePrices() === [] && $this->packSalePrices() === []) {
                     $validator->errors()->add($product->sold_by_piece ? 'sale_price' : 'days', 'Enter a sale price for the piece or for a pack.');
                 }
+
+                $this->refuseBelowCost($validator, $product);
             },
         ];
+    }
+
+    /**
+     * Nothing is sold below its Cost (what PROWARE paid on the eStore order),
+     * not even on sale.
+     */
+    private function refuseBelowCost(Validator $validator, Product $product): void
+    {
+        $cost = app(HeadOfficeCost::class)->perPiece($product);
+
+        if ($cost === null || $validator->errors()->isNotEmpty()) {
+            return;
+        }
+
+        $tooLow = fn (int $price, int $pieces = 1): bool => $price < $cost * $pieces;
+        $message = fn (int $pieces = 1, string $unit = 'piece'): string => 'The sale price cannot be below the Cost of ₱'.number_format($cost * $pieces / 100, 2)." per {$unit} (what PROWARE paid on the eStore order).";
+
+        if ($this->piecePriceCentavos() !== null && $tooLow($this->piecePriceCentavos())) {
+            $validator->errors()->add('sale_price', $message());
+        }
+
+        foreach ($this->groupSalePrices() as $normal => $sale) {
+            if ($tooLow($sale)) {
+                $validator->errors()->add("group_sale_prices.{$normal}", $message());
+            }
+        }
+
+        foreach ($this->packSalePrices() as $packId => $price) {
+            $pack = $product->packs->firstWhere('id', $packId);
+
+            if ($pack instanceof ProductPack && $tooLow($price, $pack->pieces)) {
+                $validator->errors()->add("pack_sale_prices.{$packId}", $message($pack->pieces, $pack->name));
+            }
+        }
     }
 
     public function product(): Product

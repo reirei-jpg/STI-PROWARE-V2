@@ -185,6 +185,29 @@ test('an item put on sale below its Cost shows what was lost', function () {
         ->where('sold.data.0.loss_centavos', 10000));
 });
 
+test('the Selling Price cannot be set below the Cost on the eStore order', function () {
+    $variant = costedJacket(); // Head Office sends it by the Pack of 5
+    receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200 a piece
+    $pack = $variant->estorePack;
+    $form = fn (string $price, string $packPrice = '') => [
+        'name' => 'STI Jacket', 'sold_by_piece' => '1', 'price' => $price, 'status' => 'draft', 'sale_price' => '',
+        'low_stock_alert_at' => '0', 'photos' => [], 'options' => [],
+        'packs' => [['key' => (string) $pack->id, 'id' => $pack->id, 'name' => 'Pack', 'pieces' => '5', 'sold_to_students' => $packPrice === '' ? '0' : '1', 'price' => $packPrice]],
+        'variants' => [['combination' => '', 'estore_item_code' => 'UJKT01-02', 'estore_pack_key' => (string) $pack->id, 'price' => '']],
+    ];
+    $this->actingAs($this->specialist);
+
+    $this->get(route('products.edit', $variant->product))
+        ->assertInertia(fn (Assert $page) => $page->where('costs', ['UJKT01-02' => 100000]));
+
+    $this->put(route('products.update', $variant->product), $form('150'))
+        ->assertSessionHasErrors(['price' => 'The Selling Price (₱150.00) is below the Cost on the eStore order (₱200.00 per piece). Check the price from Head Office.']);
+    $this->put(route('products.update', $variant->product), $form('400', '900'))
+        ->assertSessionHasErrors(['packs.0.price' => 'The Selling Price (₱900.00) is below the Cost on the eStore order (₱1,000.00 per Pack). Check the price from Head Office.']);
+    $this->put(route('products.update', $variant->product), $form('200', '1000'))
+        ->assertSessionHasNoErrors();
+});
+
 test('a free uniform (promo) is written down with who got it and what it was worth', function () {
     $variant = costedJacket();
     receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200
