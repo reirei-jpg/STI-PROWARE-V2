@@ -1,9 +1,10 @@
 import { Head, useForm } from '@inertiajs/react';
-import { Clock, History, LoaderCircle, Save } from 'lucide-react';
+import { CircleAlert, Clock, History, LoaderCircle, Save } from 'lucide-react';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel from '@/components/panel';
+import type { ReactNode } from 'react';
 import { formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -15,13 +16,26 @@ type NumberSetting = {
     changed_by: string | null;
 };
 
+type ChoiceSetting = {
+    value: number;
+    choices: number[];
+    changed_at: string | null;
+    changed_by: string | null;
+};
+
 /**
  * The Specialist's Maintenance page: settings that change how PROWARE
  * works, without changing its code. Each shows what it does, its current
  * value, and who changed it last. Changes apply right away, on the
  * website and the phone app.
  */
-export default function Maintenance({ holdDays }: { holdDays: NumberSetting }) {
+export default function Maintenance({
+    holdDays,
+    followUpDays,
+}: {
+    holdDays: NumberSetting;
+    followUpDays: ChoiceSetting;
+}) {
     return (
         <>
             <Head title="Maintenance" />
@@ -38,6 +52,13 @@ export default function Maintenance({ holdDays }: { holdDays: NumberSetting }) {
                 >
                     <HoldDaysSetting setting={holdDays} />
                 </Panel>
+
+                <Panel
+                    title="Deliveries"
+                    description="How purchase orders from Head Office are followed up."
+                >
+                    <FollowUpDaysSetting setting={followUpDays} />
+                </Panel>
             </div>
         </>
     );
@@ -53,25 +74,103 @@ function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
         { length: setting.max - setting.min + 1 },
         (_, index) => setting.min + index,
     );
-    const changed = form.data.hold_days !== setting.value;
+
+    return (
+        <SettingRow
+            icon={<Clock size={19} className="text-amber-600" />}
+            title="Days an order holds its items"
+            explanation="When a student places an order, its items are set aside so no one else can buy them. The student must show the issuance slip and pay within this many days; otherwise the order expires and the items go back on sale."
+            example="Example with 2 days: an order placed on Monday must be picked up by the end of Wednesday. Changing this affects new orders only; orders already placed keep their pick-up date."
+            setting={setting}
+            choices={choices}
+            chosen={form.data.hold_days}
+            onChoose={(days) => form.setData('hold_days', days)}
+            error={form.errors.hold_days}
+            processing={form.processing}
+            onSave={() =>
+                form.patch(MaintenanceController.updateHoldDays().url, {
+                    preserveScroll: true,
+                })
+            }
+        />
+    );
+}
+
+/**
+ * After how many days from its Date Ordered a purchase order not complete
+ * is shown to follow up with Head Office (Deliveries, dashboards).
+ */
+function FollowUpDaysSetting({ setting }: { setting: ChoiceSetting }) {
+    const form = useForm({ follow_up_days: setting.value });
+
+    return (
+        <SettingRow
+            icon={<CircleAlert size={19} className="text-red-600" />}
+            title="Days before a purchase order is followed up"
+            explanation="Head Office gives no delivery date. A purchase order not fully delivered this many days after its Date Ordered is shown as Not complete on the Deliveries page and the dashboards, so you know to ask Head Office about the rest."
+            example="Example with 30 days: an order dated Sep 29 that has not fully arrived shows from Oct 29."
+            setting={setting}
+            choices={setting.choices}
+            chosen={form.data.follow_up_days}
+            onChoose={(days) => form.setData('follow_up_days', days)}
+            error={form.errors.follow_up_days}
+            processing={form.processing}
+            onSave={() =>
+                form.patch(MaintenanceController.updateFollowUpDays().url, {
+                    preserveScroll: true,
+                })
+            }
+        />
+    );
+}
+
+/**
+ * One setting: what it does with an example and who changed it last, then
+ * its choices as buttons and Save.
+ */
+function SettingRow({
+    icon,
+    title,
+    explanation,
+    example,
+    setting,
+    choices,
+    chosen,
+    onChoose,
+    error,
+    processing,
+    onSave,
+}: {
+    icon: ReactNode;
+    title: string;
+    explanation: string;
+    example: string;
+    setting: {
+        value: number;
+        changed_at: string | null;
+        changed_by: string | null;
+    };
+    choices: number[];
+    chosen: number;
+    onChoose: (days: number) => void;
+    error?: string;
+    processing: boolean;
+    onSave: () => void;
+}) {
+    const changed = chosen !== setting.value;
 
     return (
         <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
             <div>
                 <h3 className="flex items-center gap-2 font-black text-slate-900">
-                    <Clock size={19} className="text-amber-600" />
-                    Days an order holds its items
+                    {icon}
+                    {title}
                 </h3>
                 <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600">
-                    When a student places an order, its items are set aside so
-                    no one else can buy them. The student must show the issuance
-                    slip and pay within this many days; otherwise the order
-                    expires and the items go back on sale.
+                    {explanation}
                 </p>
                 <p className="mt-2 max-w-xl rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                    Example with 2 days: an order placed on Monday must be
-                    picked up by the end of Wednesday. Changing this affects new
-                    orders only; orders already placed keep their pick-up date.
+                    {example}
                 </p>
                 <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
                     <History size={14} />
@@ -85,9 +184,7 @@ function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
                 className="space-y-3 self-start rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.patch(MaintenanceController.updateHoldDays().url, {
-                        preserveScroll: true,
-                    });
+                    onSave();
                 }}
             >
                 <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
@@ -99,18 +196,19 @@ function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
                 <div
                     className="grid gap-2"
                     style={{
-                        gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))`,
+                        // At most three buttons per row, so "60 days" fits.
+                        gridTemplateColumns: `repeat(${Math.min(choices.length, 3)}, minmax(0, 1fr))`,
                     }}
                 >
                     {choices.map((days) => (
                         <button
                             key={days}
                             type="button"
-                            onClick={() => form.setData('hold_days', days)}
-                            aria-pressed={form.data.hold_days === days}
+                            onClick={() => onChoose(days)}
+                            aria-pressed={chosen === days}
                             className={cn(
                                 'h-11 rounded-xl text-sm font-black transition',
-                                form.data.hold_days === days
+                                chosen === days
                                     ? 'bg-blue-600 text-white shadow-sm'
                                     : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
                             )}
@@ -119,13 +217,13 @@ function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
                         </button>
                     ))}
                 </div>
-                <InputError message={form.errors.hold_days} />
+                <InputError message={error} />
                 <button
                     type="submit"
-                    disabled={!changed || form.processing}
+                    disabled={!changed || processing}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    {form.processing ? (
+                    {processing ? (
                         <LoaderCircle size={16} className="animate-spin" />
                     ) : (
                         <Save size={16} />

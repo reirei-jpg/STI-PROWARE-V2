@@ -16,8 +16,11 @@ class FilterDeliveriesRequest extends FormRequest
     /** Lists of received deliveries. */
     public const RECEIVED = ['received', 'this_month', 'not_in_stock'];
 
-    /** Lists of purchase orders still waiting for their delivery. */
-    public const WAITING = ['waiting', 'late', 'this_week'];
+    /**
+     * Lists of purchase orders still waiting for their delivery: all, or
+     * those not complete after the follow-up days.
+     */
+    public const WAITING = ['waiting', 'follow_up'];
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

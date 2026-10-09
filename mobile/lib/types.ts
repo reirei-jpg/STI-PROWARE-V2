@@ -210,15 +210,6 @@ export type StudentNotificationData =
           stock_on_hand: number;
           alert_at: number;
       }
-    | {
-          kind: 'delivery_reminder';
-          purchase_order_id: number;
-          order_number: string | null;
-          expected_delivery_date: string | null;
-          when: string;
-          percent_received: number;
-          quantity_remaining: number;
-      }
     | { kind: 'sale_ending'; product_id: number; product_name: string; ends_at: string | null }
     | { kind: 'sale_ended'; product_id: number; product_name: string; normal_price: string };
 
@@ -292,7 +283,6 @@ export type WaitingDeliveryGroup = {
         purchase_order_item_id: number;
         order_number: string | null;
         date_ordered: string;
-        expected_delivery_date: string | null;
         quantity_ordered: number;
         quantity_received: number;
         quantity_remaining: number;

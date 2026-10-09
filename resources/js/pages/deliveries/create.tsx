@@ -568,14 +568,11 @@ export default function RecordDelivery({
                                         />
                                     )}
                                     <div className="overflow-x-auto">
-                                        <table className="w-full min-w-200">
+                                        <table className="w-full min-w-175">
                                             <thead className="bg-slate-50">
                                                 <tr>
                                                     <TableHeading>
                                                         Order #
-                                                    </TableHeading>
-                                                    <TableHeading>
-                                                        Expected Delivery
                                                     </TableHeading>
                                                     <TableHeading align="right">
                                                         QTY Ordered
@@ -626,13 +623,6 @@ export default function RecordDelivery({
                                                                         row.date_ordered,
                                                                     )}
                                                                 </p>
-                                                            </td>
-                                                            <td className="px-5 py-4 text-slate-700">
-                                                                {row.expected_delivery_date
-                                                                    ? formatDateOrdered(
-                                                                          row.expected_delivery_date,
-                                                                      )
-                                                                    : '—'}
                                                             </td>
                                                             <td className="px-5 py-4 text-right font-black text-slate-800">
                                                                 <Quantity

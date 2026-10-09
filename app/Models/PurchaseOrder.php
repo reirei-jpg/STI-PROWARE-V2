@@ -30,10 +30,6 @@ use Illuminate\Support\Carbon;
  * @property int|null $total_amount_centavos
  * @property string $original_file_name
  * @property string $document_path
- * @property Carbon|null $expected_delivery_date
- * @property string|null $expected_delivery_note
- * @property Carbon|null $day_before_reminder_sent_at
- * @property Carbon|null $day_of_reminder_sent_at
  * @property int $quantity_ordered_total
  * @property int $quantity_received_total
  * @property DeliveryStatus $delivery_status
@@ -46,7 +42,6 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'order_number', 'school', 'ordered_by', 'uploaded_by', 'date_ordered', 'time_ordered', 'category',
     'total_amount_centavos', 'original_file_name', 'document_path',
-    'expected_delivery_date', 'expected_delivery_note', 'day_before_reminder_sent_at', 'day_of_reminder_sent_at',
     'quantity_ordered_total', 'quantity_received_total', 'delivery_status', 'closed_reason', 'closed_at', 'closed_by',
 ])]
 class PurchaseOrder extends Model
@@ -62,9 +57,6 @@ class PurchaseOrder extends Model
         return [
             'date_ordered' => 'date',
             'total_amount_centavos' => 'integer',
-            'expected_delivery_date' => 'date',
-            'day_before_reminder_sent_at' => 'datetime',
-            'day_of_reminder_sent_at' => 'datetime',
             'quantity_ordered_total' => 'integer',
             'quantity_received_total' => 'integer',
             'delivery_status' => DeliveryStatus::class,
@@ -133,23 +125,6 @@ class PurchaseOrder extends Model
             'delivery_status' => $status,
         ]);
 
-        if (! $status->isOpen()) {
-            $this->clearExpectedDelivery();
-        }
-
         $this->save();
-    }
-
-    /**
-     * Forget the expected delivery date and the reminders sent for it.
-     */
-    public function clearExpectedDelivery(): void
-    {
-        $this->forceFill([
-            'expected_delivery_date' => null,
-            'expected_delivery_note' => null,
-            'day_before_reminder_sent_at' => null,
-            'day_of_reminder_sent_at' => null,
-        ]);
     }
 }

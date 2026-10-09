@@ -16,9 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Records a delivery: what arrived for each ordered item, then updates each
- * affected order's progress and status. The expected delivery date of those
- * orders is cleared, since that delivery has now happened; the Specialist
- * sets a new one when Head Office calls about the rest.
+ * affected order's progress and status.
  *
  * Items whose eStore Item Code is linked to a product are added to stock
  * right away; the others wait until the Specialist links them. An item
@@ -93,7 +91,6 @@ class RecordDelivery
             $orderIds = $items->pluck('purchase_order_id')->unique()->values();
 
             foreach (PurchaseOrder::query()->whereKey($orderIds)->get() as $order) {
-                $order->clearExpectedDelivery();
                 $order->refreshDeliveryProgress();
             }
 

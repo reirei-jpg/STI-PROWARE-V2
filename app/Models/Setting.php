@@ -23,6 +23,8 @@ class Setting extends Model
 {
     public const ORDER_HOLD_DAYS = 'order_hold_days';
 
+    public const DELIVERY_FOLLOW_UP_DAYS = 'delivery_follow_up_days';
+
     protected $primaryKey = 'key';
 
     protected $keyType = 'string';

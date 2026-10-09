@@ -62,8 +62,8 @@ export type WaitingOrderRow = DeliveryProgress & {
     date_ordered: string;
     category: string | null;
     items_count: number;
-    expected_delivery_date: string | null;
-    expected_delivery_note: string | null;
+    /** Whole days since the Date Ordered. */
+    days_since_ordered: number;
     quantity_remaining: number;
 };
 
@@ -72,12 +72,12 @@ export type DeliveriesShow =
     | 'this_month'
     | 'not_in_stock'
     | 'waiting'
-    | 'late'
-    | 'this_week';
+    | 'follow_up';
 
 export type DeliveriesSummary = {
-    late: number;
-    this_week: number;
+    /** Orders not complete after the follow-up days (Maintenance). */
+    follow_up: number;
+    follow_up_days: number;
     waiting: number;
     this_month: { deliveries: number; pieces: number };
     not_in_stock: number;
@@ -95,7 +95,6 @@ export type WaitingItemRow = {
     purchase_order_item_id: number;
     order_number: string | null;
     date_ordered: string;
-    expected_delivery_date: string | null;
     quantity_ordered: number;
     quantity_received: number;
     quantity_remaining: number;

@@ -109,7 +109,7 @@ export type DeliveryStatus =
     | 'completed'
     | 'completed_short';
 
-export type PurchaseOrderSort = 'expected' | 'newest' | 'oldest_waiting';
+export type PurchaseOrderSort = 'oldest_waiting' | 'newest';
 
 /** Delivery progress shared by the list rows and the details window. */
 export type DeliveryProgress = {
@@ -118,8 +118,8 @@ export type DeliveryProgress = {
     quantity_ordered_total: number;
     quantity_received_total: number;
     percent_received: number;
-    expected_delivery_date: string | null;
-    expected_delivery_note: string | null;
+    /** Whole days since the Date Ordered. */
+    days_since_ordered: number;
 };
 
 export type OrderDeliveryRecord = {

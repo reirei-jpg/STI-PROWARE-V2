@@ -8,16 +8,6 @@ export type PurchaseOrderUploadedData = {
     items_count: number;
 };
 
-export type DeliveryReminderData = {
-    kind: 'delivery_reminder';
-    purchase_order_id: number;
-    order_number: string | null;
-    expected_delivery_date: string | null;
-    when: 'tomorrow' | 'today';
-    percent_received: number;
-    quantity_remaining: number;
-};
-
 export type LowStockData = {
     kind: 'low_stock';
     product_id: number;
@@ -111,7 +101,6 @@ export type StaffNotification = {
     id: string;
     data:
         | PurchaseOrderUploadedData
-        | DeliveryReminderData
         | LowStockData
         | SaleEndingData
         | SaleEndedData

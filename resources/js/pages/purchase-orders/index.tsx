@@ -1,7 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Boxes,
-    CalendarClock,
     ClipboardList,
     Eye,
     FileScan,
@@ -19,8 +18,6 @@ import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
-import SetExpectedDeliveryDialog from '@/components/set-expected-delivery-dialog';
-import type { ExpectedDeliveryTarget } from '@/components/set-expected-delivery-dialog';
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import type {
@@ -40,7 +37,7 @@ const noFilters: PurchaseOrderFilters = {
     search: null,
     category: null,
     status: null,
-    sort: 'expected',
+    sort: 'oldest_waiting',
     date_from: null,
     date_to: null,
 };
@@ -54,9 +51,8 @@ const statusChips: { value: DeliveryStatus | null; label: string }[] = [
 ];
 
 const sortOptions: { value: PurchaseOrderSort; label: string }[] = [
-    { value: 'expected', label: 'Next expected delivery first' },
-    { value: 'newest', label: 'Newest Date Ordered first' },
     { value: 'oldest_waiting', label: 'Still waiting, oldest first' },
+    { value: 'newest', label: 'Newest Date Ordered first' },
 ];
 
 /**
@@ -67,34 +63,12 @@ function filterQuery(filters: PurchaseOrderFilters): Record<string, string> {
     const query: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(filters)) {
-        if (value && !(key === 'sort' && value === 'expected')) {
+        if (value && !(key === 'sort' && value === 'oldest_waiting')) {
             query[key] = value;
         }
     }
 
     return query;
-}
-
-/**
- * "Tomorrow, Oct 2", "Today, Oct 1" or "Oct 5, 2026".
- */
-function describeExpected(date: string, today: string): string {
-    const days = Math.round(
-        (new Date(`${date}T00:00:00`).getTime() -
-            new Date(`${today}T00:00:00`).getTime()) /
-            86_400_000,
-    );
-    const formatted = formatDateOrdered(date);
-
-    if (days === 0) {
-        return `Today, ${formatted}`;
-    }
-
-    if (days === 1) {
-        return `Tomorrow, ${formatted}`;
-    }
-
-    return days < 0 ? `${formatted} (passed)` : formatted;
 }
 
 function describeScope(filters: PurchaseOrderFilters): string {
@@ -123,14 +97,15 @@ export default function PurchaseOrdersIndex({
     filters,
     categories,
     openPurchaseOrderId,
-    today,
+    followUpDays,
 }: {
     purchaseOrders: Paginated<PurchaseOrderSummary>;
     summary: PurchaseOrderTotals;
     filters: PurchaseOrderFilters;
     categories: string[];
     openPurchaseOrderId: number | null;
-    today: string;
+    /** Days after the Date Ordered an order should be complete (Maintenance). */
+    followUpDays: number;
 }) {
     const { auth, errors } = usePage<{
         auth: Auth;
@@ -147,8 +122,6 @@ export default function PurchaseOrdersIndex({
     const [viewingId, setViewingId] = useState<number | null>(
         openPurchaseOrderId,
     );
-    const [settingDateFor, setSettingDateFor] =
-        useState<ExpectedDeliveryTarget | null>(null);
     const [search, setSearch] = useState(filters.search ?? '');
     const firstRender = useRef(true);
 
@@ -205,16 +178,6 @@ export default function PurchaseOrdersIndex({
             <PurchaseOrderDetailsDialog
                 purchaseOrderId={viewingId}
                 onClose={closeDetails}
-                onSetExpectedDate={(order) => {
-                    setViewingId(null);
-                    setSettingDateFor(order);
-                }}
-            />
-
-            <SetExpectedDeliveryDialog
-                order={settingDateFor}
-                today={today}
-                onClose={() => setSettingDateFor(null)}
             />
 
             <div className="space-y-7">
@@ -438,7 +401,7 @@ export default function PurchaseOrdersIndex({
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-250">
+                                <table className="w-full min-w-220">
                                     <thead className="bg-slate-50">
                                         <tr>
                                             <TableHeading>Order #</TableHeading>
@@ -447,9 +410,6 @@ export default function PurchaseOrdersIndex({
                                             </TableHeading>
                                             <TableHeading>
                                                 Delivery
-                                            </TableHeading>
-                                            <TableHeading>
-                                                Expected Delivery
                                             </TableHeading>
                                             <TableHeading align="right">
                                                 Total Amount (Ordered)
@@ -503,61 +463,22 @@ export default function PurchaseOrdersIndex({
                                                                 purchaseOrder
                                                             }
                                                         />
-                                                    </td>
-                                                    <td className="px-5 py-4">
-                                                        {purchaseOrder.expected_delivery_date ? (
-                                                            <>
-                                                                <p className="text-sm font-black text-slate-800">
-                                                                    {describeExpected(
-                                                                        purchaseOrder.expected_delivery_date,
-                                                                        today,
-                                                                    )}
+                                                        {[
+                                                            'awaiting',
+                                                            'partially_received',
+                                                        ].includes(
+                                                            purchaseOrder.delivery_status,
+                                                        ) &&
+                                                            purchaseOrder.days_since_ordered >=
+                                                                followUpDays && (
+                                                                <p className="mt-2 inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-black text-red-700">
+                                                                    Not complete
+                                                                    after{' '}
+                                                                    {
+                                                                        followUpDays
+                                                                    }{' '}
+                                                                    days
                                                                 </p>
-                                                                {purchaseOrder.expected_delivery_note && (
-                                                                    <p className="mt-1 max-w-48 truncate text-xs text-slate-500">
-                                                                        {
-                                                                            purchaseOrder.expected_delivery_note
-                                                                        }
-                                                                    </p>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <p className="text-sm text-slate-400">
-                                                                {[
-                                                                    'awaiting',
-                                                                    'partially_received',
-                                                                ].includes(
-                                                                    purchaseOrder.delivery_status,
-                                                                )
-                                                                    ? 'Not set yet'
-                                                                    : '—'}
-                                                            </p>
-                                                        )}
-                                                        {isSpecialist &&
-                                                            [
-                                                                'awaiting',
-                                                                'partially_received',
-                                                            ].includes(
-                                                                purchaseOrder.delivery_status,
-                                                            ) && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        setSettingDateFor(
-                                                                            purchaseOrder,
-                                                                        )
-                                                                    }
-                                                                    className="mt-2 inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                                                                >
-                                                                    <CalendarClock
-                                                                        size={
-                                                                            15
-                                                                        }
-                                                                    />
-                                                                    {purchaseOrder.expected_delivery_date
-                                                                        ? 'Change date'
-                                                                        : 'Set delivery date'}
-                                                                </button>
                                                             )}
                                                     </td>
                                                     <td className="px-5 py-4 text-right">

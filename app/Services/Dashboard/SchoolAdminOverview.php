@@ -6,6 +6,7 @@ use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
 use App\Models\PurchaseOrder;
+use App\Services\Deliveries\FollowUp;
 use Carbon\CarbonInterface;
 
 /**
@@ -20,7 +21,7 @@ final class SchoolAdminOverview
     /**
      * Two tabs: purchase orders (uploads and short closes) and deliveries.
      *
-     * @return array{cards: array<string, mixed>, purchase_order_activity: list<array<string, mixed>>, delivery_activity: list<array<string, mixed>>, expected: list<array<string, mixed>>}
+     * @return array{cards: array<string, mixed>, purchase_order_activity: list<array<string, mixed>>, delivery_activity: list<array<string, mixed>>, follow_up: array{days: int, count: int, orders: list<array<string, mixed>>}}
      */
     public function all(): array
     {
@@ -30,7 +31,7 @@ final class SchoolAdminOverview
             'cards' => $this->cards(),
             'purchase_order_activity' => array_values($activity->whereIn('kind', ['upload', 'closed_short'])->values()->all()),
             'delivery_activity' => array_values($activity->where('kind', 'delivery')->values()->all()),
-            'expected' => $this->expected(),
+            'follow_up' => ['days' => FollowUp::days(), 'count' => FollowUp::dueOrders()->count(), 'orders' => $this->followUp()],
         ];
     }
 
@@ -127,25 +128,23 @@ final class SchoolAdminOverview
     }
 
     /**
-     * Open purchase orders Head Office said will arrive this week, or that
-     * are late, soonest first.
+     * Open purchase orders not complete after the follow-up days, the
+     * oldest first.
      *
-     * @return list<array{purchase_order_id: int, order_number: string|null, expected_delivery_date: string, late: bool, percent_received: int}>
+     * @return list<array{purchase_order_id: int, order_number: string|null, date_ordered: string, days_since_ordered: int, percent_received: int}>
      */
-    private function expected(): array
+    private function followUp(): array
     {
-        return array_values(PurchaseOrder::query()
-            ->whereIn('delivery_status', [DeliveryStatus::Awaiting, DeliveryStatus::PartiallyReceived])
-            ->whereNotNull('expected_delivery_date')
-            ->whereDate('expected_delivery_date', '<=', now()->endOfWeek()->toDateString())
-            ->orderBy('expected_delivery_date')
+        return array_values(FollowUp::dueOrders()
+            ->orderBy('date_ordered')
+            ->orderBy('id')
             ->limit(self::ACTIVITY_SHOWN)
             ->get()
             ->map(fn (PurchaseOrder $order): array => [
                 'purchase_order_id' => $order->id,
                 'order_number' => $order->order_number,
-                'expected_delivery_date' => (string) $order->expected_delivery_date?->toDateString(),
-                'late' => (bool) $order->expected_delivery_date?->endOfDay()->isPast(),
+                'date_ordered' => $order->date_ordered->toDateString(),
+                'days_since_ordered' => FollowUp::daysSinceOrdered($order),
                 'percent_received' => $order->percentReceived(),
             ])
             ->all());

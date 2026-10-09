@@ -1,7 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
-    CalendarClock,
     CircleAlert,
     ExternalLink,
     Eye,
@@ -39,9 +38,10 @@ import type {
 const primaryButtonClasses =
     'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
 
-const waitingLists: DeliveriesShow[] = ['waiting', 'late', 'this_week'];
+const waitingLists: DeliveriesShow[] = ['waiting', 'follow_up'];
 
-const titles: Record<DeliveriesShow, [string, string]> = {
+/** Each list's title and what it shows; days is the follow-up setting. */
+const titles = (days: number): Record<DeliveriesShow, [string, string]> => ({
     received: [
         'Received',
         'Everything that arrived from Head Office, newest first.',
@@ -53,25 +53,22 @@ const titles: Record<DeliveriesShow, [string, string]> = {
     ],
     waiting: [
         'Waiting to arrive',
-        'Purchase orders not fully delivered. Late and soonest expected first.',
+        'Purchase orders not fully delivered, the oldest Date Ordered first.',
     ],
-    late: [
-        'Late',
-        'Expected before today and not fully delivered. Follow up with Head Office.',
+    follow_up: [
+        `Not complete after ${days} days`,
+        `Ordered ${days} or more days ago and not fully delivered. Ask Head Office about the rest. Change the days in Maintenance.`,
     ],
-    this_week: [
-        'Expected this week',
-        'Expected in the next 7 days and not fully delivered.',
-    ],
-};
+});
 
 /**
- * Deliveries from Head Office, as a back office: four cards (Late,
- * Expected this week, Received this month, Not in stock yet) that filter
- * the table; the Received tab (what arrived, its receipt, from which
- * orders, what went into stock, View Details) and the Waiting to arrive
- * tab (purchase orders still to come, with their expected date). The
- * School Admin only looks; recording is the Specialist's.
+ * Deliveries from Head Office, as a back office: four cards (Not complete
+ * after N days, Waiting to arrive, Received this month, Not in stock yet)
+ * that filter the table; the Received tab (what arrived, its receipt, from
+ * which orders, what went into stock, View Details) and the Waiting to
+ * arrive tab (purchase orders still to come, with the days since they were
+ * ordered). Head Office gives no delivery date, so the Date Ordered is what
+ * is known. The School Admin only looks; recording is the Specialist's.
  */
 export default function DeliveriesIndex({
     deliveries,
@@ -79,14 +76,12 @@ export default function DeliveriesIndex({
     summary,
     details,
     filters,
-    today,
 }: {
     deliveries: Paginated<DeliveryListItem> | null;
     waitingOrders: Paginated<WaitingOrderRow> | null;
     summary: DeliveriesSummary;
     details?: DeliveryDetails | null;
     filters: DeliveryFilters;
-    today: string;
 }) {
     const { errors, auth } = usePage<{
         errors: Record<string, string>;
@@ -153,7 +148,7 @@ export default function DeliveriesIndex({
         router.reload({ data: { details: delivery.id }, only: ['details'] });
     };
 
-    const [title, description] = titles[filters.show];
+    const [title, description] = titles(summary.follow_up_days)[filters.show];
 
     return (
         <>
@@ -178,26 +173,30 @@ export default function DeliveriesIndex({
 
                 <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                     <SummaryCard
-                        active={filters.show === 'late'}
+                        active={filters.show === 'follow_up'}
                         icon={CircleAlert}
                         tone="red"
-                        label="Late"
-                        value={summary.late}
+                        label={`Not complete after ${summary.follow_up_days} days`}
+                        value={summary.follow_up}
                         detail={
-                            summary.late === 1
-                                ? 'order past its expected date'
-                                : 'orders past their expected date'
+                            summary.follow_up === 1
+                                ? 'order to ask Head Office about'
+                                : 'orders to ask Head Office about'
                         }
-                        onClick={() => showList({ show: 'late' })}
+                        onClick={() => showList({ show: 'follow_up' })}
                     />
                     <SummaryCard
-                        active={filters.show === 'this_week'}
-                        icon={CalendarClock}
+                        active={filters.show === 'waiting'}
+                        icon={Truck}
                         tone="blue"
-                        label="Expected this week"
-                        value={summary.this_week}
-                        detail={summary.this_week === 1 ? 'order' : 'orders'}
-                        onClick={() => showList({ show: 'this_week' })}
+                        label="Waiting to arrive"
+                        value={summary.waiting}
+                        detail={
+                            summary.waiting === 1
+                                ? 'order not fully delivered'
+                                : 'orders not fully delivered'
+                        }
+                        onClick={() => showList({ show: 'waiting' })}
                     />
                     <SummaryCard
                         active={filters.show === 'this_month'}
@@ -322,7 +321,7 @@ export default function DeliveriesIndex({
                     {waitingOrders && (
                         <WaitingTable
                             orders={waitingOrders}
-                            today={today}
+                            followUpDays={summary.follow_up_days}
                             canRecord={canRecord}
                         />
                     )}
@@ -618,14 +617,14 @@ function ReceivedTable({
     );
 }
 
-/** Purchase orders still to arrive, late and soonest first. */
+/** Purchase orders still to arrive, the oldest Date Ordered first. */
 function WaitingTable({
     orders,
-    today,
+    followUpDays,
     canRecord,
 }: {
     orders: Paginated<WaitingOrderRow>;
-    today: string;
+    followUpDays: number;
     canRecord: boolean;
 }) {
     if (orders.data.length === 0) {
@@ -649,7 +648,7 @@ function WaitingTable({
                     <thead className="bg-slate-50">
                         <tr>
                             <TableHeading>Order #</TableHeading>
-                            <TableHeading>Expected</TableHeading>
+                            <TableHeading>Waiting</TableHeading>
                             <TableHeading>Received So Far</TableHeading>
                             <TableHeading align="right">
                                 Still to Come
@@ -686,15 +685,10 @@ function WaitingTable({
                                     </p>
                                 </td>
                                 <td className="px-5 py-4">
-                                    <ExpectedDate
-                                        date={order.expected_delivery_date}
-                                        today={today}
+                                    <DaysWaiting
+                                        days={order.days_since_ordered}
+                                        followUpDays={followUpDays}
                                     />
-                                    {order.expected_delivery_note && (
-                                        <p className="mt-0.5 max-w-48 truncate text-xs text-slate-500">
-                                            {order.expected_delivery_note}
-                                        </p>
-                                    )}
                                 </td>
                                 <td className="px-5 py-4">
                                     <DeliveryProgress progress={order} />
@@ -740,39 +734,30 @@ function WaitingTable({
     );
 }
 
-/** V1's date colors: red late, amber today, blue later. */
-function ExpectedDate({ date, today }: { date: string | null; today: string }) {
-    if (date === null) {
-        return <span className="text-sm text-slate-400">No date set</span>;
-    }
-
-    const days = Math.round(
-        (new Date(`${date}T00:00:00`).getTime() -
-            new Date(`${today}T00:00:00`).getTime()) /
-            86_400_000,
-    );
+/**
+ * Days since the order was dated, in V1's colors: red once it is past the
+ * follow-up days (ask Head Office), blue while it is still on time.
+ */
+function DaysWaiting({
+    days,
+    followUpDays,
+}: {
+    days: number;
+    followUpDays: number;
+}) {
+    const overdue = days >= followUpDays;
 
     return (
         <p
             className={cn(
                 'text-sm font-black whitespace-nowrap',
-                days < 0
-                    ? 'text-red-600'
-                    : days === 0
-                      ? 'text-amber-600'
-                      : 'text-blue-700',
+                overdue ? 'text-red-600' : 'text-blue-700',
             )}
         >
-            {days < 0
-                ? `${-days} ${days === -1 ? 'day' : 'days'} late`
-                : days === 0
-                  ? 'Today'
-                  : formatDateOrdered(date)}
-            {days < 0 && (
-                <span className="block text-xs font-bold text-slate-500">
-                    was {formatDateOrdered(date)}
-                </span>
-            )}
+            {days} {days === 1 ? 'day' : 'days'}
+            <span className="block text-xs font-bold text-slate-500">
+                {overdue ? 'Ask Head Office' : 'since ordered'}
+            </span>
         </p>
     );
 }

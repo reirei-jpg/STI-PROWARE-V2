@@ -38,7 +38,6 @@ class DeliveryController extends Controller
                 'date_from' => $request->dateFrom(),
                 'date_to' => $request->dateTo(),
             ],
-            'today' => now()->toDateString(),
         ]);
     }
 

@@ -73,13 +73,6 @@ function describe(data: StudentNotificationData): {
                 titleClass: data.stock_on_hand === 0 ? 'text-red-700' : 'text-amber-800',
                 stripe: data.stock_on_hand === 0 ? '#f87171' : '#f59e0b',
             };
-        case 'delivery_reminder':
-            return {
-                title: `Delivery expected ${data.when}${data.order_number ? `: Order #${data.order_number}` : ''}`,
-                body: `${data.percent_received}% received so far · ${data.quantity_remaining.toLocaleString('en-PH')} still to come (as ordered on the eStore)${data.expected_delivery_date ? ` · ${formatDate(data.expected_delivery_date)}` : ''}. Record it on the website.`,
-                titleClass: 'text-blue-800',
-                stripe: '#3b82f6',
-            };
         case 'sale_ending':
             return {
                 title: `Sale ending tomorrow: ${data.product_name}`,

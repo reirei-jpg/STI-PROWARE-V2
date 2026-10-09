@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
  */
 class FilterPurchaseOrdersRequest extends FormRequest
 {
-    public const SORTS = ['expected', 'newest', 'oldest_waiting'];
+    public const SORTS = ['oldest_waiting', 'newest'];
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -58,15 +58,14 @@ class FilterPurchaseOrdersRequest extends FormRequest
     }
 
     /**
-     * How the list is ordered: "expected" (next expected delivery first, the
-     * default), "newest" (newest Date Ordered first) or "oldest_waiting"
-     * (orders still waiting first, oldest at the top).
+     * How the list is ordered: "oldest_waiting" (orders still waiting first,
+     * oldest at the top; the default) or "newest" (newest Date Ordered first).
      */
     public function sort(): string
     {
         $sort = (string) $this->input('sort', '');
 
-        return in_array($sort, self::SORTS, true) ? $sort : 'expected';
+        return in_array($sort, self::SORTS, true) ? $sort : 'oldest_waiting';
     }
 
     public function category(): ?string
