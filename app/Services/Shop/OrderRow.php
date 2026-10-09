@@ -3,10 +3,14 @@
 namespace App\Services\Shop;
 
 use App\Actions\Orders\CancelOrderByStudent;
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Validation\Rule;
 
 /**
  * An order as the student's My Orders and the Specialist's Orders page show
@@ -15,21 +19,50 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
  */
 final class OrderRow
 {
+    public const STUDENT_SHOW = ['waiting', 'past'];
+
     /**
-     * A page of the student's My Orders (website and phone app): orders not
-     * picked up yet first, newest first, 20 at a time.
+     * Which tab of My Orders to show: Waiting (not released yet) by
+     * default, or Past (released or cancelled).
+     */
+    public static function studentShow(Request $request): string
+    {
+        $validated = $request->validate(['show' => ['nullable', Rule::in(self::STUDENT_SHOW)]]);
+
+        return $validated['show'] ?? 'waiting';
+    }
+
+    /**
+     * A page of the student's My Orders (website and phone app): Waiting
+     * orders by pick-up date, the most urgent first, or Past orders newest
+     * first, 20 at a time.
      *
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
-    public static function studentPage(User $student): LengthAwarePaginator
+    public static function studentPage(User $student, string $show = 'waiting'): LengthAwarePaginator
     {
         return $student->orders()
             ->with(['items', 'student'])
-            ->orderByRaw("case when status in ('placed', 'ready') then 0 else 1 end")
-            ->latest('id')
+            ->when(
+                $show === 'waiting',
+                fn (Builder $query) => $query->open()->orderBy('pick_up_by')->orderBy('id'),
+                fn (Builder $query) => $query->whereNotIn('status', [OrderStatus::Placed, OrderStatus::Ready])->latest('id'),
+            )
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Order $order): array => self::forStudent($order));
+    }
+
+    /**
+     * How many orders are on each tab of My Orders.
+     *
+     * @return array{waiting: int, past: int}
+     */
+    public static function studentCounts(User $student): array
+    {
+        $waiting = $student->orders()->open()->count();
+
+        return ['waiting' => $waiting, 'past' => $student->orders()->count() - $waiting];
     }
 
     /**

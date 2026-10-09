@@ -21,17 +21,23 @@ use Inertia\Response;
 class StudentOrderController extends Controller
 {
     /**
-     * My Orders: orders not released yet first, newest first.
+     * My Orders, one short row per order: Waiting (not released yet) by
+     * default, or Past.
      */
     public function index(Request $request): Response
     {
+        $show = OrderRow::studentShow($request);
+
         return Inertia::render('storefront/my-orders', [
-            'orders' => OrderRow::studentPage($request->user()),
+            'show' => $show,
+            'counts' => OrderRow::studentCounts($request->user()),
+            'orders' => OrderRow::studentPage($request->user(), $show),
         ]);
     }
 
     /**
-     * The order's issuance slip with its QR, to show the Specialist.
+     * The order's own page: its issuance slip with the QR to show the
+     * Specialist, and Cancel while the office has not prepared it yet.
      */
     public function slip(Request $request, Order $order): Response
     {
@@ -39,6 +45,7 @@ class StudentOrderController extends Controller
 
         return Inertia::render('storefront/issuance-slip', [
             'slip' => IssuanceSlip::of($order->load(['items', 'student', 'handler'])),
+            'canCancel' => CancelOrderByStudent::refusal($order) === null,
         ]);
     }
 
@@ -56,6 +63,7 @@ class StudentOrderController extends Controller
 
     /**
      * Place Order: its items are held until the Specialist releases them.
+     * The student lands on the new order's issuance slip.
      */
     public function store(PlaceOrderRequest $request, PlaceOrder $placeOrder): RedirectResponse
     {
@@ -66,7 +74,7 @@ class StudentOrderController extends Controller
             'message' => PlaceOrder::message($order),
         ]);
 
-        return to_route('my-orders.index');
+        return to_route('my-orders.slip', $order);
     }
 
     /**

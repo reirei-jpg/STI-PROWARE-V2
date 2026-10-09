@@ -120,12 +120,12 @@ test('placing an order holds the stock, keeps today\'s prices, notes the section
     CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create(['quantity' => 3]);
     CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create(['product_pack_id' => $box->id, 'quantity' => 2]);
 
-    $this->actingAs($this->student)
+    $placed = $this->actingAs($this->student)
         ->post(route('my-orders.store'), ['section' => ' BSIT 1-A '])
-        ->assertRedirect(route('my-orders.index'))
         ->assertInertiaFlash('toast.message', 'Order PW-0001 placed. Show its issuance slip at the PROWARE office by Oct 5, 2026, to pay and get your items.');
 
     $order = Order::sole();
+    $placed->assertRedirect(route('my-orders.slip', $order));
     expect($order)
         ->number->toBe('PW-0001')
         ->status->toBe(OrderStatus::Placed)
@@ -155,6 +155,29 @@ test('placing an order holds the stock, keeps today\'s prices, notes the section
         ->where('orders.data.0.student_section', 'BSIT 1-A')
     );
     expect((new OrderReady($order))->toArray($this->student)['pick_up_by'])->toBe('2026-10-05');
+});
+
+test('my orders shows waiting orders first, past orders on their own tab, and cancel on the order\'s slip', function () {
+    $later = Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Placed, 'pick_up_by' => '2026-10-05 23:59:59']);
+    $sooner = Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Ready, 'pick_up_by' => '2026-10-04 23:59:59']);
+    $released = Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::PickedUp]);
+    Order::factory()->create();
+    $this->actingAs($this->student);
+
+    $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('show', 'waiting')
+        ->where('counts', ['waiting' => 2, 'past' => 1])
+        ->where('orders.data.0.id', $sooner->id)
+        ->where('orders.data.1.id', $later->id)
+        ->has('orders.data', 2)
+    );
+    $this->get(route('my-orders.index', ['show' => 'past']))->assertInertia(fn (Assert $page) => $page
+        ->where('orders.data.0.id', $released->id)
+        ->has('orders.data', 1)
+    );
+
+    $this->get(route('my-orders.slip', $later))->assertInertia(fn (Assert $page) => $page->where('canCancel', true));
+    $this->get(route('my-orders.slip', $sooner))->assertInertia(fn (Assert $page) => $page->where('canCancel', false));
 });
 
 test('an order cannot be placed when stock ran out after it went in the cart', function () {

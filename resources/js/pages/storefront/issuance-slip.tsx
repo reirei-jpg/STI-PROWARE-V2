@@ -1,12 +1,14 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
     Ban,
     CheckCircle2,
     Clock,
+    LoaderCircle,
     PackageCheck,
     Printer,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import IssuanceSlip from '@/components/issuance-slip';
@@ -15,15 +17,20 @@ import { cn } from '@/lib/utils';
 import type { IssuanceSlipData } from '@/types';
 
 /**
- * The student's issuance slip for an order: show it (on the phone or
- * printed) at the PROWARE office, where the Specialist scans its QR, the
- * student pays, and the items are released. Above it, what to do next in
- * V1's colors: amber waiting, green ready or released, red cancelled.
+ * The order's own page, opened from My Orders or right after Place Order:
+ * its issuance slip to show (on the phone or printed) at the PROWARE
+ * office, where the Specialist scans its QR, the student pays, and the
+ * items are released. Above it, what to do next in V1's colors: amber
+ * waiting, green ready or released, red cancelled. Below it, Cancel while
+ * the office has not prepared the order yet.
  */
 export default function StudentIssuanceSlip({
     slip,
+    canCancel,
 }: {
     slip: IssuanceSlipData;
+    /** True while the office has not prepared the order yet. */
+    canCancel: boolean;
 }) {
     return (
         <>
@@ -69,8 +76,76 @@ export default function StudentIssuanceSlip({
                 <SlipNextStep slip={slip} />
 
                 <IssuanceSlip slip={slip} className="rounded-2xl shadow-sm" />
+
+                {canCancel && <CancelOrder slip={slip} />}
             </div>
         </>
+    );
+}
+
+/**
+ * Cancel while the office has not prepared the order yet, after a
+ * "Cancel this order?" question, like My Orders had.
+ */
+function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
+    const [confirming, setConfirming] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+
+    const cancel = () => {
+        setCancelling(true);
+        router.post(
+            StudentOrderController.cancel(slip.order_id).url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setCancelling(false);
+                    setConfirming(false);
+                },
+            },
+        );
+    };
+
+    return (
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-sm text-slate-600">
+                Changed your mind? You can cancel while the office has not
+                prepared it yet.
+            </p>
+            {confirming ? (
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="font-bold text-slate-700">
+                        Cancel this order?
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setConfirming(false)}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 font-black text-slate-700 hover:bg-slate-50"
+                    >
+                        Keep it
+                    </button>
+                    <button
+                        type="button"
+                        onClick={cancel}
+                        disabled={cancelling}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 font-black text-white hover:bg-red-700 disabled:opacity-60"
+                    >
+                        {cancelling && (
+                            <LoaderCircle size={14} className="animate-spin" />
+                        )}
+                        Cancel order
+                    </button>
+                </div>
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => setConfirming(true)}
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-100"
+                >
+                    Cancel order
+                </button>
+            )}
+        </div>
     );
 }
 

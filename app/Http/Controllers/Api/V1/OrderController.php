@@ -21,11 +21,15 @@ use Illuminate\Http\Request;
 class OrderController extends Controller
 {
     /**
-     * Orders not picked up yet first, newest first, 20 at a time.
+     * Waiting orders (by default) or Past orders, 20 at a time, with how
+     * many are on each tab.
      */
     public function index(Request $request): JsonResponse
     {
-        return response()->json(OrderRow::studentPage($request->user()));
+        return response()->json([
+            ...OrderRow::studentPage($request->user(), OrderRow::studentShow($request))->toArray(),
+            'counts' => OrderRow::studentCounts($request->user()),
+        ]);
     }
 
     public function show(Request $request, Order $order): JsonResponse
