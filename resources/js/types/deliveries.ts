@@ -1,3 +1,5 @@
+import type { DeliveryProgress, DeliveryStatus } from './purchase-orders';
+
 export type DeliveryListItem = {
     id: number;
     received_on: string;
@@ -14,9 +16,75 @@ export type DeliveryListItem = {
     /** Items in it that are not linked to a product, so not in stock. */
     items_not_in_stock: number;
     order_numbers: string[];
+    /** The first item that arrived (the row shows "+ N more"). */
+    first_item: DeliveredItem | null;
+    items_count: number;
+};
+
+/** One line of a recorded delivery. */
+export type DeliveredItem = {
+    id: number;
+    item_code: string;
+    /** As written on the eStore order. */
+    description: string;
+    /** How many arrived, as ordered on the eStore. */
+    quantity_received: number;
+    /** The product (and size) it went into; null while not linked. */
+    product: string | null;
+    pieces_added: number;
+};
+
+/** A recorded delivery in its details popup. */
+export type DeliveryDetails = {
+    id: number;
+    received_on: string;
+    sales_invoice_number: string | null;
+    delivery_receipt_number: string | null;
+    note: string | null;
+    recorded_by: string;
+    recorded_at: string | null;
+    items: DeliveredItem[];
+    /** The orders it belongs to, as they are now. */
+    orders: {
+        id: number;
+        order_number: string | null;
+        delivery_status: DeliveryStatus;
+        delivery_status_label: string;
+        percent_received: number;
+        quantity_remaining: number;
+    }[];
+};
+
+/** A purchase order still waiting for (part of) its delivery. */
+export type WaitingOrderRow = DeliveryProgress & {
+    id: number;
+    order_number: string | null;
+    date_ordered: string;
+    category: string | null;
+    items_count: number;
+    expected_delivery_date: string | null;
+    expected_delivery_note: string | null;
+    quantity_remaining: number;
+};
+
+export type DeliveriesShow =
+    | 'received'
+    | 'this_month'
+    | 'not_in_stock'
+    | 'waiting'
+    | 'late'
+    | 'this_week';
+
+export type DeliveriesSummary = {
+    late: number;
+    this_week: number;
+    waiting: number;
+    this_month: { deliveries: number; pieces: number };
+    not_in_stock: number;
 };
 
 export type DeliveryFilters = {
+    show: DeliveriesShow;
     search: string | null;
     date_from: string | null;
     date_to: string | null;
