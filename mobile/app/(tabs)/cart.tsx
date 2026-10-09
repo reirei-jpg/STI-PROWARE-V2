@@ -4,6 +4,7 @@ import {
     Check,
     CircleCheck,
     ImageIcon,
+    QrCode,
     ShoppingCart,
     Trash2,
     TriangleAlert,
@@ -17,6 +18,7 @@ import {
     RefreshControl,
     ScrollView,
     Text,
+    TextInput,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,9 +32,9 @@ import { formatDate, formatPeso, formatUnits, unitWord } from '@/lib/format';
 import type { CartLine, CartView, StudentOrder } from '@/lib/types';
 
 /**
- * The cart at today's prices, and Place Order, like the website. The
- * student pays in cash at the PROWARE office when picking it up; the items
- * are held for them until the pick-up date.
+ * The cart at today's prices, and Place Order with the course/section for
+ * the issuance slip, like the website. The student shows the slip and pays
+ * at the PROWARE office; the items are held for them until the pick-up date.
  */
 export default function CartScreen() {
     const insets = useSafeAreaInsets();
@@ -44,6 +46,9 @@ export default function CartScreen() {
     const [placed, setPlaced] = useState<{ message: string; order: StudentOrder } | null>(
         null,
     );
+    // Null until typed in: shows the course/section saved last time.
+    const [sectionText, setSectionText] = useState<string | null>(null);
+    const section = sectionText ?? cart?.section ?? '';
 
     // Prices and stock may have changed since it was last opened.
     useFocusEffect(
@@ -67,10 +72,11 @@ export default function CartScreen() {
         try {
             const result = await request<{ message: string; order: StudentOrder }>(
                 '/orders',
-                { method: 'POST' },
+                { method: 'POST', body: { section: section.trim() } },
             );
 
             setPlaced(result);
+            setSectionText(null);
             await refresh();
         } catch (caught) {
             setError(
@@ -92,6 +98,14 @@ export default function CartScreen() {
                 order={placed.order}
                 onDone={(next) => {
                     setPlaced(null);
+
+                    if (next === 'slip') {
+                        router.navigate('/orders?show=orders');
+                        router.push(`/slip/${placed.order.id}`);
+
+                        return;
+                    }
+
                     router.navigate(next === 'orders' ? '/orders?show=orders' : '/');
                 }}
             />
@@ -102,6 +116,7 @@ export default function CartScreen() {
     const ticked = lines.filter((line) => line.selected);
     const allTicked = ticked.length === lines.length;
     const tickedHaveProblems = ticked.some((line) => line.problem !== null);
+    const canPlaceOrder = cart !== null && cart.can_place_order && cart.order_refusal === null;
 
     // The tick changes at once; the total follows when the server answers.
     const selectLines = async (ids: number[], selected: boolean): Promise<void> => {
@@ -201,6 +216,25 @@ export default function CartScreen() {
                         ))}
                     </View>
                 )}
+
+                {cart !== null && lines.length > 0 && (
+                    <View className="gap-1.5 rounded-3xl border border-slate-200 bg-white p-4">
+                        <Text className="font-sans-bold text-sm text-slate-700">Course/Section</Text>
+                        <TextInput
+                            value={section}
+                            onChangeText={setSectionText}
+                            maxLength={40}
+                            placeholder="e.g. BSIT 1-A"
+                            placeholderTextColor="#94a3b8"
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-3 font-sans-semibold text-sm text-slate-900"
+                        />
+                        <Text className="font-sans text-xs text-slate-500">
+                            Printed on your issuance slip. Kept for next time.
+                        </Text>
+                    </View>
+                )}
             </ScrollView>
 
             {cart !== null && lines.length > 0 && (
@@ -211,17 +245,26 @@ export default function CartScreen() {
                     <View className="flex-row items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2.5">
                         <Banknote size={18} color="#047857" />
                         <Text className="flex-1 font-sans text-xs leading-5 text-emerald-900">
-                            Pay in cash at the PROWARE office when you pick it up. Pick
-                            it up by{' '}
-                            <Text className="font-sans-bold">{formatDate(cart.pick_up_by)}</Text>
-                            , or the order is cancelled.
+                            You get an issuance slip. Show it at the PROWARE office by{' '}
+                            <Text className="font-sans-bold">{formatDate(cart.pick_up_by)}</Text>,
+                            pay there, and get your items, or the order is cancelled.
                         </Text>
                     </View>
 
                     {error && (
                         <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
                     )}
-                    {ticked.length === 0 ? (
+                    {cart.order_refusal !== null ? (
+                        <View
+                            style={{ borderLeftWidth: 4, borderLeftColor: '#ef4444' }}
+                            className="flex-row items-start gap-2 rounded-xl bg-red-50 px-3 py-2.5"
+                        >
+                            <TriangleAlert size={17} color="#b91c1c" />
+                            <Text className="flex-1 font-sans text-sm leading-5 text-red-800">
+                                {cart.order_refusal}
+                            </Text>
+                        </View>
+                    ) : ticked.length === 0 ? (
                         <Text className="font-sans-semibold text-sm text-slate-600">
                             Tick the items you want to order.
                         </Text>
@@ -244,9 +287,9 @@ export default function CartScreen() {
                         </View>
                         <Pressable
                             onPress={placeOrder}
-                            disabled={!cart.can_place_order || placing}
+                            disabled={!canPlaceOrder || placing}
                             accessibilityRole="button"
-                            className={`flex-row items-center gap-2 rounded-2xl bg-brand px-6 py-4 ${!cart.can_place_order || placing ? 'opacity-50' : ''}`}
+                            className={`flex-row items-center gap-2 rounded-2xl bg-brand px-6 py-4 ${!canPlaceOrder || placing ? 'opacity-50' : ''}`}
                         >
                             {placing && <ActivityIndicator color="#ffffff" />}
                             <Text className="font-sans-bold text-base text-white">
@@ -455,7 +498,7 @@ function OrderPlaced({
 }: {
     message: string;
     order: StudentOrder;
-    onDone: (next: 'orders' | 'store') => void;
+    onDone: (next: 'slip' | 'orders' | 'store') => void;
 }) {
     const insets = useSafeAreaInsets();
 
@@ -485,11 +528,19 @@ function OrderPlaced({
 
             <View className="gap-3">
                 <Pressable
+                    onPress={() => onDone('slip')}
+                    accessibilityRole="button"
+                    className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
+                >
+                    <QrCode size={19} color="#ffffff" />
+                    <Text className="font-sans-bold text-base text-white">Show issuance slip</Text>
+                </Pressable>
+                <Pressable
                     onPress={() => onDone('orders')}
                     accessibilityRole="button"
-                    className="items-center rounded-2xl bg-brand py-4"
+                    className="items-center rounded-2xl border border-slate-200 bg-white py-4"
                 >
-                    <Text className="font-sans-bold text-base text-white">See My Orders</Text>
+                    <Text className="font-sans-bold text-base text-slate-700">See My Orders</Text>
                 </Pressable>
                 <Pressable
                     onPress={() => onDone('store')}

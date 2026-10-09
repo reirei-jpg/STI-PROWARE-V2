@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Banknote } from 'lucide-react-native';
+import { ArrowLeft, Banknote, QrCode } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,8 +15,9 @@ import { dueDateTier, formatDate, formatDateTime, formatPeso } from '@/lib/forma
 import type { StudentOrder } from '@/lib/types';
 
 /**
- * One order, opened from My Orders: what to do next, the items at the
- * price they were ordered at, the total, and Cancel while it is Placed.
+ * One order, opened from My Orders: what to do next, its issuance slip to
+ * show at the PROWARE office, the items at the price they were ordered at,
+ * the total, and Cancel while it is Placed.
  */
 export default function OrderScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -109,6 +110,19 @@ export default function OrderScreen() {
 
                     <NextStep order={order} />
 
+                    {order.status !== 'cancelled' && (
+                        <Pressable
+                            onPress={() => router.push(`/slip/${order.id}`)}
+                            accessibilityRole="button"
+                            className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
+                        >
+                            <QrCode size={19} color="#ffffff" />
+                            <Text className="font-sans-bold text-base text-white">
+                                Show issuance slip
+                            </Text>
+                        </Pressable>
+                    )}
+
                     <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
                         <OrderItemsList order={order} />
                     </View>
@@ -153,13 +167,11 @@ function NextStep({ order }: { order: StudentOrder }) {
                     {ready
                         ? 'Ready at the PROWARE office. '
                         : 'The PROWARE office is preparing it. '}
-                    Pay{' '}
-                    <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> in
-                    cash when you pick it up, by{' '}
+                    Show its issuance slip there by{' '}
                     <Text className={dateTierClasses[tier]}>
                         {tier === 'today' ? 'today' : formatDate(order.pick_up_by)}
-                    </Text>
-                    .
+                    </Text>{' '}
+                    and pay <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text>.
                 </Text>
             </View>
         );
@@ -172,8 +184,10 @@ function NextStep({ order }: { order: StudentOrder }) {
         >
             <Text className="font-sans text-sm text-slate-600">
                 {order.status === 'picked_up'
-                    ? `Picked up and paid ${formatDateTime(order.picked_up_at)}.`
-                    : `Cancelled ${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` · ${order.cancel_reason}` : ''}`}
+                    ? `Released ${formatDateTime(order.picked_up_at)}.`
+                    : order.expired
+                      ? `Expired: not released by ${formatDate(order.pick_up_by)}, so its items went back on sale.`
+                      : `Cancelled ${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` · ${order.cancel_reason}` : ''}`}
             </Text>
         </View>
     );

@@ -174,7 +174,7 @@ export default function TodoScreen() {
                         <CashCard
                             label="Collected today"
                             amount={tasks.cash.collected_centavos}
-                            detail={`${tasks.cash.collected_orders} ${tasks.cash.collected_orders === 1 ? 'order' : 'orders'} picked up`}
+                            detail={`${tasks.cash.collected_orders} ${tasks.cash.collected_orders === 1 ? 'order' : 'orders'} released`}
                             tone="green"
                         />
                     </View>

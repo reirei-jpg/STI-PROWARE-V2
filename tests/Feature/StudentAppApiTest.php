@@ -168,6 +168,21 @@ test('placing (with the section), seeing and cancelling an order on the app', fu
     expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0);
 });
 
+test('the app shows the student their own order\'s issuance slip with its QR', function () {
+    $order = Order::factory()->for($this->student, 'student')->create(['slip_code' => 'k3Jx9QpL2mVw', 'student_section' => 'BSIT 1-A']);
+    $theirs = Order::factory()->create();
+    Sanctum::actingAs($this->student);
+
+    $this->getJson(route('api.v1.orders.slip', $order))
+        ->assertOk()
+        ->assertJsonPath('number', $order->number)
+        ->assertJsonPath('student_name', 'Juan Dela Cruz')
+        ->assertJsonPath('section', 'BSIT 1-A')
+        ->assertJsonPath('school', 'STI COLLEGE-ORMOC, INC.')
+        ->assertJson(fn ($json) => $json->where('qr_svg', fn (string $svg) => str_starts_with($svg, '<svg'))->etc());
+    $this->getJson(route('api.v1.orders.slip', $theirs))->assertNotFound();
+});
+
 test('the app refuses to cancel a prepared order or another student\'s order', function () {
     $ready = Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Ready]);
     $theirs = Order::factory()->create();

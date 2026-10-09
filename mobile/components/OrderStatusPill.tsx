@@ -5,7 +5,7 @@ import type { StudentOrder } from '@/lib/types';
 
 type OrderDates = Pick<
     StudentOrder,
-    'status' | 'pick_up_by' | 'picked_up_at' | 'cancelled_at'
+    'status' | 'pick_up_by' | 'picked_up_at' | 'cancelled_at' | 'expired'
 >;
 
 /**
@@ -31,14 +31,19 @@ export function orderNote(order: OrderDates): { text: string; className: string 
     }
 
     return order.status === 'picked_up'
-        ? { text: `Picked up ${formatDate(order.picked_up_at)}`, className: 'font-sans text-slate-500' }
-        : { text: `Cancelled ${formatDate(order.cancelled_at)}`, className: 'font-sans text-slate-500' };
+        ? { text: `Released ${formatDate(order.picked_up_at)}`, className: 'font-sans text-slate-500' }
+        : {
+              text: order.expired
+                  ? `Expired ${formatDate(order.cancelled_at)} (not released in time)`
+                  : `Cancelled ${formatDate(order.cancelled_at)}`,
+              className: 'font-sans text-slate-500',
+          };
 }
 
 /*
  * V1's status colors, which the user chose for the whole system (website
  * and phone): amber is waiting (placed, not paid yet), green is good news
- * (ready, picked up), red is cancelled.
+ * (ready, released), red is cancelled.
  */
 const statusClasses: Record<StudentOrder['status'], [string, string]> = {
     placed: ['bg-amber-100', 'text-amber-700'],
@@ -62,7 +67,7 @@ export const dateTierClasses = {
     later: 'font-sans-bold text-blue-700',
 } as const;
 
-/** "Placed", "Ready for pickup", "Picked up" or "Cancelled", in color. */
+/** "Placed", "Ready for pickup", "Released" or "Cancelled", in color. */
 export default function OrderStatusPill({
     order,
 }: {
