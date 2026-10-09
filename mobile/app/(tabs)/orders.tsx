@@ -236,6 +236,13 @@ function preorderNote(preorder: StudentPreorder): { text: string; className: str
         return { text: 'Cancelled', className: 'font-sans text-slate-500' };
     }
 
+    if (preorder.status === 'arrived') {
+        return {
+            text: `Arrived ${formatDate(preorder.arrived_at)} · order it in the store. It is not held for you.`,
+            className: 'font-sans-bold text-emerald-700',
+        };
+    }
+
     if (preorder.preorders_close_on === null) {
         return { text: preorder.status_label, className: 'font-sans text-slate-500' };
     }
@@ -305,7 +312,12 @@ function PreorderRow({
         <View
             style={{
                 borderLeftWidth: 5,
-                borderLeftColor: preorder.status === 'cancelled' ? '#f87171' : '#fbbf24',
+                borderLeftColor:
+                    preorder.status === 'cancelled'
+                        ? '#f87171'
+                        : preorder.status === 'arrived'
+                          ? '#10b981'
+                          : '#fbbf24',
             }}
             className={`gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`}
         >

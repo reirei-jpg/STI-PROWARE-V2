@@ -14,7 +14,6 @@ use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductVariants;
 use App\Services\Stock\DeliveredStock;
 use App\Services\Stock\LowStockAlerts;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -96,17 +95,17 @@ class SaveProduct
 
     /**
      * A Preorder product students can now buy: everyone with an active
-     * preorder for it is told once. Nothing is held for them.
+     * preorder for it is told once, and their preorders become Arrived, so
+     * they stop counting as still to order. Nothing is held for them.
      */
     private function tellStudentsItArrived(Product $product): void
     {
-        $students = User::query()
-            ->whereHas('preorders', fn (Builder $preorders) => $preorders
-                ->where('product_id', $product->id)
-                ->where('status', PreorderStatus::Active))
-            ->get();
+        $preorders = $product->preorders()->where('status', PreorderStatus::Active);
+        $students = User::query()->whereIn('id', (clone $preorders)->select('user_id'))->get();
 
         Notification::send($students, new PreorderArrived($product));
+
+        $preorders->update(['status' => PreorderStatus::Arrived, 'arrived_at' => now()]);
     }
 
     /**

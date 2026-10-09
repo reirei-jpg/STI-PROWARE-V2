@@ -167,8 +167,10 @@ export type StudentPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'cancelled';
+    status: 'active' | 'arrived' | 'cancelled';
     status_label: string;
+    /** When the student was told it arrived. */
+    arrived_at: string | null;
     preorders_close_on: string | null;
     can_cancel: boolean;
     created_at: string | null;
