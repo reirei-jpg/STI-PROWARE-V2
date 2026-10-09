@@ -6,7 +6,6 @@ use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Http\Requests\CancelOrderRequest;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\OrderRules;
@@ -29,8 +28,9 @@ class OrderController extends Controller
 {
     /**
      * Orders by status (New orders by default), with a search by order
-     * number or student name; how long orders hold their items; and the
-     * students who cannot order now because their orders kept expiring.
+     * number or student name, and the students who cannot order now
+     * because their orders kept expiring. How long orders hold their items
+     * is set on the Maintenance page.
      */
     public function index(Request $request): Response
     {
@@ -40,7 +40,6 @@ class OrderController extends Controller
             'orders' => SpecialistOrders::page($filters['show'], $filters['search']),
             'filters' => $filters,
             'counts' => SpecialistOrders::counts(),
-            'holdDays' => OrderRules::holdDays(),
             'pausedStudents' => OrderRules::pausedStudents(),
         ]);
     }
@@ -87,21 +86,6 @@ class OrderController extends Controller
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
         return $this->respond(fn (): string => $handle->cancel($order, $request->user(), $request->string('reason')->toString()));
-    }
-
-    /**
-     * How many days new orders hold their items (1 to 3).
-     */
-    public function holdDays(Request $request): RedirectResponse
-    {
-        $days = $request->validate(
-            ['hold_days' => ['required', 'integer', 'between:'.OrderRules::MIN_HOLD_DAYS.','.OrderRules::MAX_HOLD_DAYS]],
-            ['hold_days.between' => 'Choose 1, 2 or 3 days.', 'hold_days.required' => 'Choose 1, 2 or 3 days.'],
-        )['hold_days'];
-
-        Setting::put(Setting::ORDER_HOLD_DAYS, (int) $days);
-
-        return $this->respond(fn (): string => 'New orders now hold their items for '.$days.' '.((int) $days === 1 ? 'day' : 'days').'. Orders already placed keep their pick-up date.');
     }
 
     /**

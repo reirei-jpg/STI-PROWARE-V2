@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Clock, Eye, Search, ShoppingBag, Unlock } from 'lucide-react';
+import { Eye, Search, ShoppingBag, Unlock } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
@@ -45,20 +45,18 @@ const descriptions: Record<Show, string> = {
  * it, and release the items once paid. Below, every order in a table (by
  * status, with a search); View Details opens an order with its items, its
  * history and its steps (Ready for pickup, Release, Undo, Cancel). Here
- * too: how many days new orders hold their items, and students paused for
- * expired orders. Orders not released by their date expire by themselves.
+ * too: students paused for expired orders. Orders not released by their
+ * date expire by themselves (how many days is set on Maintenance).
  */
 export default function OrdersIndex({
     orders,
     filters,
     counts,
-    holdDays,
     pausedStudents,
 }: {
     orders: Paginated<SpecialistOrder>;
     filters: { show: Show; search: string | null };
     counts: Record<Exclude<Show, 'all'>, number>;
-    holdDays: number;
     pausedStudents: PausedStudent[];
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
@@ -107,10 +105,7 @@ export default function OrdersIndex({
                     description="Orders students placed on the storefront. Scan the student's issuance slip to release the items once paid, or open any order below. Orders not released by their pick-up date expire, and their items are free to sell again."
                 />
 
-                <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-                    <SlipScanBox />
-                    <HoldDaysSetting holdDays={holdDays} />
-                </div>
+                <SlipScanBox />
 
                 {pausedStudents.length > 0 && (
                     <PausedStudents students={pausedStudents} />
@@ -378,54 +373,6 @@ function OrderDate({ order }: { order: SpecialistOrder }) {
                 {order.expired ? 'Expired' : (order.handled_by ?? '')}
             </span>
         </p>
-    );
-}
-
-/**
- * How many days new orders hold their items before they expire (1 to 3).
- * Orders already placed keep their pick-up date.
- */
-function HoldDaysSetting({ holdDays }: { holdDays: number }) {
-    const [saving, setSaving] = useState<number | null>(null);
-
-    const choose = (days: number) => {
-        setSaving(days);
-        router.patch(
-            OrderController.holdDays().url,
-            { hold_days: days },
-            { preserveScroll: true, onFinish: () => setSaving(null) },
-        );
-    };
-
-    return (
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 font-black text-slate-900">
-                <Clock size={20} className="text-amber-600" />
-                Hold items for
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-                Days a new order keeps its items for the student before it
-                expires.
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-                {[1, 2, 3].map((days) => (
-                    <button
-                        key={days}
-                        type="button"
-                        disabled={saving !== null || days === holdDays}
-                        onClick={() => choose(days)}
-                        className={cn(
-                            'h-11 rounded-xl text-sm font-black transition',
-                            days === holdDays
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60',
-                        )}
-                    >
-                        {days} {days === 1 ? 'day' : 'days'}
-                    </button>
-                ))}
-            </div>
-        </section>
     );
 }
 

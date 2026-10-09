@@ -4,6 +4,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ItemLinkController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PreorderController;
@@ -62,12 +63,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/slip', [OrderController::class, 'slip'])->name('orders.slip');
         Route::get('orders/{order}/slip/print', [OrderController::class, 'printSlip'])->name('orders.slip.print');
-        Route::patch('orders/hold-days', [OrderController::class, 'holdDays'])->name('orders.hold-days');
         Route::post('students/{student}/lift-pause', [OrderController::class, 'liftPause'])->name('students.lift-pause');
         Route::post('orders/{order}/ready', [OrderController::class, 'ready'])->name('orders.ready');
         Route::post('orders/{order}/release', [OrderController::class, 'release'])->name('orders.release');
         Route::post('orders/{order}/undo-release', [OrderController::class, 'undoRelease'])->name('orders.undo-release');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+
+        Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
+        Route::patch('maintenance/hold-days', [MaintenanceController::class, 'updateHoldDays'])->name('maintenance.hold-days');
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');
         Route::get('preorders/export', [PreorderController::class, 'export'])->name('preorders.export');
