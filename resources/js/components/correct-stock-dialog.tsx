@@ -27,6 +27,8 @@ type CorrectionForm = {
     pieces_to_remove: string;
     actual_count: string;
     note: string;
+    /** Pesos per piece, for a count that adds pieces. */
+    unit_cost: string;
 };
 
 /** Keeps only digits, so "45 pcs" becomes "45". */
@@ -35,8 +37,9 @@ const digitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 7);
 /**
  * The pop-up where the Specialist corrects a variant's stock. For damaged,
  * lost or returned pieces she enters how many to take out; for a recount
- * (or another reason) she enters the count on the shelf. Before saving it
- * shows the stock before and after.
+ * (or another reason) she enters the count on the shelf, and, when that
+ * adds pieces, their eStore price per piece. Before saving it shows the
+ * stock before and after.
  */
 export default function CorrectStockDialog({
     open,
@@ -91,6 +94,7 @@ function CorrectionForm({
         pieces_to_remove: '',
         actual_count: '',
         note: '',
+        unit_cost: '',
     });
     const { data, setData, processing, errors } = form;
 
@@ -127,6 +131,12 @@ function CorrectionForm({
     }
 
     const noteRequired = data.reason === 'other';
+    // Pieces added need what they cost on the eStore, so every piece has one.
+    const addsPieces =
+        variant !== undefined &&
+        after !== null &&
+        after > variant.stock_on_hand;
+    const costMissing = addsPieces && !(Number(data.unit_cost) > 0);
 
     return (
         <form
@@ -282,6 +292,42 @@ function CorrectionForm({
                     </section>
                 )}
 
+                {addsPieces && (
+                    <label className="grid gap-1.5">
+                        <span className="text-sm font-black text-slate-700">
+                            eStore price per piece of the added pieces
+                        </span>
+                        <span className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-slate-500">
+                                ₱
+                            </span>
+                            <input
+                                value={data.unit_cost}
+                                onChange={(event) =>
+                                    setData(
+                                        'unit_cost',
+                                        event.target.value
+                                            .replace(/[^\d.]/g, '')
+                                            .slice(0, 10),
+                                    )
+                                }
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                className={cn(
+                                    inputClasses,
+                                    'w-40 text-right',
+                                    errors.unit_cost && 'border-red-300',
+                                )}
+                            />
+                        </span>
+                        <span className="text-xs text-slate-500">
+                            What PROWARE paid Head Office for each piece, as on
+                            the eStore order. Used for the Sales Reports.
+                        </span>
+                        <InputError message={errors.unit_cost} />
+                    </label>
+                )}
+
                 <label className="grid gap-1.5">
                     <span className="text-sm font-black text-slate-700">
                         Note {noteRequired ? '(required)' : '(optional)'}
@@ -312,6 +358,7 @@ function CorrectionForm({
                     disabled={
                         processing ||
                         after === null ||
+                        costMissing ||
                         (noteRequired && data.note.trim() === '')
                     }
                     className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"

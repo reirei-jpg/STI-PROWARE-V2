@@ -72,16 +72,19 @@ final class DeliveredStock
                     /** @var ProductVariant $variant */
                     $variant = $variants->first();
                     $piecesPerUnit = $variant->estorePack->pieces ?? 1;
-                    $piecesAdded += $this->addToVariant($variant, $item, $item->quantity_received, $variant->estorePack->name ?? 'Piece', $piecesPerUnit, $recordedBy);
+                    $piecesAdded += $this->addToVariant($variant, $item, $item->quantity_received, $variant->estorePack->name ?? 'Piece', $piecesPerUnit, $piecesPerUnit, $recordedBy);
 
                     continue;
                 }
+
+                // Counted by the piece, but the eStore price is per eStore unit.
+                $estoreUnitPieces = self::piecesPerUnit($item->purchaseOrderItem->item_code);
 
                 foreach ($variants as $variant) {
                     $pieces = $splits[$item->id][$variant->id] ?? 0;
 
                     if ($pieces > 0) {
-                        $piecesAdded += $this->addToVariant($variant, $item, $pieces, 'Piece', 1, $recordedBy);
+                        $piecesAdded += $this->addToVariant($variant, $item, $pieces, 'Piece', 1, $estoreUnitPieces, $recordedBy);
                     }
                 }
             }
@@ -192,7 +195,11 @@ final class DeliveredStock
             ->get();
     }
 
-    private function addToVariant(ProductVariant $variant, DeliveryItem $item, int $units, string $unitName, int $piecesPerUnit, ?User $recordedBy): int
+    /**
+     * Add the pieces with their eStore cost (the purchase order line's unit
+     * price per eStore unit of $estoreUnitPieces pieces).
+     */
+    private function addToVariant(ProductVariant $variant, DeliveryItem $item, int $units, string $unitName, int $piecesPerUnit, int $estoreUnitPieces, ?User $recordedBy): int
     {
         $pieces = $units * $piecesPerUnit;
         $balance = $variant->stock_on_hand + $pieces;
@@ -207,8 +214,12 @@ final class DeliveredStock
             'units_received' => $units,
             'unit_name' => $unitName,
             'pieces_per_unit' => $piecesPerUnit,
+            'cost_centavos' => StockCost::ofDelivery($item, $pieces, $estoreUnitPieces),
             'recorded_by' => $recordedBy?->id,
         ]);
+
+        // A delivery recorded late may cost sales made before it.
+        StockCost::replay($variant->id);
 
         return $pieces;
     }

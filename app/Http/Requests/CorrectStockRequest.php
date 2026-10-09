@@ -13,7 +13,8 @@ use Illuminate\Validation\Validator;
 /**
  * The Correct stock pop-up. For Damaged, Lost and Returned to Head Office
  * the Specialist enters how many pieces to take out; for Recount and Other
- * she enters the actual count on the shelf. Other needs a note.
+ * she enters the actual count on the shelf. Other needs a note. A count
+ * higher than the stock needs the added pieces' eStore price per piece.
  */
 class CorrectStockRequest extends FormRequest
 {
@@ -52,6 +53,8 @@ class CorrectStockRequest extends FormRequest
                 'string',
                 'max:200',
             ],
+            // Pesos per piece, for a count that adds pieces (checked below).
+            'unit_cost' => ['nullable', 'numeric', 'min:0.01', 'max:1000000'],
         ];
     }
 
@@ -71,6 +74,8 @@ class CorrectStockRequest extends FormRequest
             'actual_count.integer' => 'Enter a whole number of pieces.',
             'actual_count.min' => 'The count cannot be below 0.',
             'note.required' => 'Write what happened, since the reason is Other.',
+            'unit_cost.numeric' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
+            'unit_cost.min' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
         ];
     }
 
@@ -100,6 +105,8 @@ class CorrectStockRequest extends FormRequest
                     $validator->errors()->add('actual_count', "The stock is already {$stock} pcs, so nothing would change.");
                 } elseif ($after < $variant->held_pieces) {
                     $validator->errors()->add($field, "{$variant->held_pieces} pcs are held for students' orders, so the shelf cannot have fewer. Cancel those orders first, or count again.");
+                } elseif ($after > $stock && $this->centavosPerPiece() === null) {
+                    $validator->errors()->add('unit_cost', 'Enter the eStore price per piece of the '.($after - $stock).' pcs you are adding, so every piece has a cost.');
                 }
             },
         ];
@@ -113,6 +120,14 @@ class CorrectStockRequest extends FormRequest
     public function reason(): StockCorrectionReason
     {
         return StockCorrectionReason::from((string) $this->input('reason'));
+    }
+
+    /**
+     * The eStore price per piece in centavos; null when not given.
+     */
+    public function centavosPerPiece(): ?int
+    {
+        return $this->filled('unit_cost') ? (int) round((float) $this->input('unit_cost') * 100) : null;
     }
 
     /**

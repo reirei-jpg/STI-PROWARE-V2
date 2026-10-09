@@ -52,4 +52,17 @@ final class ShopPrice
     {
         return $pack === null ? self::perPiece($variant) : self::perPack($pack);
     }
+
+    /**
+     * The regular price of one unit, ignoring any sale: what a sale price is
+     * a discount from.
+     */
+    public static function normalPerUnit(ProductVariant $variant, ?ProductPack $pack): ?int
+    {
+        if ($pack === null) {
+            return $variant->normalPiecePrice();
+        }
+
+        return $pack->sold_to_students ? $pack->price_centavos : null;
+    }
 }

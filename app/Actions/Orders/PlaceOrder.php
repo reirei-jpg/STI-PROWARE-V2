@@ -87,6 +87,8 @@ class PlaceOrder
                     'pieces_per_unit' => $piecesPerUnit,
                     'quantity' => $line->quantity,
                     'unit_price_centavos' => $unitPrice,
+                    // The regular price too, so a sale price shows as a discount.
+                    'normal_unit_price_centavos' => ShopPrice::normalPerUnit($variant, $line->pack) ?? $unitPrice,
                     'line_total_centavos' => $unitPrice * $line->quantity,
                 ]);
 
