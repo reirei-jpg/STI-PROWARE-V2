@@ -121,18 +121,35 @@ test('only the Specialist can look up and print slips', function () {
     $this->actingAs(User::factory()->schoolAdmin()->create())->get(route('orders.slip', ['code' => $order->slip_code]))->assertForbidden();
 });
 
-test('the Specialist sets how many days new orders hold their items', function () {
-    $this->actingAs($this->specialist)->get(route('orders.index'))
-        ->assertInertia(fn (Assert $page) => $page->where('holdDays', 2));
+test('the Specialist sets how many days new orders hold their items on the Maintenance page', function () {
+    $this->actingAs($this->specialist)->get(route('maintenance.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('maintenance/index')
+            ->where('holdDays.value', 2)
+            ->where('holdDays.changed_by', null));
 
-    $this->patch(route('orders.hold-days'), ['hold_days' => 4])
+    $this->patch(route('maintenance.hold-days'), ['hold_days' => 4])
         ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
 
-    $this->patch(route('orders.hold-days'), ['hold_days' => 3])
+    $this->patch(route('maintenance.hold-days'), ['hold_days' => 3])
         ->assertInertiaFlash('toast.message', 'New orders now hold their items for 3 days. Orders already placed keep their pick-up date.');
 
     expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 0))->toBe(3)
         ->and(OrderRules::holdUntil()->toDateString())->toBe('2026-10-12');
+
+    $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('holdDays.value', 3)
+        ->where('holdDays.changed_by', $this->specialist->name)
+        ->where('holdDays.changed_at', now()->toIso8601String()));
+});
+
+test('only the Specialist can open and change Maintenance', function () {
+    foreach ([$this->student, User::factory()->schoolAdmin()->create()] as $user) {
+        $this->actingAs($user)->get(route('maintenance.index'))->assertForbidden();
+        $this->patch(route('maintenance.hold-days'), ['hold_days' => 1])->assertForbidden();
+    }
+
+    expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 2))->toBe(2);
 });
 
 test('the Specialist sees students paused for expired orders and can let them order again', function () {

@@ -5,10 +5,12 @@ import {
     FileScan,
     LayoutDashboard,
     Package,
+    Settings,
     ShoppingBag,
     Truck,
 } from 'lucide-react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
+import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
@@ -82,6 +84,11 @@ function useStaffMenuItems(): NavItem[] {
                 title: 'Preorders',
                 href: PreorderController.index(),
                 icon: CalendarClock,
+            },
+            {
+                title: 'Maintenance',
+                href: MaintenanceController.index(),
+                icon: Settings,
             },
         );
     }
