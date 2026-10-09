@@ -221,7 +221,7 @@ test('free uniform sets count in Given free at Cost and at Price, never as a sal
 
     $this->post(route('free-uniforms.store'), [
         'enrolled_on' => now()->toDateString(),
-        'students' => collect(['Maria Santos' => '2026-01234', 'Juan Dela Cruz' => '2026-01235'])->map(fn (string $form, string $name): array => [
+        'students' => collect(['Student 1' => '2026-01234', 'Juan Dela Cruz' => '2026-01235'])->map(fn (string $form, string $name): array => [
             'name' => $name, 'enrollment_form_number' => $form, 'uniform_set_id' => $set->id,
             'top_kind' => 'polo', 'top_variant_id' => $variant->id, 'pants_variant_id' => $variant->id,
         ])->values()->all(),
@@ -244,7 +244,7 @@ test('free uniforms are no longer a reason in Correct Stock, but old ones still 
     receivedJacketOrder(packs: 1, pricePerPack: 100000);
     StockMovement::factory()->for($variant, 'variant')->create([
         'type' => StockMovementType::Correction, 'reason' => StockCorrectionReason::GivenFree, 'quantity' => -1, 'balance_after' => 4,
-        'recipient_name' => 'Maria Santos', 'enrollment_form_number' => '2026-01234',
+        'recipient_name' => 'Juan Dela Cruz', 'enrollment_form_number' => '2026-01234',
     ]);
     $this->actingAs($this->specialist);
 
@@ -253,7 +253,7 @@ test('free uniforms are no longer a reason in Correct Stock, but old ones still 
     $this->get(route('products.stock', $variant->product))
         ->assertInertia(fn (Assert $page) => $page->where('reasons', fn ($reasons) => ! collect($reasons)->contains('value', 'given_free')));
     $this->get(route('sales-reports.index', ['tab' => 'free']))
-        ->assertInertia(fn (Assert $page) => $page->where('summary.free_pieces', 1)->where('free.data.0.recipient_name', 'Maria Santos'));
+        ->assertInertia(fn (Assert $page) => $page->where('summary.free_pieces', 1)->where('free.data.0.recipient_name', 'Juan Dela Cruz'));
 });
 
 test('only the Specialist sees sales reports and sets eStore prices', function () {

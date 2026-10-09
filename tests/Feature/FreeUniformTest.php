@@ -80,7 +80,7 @@ function freeStudents(UniformSet $set, int $count, array $overrides = []): array
 test('a group of 5 who enrolled together each get one set, which leaves stock as Free (promo)', function () {
     $set = bsitSet();
     $students = freeStudents($set, 5);
-    $students[0] = array_merge($students[0], ['name' => 'Maria Santos', 'top_kind' => 'blouse', 'top_variant_id' => uniformSize($set->blouse_product_id, 'S')->id]);
+    $students[0] = array_merge($students[0], ['name' => 'Juan Dela Cruz', 'top_kind' => 'blouse', 'top_variant_id' => uniformSize($set->blouse_product_id, 'S')->id]);
 
     $this->actingAs($this->specialist)
         ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-09', 'note' => 'Barkada of five', 'students' => $students])
@@ -102,7 +102,7 @@ test('a group of 5 who enrolled together each get one set, which leaves stock as
     $this->get(route('products.stock', $set->blouse_product_id))->assertInertia(fn (Assert $page) => $page
         ->where('movements.data.0.type_label', 'Free (promo)')
         ->where('movements.data.0.quantity', -1)
-        ->where('movements.data.0.note', "To Maria Santos · Enrollment form #2026-01 · BSIT set · Free uniform group #{$group->id}"));
+        ->where('movements.data.0.note', "To Juan Dela Cruz · Enrollment form #2026-01 · BSIT set · Free uniform group #{$group->id}"));
 });
 
 test('a piece out of stock is still to give, and is given when it arrives, in another size if needed', function () {
@@ -255,14 +255,14 @@ test('the page lists groups, finds a student, shows who is still owed, and a gro
     foreach ($others as $index => $student) {
         $others[$index]['enrollment_form_number'] = "2026-1{$index}";
     }
-    $others[0]['name'] = 'Maria Santos';
+    $others[0]['name'] = 'Juan Dela Cruz';
     $this->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-08', 'students' => $others]);
 
     $this->get(route('free-uniforms.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('free-uniforms/index')
         ->has('groups.data', 2)
         ->where('groups.data.0.enrolled_on', '2026-10-08')
-        ->where('groups.data.0.names', ['Maria Santos', 'Student 2'])
+        ->where('groups.data.0.names', ['Juan Dela Cruz', 'Student 2'])
         ->where('groups.data.0.more_names', 3)
         ->where('groups.data.0.sets', 'BSIT × 5')
         ->where('groups.data.1.still_to_give', 1)
@@ -270,8 +270,8 @@ test('the page lists groups, finds a student, shows who is still owed, and a gro
         ->where('sets.0.name', 'BSIT')
         ->where('sets.0.polo.sizes.1', ['id' => uniformSize($set->polo_product_id, 'M')->id, 'label' => 'M', 'free_to_sell' => 0]));
 
-    $this->get(route('free-uniforms.index', ['search' => 'maria']))
-        ->assertInertia(fn (Assert $page) => $page->has('groups.data', 1)->where('groups.data.0.names.0', 'Maria Santos'));
+    $this->get(route('free-uniforms.index', ['search' => 'juan']))
+        ->assertInertia(fn (Assert $page) => $page->has('groups.data', 1)->where('groups.data.0.names.0', 'Juan Dela Cruz'));
     $this->get(route('free-uniforms.index', ['show' => 'still_to_give']))
         ->assertInertia(fn (Assert $page) => $page->has('groups.data', 1)->where('groups.data.0.id', $owedGroup->id));
 
