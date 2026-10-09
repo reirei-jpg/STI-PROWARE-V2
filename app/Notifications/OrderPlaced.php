@@ -35,7 +35,7 @@ class OrderPlaced extends Notification implements PushesToPhones
 
         return [
             'title' => "New order {$order['order_number']}",
-            'body' => "{$order['student_name']} · {$order['items_count']} {$items} · ₱".number_format($order['total_centavos'] / 100, 2).' to pay in cash. Prepare it, then mark it Ready for pickup.',
+            'body' => "{$order['student_name']} · {$order['items_count']} {$items} · ₱".number_format($order['total_centavos'] / 100, 2).' to pay. Prepare it, then mark it Ready for pickup.',
             'data' => ['kind' => 'order_placed', 'order_id' => $order['order_id']],
         ];
     }

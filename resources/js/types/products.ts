@@ -161,8 +161,12 @@ export type StockProduct = {
     id: number;
     name: string;
     has_options: boolean;
-    /** Pieces in stock across all variants. */
+    /** Pieces on the shelf across all variants. */
     stock_on_hand: number;
+    /** Pieces on the shelf held for students' open orders. */
+    held_pieces: number;
+    /** Pieces on the shelf students can still order. */
+    free_to_sell: number;
     /** Pieces at which the Specialist is warned, per variant. */
     low_stock_alert_at: number;
     /** Available or On Sale: only these get low-stock warnings. */
@@ -173,9 +177,21 @@ export type StockVariant = {
     id: number;
     label: string;
     stock_on_hand: number;
+    held_pieces: number;
+    free_to_sell: number;
     estore_item_code: string | null;
     /** "Pack (10 pcs)" when Head Office sends it by a pack; null by the piece. */
     sent_by: string | null;
+};
+
+/** Pieces held on the shelf for a student's open order. */
+export type StockHold = {
+    order_id: number;
+    order_number: string | null;
+    student_name: string;
+    variant_label: string;
+    pieces: number;
+    pick_up_by: string;
 };
 
 /** One change to a variant's stock, in pieces. */

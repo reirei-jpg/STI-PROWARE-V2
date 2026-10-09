@@ -13,6 +13,9 @@ void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
+            // Printed documents (the issuance slip) stand alone on the page.
+            case name.startsWith('print/'):
+                return null;
             case name.startsWith('storefront/'):
                 return StorefrontLayout;
             case name.startsWith('auth/'):

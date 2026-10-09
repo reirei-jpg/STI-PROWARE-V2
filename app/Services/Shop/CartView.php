@@ -20,7 +20,10 @@ use Illuminate\Database\Eloquent\Collection;
 final class CartView
 {
     /**
-     * @return array{lines: list<array<string, mixed>>, selected_count: int, total_centavos: int, can_place_order: bool, pick_up_by: string}
+     * With the student's saved course/section (for the issuance slip) and,
+     * when a guard would refuse the order (too many waiting, or paused), why.
+     *
+     * @return array{lines: list<array<string, mixed>>, selected_count: int, total_centavos: int, can_place_order: bool, pick_up_by: string, section: string|null, order_refusal: string|null}
      */
     public static function for(User $student): array
     {
@@ -38,6 +41,8 @@ final class CartView
             'total_centavos' => (int) $ticked->whereNull('problem')->sum('line_total_centavos'),
             'can_place_order' => $ticked->isNotEmpty() && $ticked->whereNotNull('problem')->isEmpty(),
             'pick_up_by' => OrderRules::holdUntil()->toDateString(),
+            'section' => $student->section,
+            'order_refusal' => $lines === [] ? null : OrderRules::refusal($student),
         ];
     }
 

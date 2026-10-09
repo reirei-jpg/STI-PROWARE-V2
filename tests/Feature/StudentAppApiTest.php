@@ -242,7 +242,7 @@ test('the app gets exactly the cart, orders and preorders the website shows', fu
     $appOrders = $this->getJson(route('api.v1.orders.index'))->json('data');
     $appPreorders = $this->getJson(route('api.v1.preorders.index'))->json('data');
 
-    expect($appCart)->toBe(Arr::only($websiteCart, ['lines', 'selected_count', 'total_centavos', 'can_place_order', 'pick_up_by']))
+    expect($appCart)->toBe(Arr::only($websiteCart, ['lines', 'selected_count', 'total_centavos', 'can_place_order', 'pick_up_by', 'section', 'order_refusal']))
         ->and($appCart['lines'])->toHaveCount(2);
     expect($appOrders)->toBe($websiteOrders)->toHaveCount(2);
     expect($appPreorders)->toBe($websitePreorders)->toHaveCount(1);

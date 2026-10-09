@@ -41,9 +41,9 @@ function selectLines(ids: number[], selected: boolean): void {
 
 /**
  * The student's cart at today's prices, and Place Order for the ticked
- * items (the rest stay in the cart for later). They pay in cash at the
- * PROWARE office when they pick the order up; the items are held for them
- * until the pick-up date.
+ * items (the rest stay in the cart for later), with the course/section for
+ * the issuance slip. They show the slip and pay at the PROWARE office; the
+ * items are held for them until the pick-up date.
  */
 export default function Cart({
     lines,
@@ -51,15 +51,21 @@ export default function Cart({
     total_centavos: total,
     can_place_order: canPlaceOrder,
     pick_up_by: pickUpBy,
+    section,
+    order_refusal: orderRefusal,
 }: {
     lines: CartLine[];
     selected_count: number;
     total_centavos: number;
     can_place_order: boolean;
     pick_up_by: string;
+    /** The course/section the student gave last time, for the slip. */
+    section: string | null;
+    /** Why Place Order would be refused (too many waiting, or paused). */
+    order_refusal: string | null;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
-    const placeOrder = useForm({});
+    const placeOrder = useForm({ section: section ?? '' });
     const allTicked = lines.every((line) => line.selected);
     const tickedHaveProblems = lines.some(
         (line) => line.selected && line.problem !== null,
@@ -145,18 +151,56 @@ export default function Cart({
                                     className="mt-0.5 shrink-0"
                                 />
                                 <span>
-                                    Pay in cash at the PROWARE office when you
-                                    pick it up. Pick it up by{' '}
+                                    You get an issuance slip. Show it at the
+                                    PROWARE office by{' '}
                                     <strong>
                                         {formatDateOrdered(pickUpBy)}
                                     </strong>
-                                    , or the order is cancelled.
+                                    , pay there, and get your items, or the
+                                    order is cancelled.
                                 </span>
                             </p>
 
+                            <div>
+                                <label
+                                    htmlFor="section"
+                                    className="text-sm font-black text-slate-700"
+                                >
+                                    Course/Section
+                                </label>
+                                <input
+                                    id="section"
+                                    value={placeOrder.data.section}
+                                    onChange={(event) =>
+                                        placeOrder.setData(
+                                            'section',
+                                            event.target.value,
+                                        )
+                                    }
+                                    maxLength={40}
+                                    placeholder="e.g. BSIT 1-A"
+                                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Printed on your issuance slip. Kept for next
+                                    time.
+                                </p>
+                                <InputError
+                                    message={placeOrder.errors.section}
+                                />
+                            </div>
+
                             <InputError message={errors.cart} />
 
-                            {selectedCount === 0 ? (
+                            {orderRefusal !== null ? (
+                                <p className="flex gap-2 rounded-xl border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">
+                                    <TriangleAlert
+                                        size={18}
+                                        className="mt-0.5 shrink-0"
+                                    />
+                                    {orderRefusal}
+                                </p>
+                            ) : selectedCount === 0 ? (
                                 <p className="text-sm text-slate-600">
                                     Tick the items you want to order.
                                 </p>
@@ -172,7 +216,9 @@ export default function Cart({
                             <button
                                 type="button"
                                 disabled={
-                                    !canPlaceOrder || placeOrder.processing
+                                    !canPlaceOrder ||
+                                    orderRefusal !== null ||
+                                    placeOrder.processing
                                 }
                                 onClick={() =>
                                     placeOrder.post(

@@ -7,6 +7,7 @@ import {
     Pencil,
 } from 'lucide-react';
 import { useState } from 'react';
+import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import CorrectStockDialog from '@/components/correct-stock-dialog';
@@ -20,25 +21,30 @@ import { cn } from '@/lib/utils';
 import type {
     Paginated,
     StockCorrectionReasonOption,
+    StockHold,
     StockMovementRow,
     StockProduct,
     StockVariant,
 } from '@/types';
 
 /**
- * A product's stock: the pieces each variant has now, and every change to
- * it (deliveries and corrections) with the balance after, newest first.
- * The Specialist corrects the stock here, with a reason.
+ * A product's stock: the pieces each variant has on the shelf, how many are
+ * held for students' orders (and for whom) and free to sell, and every
+ * change to the shelf (deliveries, corrections, released orders) with the
+ * balance after, newest first. The Specialist corrects the stock here,
+ * with a reason.
  */
 export default function ProductStock({
     product,
     variants,
+    holds,
     movements,
     filters,
     reasons,
 }: {
     product: StockProduct;
     variants: StockVariant[];
+    holds: StockHold[];
     movements: Paginated<StockMovementRow>;
     filters: { variant: number | null };
     reasons: StockCorrectionReasonOption[];
@@ -59,7 +65,7 @@ export default function ProductStock({
             <div className="space-y-7">
                 <PageHeader
                     title="Stock History"
-                    description={`${product.name} · ${formatUnits(product.stock_on_hand, 'Piece')} in stock · ${product.is_sold ? `you are warned at ${formatUnits(product.low_stock_alert_at, 'Piece')} per variant` : 'not watched for low stock (only Available and On Sale products are)'}. Every delivery and correction is listed here and cannot be changed or deleted.`}
+                    description={`${product.name} · ${formatUnits(product.stock_on_hand, 'Piece')} on the shelf${product.held_pieces > 0 ? ` (${formatUnits(product.held_pieces, 'Piece')} held for orders)` : ''} ·${product.is_sold ? `you are warned at ${formatUnits(product.low_stock_alert_at, 'Piece')} per variant` : 'not watched for low stock (only Available and On Sale products are)'}. Every delivery and correction is listed here and cannot be changed or deleted.`}
                     actions={
                         <>
                             <Link
@@ -92,25 +98,76 @@ export default function ProductStock({
                     {variants.map((variant) => (
                         <SummaryCard
                             key={variant.id}
-                            label={`${product.has_options ? variant.label : 'In stock'}${
+                            label={`${product.has_options ? variant.label : 'On the shelf'}${
                                 product.is_sold &&
-                                variant.stock_on_hand <=
+                                variant.free_to_sell <=
                                     product.low_stock_alert_at
-                                    ? variant.stock_on_hand === 0
+                                    ? variant.free_to_sell === 0
                                         ? ' · Out of stock'
                                         : ' · Low stock'
                                     : ''
                             }`}
                             value={formatUnits(variant.stock_on_hand, 'Piece')}
-                            description={
+                            description={`${
+                                variant.held_pieces > 0
+                                    ? `${formatUnits(variant.held_pieces, 'Piece')} held for orders · ${formatUnits(variant.free_to_sell, 'Piece')} free to sell · `
+                                    : ''
+                            }${
                                 variant.estore_item_code
                                     ? `eStore Item Code ${variant.estore_item_code} · Head Office sends it ${variant.sent_by ? `by the ${variant.sent_by}` : 'by the piece'}`
                                     : 'No eStore Item Code yet, so deliveries do not reach this stock.'
-                            }
+                            }`}
                             icon={Boxes}
                         />
                     ))}
                 </section>
+
+                {holds.length > 0 && (
+                    <Panel
+                        title="Held for Students' Orders"
+                        description={`${formatUnits(product.held_pieces, 'Piece')} on the shelf are kept for these orders until they are released or expire. The nearest pick-up date first.`}
+                        className="border-l-4 border-l-amber-500"
+                    >
+                        <ul className="divide-y divide-slate-100">
+                            {holds.map((hold, index) => (
+                                <li
+                                    key={`${hold.order_id}-${index}`}
+                                    className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 text-sm"
+                                >
+                                    <div>
+                                        <Link
+                                            href={OrderController.slip({
+                                                query: {
+                                                    code:
+                                                        hold.order_number ?? '',
+                                                },
+                                            })}
+                                            className="font-black text-blue-700 hover:underline"
+                                        >
+                                            {hold.order_number}
+                                        </Link>{' '}
+                                        <span className="font-bold text-slate-700">
+                                            {hold.student_name}
+                                        </span>
+                                        {product.has_options && (
+                                            <span className="text-slate-500">
+                                                {' '}
+                                                · {hold.variant_label}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-slate-600">
+                                        <strong className="text-slate-900">
+                                            {formatUnits(hold.pieces, 'Piece')}
+                                        </strong>{' '}
+                                        · pick up by{' '}
+                                        {formatDateOrdered(hold.pick_up_by)}
+                                    </p>
+                                </li>
+                            ))}
+                        </ul>
+                    </Panel>
+                )}
 
                 {product.has_options && (
                     <section className="flex flex-wrap gap-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

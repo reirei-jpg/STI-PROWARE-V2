@@ -6,6 +6,7 @@ use App\Actions\Orders\CancelOrderByStudent;
 use App\Actions\Orders\PlaceOrder;
 use App\Http\Requests\PlaceOrderRequest;
 use App\Models\Order;
+use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\OrderRow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,18 +14,43 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * A student's orders: placing the order from the cart, My Orders, and
- * cancelling an order the PROWARE office has not prepared yet.
+ * A student's orders: placing the order from the cart, My Orders, each
+ * order's issuance slip (to show at the PROWARE office), and cancelling an
+ * order the PROWARE office has not prepared yet.
  */
 class StudentOrderController extends Controller
 {
     /**
-     * My Orders: orders not picked up yet first, newest first.
+     * My Orders: orders not released yet first, newest first.
      */
     public function index(Request $request): Response
     {
         return Inertia::render('storefront/my-orders', [
             'orders' => OrderRow::studentPage($request->user()),
+        ]);
+    }
+
+    /**
+     * The order's issuance slip with its QR, to show the Specialist.
+     */
+    public function slip(Request $request, Order $order): Response
+    {
+        abort_unless($order->user_id === $request->user()->id, 404);
+
+        return Inertia::render('storefront/issuance-slip', [
+            'slip' => IssuanceSlip::of($order->load(['items', 'student', 'handler'])),
+        ]);
+    }
+
+    /**
+     * The issuance slip alone, to print.
+     */
+    public function printSlip(Request $request, Order $order): Response
+    {
+        abort_unless($order->user_id === $request->user()->id, 404);
+
+        return Inertia::render('print/issuance-slip', [
+            'slip' => IssuanceSlip::of($order->load(['items', 'student', 'handler'])),
         ]);
     }
 

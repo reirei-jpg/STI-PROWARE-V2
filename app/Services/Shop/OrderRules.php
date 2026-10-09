@@ -91,6 +91,32 @@ final class OrderRules
     }
 
     /**
+     * Students who cannot order now because of expired orders, for the
+     * Specialist's Orders page, the soonest to be able to order again first.
+     *
+     * @return list<array{id: int, name: string, email: string, paused_until: string}>
+     */
+    public static function pausedStudents(): array
+    {
+        $candidates = User::query()
+            ->whereHas('orders', fn ($orders) => $orders->whereNotNull('expired_at')->where('expired_at', '>=', now()->subDays(self::NO_SHOW_WINDOW_DAYS)), '>=', self::NO_SHOW_LIMIT)
+            ->orderBy('name')
+            ->get();
+
+        return array_values($candidates
+            ->map(fn (User $student): array => ['student' => $student, 'until' => self::pausedUntil($student)])
+            ->filter(fn (array $row): bool => $row['until'] !== null)
+            ->sortBy(fn (array $row): string => $row['until']->toIso8601String())
+            ->map(fn (array $row): array => [
+                'id' => $row['student']->id,
+                'name' => $row['student']->name,
+                'email' => $row['student']->email,
+                'paused_until' => $row['until']->toDateString(),
+            ])
+            ->all());
+    }
+
+    /**
      * The Specialist lets a paused student order again.
      */
     public static function liftPause(User $student): void

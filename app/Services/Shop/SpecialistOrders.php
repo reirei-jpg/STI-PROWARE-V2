@@ -75,7 +75,7 @@ final class SpecialistOrders
      * number, e.g. typed as "PW-0042" when there is nothing to scan), with
      * the student's other open orders. Null when it is not a PROWARE slip.
      *
-     * @return array{order: array<string, mixed>, other_open_orders: list<array{id: int, number: string|null, status_label: string}>}|null
+     * @return array{order: array<string, mixed>, slip: array<string, mixed>, other_open_orders: list<array{id: int, number: string|null, status_label: string}>}|null
      */
     public static function bySlip(string $code): ?array
     {
@@ -97,6 +97,7 @@ final class SpecialistOrders
 
         return [
             'order' => self::row($order),
+            'slip' => IssuanceSlip::of($order),
             'other_open_orders' => array_values(Order::query()
                 ->open()
                 ->where('user_id', $order->user_id)

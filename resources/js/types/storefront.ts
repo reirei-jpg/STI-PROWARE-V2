@@ -114,7 +114,50 @@ export type OrderRow = {
     ready_at: string | null;
     picked_up_at: string | null;
     cancelled_at: string | null;
+    /** True when it was not released by its pick-up date. */
+    expired: boolean;
     cancel_reason: string | null;
+    /** The random code in the issuance slip's QR. */
+    slip_code: string | null;
+    /** The course/section the student gave at checkout ("BSIT 1-A"). */
+    student_section: string | null;
+};
+
+/** An order on the Specialist's Orders page and slip screen. */
+export type SpecialistOrderRow = OrderRow & {
+    handled_by: string | null;
+    /** Released today by mistake: it can be put back to Ready for pickup. */
+    can_undo_release: boolean;
+};
+
+/** An order's issuance slip, as on STI College-Ormoc's paper form. */
+export type IssuanceSlipData = {
+    school: string;
+    address_lines: string[];
+    order_id: number;
+    /** The order number ("PW-0042"), the slip's No. */
+    number: string | null;
+    /** The day the order was placed, "2026-10-09". */
+    date: string | null;
+    student_name: string;
+    section: string | null;
+    items: {
+        quantity: number;
+        /** "STI Hoodie (M)", "STI Ballpen · Box of 12" */
+        item: string;
+        unit_price_centavos: number;
+        amount_centavos: number;
+    }[];
+    total_centavos: number;
+    status: OrderStatus;
+    status_label: string;
+    pick_up_by: string;
+    /** The day the items were handed over; null until released. */
+    released_on: string | null;
+    /** The Specialist who released the items. */
+    issued_by: string | null;
+    /** The QR as an SVG picture of the slip code. */
+    qr_svg: string | null;
 };
 
 export type StorefrontFilters = {
