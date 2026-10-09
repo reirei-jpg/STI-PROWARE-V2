@@ -13,9 +13,11 @@ use Carbon\CarbonImmutable;
  * - An order holds its items for a few days (the Specialist's setting, 2 by
  *   default); not released by then, it expires and the items are free to
  *   sell again.
- * - A student can have only a few orders waiting at once.
  * - A student whose orders expired several times in a month cannot order
  *   for a week, unless the Specialist lifts the pause.
+ *
+ * There is no limit on how many orders a student has waiting at once; the
+ * expiry and the pause are the guards.
  */
 final class OrderRules
 {
@@ -24,8 +26,6 @@ final class OrderRules
     public const MIN_HOLD_DAYS = 1;
 
     public const MAX_HOLD_DAYS = 3;
-
-    public const MAX_OPEN_ORDERS = 2;
 
     /** Expired orders in NO_SHOW_WINDOW_DAYS that pause ordering. */
     public const NO_SHOW_LIMIT = 3;
@@ -47,16 +47,11 @@ final class OrderRules
     }
 
     /**
-     * Why the student cannot place another order now; null when they can.
+     * Why the student cannot place another order now (ordering is paused);
+     * null when they can.
      */
     public static function refusal(User $student): ?string
     {
-        $open = $student->orders()->open()->count();
-
-        if ($open >= self::MAX_OPEN_ORDERS) {
-            return "You already have {$open} orders waiting for pickup. Pick them up or cancel one before placing another.";
-        }
-
         $pausedUntil = self::pausedUntil($student);
 
         if ($pausedUntil !== null) {

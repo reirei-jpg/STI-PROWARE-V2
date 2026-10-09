@@ -58,17 +58,16 @@ test('pieces held for one student\'s order cannot be bought by another', functio
     expect($variant->refresh())->stock_on_hand->toBe(2)->held_pieces->toBe(2);
 });
 
-test('a student with two orders waiting cannot place a third', function () {
+test('a student can have several orders waiting at once', function () {
     $variant = lanyard(stock: 10);
     $student = User::factory()->student()->create();
-    orderLanyards($student, $variant, 1)->assertSessionHasNoErrors();
-    orderLanyards($student, $variant, 1)->assertSessionHasNoErrors();
 
-    orderLanyards($student, $variant, 1)
-        ->assertSessionHasErrors(['cart' => 'You already have 2 orders waiting for pickup. Pick them up or cancel one before placing another.']);
+    foreach (range(1, 3) as $order) {
+        orderLanyards($student, $variant, 1)->assertSessionHasNoErrors();
+    }
 
-    expect(Order::count())->toBe(2)
-        ->and($variant->refresh()->held_pieces)->toBe(2);
+    expect(Order::count())->toBe(3)
+        ->and($variant->refresh()->held_pieces)->toBe(3);
 });
 
 test('three expired orders in a month pause ordering for a week, unless the Specialist lifts it', function () {

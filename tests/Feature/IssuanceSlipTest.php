@@ -154,11 +154,13 @@ test('the Specialist sees students paused for expired orders and can let them or
 
 test('the cart shows the saved section, and why an order would be refused before placing it', function () {
     $this->student->forceFill(['section' => 'BSIT 1-A'])->save();
-    Order::factory()->count(2)->for($this->student, 'student')->create();
+    foreach (['2026-09-20', '2026-10-01', '2026-10-08'] as $day) {
+        Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Cancelled, 'expired_at' => "{$day} 00:30"]);
+    }
     CartItem::factory()->for($this->student, 'student')->create();
 
     $this->actingAs($this->student)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page
         ->where('section', 'BSIT 1-A')
-        ->where('order_refusal', 'You already have 2 orders waiting for pickup. Pick them up or cancel one before placing another.')
+        ->where('order_refusal', 'Ordering is paused until Oct 15, 2026, because 3 of your orders expired without being picked up. Ask the PROWARE office if this is a mistake.')
     );
 });
