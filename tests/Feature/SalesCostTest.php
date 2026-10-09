@@ -12,6 +12,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\Stock\StockCost;
 use Carbon\CarbonImmutable;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-09 10:00', 'Asia/Manila'));
@@ -128,6 +129,55 @@ test('a recount that adds pieces needs their eStore price', function () {
         ->assertSessionHasNoErrors();
 });
 
+test('the sales report shows sales, cost, profit and discounts for the period', function () {
+    $variant = costedJacket();
+    receivedJacketOrder(packs: 2, pricePerPack: 100000); // ₱200 a piece
+    releasedJackets($variant, 2); // 2 × ₱400
+    $variant->product->update(['status' => ProductStatus::OnSale]);
+    releasedJackets($variant, 3); // 3 × ₱350, ₱50 off each
+    $this->actingAs($this->specialist);
+
+    $this->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
+        ->component('sales-reports/index')
+        ->where('filters.period', 'month')
+        ->where('summary.orders', 2)
+        ->where('summary.pieces', 5)
+        ->where('summary.sales_centavos', 2 * 40000 + 3 * 35000)
+        ->where('summary.cost_centavos', 5 * 20000)
+        ->where('summary.profit_centavos', 185000 - 100000)
+        ->where('summary.margin_percent', 45.9)
+        ->where('summary.discount_centavos', 3 * 5000)
+        ->where('summary.on_sale_pieces', 3)
+        ->where('products.data.0.product_name', 'STI Jacket')
+        ->where('products.data.0.profit_centavos', 85000)
+        ->missing('details')
+        ->reloadOnly('details', fn (Assert $reload) => $reload->where('details', null))
+    );
+
+    $this->get(route('sales-reports.index', ['details' => $variant->id]))->assertInertia(fn (Assert $page) => $page
+        ->reloadOnly('details', fn (Assert $reload) => $reload
+            ->where('details.releases_count', 2)
+            ->where('details.releases.0.on_sale', true)
+            ->where('details.releases.0.profit_centavos', 3 * 35000 - 3 * 20000)
+            ->where('details.releases.1.on_sale', false)));
+
+    // A day with no releases.
+    $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-09-01', 'date_to' => '2026-09-30']))
+        ->assertInertia(fn (Assert $page) => $page->where('summary.sales_centavos', 0)->where('summary.margin_percent', null));
+
+    $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-01-to-2026-10-09.csv')->streamedContent();
+    expect($csv)->toContain('"STI Jacket",,5,1850.00,1000.00,850.00,150.00,3,0');
+});
+
+test('only the Specialist sees sales reports and sets eStore prices', function () {
+    $variant = costedJacket();
+
+    foreach ([$this->student, User::factory()->schoolAdmin()->create()] as $user) {
+        $this->actingAs($user)->get(route('sales-reports.index'))->assertForbidden();
+        $this->post(route('sales-reports.price', $variant), ['unit_cost' => '10'])->assertForbidden();
+    }
+});
+
 test('stock from before deliveries were recorded waits for its price, then its sales are costed', function () {
     $variant = costedJacket();
     $variant->forceFill(['stock_on_hand' => 4])->save();
@@ -138,7 +188,16 @@ test('stock from before deliveries were recorded waits for its price, then its s
     expect($order->items->sole()->refresh()->cost_centavos)->toBeNull()
         ->and($variant->refresh()->uncosted_pieces)->toBe(1);
 
-    StockCost::setMissingPrice($variant, 18000);
+    $this->actingAs($this->specialist)->get(route('sales-reports.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('needingPrice.0.variant_id', $variant->id)
+            ->where('needingPrice.0.uncosted_pieces', 1)
+            ->where('summary.uncosted_lines', 1));
+
+    $this->post(route('sales-reports.price', $variant), ['unit_cost' => ''])
+        ->assertSessionHasErrors(['unit_cost' => 'Enter the eStore price per piece, e.g. 250 or 18.50.']);
+    $this->post(route('sales-reports.price', $variant), ['unit_cost' => '180'])
+        ->assertInertiaFlash('toast.message', 'eStore price of STI Jacket set to ₱180.00 per piece. Its sales were costed again.');
 
     expect($order->items->sole()->refresh()->cost_centavos)->toBe(3 * 18000)
         ->and($variant->refresh()->uncosted_pieces)->toBe(0);

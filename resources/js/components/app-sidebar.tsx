@@ -7,6 +7,7 @@ import {
     Package,
     Settings,
     ShoppingBag,
+    TrendingUp,
     Truck,
 } from 'lucide-react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
@@ -16,6 +17,7 @@ import PreorderController from '@/actions/App/Http/Controllers/PreorderControlle
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
+import SalesReportController from '@/actions/App/Http/Controllers/SalesReportController';
 import SidebarBrand from '@/components/sidebar-brand';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { toUrl } from '@/lib/utils';
@@ -84,6 +86,11 @@ function useStaffMenuItems(): NavItem[] {
                 title: 'Preorders',
                 href: PreorderController.index(),
                 icon: CalendarClock,
+            },
+            {
+                title: 'Sales Reports',
+                href: SalesReportController.index(),
+                icon: TrendingUp,
             },
             {
                 title: 'Maintenance',
