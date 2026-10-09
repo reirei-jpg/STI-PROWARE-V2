@@ -27,9 +27,10 @@ import { usePagedList } from '@/lib/use-paged-list';
 type Show = 'orders' | 'preorders';
 
 /**
- * My Orders and My Preorders, with a switch between them. Each order is one
- * short row (number, status, total, pick-up date); tapping it opens the
- * order with its issuance slip, items and Cancel. Open orders come first.
+ * My Orders and My Preorders, with a switch between them. My Orders shows
+ * Waiting orders (the most urgent pick-up date first) or Past ones, each
+ * one short row (number, status, total, pick-up date); tapping it opens the
+ * order with its issuance slip, items and Cancel.
  */
 export default function OrdersScreen() {
     const insets = useSafeAreaInsets();
@@ -37,7 +38,12 @@ export default function OrdersScreen() {
     const params = useLocalSearchParams<{ show?: Show }>();
     const show: Show = params.show === 'preorders' ? 'preorders' : 'orders';
     const setShow = (next: Show): void => router.setParams({ show: next });
-    const orders = usePagedList<StudentOrder>('/orders');
+    // My Orders: Waiting (not released yet) first, or Past.
+    const [ordersTab, setOrdersTab] = useState<'waiting' | 'past'>('waiting');
+    const orders = usePagedList<StudentOrder, { counts: { waiting: number; past: number } }>(
+        `/orders?show=${ordersTab}`,
+    );
+    const counts = orders.extra?.counts;
     const preorders = usePagedList<StudentPreorder>('/preorders');
     const [refreshing, setRefreshing] = useState(false);
 
@@ -80,6 +86,42 @@ export default function OrdersScreen() {
                 </SwitchButton>
             </View>
 
+            {show === 'orders' && (
+                <View className="flex-row gap-2">
+                    {(['waiting', 'past'] as const).map((tab) => {
+                        const chosen = ordersTab === tab;
+                        const count = counts?.[tab];
+
+                        return (
+                            <Pressable
+                                key={tab}
+                                onPress={() => setOrdersTab(tab)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: chosen }}
+                                className={`flex-row items-center gap-1.5 rounded-full border px-4 py-2 ${chosen ? 'border-brand bg-brand' : 'border-slate-200 bg-white'}`}
+                            >
+                                <Text
+                                    className={`font-sans-bold text-xs ${chosen ? 'text-white' : 'text-slate-600'}`}
+                                >
+                                    {tab === 'waiting' ? 'Waiting' : 'Past'}
+                                </Text>
+                                {count != null && (
+                                    <View
+                                        className={`min-w-5 items-center rounded-full px-1.5 ${chosen ? 'bg-white/25' : 'bg-slate-100'}`}
+                                    >
+                                        <Text
+                                            className={`font-sans-bold text-[11px] ${chosen ? 'text-white' : 'text-slate-600'}`}
+                                        >
+                                            {count}
+                                        </Text>
+                                    </View>
+                                )}
+                            </Pressable>
+                        );
+                    })}
+                </View>
+            )}
+
             {active.error && (
                 <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
                     <Text className="font-sans-semibold text-sm text-red-700">
@@ -120,8 +162,12 @@ export default function OrdersScreen() {
                 ) : (
                     <EmptyBox
                         icon={<Package size={40} color="#cbd5e1" />}
-                        title="No orders yet"
-                        text="Add items to your cart, then tap Place Order."
+                        title={ordersTab === 'waiting' ? 'No orders waiting' : 'No past orders yet'}
+                        text={
+                            ordersTab === 'waiting'
+                                ? 'Add items to your cart, then tap Place Order.'
+                                : 'Released and cancelled orders show here.'
+                        }
                     />
                 )
             }
