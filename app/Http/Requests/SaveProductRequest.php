@@ -423,9 +423,9 @@ class SaveProductRequest extends FormRequest
     }
 
     /**
-     * A code belongs to one product. Several of its variants may share it
-     * (e.g. one umbrella code for every color); then Head Office sends it
-     * the same way for all of them.
+     * A product has one eStore Item Code: every size, color and department
+     * uses it (e.g. one umbrella code for every color), and Head Office
+     * sends it the same way for all of them. A code belongs to one product.
      */
     private function validateItemCodes(Validator $validator): void
     {
@@ -435,6 +435,17 @@ class SaveProductRequest extends FormRequest
 
         /** @var array<int, array{estore_item_code?: string|null, estore_pack_key?: string|null}> $variants */
         $variants = $this->input('variants', []);
+
+        $codes = array_unique(array_map(
+            fn (array $variant): string => ItemCode::normalize($variant['estore_item_code'] ?? null) ?? '',
+            $variants,
+        ));
+
+        if (count($codes) > 1) {
+            $validator->errors()->add('variants.0.estore_item_code', 'A product has one eStore Item Code: every size and color uses it.');
+
+            return;
+        }
 
         foreach ($variants as $index => $variant) {
             $code = ItemCode::normalize($variant['estore_item_code'] ?? null);
