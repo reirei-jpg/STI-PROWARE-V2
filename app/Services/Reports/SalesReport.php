@@ -108,6 +108,7 @@ final class SalesReport
         return [
             'product' => $product === null ? null : self::productRow($product),
             'releases' => array_values((clone $lines)
+                ->select('order_items.*')
                 ->with('order.student')
                 ->orderByDesc('orders.picked_up_at')
                 ->orderByDesc('order_items.id')
@@ -168,8 +169,9 @@ final class SalesReport
      */
     private static function lines(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
+        // No columns chosen here: totals pick their own (PostgreSQL refuses
+        // order_items.* beside sums), and the details list asks for them.
         return OrderItem::query()
-            ->select('order_items.*')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.status', OrderStatus::PickedUp)
             ->whereBetween('orders.picked_up_at', [$from, $to]);
