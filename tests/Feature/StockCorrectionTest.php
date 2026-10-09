@@ -46,7 +46,7 @@ test('a recount sets the stock to the count on the shelf', function () {
         ->recorded_by->toBe($this->specialist->id);
 });
 
-test('a recount can also add pieces that were not counted before', function () {
+test('a recount can also add pieces that were not counted before, with their eStore price', function () {
     $variant = variantWithStock(5);
 
     $this->actingAs($this->specialist)
@@ -54,11 +54,14 @@ test('a recount can also add pieces that were not counted before', function () {
             'product_variant_id' => $variant->id,
             'reason' => 'recount',
             'actual_count' => '8',
+            'unit_cost' => '20',
         ])
         ->assertInertiaFlash('toast.message', 'Stock of Chibi Keychain IT corrected: 5 → 8 pcs (+3 pcs). Reason: Recount.');
 
     expect($variant->refresh()->stock_on_hand)->toBe(8)
-        ->and(StockMovement::sole()->quantity)->toBe(3);
+        ->and(StockMovement::sole())
+        ->quantity->toBe(3)
+        ->cost_centavos->toBe(3 * 2000);
 });
 
 test('damaged, lost or returned pieces are taken out of stock', function (string $reason, string $label) {

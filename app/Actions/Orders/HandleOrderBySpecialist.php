@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderReady;
+use App\Services\Stock\StockCost;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -63,6 +64,9 @@ class HandleOrderBySpecialist
                 ])->save();
 
                 $this->record($variant, StockMovementType::Sale, -$item->pieces(), $balance, $item, $specialist);
+
+                // What these pieces cost on the eStore, oldest stock first.
+                StockCost::replay($variant->id);
             }
 
             $order->forceFill(['status' => OrderStatus::PickedUp, 'picked_up_at' => now(), 'handled_by' => $specialist->id])->save();
@@ -95,6 +99,7 @@ class HandleOrderBySpecialist
                 ])->save();
 
                 $this->record($variant, StockMovementType::ReleaseUndone, $item->pieces(), $balance, $item, $specialist);
+                StockCost::replay($variant->id);
             }
 
             $order->forceFill(['status' => OrderStatus::Ready, 'picked_up_at' => null])->save();

@@ -81,9 +81,9 @@ test('a specialist can add a product with photos, options and variants', functio
             ],
             'variants' => [
                 ['combination' => 'Color: Blue | Capacity: 22 oz', 'estore_item_code' => 'prtm01 – 01', 'price' => ''],
-                ['combination' => 'Color: Blue | Capacity: 32 oz', 'estore_item_code' => '', 'price' => '950.50'],
-                ['combination' => 'Color: Black | Capacity: 22 oz', 'estore_item_code' => '', 'price' => ''],
-                ['combination' => 'Color: Black | Capacity: 32 oz', 'estore_item_code' => '', 'price' => ''],
+                ['combination' => 'Color: Blue | Capacity: 32 oz', 'estore_item_code' => 'prtm01 – 01', 'price' => '950.50'],
+                ['combination' => 'Color: Black | Capacity: 22 oz', 'estore_item_code' => 'prtm01 – 01', 'price' => ''],
+                ['combination' => 'Color: Black | Capacity: 32 oz', 'estore_item_code' => 'prtm01 – 01', 'price' => ''],
             ],
         ]))
         ->assertRedirect(route('products.index'))
@@ -104,9 +104,9 @@ test('a specialist can add a product with photos, options and variants', functio
         ])
         ->and($product->variants->map->only(['combination', 'estore_item_code', 'price_centavos'])->all())->toBe([
             ['combination' => 'Color: Blue | Capacity: 22 oz', 'estore_item_code' => 'PRTM01-01', 'price_centavos' => null],
-            ['combination' => 'Color: Blue | Capacity: 32 oz', 'estore_item_code' => null, 'price_centavos' => 95050],
-            ['combination' => 'Color: Black | Capacity: 22 oz', 'estore_item_code' => null, 'price_centavos' => null],
-            ['combination' => 'Color: Black | Capacity: 32 oz', 'estore_item_code' => null, 'price_centavos' => null],
+            ['combination' => 'Color: Blue | Capacity: 32 oz', 'estore_item_code' => 'PRTM01-01', 'price_centavos' => 95050],
+            ['combination' => 'Color: Black | Capacity: 22 oz', 'estore_item_code' => 'PRTM01-01', 'price_centavos' => null],
+            ['combination' => 'Color: Black | Capacity: 32 oz', 'estore_item_code' => 'PRTM01-01', 'price_centavos' => null],
         ]);
 
     foreach ($product->photos as $photo) {
@@ -164,9 +164,12 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
     expect(Product::count())->toBe(0);
 })->with([
     'no name' => [['name' => ''], 'name', 'Enter the product name.'],
-    'no price per piece' => [['price' => ''], 'price', 'Enter the price per piece.'],
+    'no price per piece' => [['price' => ''], 'price', 'Enter the Selling Price per piece (set by Head Office).'],
     'no low-stock number' => [['low_stock_alert_at' => ''], 'low_stock_alert_at', 'Enter the number of pieces to be warned at, e.g. 5.'],
-    'price in words' => [['price' => 'three fifty'], 'price', 'Enter the price per piece in pesos, e.g. 350 or 350.50.'],
+    'price in words' => [['price' => 'three fifty'], 'price', 'Enter the Selling Price in pesos, e.g. 350 or 350.50.'],
+    'price above ₱100,000' => [['price' => '100000.01'], 'price', 'The Selling Price cannot be more than ₱100,000.00.'],
+    'an endless price' => [['price' => '5353453535353535353453453535675675675675675756756756756756'], 'price', 'The Selling Price cannot be more than ₱100,000.00.'],
+    'pack price above ₱100,000' => [['packs' => [packInput(['price' => '100001'])]], 'packs.0.price', 'The pack price cannot be more than ₱100,000.00.'],
     'on sale from the form' => [['status' => 'on_sale', 'sale_price' => '300'], 'status', 'Choose Draft, Preorder or Available. To put a product on sale, use Put on Sale on the Products list.'],
     'not sold by the piece or by a pack' => [['sold_by_piece' => '0', 'price' => ''], 'sold_by_piece', 'Choose how students buy it: by the piece, by a pack, or both.'],
     'pack of one piece' => [['packs' => [packInput(['pieces' => '1'])]], 'packs.0.pieces', 'A pack has at least 2 pieces.'],
@@ -259,13 +262,13 @@ test('editing keeps, removes, adds and reorders photos', function () {
     Storage::disk('public')->assertExists($front->path);
 });
 
-test('editing options keeps the item codes of variants that still exist', function () {
+test('editing options keeps the variants that still exist and gives new ones the product code', function () {
     $specialist = User::factory()->specialist()->create();
     $this->actingAs($specialist)->post(route('products.store'), productForm([
         'options' => [['name' => 'Size', 'choices' => ['S', 'M']]],
         'variants' => [
             ['combination' => 'Size: S', 'estore_item_code' => 'PRSH01-01', 'price' => ''],
-            ['combination' => 'Size: M', 'estore_item_code' => 'PRSH01-02', 'price' => ''],
+            ['combination' => 'Size: M', 'estore_item_code' => 'PRSH01-01', 'price' => ''],
         ],
     ]));
     $product = Product::sole();
@@ -276,7 +279,7 @@ test('editing options keeps the item codes of variants that still exist', functi
         'options' => [['name' => 'Size', 'choices' => ['S', 'L']]],
         'variants' => [
             ['combination' => 'Size: S', 'estore_item_code' => 'PRSH01-01', 'price' => ''],
-            ['combination' => 'Size: L', 'estore_item_code' => 'PRSH01-03', 'price' => ''],
+            ['combination' => 'Size: L', 'estore_item_code' => 'PRSH01-01', 'price' => ''],
         ],
     ]))->assertSessionHasNoErrors();
 
@@ -284,8 +287,40 @@ test('editing options keeps the item codes of variants that still exist', functi
 
     expect($variants->pluck('estore_item_code', 'combination')->all())->toBe([
         'Size: S' => 'PRSH01-01',
-        'Size: L' => 'PRSH01-03',
+        'Size: L' => 'PRSH01-01',
     ])->and($variants->first()->id)->toBe($small->id);
+});
+
+test('every size and color of a product uses its one eStore Item Code', function () {
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('products.store'), productForm([
+            'options' => [['name' => 'Color', 'choices' => ['Black', 'Blue']]],
+            'variants' => [
+                ['combination' => 'Color: Black', 'estore_item_code' => 'PRUM01-01', 'price' => ''],
+                ['combination' => 'Color: Blue', 'estore_item_code' => 'PRUM01-02', 'price' => ''],
+            ],
+        ]))
+        ->assertSessionHasErrors(['variants.0.estore_item_code' => 'A product has one eStore Item Code: every size and color uses it.']);
+
+    expect(Product::count())->toBe(0);
+});
+
+test('variants may have their own Selling Price with the same eStore Item Code', function () {
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('products.store'), productForm([
+            'price' => '300',
+            'options' => [['name' => 'Size', 'choices' => ['S', 'XL']]],
+            'variants' => [
+                ['combination' => 'Size: S', 'estore_item_code' => 'PRJK01-01', 'price' => ''],
+                ['combination' => 'Size: XL', 'estore_item_code' => 'PRJK01-01', 'price' => '350'],
+            ],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect(ProductVariant::query()->orderBy('id')->get()->map->only(['estore_item_code', 'price_centavos'])->all())->toBe([
+        ['estore_item_code' => 'PRJK01-01', 'price_centavos' => null],
+        ['estore_item_code' => 'PRJK01-01', 'price_centavos' => 35000],
+    ]);
 });
 
 test('the list can be searched by name and filtered by status', function () {

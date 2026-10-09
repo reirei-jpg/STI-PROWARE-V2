@@ -9,6 +9,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { wholeNumberInput } from '@/lib/number-input';
 import { formatConversion, formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { ItemToSplit } from '@/types';
@@ -124,9 +125,10 @@ function SplitForm({
                                 onChange={(event) =>
                                     setData('counts', {
                                         ...data.counts,
-                                        [variant.id]: event.target.value
-                                            .replace(/\D/g, '')
-                                            .slice(0, 7),
+                                        [variant.id]: wholeNumberInput(
+                                            event.target.value,
+                                            1000000,
+                                        ),
                                     })
                                 }
                                 inputMode="numeric"

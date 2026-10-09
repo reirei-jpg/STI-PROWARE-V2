@@ -35,6 +35,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $sale_price_centavos its own sale price while On Sale; empty: the product's sale price, if any
  * @property int $stock_on_hand pieces on the shelf
  * @property int $held_pieces pieces on the shelf kept for open orders
+ * @property int|null $opening_unit_cost_centavos eStore price per piece of stock from before any delivery was recorded
+ * @property int $uncosted_pieces pieces in stock with no eStore price yet (StockCost)
  * @property Carbon|null $low_stock_notified_at when the low-stock warning was sent; cleared when stock rises above the number
  * @property int $position
  * @property Carbon|null $created_at
@@ -60,6 +62,8 @@ class ProductVariant extends Model
             'sale_price_centavos' => 'integer',
             'stock_on_hand' => 'integer',
             'held_pieces' => 'integer',
+            'opening_unit_cost_centavos' => 'integer',
+            'uncosted_pieces' => 'integer',
             'low_stock_notified_at' => 'datetime',
         ];
     }

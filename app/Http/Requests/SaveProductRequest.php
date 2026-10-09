@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductVariants;
+use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Http\FormRequest;
@@ -36,6 +37,9 @@ class SaveProductRequest extends FormRequest
 
     public const MAX_PACKS = 5;
 
+    /** The highest price anyone can type anywhere in PROWARE, in pesos. */
+    public const MAX_PRICE_PESOS = 100000;
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -61,7 +65,7 @@ class SaveProductRequest extends FormRequest
                 'nullable',
                 'decimal:0,2',
                 'gt:0',
-                'max:1000000',
+                'max:'.self::MAX_PRICE_PESOS,
             ],
             'status' => ['required', Rule::in(array_map(fn (ProductStatus $status): string => $status->value, $statuses))],
             'low_stock_alert_at' => ['required', 'integer', 'min:0', 'max:100000'],
@@ -81,7 +85,7 @@ class SaveProductRequest extends FormRequest
             'packs.*.name' => ['required', 'string', 'max:30'],
             'packs.*.pieces' => ['required', 'integer', 'min:2', 'max:100000'],
             'packs.*.sold_to_students' => ['required', 'boolean'],
-            'packs.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'packs.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
 
             'photos' => [
                 Rule::requiredIf($this->input('status') !== ProductStatus::Draft->value),
@@ -111,7 +115,7 @@ class SaveProductRequest extends FormRequest
             'variants.*.combination' => ['present', 'nullable', 'string'],
             'variants.*.estore_item_code' => ['nullable', 'string', 'max:40'],
             'variants.*.estore_pack_key' => ['nullable', 'string', 'max:40'],
-            'variants.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'variants.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
         ];
     }
 
@@ -122,9 +126,12 @@ class SaveProductRequest extends FormRequest
     {
         return [
             'name.required' => 'Enter the product name.',
-            'price.required' => 'Enter the price per piece.',
-            'price.decimal' => 'Enter the price per piece in pesos, e.g. 350 or 350.50.',
-            'price.gt' => 'The price per piece must be more than ₱0.',
+            'price.required' => 'Enter the Selling Price per piece (set by Head Office).',
+            'price.decimal' => 'Enter the Selling Price in pesos, e.g. 350 or 350.50.',
+            'price.gt' => 'The Selling Price must be more than ₱0.',
+            'price.max' => 'The Selling Price cannot be more than ₱100,000.00.',
+            'packs.*.price.max' => 'The pack price cannot be more than ₱100,000.00.',
+            'variants.*.price.max' => 'A variant\'s price cannot be more than ₱100,000.00.',
             'low_stock_alert_at.required' => 'Enter the number of pieces to be warned at, e.g. 5.',
             'low_stock_alert_at.integer' => 'Enter the number of pieces as a whole number.',
             'low_stock_alert_at.min' => 'The number cannot be below 0.',
@@ -198,6 +205,7 @@ class SaveProductRequest extends FormRequest
                 $this->validatePacks($validator);
                 $this->validatePreorderCloseDate($validator);
                 $this->validateItemCodes($validator);
+                $this->validateSellingPricesCoverCost($validator);
                 $this->validateVariantsWithStockAreKept($validator);
             },
         ];
@@ -364,9 +372,60 @@ class SaveProductRequest extends FormRequest
     }
 
     /**
-     * A code belongs to one product. Several of its variants may share it
-     * (e.g. one umbrella code for every color); then Head Office sends it
-     * the same way for all of them.
+     * The Selling Price (set by Head Office) cannot be below the Cost: what
+     * PROWARE paid on the latest eStore order for the item, per piece (or per
+     * pack for a pack's price). Variants without an eStore Item Code, or
+     * whose code was never ordered, have no Cost yet and are not checked.
+     */
+    private function validateSellingPricesCoverCost(Validator $validator): void
+    {
+        /** @var array<int, array{estore_item_code?: string|null, estore_pack_key?: string|null, price?: string|null}> $variants */
+        $variants = $this->input('variants', []);
+        $packPieces = array_column($this->packs(), 'pieces', 'key');
+        $codes = array_values(array_filter(array_map(fn (array $variant): ?string => ItemCode::normalize($variant['estore_item_code'] ?? null), $variants)));
+        $unitPrices = HeadOfficeCost::latestUnitPrices($codes);
+        $productPrice = $this->boolean('sold_by_piece') ? $this->centavos('price') : null;
+        $highestCost = null;
+
+        foreach ($variants as $index => $variant) {
+            $code = ItemCode::normalize($variant['estore_item_code'] ?? null);
+
+            if ($code === null || ! isset($unitPrices[$code])) {
+                continue;
+            }
+
+            $cost = (int) round($unitPrices[$code] / max(1, $packPieces[(string) ($variant['estore_pack_key'] ?? '')] ?? 1));
+            $highestCost = max($highestCost ?? 0, $cost);
+            $ownPrice = ($variant['price'] ?? '') === '' ? null : self::toCentavos((string) $variant['price']);
+            $price = $this->boolean('sold_by_piece') ? ($ownPrice ?? $productPrice) : null;
+
+            if ($price !== null && $price < $cost) {
+                $validator->errors()->add($ownPrice !== null ? "variants.{$index}.price" : 'price', self::belowCost($price, $cost, 'piece'));
+            }
+        }
+
+        if ($highestCost === null) {
+            return;
+        }
+
+        foreach ($this->packs() as $index => $pack) {
+            $packCost = $highestCost * $pack['pieces'];
+
+            if ($pack['sold_to_students'] && $pack['price_centavos'] !== null && $pack['price_centavos'] < $packCost) {
+                $validator->errors()->add("packs.{$index}.price", self::belowCost($pack['price_centavos'], $packCost, $pack['name']));
+            }
+        }
+    }
+
+    private static function belowCost(int $price, int $cost, string $unit): string
+    {
+        return 'The Selling Price (₱'.number_format($price / 100, 2).') is below the Cost on the eStore order (₱'.number_format($cost / 100, 2)." per {$unit}). Check the price from Head Office.";
+    }
+
+    /**
+     * A product has one eStore Item Code: every size, color and department
+     * uses it (e.g. one umbrella code for every color), and Head Office
+     * sends it the same way for all of them. A code belongs to one product.
      */
     private function validateItemCodes(Validator $validator): void
     {
@@ -376,6 +435,17 @@ class SaveProductRequest extends FormRequest
 
         /** @var array<int, array{estore_item_code?: string|null, estore_pack_key?: string|null}> $variants */
         $variants = $this->input('variants', []);
+
+        $codes = array_unique(array_map(
+            fn (array $variant): string => ItemCode::normalize($variant['estore_item_code'] ?? null) ?? '',
+            $variants,
+        ));
+
+        if (count($codes) > 1) {
+            $validator->errors()->add('variants.0.estore_item_code', 'A product has one eStore Item Code: every size and color uses it.');
+
+            return;
+        }
 
         foreach ($variants as $index => $variant) {
             $code = ItemCode::normalize($variant['estore_item_code'] ?? null);

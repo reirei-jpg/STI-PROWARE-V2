@@ -6,6 +6,7 @@ use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
+use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -18,8 +19,8 @@ use Illuminate\Validation\Validator;
  * color of an umbrella). When their normal prices differ (e.g. S ₱300, XL
  * ₱350), each price gets its own sale price, and an empty one leaves those
  * variants at their normal price. Each sale price must be lower than the
- * normal one. A price below the Head Office cost is allowed; the pop-up
- * warns about it.
+ * normal one, and none can be below the Cost (what PROWARE paid on the
+ * eStore order).
  */
 class PutOnSaleRequest extends FormRequest
 {
@@ -31,11 +32,11 @@ class PutOnSaleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sale_price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'sale_price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             'group_sale_prices' => ['nullable', 'array'],
-            'group_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'group_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             'pack_sale_prices' => ['nullable', 'array'],
-            'pack_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'pack_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             'days' => ['required', 'integer', 'min:1', 'max:'.self::MAX_DAYS],
         ];
     }
@@ -48,6 +49,9 @@ class PutOnSaleRequest extends FormRequest
         return [
             'sale_price.decimal' => 'Enter the sale price in pesos, e.g. 280 or 279.50.',
             'sale_price.gt' => 'The sale price must be more than ₱0.',
+            'sale_price.max' => 'The sale price cannot be more than ₱100,000.00.',
+            'group_sale_prices.*.max' => 'The sale price cannot be more than ₱100,000.00.',
+            'pack_sale_prices.*.max' => 'The sale price cannot be more than ₱100,000.00.',
             'group_sale_prices.*.decimal' => 'Enter the sale price in pesos, e.g. 280 or 279.50.',
             'group_sale_prices.*.gt' => 'The sale price must be more than ₱0.',
             'pack_sale_prices.*.decimal' => 'Enter the pack\'s sale price in pesos, e.g. 800.',
@@ -116,8 +120,44 @@ class PutOnSaleRequest extends FormRequest
                 if ($this->piecePriceCentavos() === null && $this->groupSalePrices() === [] && $this->packSalePrices() === []) {
                     $validator->errors()->add($product->sold_by_piece ? 'sale_price' : 'days', 'Enter a sale price for the piece or for a pack.');
                 }
+
+                $this->refuseBelowCost($validator, $product);
             },
         ];
+    }
+
+    /**
+     * Nothing is sold below its Cost (what PROWARE paid on the eStore order),
+     * not even on sale.
+     */
+    private function refuseBelowCost(Validator $validator, Product $product): void
+    {
+        $cost = app(HeadOfficeCost::class)->perPiece($product);
+
+        if ($cost === null || $validator->errors()->isNotEmpty()) {
+            return;
+        }
+
+        $tooLow = fn (int $price, int $pieces = 1): bool => $price < $cost * $pieces;
+        $message = fn (int $pieces = 1, string $unit = 'piece'): string => 'The sale price cannot be below the Cost of ₱'.number_format($cost * $pieces / 100, 2)." per {$unit} (what PROWARE paid on the eStore order).";
+
+        if ($this->piecePriceCentavos() !== null && $tooLow($this->piecePriceCentavos())) {
+            $validator->errors()->add('sale_price', $message());
+        }
+
+        foreach ($this->groupSalePrices() as $normal => $sale) {
+            if ($tooLow($sale)) {
+                $validator->errors()->add("group_sale_prices.{$normal}", $message());
+            }
+        }
+
+        foreach ($this->packSalePrices() as $packId => $price) {
+            $pack = $product->packs->firstWhere('id', $packId);
+
+            if ($pack instanceof ProductPack && $tooLow($price, $pack->pieces)) {
+                $validator->errors()->add("pack_sale_prices.{$packId}", $message($pack->pieces, $pack->name));
+            }
+        }
     }
 
     public function product(): Product

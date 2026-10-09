@@ -103,7 +103,10 @@ final class ProductStock
                 'unit_name' => $movement->unit_name,
                 'pieces_per_unit' => $movement->pieces_per_unit,
                 'reason_label' => $movement->reason?->label(),
-                'note' => $movement->note,
+                // Pieces given free show who received them.
+                'note' => $movement->recipient_name === null
+                    ? $movement->note
+                    : "To {$movement->recipient_name} · Enrollment form #{$movement->enrollment_form_number}".($movement->note === null ? '' : " · {$movement->note}"),
                 'delivery' => $movement->deliveryItem === null ? null : [
                     'received_on' => $movement->deliveryItem->delivery->received_on->toDateString(),
                     'sales_invoice_number' => $movement->deliveryItem->delivery->sales_invoice_number,

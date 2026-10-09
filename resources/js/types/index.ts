@@ -5,5 +5,6 @@ export type * from './notifications';
 export type * from './preorders';
 export type * from './products';
 export type * from './purchase-orders';
+export type * from './sales-reports';
 export type * from './storefront';
 export type * from './ui';

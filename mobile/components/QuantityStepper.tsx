@@ -47,7 +47,12 @@ export default function QuantityStepper({
 
             <TextInput
                 value={value}
-                onChangeText={(text) => onChange(text.replace(/\D/g, '').slice(0, 4))}
+                // Never more than `most` (what is left to buy), even while typing.
+                onChangeText={(text) => {
+                    const digits = text.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 7);
+
+                    onChange(digits !== '' && Number(digits) > Math.max(most, 1) ? String(Math.max(most, 1)) : digits);
+                }}
                 onEndEditing={() => commit(quantity)}
                 editable={!disabled}
                 keyboardType="number-pad"
@@ -63,7 +68,12 @@ export default function QuantityStepper({
                 <Plus size={18} color="#334155" />
             </StepButton>
 
-            <Text className="flex-1 font-sans text-sm text-slate-500">{unitText}</Text>
+            <View className="flex-1">
+                <Text className="font-sans text-sm text-slate-500">{unitText}</Text>
+                {most > 0 && quantity >= most && (
+                    <Text className="font-sans-bold text-xs text-amber-700">Only {most} left</Text>
+                )}
+            </View>
         </View>
     );
 }

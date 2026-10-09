@@ -11,6 +11,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateTime, formatPeso } from '@/lib/format';
+import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { ProductSaleDetails } from '@/types';
@@ -355,9 +356,10 @@ function SaleFormBody({
                             onChange={(event) =>
                                 setData(
                                     'days',
-                                    event.target.value
-                                        .replace(/\D/g, '')
-                                        .slice(0, 3),
+                                    wholeNumberInput(
+                                        event.target.value,
+                                        details.max_days,
+                                    ),
                                 )
                             }
                             inputMode="numeric"
@@ -501,12 +503,20 @@ function SalePriceField({
                 </span>
                 <input
                     value={value}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) =>
+                        onChange(priceInput(event.target.value))
+                    }
                     inputMode="decimal"
                     className={cn(inputClasses, 'pl-7')}
                 />
             </span>
             <span className="text-xs text-slate-500">{hint}</span>
+            {cost !== null && (
+                <span className="text-xs font-bold text-slate-700">
+                    Cost: {formatPeso(cost)} per {unit} (what PROWARE paid on
+                    the eStore order)
+                </span>
+            )}
             {sale !== null && sale < normal && (
                 <span className="text-xs font-bold text-slate-700">
                     Students see{' '}
@@ -517,13 +527,12 @@ function SalePriceField({
                 </span>
             )}
             {belowCost && cost !== null && (
-                <span className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+                <span className="flex items-start gap-2 rounded-xl border-l-4 border-red-500 bg-red-50 px-3 py-2 text-xs leading-5 text-red-900">
                     <TriangleAlert size={15} className="mt-0.5 shrink-0" />
                     <span>
-                        {formatPeso(sale)} is below the Head Office cost of{' '}
-                        {formatPeso(cost)} per {unit}, so the school loses{' '}
-                        <b>{formatPeso(cost - sale)}</b> on each one. You can
-                        still save it.
+                        This price is below the Cost of {formatPeso(cost)}:
+                        PROWARE would lose <b>{formatPeso(cost - sale)}</b> on
+                        each {unit}. A sale price cannot be lower than the Cost.
                     </span>
                 </span>
             )}

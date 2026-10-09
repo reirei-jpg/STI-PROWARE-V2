@@ -10,6 +10,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -27,16 +28,22 @@ type CorrectionForm = {
     pieces_to_remove: string;
     actual_count: string;
     note: string;
+    /** Pesos per piece, for a count that adds pieces. */
+    unit_cost: string;
+    /** Who received pieces given free (promo). */
+    recipient_name: string;
+    enrollment_form_number: string;
 };
 
 /** Keeps only digits, so "45 pcs" becomes "45". */
-const digitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 7);
+const digitsOnly = (value: string) => wholeNumberInput(value, 1000000);
 
 /**
  * The pop-up where the Specialist corrects a variant's stock. For damaged,
  * lost or returned pieces she enters how many to take out; for a recount
- * (or another reason) she enters the count on the shelf. Before saving it
- * shows the stock before and after.
+ * (or another reason) she enters the count on the shelf, and, when that
+ * adds pieces, their eStore price per piece. Before saving it shows the
+ * stock before and after.
  */
 export default function CorrectStockDialog({
     open,
@@ -91,6 +98,9 @@ function CorrectionForm({
         pieces_to_remove: '',
         actual_count: '',
         note: '',
+        unit_cost: '',
+        recipient_name: '',
+        enrollment_form_number: '',
     });
     const { data, setData, processing, errors } = form;
 
@@ -127,6 +137,18 @@ function CorrectionForm({
     }
 
     const noteRequired = data.reason === 'other';
+    // Pieces added need what they cost on the eStore, so every piece has one.
+    const addsPieces =
+        variant !== undefined &&
+        after !== null &&
+        after > variant.stock_on_hand;
+    const costMissing = addsPieces && !(Number(data.unit_cost) > 0);
+    // A free uniform (promo) is written down with who received it.
+    const givenFree = data.reason === 'given_free';
+    const recipientMissing =
+        givenFree &&
+        (data.recipient_name.trim() === '' ||
+            data.enrollment_form_number.trim() === '');
 
     return (
         <form
@@ -282,6 +304,86 @@ function CorrectionForm({
                     </section>
                 )}
 
+                {givenFree && (
+                    <section className="grid gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:grid-cols-2">
+                        <p className="text-sm font-black text-emerald-900 sm:col-span-2">
+                            Who received the free uniform?
+                        </p>
+                        <label className="grid gap-1.5">
+                            <span className="text-sm font-black text-slate-700">
+                                Student's name
+                            </span>
+                            <input
+                                value={data.recipient_name}
+                                onChange={(event) =>
+                                    setData(
+                                        'recipient_name',
+                                        event.target.value,
+                                    )
+                                }
+                                maxLength={120}
+                                placeholder="e.g. Maria Santos"
+                                className={inputClasses}
+                            />
+                            <InputError message={errors.recipient_name} />
+                        </label>
+                        <label className="grid gap-1.5">
+                            <span className="text-sm font-black text-slate-700">
+                                Enrollment form #
+                            </span>
+                            <input
+                                value={data.enrollment_form_number}
+                                onChange={(event) =>
+                                    setData(
+                                        'enrollment_form_number',
+                                        event.target.value,
+                                    )
+                                }
+                                maxLength={40}
+                                placeholder="e.g. 2026-01234"
+                                className={inputClasses}
+                            />
+                            <InputError
+                                message={errors.enrollment_form_number}
+                            />
+                        </label>
+                    </section>
+                )}
+
+                {addsPieces && (
+                    <label className="grid gap-1.5">
+                        <span className="text-sm font-black text-slate-700">
+                            eStore price per piece of the added pieces
+                        </span>
+                        <span className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-slate-500">
+                                ₱
+                            </span>
+                            <input
+                                value={data.unit_cost}
+                                onChange={(event) =>
+                                    setData(
+                                        'unit_cost',
+                                        priceInput(event.target.value),
+                                    )
+                                }
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                className={cn(
+                                    inputClasses,
+                                    'w-40 text-right',
+                                    errors.unit_cost && 'border-red-300',
+                                )}
+                            />
+                        </span>
+                        <span className="text-xs text-slate-500">
+                            What PROWARE paid Head Office for each piece, as on
+                            the eStore order. Used for the Sales Reports.
+                        </span>
+                        <InputError message={errors.unit_cost} />
+                    </label>
+                )}
+
                 <label className="grid gap-1.5">
                     <span className="text-sm font-black text-slate-700">
                         Note {noteRequired ? '(required)' : '(optional)'}
@@ -312,6 +414,8 @@ function CorrectionForm({
                     disabled={
                         processing ||
                         after === null ||
+                        costMissing ||
+                        recipientMissing ||
                         (noteRequired && data.note.trim() === '')
                     }
                     className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"

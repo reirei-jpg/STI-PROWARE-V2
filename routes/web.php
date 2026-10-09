@@ -14,6 +14,7 @@ use App\Http\Controllers\ProductStockController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseOrderDeliveryController;
 use App\Http\Controllers\PurchaseOrderScanController;
+use App\Http\Controllers\SalesReportController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StudentOrderController;
 use App\Http\Controllers\StudentPreorderController;
@@ -68,6 +69,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('orders/{order}/release', [OrderController::class, 'release'])->name('orders.release');
         Route::post('orders/{order}/undo-release', [OrderController::class, 'undoRelease'])->name('orders.undo-release');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+
+        Route::get('sales-reports', [SalesReportController::class, 'index'])->name('sales-reports.index');
+        Route::get('sales-reports/export', [SalesReportController::class, 'export'])->name('sales-reports.export');
+        Route::post('sales-reports/variants/{variant}/price', [SalesReportController::class, 'setPrice'])->name('sales-reports.price');
 
         Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
         Route::patch('maintenance/hold-days', [MaintenanceController::class, 'updateHoldDays'])->name('maintenance.hold-days');

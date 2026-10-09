@@ -139,6 +139,22 @@ test('a row that cannot be read blocks saving', function () {
     expect($scan->hasBlockingProblems())->toBeTrue();
 });
 
+test('an unrealistic price or quantity, or an endless number, looks wrong and blocks saving', function () {
+    $scan = (new EstorePoParser)->parseText(estorePoText([
+        "1\tPRCU01-01\tChibi Keychain\t0\t20\t100000.01\t2000000.20",
+        "2\tPRCU01-02\tChibi Keychain\t0\t100001\t21.00\t2100021.00",
+        "3\tPRCU01-03\tChibi Keychain\t0\t20\t5353453535353535353453453535675675675675675756756756756756\t420.00",
+        "4\tPRCU01-04\tChibi Keychain\t0\t20\t100000.00\t2000000.00",
+    ]));
+
+    expect($scan->hasBlockingProblems())->toBeTrue()
+        ->and(array_map(warningText(...), array_values(array_filter($scan->warnings, fn (array $warning): bool => $warning['blocking']))))->toBe([
+            'Row 1: Unit price (₱100,000.01) looks wrong: it is more than ₱100,000.00. Check the eStore email.',
+            'Row 2: Quantity ordered (100,001) looks wrong: it is more than 100,000. Check the eStore email.',
+            'Row 3: Unit price (₱999,999,999,999.99) looks wrong: it is more than ₱100,000.00. Check the eStore email.',
+        ]);
+});
+
 test('a clean scan has no blocking problems', function () {
     expect((new EstorePoParser)->parseText(REAL_ESTORE_PO)->hasBlockingProblems())->toBeFalse();
 });

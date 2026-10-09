@@ -302,6 +302,8 @@ test('linking explains what is wrong', function (array $payload, string $field, 
 
 test('typing the code on a variant in the product form adds the deliveries that arrived before, only once', function () {
     $order = orderWith(['PRCU01-01' => 20]);
+    // Bought at ₱20, below the ₱35 Selling Price in the form.
+    $order->items()->update(['unit_price_centavos' => 2000]);
     $this->actingAs($this->specialist);
     $this->post(route('deliveries.store'), deliveryOf($order, 'PRCU01-01', 20));
 
