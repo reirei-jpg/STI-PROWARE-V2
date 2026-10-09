@@ -12,6 +12,7 @@ use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\PurchaseOrderUploaded;
+use App\Services\Deliveries\FollowUp;
 use App\Services\EstorePo\EstorePoParser;
 use App\Services\EstorePo\PendingPurchaseOrderScan;
 use App\Services\EstorePo\ScannedPurchaseOrder;
@@ -55,21 +56,15 @@ class PurchaseOrderController extends Controller
             ->when($dateTo, fn (Builder $query, string $date) => $query->whereDate('date_ordered', '<=', $date));
 
         $sorted = match ($sort) {
-            // Orders still waiting come first, the oldest order at the top.
-            'oldest_waiting' => (clone $filtered)
-                ->orderByRaw('case when delivery_status in (?, ?) then 0 else 1 end', [DeliveryStatus::Awaiting->value, DeliveryStatus::PartiallyReceived->value])
-                ->orderBy('date_ordered')
-                ->orderBy('id'),
             'newest' => (clone $filtered)
                 ->orderByDesc('date_ordered')
                 ->orderByDesc('id'),
-            // Default: the delivery expected soonest at the top; orders
-            // without an expected date follow, newest first.
+            // Default: orders still waiting come first, the oldest order at
+            // the top.
             default => (clone $filtered)
-                ->orderByRaw('case when expected_delivery_date is null then 1 else 0 end')
-                ->orderBy('expected_delivery_date')
-                ->orderByDesc('date_ordered')
-                ->orderByDesc('id'),
+                ->orderByRaw('case when delivery_status in (?, ?) then 0 else 1 end', [DeliveryStatus::Awaiting->value, DeliveryStatus::PartiallyReceived->value])
+                ->orderBy('date_ordered')
+                ->orderBy('id'),
         };
 
         $purchaseOrders = $sorted
@@ -92,12 +87,12 @@ class PurchaseOrderController extends Controller
                 'quantity_ordered_total' => $purchaseOrder->quantity_ordered_total,
                 'quantity_received_total' => $purchaseOrder->quantity_received_total,
                 'percent_received' => $purchaseOrder->percentReceived(),
-                'expected_delivery_date' => $purchaseOrder->expected_delivery_date?->toDateString(),
-                'expected_delivery_note' => $purchaseOrder->expected_delivery_note,
+                'days_since_ordered' => FollowUp::daysSinceOrdered($purchaseOrder),
             ]);
 
         return Inertia::render('purchase-orders/index', [
             'purchaseOrders' => $purchaseOrders,
+            'followUpDays' => FollowUp::days(),
             'summary' => [
                 'orders_count' => (clone $filtered)->count(),
                 'total_qty_ordered' => (int) PurchaseOrderItem::query()
@@ -120,7 +115,6 @@ class PurchaseOrderController extends Controller
                 ->pluck('category')
                 ->all(),
             'openPurchaseOrderId' => $request->filled('view') ? $request->integer('view') : null,
-            'today' => now()->toDateString(),
         ]);
     }
 
@@ -240,8 +234,7 @@ class PurchaseOrderController extends Controller
             'quantity_ordered_total' => $purchaseOrder->quantity_ordered_total,
             'quantity_received_total' => $purchaseOrder->quantity_received_total,
             'percent_received' => $purchaseOrder->percentReceived(),
-            'expected_delivery_date' => $purchaseOrder->expected_delivery_date?->toDateString(),
-            'expected_delivery_note' => $purchaseOrder->expected_delivery_note,
+            'days_since_ordered' => FollowUp::daysSinceOrdered($purchaseOrder),
             'closed_reason' => $purchaseOrder->closed_reason,
             'closed_at' => $purchaseOrder->closed_at?->toIso8601String(),
             'closed_by' => $purchaseOrder->closer?->name,

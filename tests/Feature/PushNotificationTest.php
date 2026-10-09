@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\User;
-use App\Notifications\ExpectedDeliveryReminder;
 use App\Notifications\LowStockAlert;
 use App\Notifications\OrderCancelled;
 use App\Notifications\OrderPlaced;
@@ -313,12 +312,6 @@ test('the Specialist\'s notices are pushed with the bell\'s words', function (Cl
         'Low stock: STI Ballpen',
         '3 pcs left · you are warned at 5 pcs. Order more in the eStore.',
         'low_stock',
-    ],
-    'delivery expected' => [
-        fn () => new ExpectedDeliveryReminder(orderWith(['PRUM01-01' => 10], ['order_number' => '30801', 'expected_delivery_date' => '2026-10-04']), 'today'),
-        'Delivery expected today: Order #30801',
-        '0% received so far · 10 still to come (as ordered on the eStore) · Oct 4, 2026',
-        'delivery_reminder',
     ],
     'sale ending' => [
         fn () => new SaleEndingSoon(Product::factory()->status(ProductStatus::OnSale)->create(['name' => 'STI Umbrella', 'sale_ends_at' => CarbonImmutable::parse('2026-10-05 17:00', 'Asia/Manila')])),

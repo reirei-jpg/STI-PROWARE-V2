@@ -76,8 +76,7 @@ test('opening a delivery notice opens that purchase order', function () {
 });
 
 test('the school admin dashboard traces uploads, deliveries and short closes', function () {
-    $awaiting = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'created_at' => now()->subDays(3)]);
-    $awaiting->forceFill(['expected_delivery_date' => '2026-10-09'])->save();
+    $awaiting = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01', 'created_at' => now()->subDays(3)]);
     $partial = orderWith(['PRHD01-01' => 20], ['order_number' => '30802', 'created_at' => now()->subDays(2)]);
     $short = orderWith(['PRJK01-01' => 10], ['order_number' => '30722', 'created_at' => now()->subDays(5)]);
 
@@ -113,13 +112,17 @@ test('the school admin dashboard traces uploads, deliveries and short closes', f
             ->where('overview.delivery_activity.0.title', 'Delivery recorded · Order #30802')
             ->where('overview.delivery_activity.0.detail', 'received Oct 8, 2026 · SI # 1210000031492 · Item PRHD01-01 12 of 20')
             ->where('overview.delivery_activity.0.purchase_order_id', $partial->id)
-            ->where('overview.expected', [[
-                'purchase_order_id' => $awaiting->id,
-                'order_number' => '30801',
-                'expected_delivery_date' => '2026-10-09',
-                'late' => false,
-                'percent_received' => 0,
-            ]])
+            ->where('overview.follow_up', [
+                'days' => 30,
+                'count' => 1,
+                'orders' => [[
+                    'purchase_order_id' => $awaiting->id,
+                    'order_number' => '30801',
+                    'date_ordered' => '2026-09-01',
+                    'days_since_ordered' => 37,
+                    'percent_received' => 0,
+                ]],
+            ])
         );
 
     expect($short->refresh()->delivery_status)->toBe(DeliveryStatus::CompletedShort);

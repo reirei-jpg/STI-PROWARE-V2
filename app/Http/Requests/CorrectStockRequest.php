@@ -32,7 +32,8 @@ class CorrectStockRequest extends FormRequest
                 'integer',
                 Rule::exists('product_variants', 'id')->where('product_id', $product instanceof Product ? $product->id : 0),
             ],
-            'reason' => ['required', Rule::enum(StockCorrectionReason::class)],
+            // Free uniforms are recorded on the Free Uniforms page now.
+            'reason' => ['required', Rule::enum(StockCorrectionReason::class)->except([StockCorrectionReason::GivenFree])],
             'pieces_to_remove' => [
                 Rule::requiredIf($reason?->removesPieces() === true),
                 'nullable',
@@ -55,9 +56,6 @@ class CorrectStockRequest extends FormRequest
             ],
             // Pesos per piece, for a count that adds pieces (checked below).
             'unit_cost' => ['nullable', 'numeric', 'min:0.01', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
-            // Who received pieces given free (promo).
-            'recipient_name' => [Rule::requiredIf($reason?->needsRecipient() === true), 'nullable', 'string', 'max:120'],
-            'enrollment_form_number' => [Rule::requiredIf($reason?->needsRecipient() === true), 'nullable', 'string', 'max:40'],
         ];
     }
 
@@ -70,6 +68,7 @@ class CorrectStockRequest extends FormRequest
             'product_variant_id.required' => 'Choose the variant to correct.',
             'product_variant_id.exists' => 'Choose one of this product\'s variants.',
             'reason.required' => 'Choose why the stock is being corrected.',
+            'reason.enum' => 'Choose one of the reasons. Free uniforms are recorded on the Free Uniforms page.',
             'pieces_to_remove.required' => 'Enter how many pieces to take out of stock.',
             'pieces_to_remove.integer' => 'Enter a whole number of pieces.',
             'pieces_to_remove.min' => 'Take out at least 1 piece.',
@@ -77,8 +76,6 @@ class CorrectStockRequest extends FormRequest
             'actual_count.integer' => 'Enter a whole number of pieces.',
             'actual_count.min' => 'The count cannot be below 0.',
             'note.required' => 'Write what happened, since the reason is Other.',
-            'recipient_name.required' => 'Enter the name of the student who received it.',
-            'enrollment_form_number.required' => 'Enter the student\'s enrollment form #.',
             'unit_cost.numeric' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
             'unit_cost.min' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
             'unit_cost.max' => 'The eStore price per piece cannot be more than ₱100,000.00.',
@@ -126,18 +123,6 @@ class CorrectStockRequest extends FormRequest
     public function reason(): StockCorrectionReason
     {
         return StockCorrectionReason::from((string) $this->input('reason'));
-    }
-
-    /**
-     * The student who received pieces given free (promo); null otherwise.
-     *
-     * @return array{name: string, enrollment_form_number: string}|null
-     */
-    public function recipient(): ?array
-    {
-        return $this->reason()->needsRecipient()
-            ? ['name' => $this->string('recipient_name')->trim()->toString(), 'enrollment_form_number' => $this->string('enrollment_form_number')->trim()->toString()]
-            : null;
     }
 
     /**

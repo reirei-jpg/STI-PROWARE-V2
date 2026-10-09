@@ -1,12 +1,5 @@
 import { Form, Link, useHttp, usePage } from '@inertiajs/react';
-import {
-    Ban,
-    CalendarClock,
-    ClipboardList,
-    LoaderCircle,
-    Truck,
-    X,
-} from 'lucide-react';
+import { Ban, ClipboardList, LoaderCircle, Truck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
@@ -14,7 +7,6 @@ import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrde
 import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/PurchaseOrderDeliveryController';
 import DeliveryProgress from '@/components/delivery-progress';
 import InputError from '@/components/input-error';
-import type { ExpectedDeliveryTarget } from '@/components/set-expected-delivery-dialog';
 import {
     Dialog,
     DialogClose,
@@ -37,11 +29,9 @@ import type { OrderDeliveryRecord, PurchaseOrderDetails } from '@/types';
 export default function PurchaseOrderDetailsDialog({
     purchaseOrderId,
     onClose,
-    onSetExpectedDate,
 }: {
     purchaseOrderId: number | null;
     onClose: () => void;
-    onSetExpectedDate?: (order: ExpectedDeliveryTarget) => void;
 }) {
     const { auth } = usePage().props;
     const isSpecialist = auth.user.role === 'specialist';
@@ -159,7 +149,6 @@ export default function PurchaseOrderDetailsDialog({
                             <DeliverySummary
                                 details={details}
                                 isSpecialist={isSpecialist}
-                                onSetExpectedDate={onSetExpectedDate}
                             />
 
                             <div className="overflow-x-auto border-t border-slate-100">
@@ -317,17 +306,16 @@ export default function PurchaseOrderDetailsDialog({
 }
 
 /**
- * How far the order's delivery has come, the expected delivery date, why it
- * was closed short (if it was), and the Specialist's delivery actions.
+ * How far the order's delivery has come, how long ago it was ordered while
+ * it is not complete, why it was closed short (if it was), and the
+ * Specialist's delivery actions.
  */
 function DeliverySummary({
     details,
     isSpecialist,
-    onSetExpectedDate,
 }: {
     details: PurchaseOrderDetails;
     isSpecialist: boolean;
-    onSetExpectedDate?: (order: ExpectedDeliveryTarget) => void;
 }) {
     const [closing, setClosing] = useState(false);
     const isOpen =
@@ -340,41 +328,28 @@ function DeliverySummary({
                 <div className="flex flex-col gap-5 sm:flex-row sm:gap-10">
                     <DeliveryProgress progress={details} className="w-64" />
 
-                    <div>
-                        <p className="text-sm font-bold tracking-wide text-slate-400 uppercase">
-                            Expected Delivery
-                        </p>
-                        <p className="mt-1 text-lg font-black text-slate-900">
-                            {details.expected_delivery_date
-                                ? formatDateOrdered(
-                                      details.expected_delivery_date,
-                                  )
-                                : isOpen
-                                  ? 'Not set yet'
-                                  : '—'}
-                        </p>
-                        {details.expected_delivery_note && (
-                            <p className="mt-0.5 text-sm text-slate-500">
-                                {details.expected_delivery_note}
+                    {isOpen && (
+                        <div>
+                            <p className="text-sm font-bold tracking-wide text-slate-400 uppercase">
+                                Not complete yet
                             </p>
-                        )}
-                    </div>
+                            <p className="mt-1 text-lg font-black text-slate-900">
+                                Ordered {details.days_since_ordered}{' '}
+                                {details.days_since_ordered === 1
+                                    ? 'day'
+                                    : 'days'}{' '}
+                                ago
+                            </p>
+                            <p className="mt-0.5 text-sm text-slate-500">
+                                Head Office gives no delivery date. Ask them if
+                                it is taking too long.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {isSpecialist && isOpen && (
                     <div className="flex flex-wrap gap-2">
-                        {onSetExpectedDate && (
-                            <button
-                                type="button"
-                                onClick={() => onSetExpectedDate(details)}
-                                className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                            >
-                                <CalendarClock size={16} />
-                                {details.expected_delivery_date
-                                    ? 'Change delivery date'
-                                    : 'Set delivery date'}
-                            </button>
-                        )}
                         <Link
                             href={DeliveryController.create()}
                             className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700"

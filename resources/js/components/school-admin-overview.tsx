@@ -1,9 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     CheckCircle2,
+    CircleAlert,
     ClipboardList,
     FileUp,
-    PackageCheck,
     Timer,
     TriangleAlert,
     Truck,
@@ -44,13 +44,18 @@ export type SchoolAdminOverviewData = {
     purchase_order_activity: ActivityEvent[];
     /** Deliveries recorded, newest first. */
     delivery_activity: ActivityEvent[];
-    expected: {
-        purchase_order_id: number;
-        order_number: string | null;
-        expected_delivery_date: string;
-        late: boolean;
-        percent_received: number;
-    }[];
+    /** Purchase orders not complete after the follow-up days, oldest first. */
+    follow_up: {
+        days: number;
+        count: number;
+        orders: {
+            purchase_order_id: number;
+            order_number: string | null;
+            date_ordered: string;
+            days_since_ordered: number;
+            percent_received: number;
+        }[];
+    };
 };
 
 type Tab = 'purchase_orders' | 'deliveries';
@@ -185,14 +190,21 @@ export default function SchoolAdminOverview({
                                     : `recorded by ${cards.recorded_by.join(', ')}`}
                             </OverviewCard>
                             <OverviewCard
-                                href={PurchaseOrderController.index().url}
-                                icon={PackageCheck}
-                                label="Expected this week"
-                                value={overview.expected.length}
+                                href={
+                                    DeliveryController.index({
+                                        query: { show: 'follow_up' },
+                                    }).url
+                                }
+                                icon={CircleAlert}
+                                label={`Not complete after ${overview.follow_up.days} days`}
+                                value={overview.follow_up.count}
                             >
-                                {overview.expected.some((order) => order.late)
-                                    ? 'including late ones'
-                                    : 'as Head Office said'}
+                                purchase{' '}
+                                {overview.follow_up.count === 1
+                                    ? 'order'
+                                    : 'orders'}{' '}
+                                ordered {overview.follow_up.days} or more days
+                                ago, not fully delivered
                             </OverviewCard>
                         </section>
 
@@ -206,7 +218,7 @@ export default function SchoolAdminOverview({
                             seeAllIcon={Truck}
                         />
 
-                        <ExpectedPanel expected={overview.expected} />
+                        <FollowUpPanel followUp={overview.follow_up} />
                     </div>
                 )}
             </div>
@@ -332,50 +344,47 @@ function ActivityPanel({
     );
 }
 
-function ExpectedPanel({
-    expected,
+/**
+ * Purchase orders not complete after the follow-up days: Head Office gives
+ * no delivery date, so these are the ones taking long.
+ */
+function FollowUpPanel({
+    followUp,
 }: {
-    expected: SchoolAdminOverviewData['expected'];
+    followUp: SchoolAdminOverviewData['follow_up'];
 }) {
     return (
         <Panel
-            title="Expected this week"
-            description="Deliveries Head Office said will arrive, and late ones."
+            title={`Not complete after ${followUp.days} days`}
+            description="Purchase orders ordered long ago that have not fully arrived, the oldest first."
         >
-            {expected.length === 0 ? (
+            {followUp.orders.length === 0 ? (
                 <p className="px-6 py-10 text-center text-sm text-slate-500">
-                    No delivery is expected this week.
+                    Every purchase order ordered {followUp.days} or more days
+                    ago has arrived.
                 </p>
             ) : (
                 <ul className="divide-y divide-slate-100">
-                    {expected.map((order) => (
+                    {followUp.orders.map((order) => (
                         <li key={order.purchase_order_id}>
                             <Link
                                 href={purchaseOrderUrl(order.purchase_order_id)}
                                 className="flex items-center justify-between gap-3 px-6 py-4 text-sm transition hover:bg-slate-50"
                             >
                                 <span className="flex flex-wrap items-center gap-3">
-                                    <PackageCheck
+                                    <CircleAlert
                                         size={18}
-                                        className="text-blue-600"
+                                        className="text-red-600"
                                     />
                                     <span className="font-black text-slate-900">
                                         {order.order_number
                                             ? `Order #${order.order_number}`
                                             : 'Purchase order'}
                                     </span>
-                                    <span
-                                        className={cn(
-                                            'rounded-full px-2.5 py-0.5 text-xs font-black',
-                                            order.late
-                                                ? 'bg-red-100 text-red-700'
-                                                : 'bg-blue-100 text-blue-700',
-                                        )}
-                                    >
-                                        {order.late ? 'Late · ' : ''}expected{' '}
-                                        {formatDateOrdered(
-                                            order.expected_delivery_date,
-                                        )}
+                                    <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-black text-red-700">
+                                        Ordered{' '}
+                                        {formatDateOrdered(order.date_ordered)}{' '}
+                                        · {order.days_since_ordered} days ago
                                     </span>
                                 </span>
                                 <span className="font-bold text-slate-600">

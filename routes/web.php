@@ -3,6 +3,7 @@
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
+use App\Http\Controllers\FreeUniformController;
 use App\Http\Controllers\ItemLinkController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\SalesReportController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StudentOrderController;
 use App\Http\Controllers\StudentPreorderController;
+use App\Http\Controllers\UniformSetController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
@@ -58,7 +60,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('purchase-orders/scan', [PurchaseOrderScanController::class, 'create'])->name('purchase-orders.scan');
         Route::post('purchase-orders/scan', [PurchaseOrderScanController::class, 'store'])->name('purchase-orders.scan.store');
         Route::delete('purchase-orders/scan', [PurchaseOrderScanController::class, 'destroy'])->name('purchase-orders.scan.destroy');
-        Route::patch('purchase-orders/{purchaseOrder}/expected-delivery', [PurchaseOrderDeliveryController::class, 'setExpectedDate'])->name('purchase-orders.expected-delivery');
         Route::post('purchase-orders/{purchaseOrder}/close', [PurchaseOrderDeliveryController::class, 'close'])->name('purchase-orders.close');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
@@ -76,6 +77,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
         Route::patch('maintenance/hold-days', [MaintenanceController::class, 'updateHoldDays'])->name('maintenance.hold-days');
+        Route::patch('maintenance/follow-up-days', [MaintenanceController::class, 'updateFollowUpDays'])->name('maintenance.follow-up-days');
+        Route::patch('maintenance/promo-group-size', [MaintenanceController::class, 'updatePromoGroupSize'])->name('maintenance.promo-group-size');
+
+        Route::get('free-uniforms', [FreeUniformController::class, 'index'])->name('free-uniforms.index');
+        Route::post('free-uniforms', [FreeUniformController::class, 'store'])->name('free-uniforms.store');
+        Route::get('free-uniforms/export', [FreeUniformController::class, 'export'])->name('free-uniforms.export');
+        Route::post('free-uniforms/students/{student}/give', [FreeUniformController::class, 'giveRest'])->name('free-uniforms.give');
+        Route::post('uniform-sets', [UniformSetController::class, 'store'])->name('uniform-sets.store');
+        Route::put('uniform-sets/{uniformSet}', [UniformSetController::class, 'update'])->name('uniform-sets.update');
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');
         Route::get('preorders/export', [PreorderController::class, 'export'])->name('preorders.export');

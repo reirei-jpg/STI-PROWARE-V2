@@ -242,7 +242,8 @@ final class SalesReport
     }
 
     /**
-     * Pieces given free (promo) in the period.
+     * Pieces given free (promo) in the period: free uniforms, and the
+     * "Given free (promo)" corrections made before the Free Uniforms page.
      *
      * @return Builder<StockMovement>
      */
@@ -250,8 +251,11 @@ final class SalesReport
     {
         return StockMovement::query()
             ->with('variant.product')
-            ->where('type', StockMovementType::Correction)
-            ->where('reason', StockCorrectionReason::GivenFree)
+            ->where(fn (Builder $query) => $query
+                ->where('type', StockMovementType::FreePromo)
+                ->orWhere(fn (Builder $old) => $old
+                    ->where('type', StockMovementType::Correction)
+                    ->where('reason', StockCorrectionReason::GivenFree)))
             ->whereBetween('created_at', [$from, $to]);
     }
 

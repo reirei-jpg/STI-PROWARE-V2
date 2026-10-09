@@ -90,7 +90,7 @@ export default function NotificationBell() {
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
                             {auth.user.role === 'specialist'
-                                ? 'You will be reminded here the day before and on the day of an expected delivery.'
+                                ? 'You will be told here when stock runs low or a sale is ending.'
                                 : auth.user.role === 'student'
                                   ? 'You will be told here when your order is ready for pickup, or when an item you preordered arrives.'
                                   : 'You will be notified here when the Specialist uploads a purchase order, records a delivery, or closes an order short.'}
@@ -295,25 +295,6 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     {formatUnits(data.stock_on_hand, 'Piece')} left · you are
                     warned at {formatUnits(data.alert_at, 'Piece')}. Order more
                     in the eStore.
-                </span>
-            </>
-        );
-    }
-
-    if (data.kind === 'delivery_reminder') {
-        return (
-            <>
-                <span className="block text-sm font-bold text-slate-900">
-                    Delivery expected {data.when}
-                    {data.order_number ? `: Order #${data.order_number}` : ''}
-                </span>
-                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    {data.percent_received}% received so far ·{' '}
-                    {data.quantity_remaining.toLocaleString('en-PH')} still to
-                    come (as ordered on the eStore)
-                    {data.expected_delivery_date
-                        ? ` · ${formatDateOrdered(data.expected_delivery_date)}`
-                        : ''}
                 </span>
             </>
         );

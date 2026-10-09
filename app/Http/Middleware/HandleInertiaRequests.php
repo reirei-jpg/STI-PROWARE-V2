@@ -54,7 +54,7 @@ class HandleInertiaRequests extends Middleware
      * student.
      *
      * The notification data is whatever the notification stored (see
-     * PurchaseOrderUploaded and ExpectedDeliveryReminder), decoded from the
+     * e.g. PurchaseOrderUploaded), decoded from the
      * database.
      *
      * @return array{unread_count: int, recent: list<array{id: string, data: array<mixed>, read: bool, created_at: ?string}>}|null

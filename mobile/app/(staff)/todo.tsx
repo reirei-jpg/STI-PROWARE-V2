@@ -1,7 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import {
     ArrowRight,
-    Banknote,
     Bell,
     Boxes,
     CalendarClock,
@@ -30,7 +29,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatPeso } from '@/lib/format';
 import { useNotifications } from '@/lib/notifications';
 import type { SpecialistTask, SpecialistTasks } from '@/lib/types';
 
@@ -93,9 +91,8 @@ function countTasks(tasks: SpecialistTask[]): number {
 
 /**
  * The Specialist's To-do, the same list as the website dashboard: a
- * greeting with today's date, Scan issuance slip, four numbers (cash to
- * collect, collected today, Do now, Today), then Do now, Today and This
- * week, most urgent first. A task disappears by itself once it is done.
+ * greeting with today's date, Scan issuance slip, how many tasks are in
+ * Do now and Today, then Do now, Today and This week, most urgent first. A task disappears by itself once it is done.
  * Desk work (linking items, sales) says to do it on the website.
  */
 export default function TodoScreen() {
@@ -206,28 +203,7 @@ export default function TodoScreen() {
                 !error && <ActivityIndicator color="#0D6EFD" className="mt-10" />
             ) : (
                 <>
-                    <View className="gap-3">
-                        <View className="flex-row gap-3">
-                            <SummaryTile
-                                icon={Banknote}
-                                box="bg-amber-50"
-                                color="#b45309"
-                                label="To collect"
-                                value={formatPeso(tasks.cash.waiting_centavos)}
-                                detail={`${tasks.cash.waiting_orders} ready for pickup`}
-                                onPress={() => router.navigate('/staff-orders')}
-                            />
-                            <SummaryTile
-                                icon={CircleCheck}
-                                box="bg-emerald-50"
-                                color="#047857"
-                                label="Collected today"
-                                value={formatPeso(tasks.cash.collected_centavos)}
-                                detail={`${tasks.cash.collected_orders} released`}
-                                onPress={() => router.navigate('/staff-orders')}
-                            />
-                        </View>
-                        <View className="flex-row gap-3">
+                    <View className="flex-row gap-3">
                             <SummaryTile
                                 icon={Flame}
                                 box="bg-red-50"
@@ -244,7 +220,6 @@ export default function TodoScreen() {
                                 value={String(countTasks(tasks.today))}
                                 detail={countTasks(tasks.today) === 1 ? 'task' : 'tasks'}
                             />
-                        </View>
                     </View>
 
                     {nothingToDo ? (
@@ -277,7 +252,6 @@ function SummaryTile({
     label,
     value,
     detail,
-    onPress,
 }: {
     icon: LucideIcon;
     box: string;
@@ -285,15 +259,9 @@ function SummaryTile({
     label: string;
     value: string;
     detail: string;
-    onPress?: () => void;
 }) {
     return (
-        <Pressable
-            onPress={onPress}
-            disabled={!onPress}
-            accessibilityRole={onPress ? 'button' : undefined}
-            className="flex-1 rounded-3xl border border-slate-200 bg-white p-4"
-        >
+        <View className="flex-1 rounded-3xl border border-slate-200 bg-white p-4">
             <View className={`h-10 w-10 items-center justify-center rounded-2xl ${box}`}>
                 <Icon size={20} color={color} />
             </View>
@@ -304,7 +272,7 @@ function SummaryTile({
             <Text numberOfLines={1} className="font-sans text-xs text-slate-500">
                 {detail}
             </Text>
-        </Pressable>
+        </View>
     );
 }
 

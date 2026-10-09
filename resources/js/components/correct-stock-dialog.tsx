@@ -30,9 +30,6 @@ type CorrectionForm = {
     note: string;
     /** Pesos per piece, for a count that adds pieces. */
     unit_cost: string;
-    /** Who received pieces given free (promo). */
-    recipient_name: string;
-    enrollment_form_number: string;
 };
 
 /** Keeps only digits, so "45 pcs" becomes "45". */
@@ -99,8 +96,6 @@ function CorrectionForm({
         actual_count: '',
         note: '',
         unit_cost: '',
-        recipient_name: '',
-        enrollment_form_number: '',
     });
     const { data, setData, processing, errors } = form;
 
@@ -143,12 +138,6 @@ function CorrectionForm({
         after !== null &&
         after > variant.stock_on_hand;
     const costMissing = addsPieces && !(Number(data.unit_cost) > 0);
-    // A free uniform (promo) is written down with who received it.
-    const givenFree = data.reason === 'given_free';
-    const recipientMissing =
-        givenFree &&
-        (data.recipient_name.trim() === '' ||
-            data.enrollment_form_number.trim() === '');
 
     return (
         <form
@@ -304,52 +293,6 @@ function CorrectionForm({
                     </section>
                 )}
 
-                {givenFree && (
-                    <section className="grid gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:grid-cols-2">
-                        <p className="text-sm font-black text-emerald-900 sm:col-span-2">
-                            Who received the free uniform?
-                        </p>
-                        <label className="grid gap-1.5">
-                            <span className="text-sm font-black text-slate-700">
-                                Student's name
-                            </span>
-                            <input
-                                value={data.recipient_name}
-                                onChange={(event) =>
-                                    setData(
-                                        'recipient_name',
-                                        event.target.value,
-                                    )
-                                }
-                                maxLength={120}
-                                placeholder="e.g. Maria Santos"
-                                className={inputClasses}
-                            />
-                            <InputError message={errors.recipient_name} />
-                        </label>
-                        <label className="grid gap-1.5">
-                            <span className="text-sm font-black text-slate-700">
-                                Enrollment form #
-                            </span>
-                            <input
-                                value={data.enrollment_form_number}
-                                onChange={(event) =>
-                                    setData(
-                                        'enrollment_form_number',
-                                        event.target.value,
-                                    )
-                                }
-                                maxLength={40}
-                                placeholder="e.g. 2026-01234"
-                                className={inputClasses}
-                            />
-                            <InputError
-                                message={errors.enrollment_form_number}
-                            />
-                        </label>
-                    </section>
-                )}
-
                 {addsPieces && (
                     <label className="grid gap-1.5">
                         <span className="text-sm font-black text-slate-700">
@@ -415,7 +358,6 @@ function CorrectionForm({
                         processing ||
                         after === null ||
                         costMissing ||
-                        recipientMissing ||
                         (noteRequired && data.note.trim() === '')
                     }
                     className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"

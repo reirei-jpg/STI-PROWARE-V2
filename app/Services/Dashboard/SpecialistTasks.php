@@ -2,7 +2,6 @@
 
 namespace App\Services\Dashboard;
 
-use App\Enums\DeliveryStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
@@ -11,9 +10,9 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
+use App\Services\Deliveries\FollowUp;
 use App\Services\Stock\LinkedItems;
 use App\Services\Stock\Units;
-use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
@@ -22,10 +21,9 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  *
  * - Do now: orders to prepare, low stock, deliveries waiting to be split
  *   by variant, and delivered items not linked to a product.
- * - Today: deliveries expected (or late), orders on their last pickup day,
- *   and sales ending today or tomorrow.
- * - This week: deliveries expected later, preorders closing, slow-moving
- *   items.
+ * - Today: purchase orders not complete after the follow-up days, orders
+ *   on their last pickup day, and sales ending today or tomorrow.
+ * - This week: preorders closing, slow-moving items.
  *
  * A task disappears by itself once it is done. Long lists show the first
  * few and how many more there are.
@@ -37,12 +35,10 @@ final class SpecialistTasks
     public const SLOW_MOVING_DAYS = 18;
 
     /**
-     * @return array{now: list<array<string, mixed>>, today: list<array<string, mixed>>, week: list<array<string, mixed>>, cash: array{waiting_orders: int, waiting_centavos: int, collected_orders: int, collected_centavos: int}}
+     * @return array{now: list<array<string, mixed>>, today: list<array<string, mixed>>, week: list<array<string, mixed>>}
      */
     public function all(): array
     {
-        $today = now()->startOfDay();
-
         return [
             'now' => [
                 ...$this->ordersToPrepare(),
@@ -51,16 +47,14 @@ final class SpecialistTasks
                 ...$this->arrivedNotLinked(),
             ],
             'today' => [
-                ...$this->expectedDeliveries(null, $today->endOfDay()),
+                ...$this->ordersToFollowUp(),
                 ...$this->lastPickupDay(),
                 ...$this->salesEnding(),
             ],
             'week' => [
-                ...$this->expectedDeliveries($today->addDay(), $today->addDays(7)->endOfDay()),
                 ...$this->preordersClosing(),
                 ...$this->slowMoving(),
             ],
-            'cash' => $this->cash(),
         ];
     }
 
@@ -219,41 +213,32 @@ final class SpecialistTasks
     }
 
     /**
-     * Open orders expected from Head Office between the dates; with no
-     * start, late ones too.
+     * Purchase orders not complete after the follow-up days, the oldest
+     * first: ask Head Office about the rest.
      *
      * @return list<array<string, mixed>>
      */
-    private function expectedDeliveries(?CarbonInterface $from, CarbonInterface $to): array
+    private function ordersToFollowUp(): array
     {
-        return array_values(PurchaseOrder::query()
-            ->whereIn('delivery_status', [DeliveryStatus::Awaiting, DeliveryStatus::PartiallyReceived])
-            ->whereNotNull('expected_delivery_date')
-            ->when($from, fn (Builder $query, CarbonInterface $start) => $query->whereDate('expected_delivery_date', '>=', $start->toDateString()))
-            ->whereDate('expected_delivery_date', '<=', $to->toDateString())
-            ->orderBy('expected_delivery_date')
+        $days = FollowUp::days();
+        $total = FollowUp::dueOrders()->count();
+
+        $tasks = FollowUp::dueOrders()
+            ->orderBy('date_ordered')
+            ->orderBy('id')
             ->limit(self::SHOWN_PER_KIND)
             ->get()
-            ->map(function (PurchaseOrder $order): array {
-                /** @var CarbonInterface $date */
-                $date = $order->expected_delivery_date;
-                $when = match (true) {
-                    $date->isToday() => 'today',
-                    $date->isPast() => 'since '.$date->format('M j').' (late)',
-                    default => $date->format('D, M j'),
-                };
+            ->map(fn (PurchaseOrder $order): array => self::task(
+                key: "follow-up-{$order->id}",
+                kind: 'delivery',
+                title: "Not complete after {$days} days".($order->order_number ? ": Order #{$order->order_number}" : ''),
+                detail: 'Ordered '.$order->date_ordered->format('M j').' ('.FollowUp::daysSinceOrdered($order).' days ago) · '.$order->percentReceived().'% received. Ask Head Office about the rest.',
+                label: 'See order',
+                url: route('purchase-orders.index', ['view' => $order->id]),
+            ))
+            ->all();
 
-                return self::task(
-                    key: "delivery-{$order->id}",
-                    kind: 'delivery',
-                    title: 'Delivery expected '.$when.($order->order_number ? ": Order #{$order->order_number}" : ''),
-                    detail: $order->percentReceived().'% received so far'.($order->expected_delivery_note ? " · {$order->expected_delivery_note}" : ''),
-                    label: 'Record Delivery',
-                    url: route('deliveries.create'),
-                    target: ['screen' => 'record_delivery'],
-                );
-            })
-            ->all());
+        return [...$tasks, ...self::more($total, "more orders not complete after {$days} days", route('deliveries.index', ['show' => 'follow_up']))];
     }
 
     /**
@@ -341,24 +326,6 @@ final class SpecialistTasks
             label: 'See slow-moving',
             url: route('products.index', ['stock' => 'slow']),
         )];
-    }
-
-    /**
-     * Cash still to collect (orders ready for pickup) and collected today.
-     *
-     * @return array{waiting_orders: int, waiting_centavos: int, collected_orders: int, collected_centavos: int}
-     */
-    private function cash(): array
-    {
-        $ready = Order::query()->where('status', OrderStatus::Ready);
-        $collected = Order::query()->where('status', OrderStatus::PickedUp)->whereDate('picked_up_at', now()->toDateString());
-
-        return [
-            'waiting_orders' => $ready->count(),
-            'waiting_centavos' => (int) $ready->sum('total_centavos'),
-            'collected_orders' => $collected->count(),
-            'collected_centavos' => (int) $collected->sum('total_centavos'),
-        ];
     }
 
     private function days(): string

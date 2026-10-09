@@ -29,10 +29,10 @@ function ordersDated(array $dates): array
 test('the Date Ordered filter keeps only orders in the range, including both end dates', function (?string $from, ?string $to, array $expectedDates) {
     ordersDated(['2026-08-31', '2026-09-01', '2026-09-15', '2026-09-30', '2026-10-01']);
 
-    $this->get(route('purchase-orders.index', array_filter(['date_from' => $from, 'date_to' => $to])))
+    $this->get(route('purchase-orders.index', array_filter(['sort' => 'newest', 'date_from' => $from, 'date_to' => $to])))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('filters', ['search' => null, 'category' => null, 'status' => null, 'sort' => 'expected', 'date_from' => $from, 'date_to' => $to])
+            ->where('filters', ['search' => null, 'category' => null, 'status' => null, 'sort' => 'newest', 'date_from' => $from, 'date_to' => $to])
             ->where('purchaseOrders.data', fn ($rows) => collect($rows)->pluck('date_ordered')->all() === $expectedDates)
         );
 })->with([

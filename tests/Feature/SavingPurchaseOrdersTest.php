@@ -149,7 +149,7 @@ test('a school admin cannot save purchase orders', function () {
         ->assertForbidden();
 });
 
-test('the list shows saved orders, newest Date Ordered first', function () {
+test('the list can show the newest Date Ordered first', function () {
     $newer = PurchaseOrder::factory()
         ->for(User::factory()->specialist()->state(['name' => 'Carlo Mendoza']), 'uploader')
         ->create(['date_ordered' => '2026-09-29', 'total_amount_centavos' => 42000, 'created_at' => now()->subDay()]);
@@ -158,7 +158,7 @@ test('the list shows saved orders, newest Date Ordered first', function () {
         ->create(['date_ordered' => '2026-09-01']);
 
     $this->actingAs(User::factory()->specialist()->create())
-        ->get(route('purchase-orders.index'))
+        ->get(route('purchase-orders.index', ['sort' => 'newest']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('purchase-orders/index')
@@ -188,6 +188,7 @@ test('the list shows totals across all saved orders', function () {
 });
 
 test('the details window gets every detail of the order, items in document order', function () {
+    $this->travelTo(now()->setDate(2026, 10, 10)->setTime(9, 0));
     $specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
     $purchaseOrder = PurchaseOrder::factory()->for($specialist, 'uploader')->create([
         'order_number' => '30722',
@@ -227,8 +228,7 @@ test('the details window gets every detail of the order, items in document order
             'quantity_ordered_total' => 30,
             'quantity_received_total' => 0,
             'percent_received' => 0,
-            'expected_delivery_date' => null,
-            'expected_delivery_note' => null,
+            'days_since_ordered' => 11,
             'closed_reason' => null,
             'closed_at' => null,
             'closed_by' => null,

@@ -64,9 +64,8 @@ test('the to-do list is the website dashboard\'s, and says which phone screen op
     $tasks = $this->getJson(route('api.v1.specialist.tasks'))->assertOk();
 
     $tasks->assertJsonPath('now.0.title', "Prepare {$order->number} · Juan Dela Cruz")
-        ->assertJsonPath('now.0.target', ['screen' => 'order', 'id' => $order->id])
-        ->assertJsonPath('cash.waiting_orders', 0);
-    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week', 'cash']);
+        ->assertJsonPath('now.0.target', ['screen' => 'order', 'id' => $order->id]);
+    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week']);
 });
 
 test('the app lists the Specialist\'s orders exactly as the website does', function () {
@@ -164,7 +163,7 @@ test('the app shows the same items waiting for delivery and recorded deliveries 
 });
 
 test('the Specialist records a delivery on the app and the stock and order follow, as on the website', function () {
-    $order = orderWith(['PRUM01-01' => 10], ['order_number' => '30801', 'expected_delivery_date' => '2026-10-04']);
+    $order = orderWith(['PRUM01-01' => 10], ['order_number' => '30801']);
     $umbrella = ProductVariant::factory()
         ->for(Product::factory()->create(['name' => 'STI Umbrella']))
         ->create(['estore_item_code' => 'PRUM01-01', 'stock_on_hand' => 0]);
@@ -180,8 +179,7 @@ test('the Specialist records a delivery on the app and the stock and order follo
         ->assertJsonPath('message', 'Delivery recorded. Added to stock: STI Umbrella — 6 pcs.');
 
     expect($umbrella->refresh()->stock_on_hand)->toBe(6)
-        ->and($order->refresh()->percentReceived())->toBe(60)
-        ->and($order->expected_delivery_date)->toBeNull();
+        ->and($order->refresh()->percentReceived())->toBe(60);
 });
 
 test('recording a delivery on the app refuses more than what is left, in the website\'s words', function () {
@@ -196,13 +194,13 @@ test('recording a delivery on the app refuses more than what is left, in the web
     expect($order->refresh()->percentReceived())->toBe(0);
 });
 
-test('a delivery expected today opens Record Delivery on the phone', function () {
-    orderWith(['PRUM01-01' => 10], ['order_number' => '30801', 'expected_delivery_date' => '2026-10-04']);
+test('an order not complete after 30 days is on the phone to-do list, to ask Head Office', function () {
+    orderWith(['PRUM01-01' => 10], ['order_number' => '30801', 'date_ordered' => '2026-09-04']);
     Sanctum::actingAs(User::factory()->specialist()->create());
 
     $this->getJson(route('api.v1.specialist.tasks'))
-        ->assertJsonPath('today.0.title', 'Delivery expected today: Order #30801')
-        ->assertJsonPath('today.0.target', ['screen' => 'record_delivery']);
+        ->assertJsonPath('today.0.title', 'Not complete after 30 days: Order #30801')
+        ->assertJsonPath('today.0.target', null);
 });
 
 test('the stock lookup finds products by name or low stock, and shows the website\'s stock history', function () {

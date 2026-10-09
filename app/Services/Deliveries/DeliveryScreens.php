@@ -19,7 +19,7 @@ use Illuminate\Support\Collection;
  * Specialist's phone: recorded deliveries, the items still waiting to
  * arrive (Record Delivery), and what a recorded delivery did.
  *
- * @phpstan-type WaitingOrder array{id: int, order_number: string|null, date_ordered: string, category: string|null, items_count: int, expected_delivery_date: string|null, expected_delivery_note: string|null, delivery_status: string, delivery_status_label: string, quantity_ordered_total: int, quantity_received_total: int, percent_received: int, quantity_remaining: int}
+ * @phpstan-type WaitingOrder array{id: int, order_number: string|null, date_ordered: string, category: string|null, items_count: int, days_since_ordered: int, delivery_status: string, delivery_status_label: string, quantity_ordered_total: int, quantity_received_total: int, percent_received: int, quantity_remaining: int}
  * @phpstan-type RecordedDelivery array{id: int, received_on: string, sales_invoice_number: string|null, delivery_receipt_number: string|null, note: string|null, recorded_by: string, recorded_at: string|null, orders: list<array{id: int, order_number: string|null}>, pieces_added_to_stock: int, items_not_in_stock: int, order_numbers: list<string>, first_item: array{id: int, item_code: string, description: string, quantity_received: int, product: string|null, pieces_added: int}|null, items_count: int}
  */
 final class DeliveryScreens
@@ -141,23 +141,17 @@ final class DeliveryScreens
     }
 
     /**
-     * Purchase orders still waiting for (part of) their delivery: the late
-     * ones and those expected soonest first, then those without a date;
-     * late or expected this week only when asked. Searchable by Order #.
+     * Purchase orders still waiting for (part of) their delivery, the
+     * oldest Date Ordered first; only those not complete after the
+     * follow-up days when asked. Searchable by Order #.
      *
      * @return LengthAwarePaginator<int, WaitingOrder>
      */
     public static function waitingOrders(?string $search, ?string $only = null): LengthAwarePaginator
     {
-        $today = now()->toDateString();
-
-        return self::openOrders()
+        return ($only === 'follow_up' ? FollowUp::dueOrders() : FollowUp::openOrders())
             ->withCount('items')
-            ->when($only === 'late', fn (Builder $query) => $query->whereDate('expected_delivery_date', '<', $today))
-            ->when($only === 'this_week', fn (Builder $query) => $query->whereBetween('expected_delivery_date', [$today, now()->addDays(7)->toDateString()]))
             ->when($search, fn (Builder $query, string $term) => $query->whereLike('order_number', "%{$term}%"))
-            ->orderByRaw('case when expected_delivery_date is null then 1 else 0 end')
-            ->orderBy('expected_delivery_date')
             ->orderBy('date_ordered')
             ->orderBy('id')
             ->paginate(20)
@@ -168,8 +162,7 @@ final class DeliveryScreens
                 'date_ordered' => $order->date_ordered->toDateString(),
                 'category' => $order->category,
                 'items_count' => (int) $order->getAttribute('items_count'),
-                'expected_delivery_date' => $order->expected_delivery_date?->toDateString(),
-                'expected_delivery_note' => $order->expected_delivery_note,
+                'days_since_ordered' => FollowUp::daysSinceOrdered($order),
                 'delivery_status' => $order->delivery_status->value,
                 'delivery_status_label' => $order->delivery_status->label(),
                 'quantity_ordered_total' => $order->quantity_ordered_total,
@@ -182,17 +175,16 @@ final class DeliveryScreens
     /**
      * The numbers at the top of the Deliveries page.
      *
-     * @return array{late: int, this_week: int, waiting: int, this_month: array{deliveries: int, pieces: int}, not_in_stock: int}
+     * @return array{follow_up: int, follow_up_days: int, waiting: int, this_month: array{deliveries: int, pieces: int}, not_in_stock: int}
      */
     public static function summary(): array
     {
-        $today = now()->toDateString();
         $monthStart = now()->startOfMonth()->toDateString();
 
         return [
-            'late' => self::openOrders()->whereDate('expected_delivery_date', '<', $today)->count(),
-            'this_week' => self::openOrders()->whereBetween('expected_delivery_date', [$today, now()->addDays(7)->toDateString()])->count(),
-            'waiting' => self::openOrders()->count(),
+            'follow_up' => FollowUp::dueOrders()->count(),
+            'follow_up_days' => FollowUp::days(),
+            'waiting' => FollowUp::openOrders()->count(),
             'this_month' => [
                 'deliveries' => Delivery::query()->whereDate('received_on', '>=', $monthStart)->count(),
                 'pieces' => (int) StockMovement::query()
@@ -203,16 +195,6 @@ final class DeliveryScreens
             ],
             'not_in_stock' => DeliveryItem::query()->whereDoesntHave('stockMovements')->count(),
         ];
-    }
-
-    /**
-     * Purchase orders not fully delivered yet.
-     *
-     * @return Builder<PurchaseOrder>
-     */
-    private static function openOrders(): Builder
-    {
-        return PurchaseOrder::query()->whereIn('delivery_status', [DeliveryStatus::Awaiting, DeliveryStatus::PartiallyReceived]);
     }
 
     /**
@@ -239,7 +221,7 @@ final class DeliveryScreens
      * Every ordered item still waiting to arrive, grouped by item code,
      * oldest order first within each code, with where it goes into stock.
      *
-     * @return list<array{item_code: string, description: string, stock_target: array<string, mixed>|null, rows: list<array{purchase_order_item_id: int, order_number: string|null, date_ordered: string, expected_delivery_date: string|null, quantity_ordered: int, quantity_received: int, quantity_remaining: int}>}>
+     * @return list<array{item_code: string, description: string, stock_target: array<string, mixed>|null, rows: list<array{purchase_order_item_id: int, order_number: string|null, date_ordered: string, quantity_ordered: int, quantity_received: int, quantity_remaining: int}>}>
      */
     public static function waiting(): array
     {
@@ -266,7 +248,6 @@ final class DeliveryScreens
                     'purchase_order_item_id' => $item->id,
                     'order_number' => $item->purchaseOrder->order_number,
                     'date_ordered' => $item->purchaseOrder->date_ordered->toDateString(),
-                    'expected_delivery_date' => $item->purchaseOrder->expected_delivery_date?->toDateString(),
                     'quantity_ordered' => $item->quantity_ordered,
                     'quantity_received' => $item->quantity_delivered,
                     'quantity_remaining' => $item->quantityRemaining(),

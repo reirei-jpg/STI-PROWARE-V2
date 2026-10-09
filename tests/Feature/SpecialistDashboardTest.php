@@ -26,7 +26,7 @@ test('an empty to-do list is all clear', function () {
             ->where('tasks.now', [])
             ->where('tasks.today', [])
             ->where('tasks.week', [])
-            ->where('tasks.cash', ['waiting_orders' => 0, 'waiting_centavos' => 0, 'collected_orders' => 0, 'collected_centavos' => 0])
+            ->missing('tasks.cash')
         );
 });
 
@@ -39,8 +39,8 @@ test('the to-do list puts each task in its group, most urgent first', function (
     $lanyard = Product::factory()->create(['name' => 'STI Lanyard', 'status' => ProductStatus::Available, 'low_stock_alert_at' => 5]);
     ProductVariant::factory()->for($lanyard)->create(['stock_on_hand' => 2]);
 
-    PurchaseOrder::factory()->create(['order_number' => '30801', 'delivery_status' => DeliveryStatus::Awaiting, 'expected_delivery_date' => '2026-10-03']);
-    PurchaseOrder::factory()->create(['order_number' => '30802', 'delivery_status' => DeliveryStatus::Awaiting, 'expected_delivery_date' => '2026-10-07']);
+    PurchaseOrder::factory()->create(['order_number' => '30801', 'delivery_status' => DeliveryStatus::Awaiting, 'date_ordered' => '2026-08-20']);
+    PurchaseOrder::factory()->create(['order_number' => '30802', 'delivery_status' => DeliveryStatus::Awaiting, 'date_ordered' => '2026-09-25']);
 
     $shirt = Product::factory()->create(['name' => 'Anniversary Shirt', 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-05']);
     Preorder::factory()->for($shirt)->for(ProductVariant::factory()->for($shirt), 'variant')->create(['quantity' => 3, 'status' => PreorderStatus::Active]);
@@ -52,12 +52,11 @@ test('the to-do list puts each task in its group, most urgent first', function (
             ->where('tasks.now.0.detail', '0 items · ₱270.00 · pick up by Oct 6')
             ->where('tasks.now.0.action', ['label' => 'Ready for pickup', 'url' => route('orders.ready', $order), 'method' => 'post'])
             ->where('tasks.now.1.title', 'Low stock: STI Lanyard')
-            ->where('tasks.today.0.title', 'Delivery expected today: Order #30801')
+            ->where('tasks.today.0.title', 'Not complete after 30 days: Order #30801')
+            ->where('tasks.today.0.detail', 'Ordered Aug 20 (44 days ago) · 0% received. Ask Head Office about the rest.')
             ->where('tasks.today.1.title', fn (string $title) => str_starts_with($title, 'Last day to pick up'))
-            ->where('tasks.week.0.title', 'Delivery expected Wed, Oct 7: Order #30802')
-            ->where('tasks.week.1.title', 'Preorders for Anniversary Shirt close Mon, Oct 5')
-            ->where('tasks.week.1.detail', '3 pcs preordered so far. Order them in the eStore after it closes.')
-            ->where('tasks.cash', ['waiting_orders' => 1, 'waiting_centavos' => 30000, 'collected_orders' => 1, 'collected_centavos' => 15000])
+            ->where('tasks.week.0.title', 'Preorders for Anniversary Shirt close Mon, Oct 5')
+            ->where('tasks.week.0.detail', '3 pcs preordered so far. Order them in the eStore after it closes.')
         );
 });
 

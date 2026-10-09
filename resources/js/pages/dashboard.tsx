@@ -1,7 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowRight,
-    Banknote,
     Boxes,
     CalendarClock,
     CalendarDays,
@@ -19,7 +18,6 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
-import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import PageHeader from '@/components/page-header';
 import SchoolAdminOverview from '@/components/school-admin-overview';
@@ -31,7 +29,6 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
 
@@ -58,12 +55,6 @@ type SpecialistTasks = {
     now: Task[];
     today: Task[];
     week: Task[];
-    cash: {
-        waiting_orders: number;
-        waiting_centavos: number;
-        collected_orders: number;
-        collected_centavos: number;
-    };
 };
 
 const taskIcons: Record<Task['kind'], LucideIcon> = {
@@ -202,33 +193,6 @@ export default function Dashboard({
                         ))}
                     </div>
                 </section>
-
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <SummaryTile
-                        href={
-                            OrderController.index({
-                                query: { show: 'ready' },
-                            }).url
-                        }
-                        icon={Banknote}
-                        tone="amber"
-                        label="To collect"
-                        value={formatPeso(tasks.cash.waiting_centavos)}
-                        detail={`${tasks.cash.waiting_orders} ${tasks.cash.waiting_orders === 1 ? 'order' : 'orders'} ready for pickup`}
-                    />
-                    <SummaryTile
-                        href={
-                            OrderController.index({
-                                query: { show: 'picked_up' },
-                            }).url
-                        }
-                        icon={CheckCircle2}
-                        tone="green"
-                        label="Collected today"
-                        value={formatPeso(tasks.cash.collected_centavos)}
-                        detail={`${tasks.cash.collected_orders} ${tasks.cash.collected_orders === 1 ? 'order' : 'orders'} released`}
-                    />
-                </section>
             </div>
 
             <TaskGroupDialog
@@ -286,58 +250,6 @@ const groups: Group[] = [
 /** Tasks in a group, not counting the "and N more" link. */
 function countTasks(tasks: Task[]): number {
     return tasks.filter((task) => task.kind !== 'more').length;
-}
-
-const tileClasses = {
-    amber: 'bg-amber-50 text-amber-700',
-    green: 'bg-emerald-50 text-emerald-700',
-    red: 'bg-red-50 text-red-700',
-    blue: 'bg-blue-50 text-blue-700',
-} as const;
-
-/** One number at the top of the dashboard, opening what it counts. */
-function SummaryTile({
-    href,
-    icon: Icon,
-    tone,
-    label,
-    value,
-    detail,
-}: {
-    href: string;
-    icon: LucideIcon;
-    tone: keyof typeof tileClasses;
-    label: string;
-    value: string;
-    detail: string;
-}) {
-    const content = (
-        <>
-            <span
-                className={cn(
-                    'flex size-11 items-center justify-center rounded-2xl',
-                    tileClasses[tone],
-                )}
-            >
-                <Icon size={21} />
-            </span>
-            <span className="mt-4 block text-xs font-black tracking-wide text-slate-500 uppercase">
-                {label}
-            </span>
-            <span className="mt-0.5 block text-2xl font-black tracking-tight text-slate-900">
-                {value}
-            </span>
-            <span className="block text-sm text-slate-500">{detail}</span>
-        </>
-    );
-    return (
-        <Link
-            href={href}
-            className="block rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-        >
-            {content}
-        </Link>
-    );
 }
 
 /**
