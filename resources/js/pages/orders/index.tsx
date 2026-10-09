@@ -1,24 +1,16 @@
-import { Head, Link, router } from '@inertiajs/react';
-import {
-    Banknote,
-    CheckCircle2,
-    Clock,
-    PackageCheck,
-    QrCode,
-    Search,
-    ShoppingBag,
-    Undo2,
-    Unlock,
-} from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { Clock, Eye, Search, ShoppingBag, Unlock } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
-import OrderItems, { OrderStatusBadge } from '@/components/order-items';
+import OrderDetailsDialog from '@/components/order-details-dialog';
+import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel from '@/components/panel';
+import Panel, { TableHeading } from '@/components/panel';
 import SlipScanBox from '@/components/slip-scan-box';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
 
@@ -50,10 +42,11 @@ const descriptions: Record<Show, string> = {
 /**
  * The Specialist's Student Orders page. A student shows the order's
  * issuance slip: scan its QR (or type the order number) to open it, check
- * it, and release the items once paid. Here too: prepare new orders and
- * mark them Ready for pickup (the student is told), set how many days new
- * orders hold their items, and let students paused for expired orders
- * order again. Orders not released by their date expire by themselves.
+ * it, and release the items once paid. Below, every order in a table (by
+ * status, with a search); View Details opens an order with its items, its
+ * history and its steps (Ready for pickup, Release, Undo, Cancel). Here
+ * too: how many days new orders hold their items, and students paused for
+ * expired orders. Orders not released by their date expire by themselves.
  */
 export default function OrdersIndex({
     orders,
@@ -69,9 +62,12 @@ export default function OrdersIndex({
     pausedStudents: PausedStudent[];
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const [viewingId, setViewingId] = useState<number | null>(null);
     const [cancelling, setCancelling] = useState<SpecialistOrder | null>(null);
-    const [busy, setBusy] = useState<number | null>(null);
     const firstRender = useRef(true);
+    // The open order follows the list, so it updates after each step; once
+    // it moves to another tab (e.g. released), the popup closes.
+    const viewing = orders.data.find((order) => order.id === viewingId) ?? null;
 
     const showList = (show: Show, term: string) =>
         router.get(
@@ -101,37 +97,14 @@ export default function OrdersIndex({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
-    const act = (
-        url: string,
-        order: SpecialistOrder,
-        data: Record<string, boolean> = {},
-    ) => {
-        setBusy(order.id);
-        router.post(url, data, {
-            preserveScroll: true,
-            onFinish: () => setBusy(null),
-        });
-    };
-
-    // The items leave the shelf only when the student has paid.
-    const release = (order: SpecialistOrder) => {
-        if (
-            window.confirm(
-                `Has ${order.student_name} paid ${formatPeso(order.total_centavos)} for ${order.number}?`,
-            )
-        ) {
-            act(OrderController.release(order.id).url, order, { paid: true });
-        }
-    };
-
     return (
         <>
             <Head title="Student Orders" />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title="Student Orders"
-                    description="Orders students placed on the storefront. Prepare them and mark them Ready for pickup. When the student shows the issuance slip, scan it and release the items once paid. Orders not released by their pick-up date expire, and their items are free to sell again."
+                    description="Orders students placed on the storefront. Scan the student's issuance slip to release the items once paid, or open any order below. Orders not released by their pick-up date expire, and their items are free to sell again."
                 />
 
                 <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
@@ -143,57 +116,67 @@ export default function OrdersIndex({
                     <PausedStudents students={pausedStudents} />
                 )}
 
-                <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-                    <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                        <Search size={18} className="shrink-0" />
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search by order no. (PW-0042) or student"
-                            className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                            aria-label="Search by order number or student name"
-                        />
-                    </label>
+                <Panel>
+                    <div className="space-y-4 border-b border-slate-100 px-6 py-5">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <h2 className="font-black text-slate-900">
+                                    {chips.find(
+                                        (chip) => chip.value === filters.show,
+                                    )?.label ?? 'Orders'}
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {descriptions[filters.show]}
+                                </p>
+                            </div>
+                            <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
+                                <Search size={18} className="shrink-0" />
+                                <input
+                                    type="search"
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Search by order no. (PW-0042) or student"
+                                    className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                    aria-label="Search by order number or student name"
+                                />
+                            </label>
+                        </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        {chips.map((chip) => (
-                            <button
-                                key={chip.value}
-                                type="button"
-                                onClick={() => showList(chip.value, search)}
-                                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                    filters.show === chip.value
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                }`}
-                            >
-                                {chip.label}
-                                {chip.value !== 'all' && (
-                                    <span
-                                        className={`rounded-full px-1.5 text-[11px] font-black ${
-                                            filters.show === chip.value
-                                                ? 'bg-white/25'
-                                                : 'bg-white'
-                                        }`}
-                                    >
-                                        {counts[chip.value].toLocaleString(
-                                            'en-PH',
-                                        )}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
+                        <div className="flex flex-wrap items-center gap-2">
+                            {chips.map((chip) => (
+                                <button
+                                    key={chip.value}
+                                    type="button"
+                                    onClick={() => showList(chip.value, search)}
+                                    className={cn(
+                                        'inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition',
+                                        filters.show === chip.value
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                                    )}
+                                >
+                                    {chip.label}
+                                    {chip.value !== 'all' && (
+                                        <span
+                                            className={cn(
+                                                'rounded-full px-1.5 text-[11px] font-black',
+                                                filters.show === chip.value
+                                                    ? 'bg-white/25'
+                                                    : 'bg-white',
+                                            )}
+                                        >
+                                            {counts[chip.value].toLocaleString(
+                                                'en-PH',
+                                            )}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </section>
 
-                <Panel
-                    title={
-                        chips.find((chip) => chip.value === filters.show)
-                            ?.label ?? 'Orders'
-                    }
-                    description={descriptions[filters.show]}
-                >
                     {orders.data.length === 0 ? (
                         <div className="px-6 py-16 text-center">
                             <ShoppingBag
@@ -212,136 +195,43 @@ export default function OrdersIndex({
                         </div>
                     ) : (
                         <>
-                            <ul className="divide-y divide-slate-100">
-                                {orders.data.map((order) => (
-                                    <li
-                                        key={order.id}
-                                        className="grid gap-4 p-5 lg:grid-cols-[14rem_1fr_15rem]"
-                                    >
-                                        <div className="space-y-1">
-                                            <p className="text-lg font-black text-slate-900">
-                                                {order.number}
-                                            </p>
-                                            <p className="text-sm font-bold text-slate-700">
-                                                {order.student_name}
-                                                {order.student_section && (
-                                                    <span className="font-normal text-slate-500">
-                                                        {' '}
-                                                        ·{' '}
-                                                        {order.student_section}
-                                                    </span>
-                                                )}
-                                            </p>
-                                            <p className="text-xs text-slate-500">
-                                                Placed{' '}
-                                                {formatDateTime(
-                                                    order.placed_at,
-                                                )}
-                                            </p>
-                                            <div className="pt-1">
-                                                <OrderStatusBadge
-                                                    order={order}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-2xl border border-slate-100 bg-slate-50/60">
-                                            <OrderItems order={order} />
-                                        </div>
-
-                                        <div className="space-y-2 text-sm">
-                                            <OrderWhen order={order} />
-
-                                            <Link
-                                                href={OrderController.slip({
-                                                    query: {
-                                                        code:
-                                                            order.slip_code ??
-                                                            order.number,
-                                                    },
-                                                })}
-                                                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 font-black text-blue-700 transition hover:bg-blue-100"
-                                            >
-                                                <QrCode size={16} />
-                                                Open slip
-                                            </Link>
-
-                                            {order.status === 'placed' && (
-                                                <button
-                                                    type="button"
-                                                    disabled={busy === order.id}
-                                                    onClick={() =>
-                                                        act(
-                                                            OrderController.ready(
-                                                                order.id,
-                                                            ).url,
-                                                            order,
-                                                        )
-                                                    }
-                                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-                                                >
-                                                    <PackageCheck size={16} />
-                                                    Ready for pickup
-                                                </button>
-                                            )}
-
-                                            {(order.status === 'placed' ||
-                                                order.status === 'ready') && (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        disabled={
-                                                            busy === order.id
-                                                        }
-                                                        onClick={() =>
-                                                            release(order)
-                                                        }
-                                                        className={cn(
-                                                            'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-black transition disabled:opacity-60',
-                                                            order.status ===
-                                                                'ready'
-                                                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                                                : 'border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50',
-                                                        )}
-                                                    >
-                                                        <Banknote size={16} />
-                                                        Release (paid)
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setCancelling(order)
-                                                        }
-                                                        className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2 font-black text-red-700 transition hover:bg-red-100"
-                                                    >
-                                                        Cancel order
-                                                    </button>
-                                                </>
-                                            )}
-
-                                            {order.can_undo_release && (
-                                                <button
-                                                    type="button"
-                                                    disabled={busy === order.id}
-                                                    onClick={() =>
-                                                        act(
-                                                            OrderController.undoRelease(
-                                                                order.id,
-                                                            ).url,
-                                                            order,
-                                                        )
-                                                    }
-                                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                                                    title="Released by mistake? Put it back to Ready for pickup (today only)."
-                                                >
-                                                    <Undo2 size={16} />
-                                                    Undo release
-                                                </button>
-                                            )}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-225">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <TableHeading>Order #</TableHeading>
+                                            <TableHeading>Student</TableHeading>
+                                            <TableHeading>Items</TableHeading>
+                                            <TableHeading align="right">
+                                                Total
+                                            </TableHeading>
+                                            <TableHeading>
+                                                {filters.show === 'picked_up'
+                                                    ? 'Released'
+                                                    : filters.show ===
+                                                        'cancelled'
+                                                      ? 'Cancelled'
+                                                      : 'Pick up by'}
+                                            </TableHeading>
+                                            <TableHeading>Status</TableHeading>
+                                            <TableHeading align="right">
+                                                Actions
+                                            </TableHeading>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {orders.data.map((order) => (
+                                            <OrderTableRow
+                                                key={order.id}
+                                                order={order}
+                                                onView={() =>
+                                                    setViewingId(order.id)
+                                                }
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
 
                             <Pagination pagination={orders} itemName="orders" />
                         </>
@@ -349,11 +239,145 @@ export default function OrdersIndex({
                 </Panel>
             </div>
 
+            <OrderDetailsDialog
+                order={viewing}
+                onClose={() => setViewingId(null)}
+                onCancel={(order) => {
+                    setViewingId(null);
+                    setCancelling(order);
+                }}
+            />
+
             <CancelOrderDialog
                 order={cancelling}
                 onClose={() => setCancelling(null)}
             />
         </>
+    );
+}
+
+/** One order: number, student, first item, total, its date, status, View Details. */
+function OrderTableRow({
+    order,
+    onView,
+}: {
+    order: SpecialistOrder;
+    onView: () => void;
+}) {
+    const [first, ...rest] = order.items;
+
+    return (
+        <tr className="border-t border-slate-100 transition hover:bg-slate-50/70">
+            <td className="px-5 py-4">
+                <p className="font-mono text-sm font-black text-blue-700">
+                    {order.number}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                    {formatDateTime(order.placed_at)}
+                </p>
+            </td>
+            <td className="px-5 py-4">
+                <p className="text-sm font-bold text-slate-800">
+                    {order.student_name}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                    {order.student_section ?? '—'}
+                </p>
+            </td>
+            <td className="px-5 py-4">
+                {first && (
+                    <p className="max-w-64 truncate text-sm text-slate-800">
+                        {first.product_name}
+                        {first.variant_label && (
+                            <span className="text-slate-500">
+                                {' '}
+                                · {first.variant_label}
+                            </span>
+                        )}
+                    </p>
+                )}
+                <p className="mt-1 text-xs text-slate-500">
+                    {rest.length > 0
+                        ? `+ ${rest.length} more ${rest.length === 1 ? 'item' : 'items'}`
+                        : first && formatUnits(first.quantity, first.unit_name)}
+                </p>
+            </td>
+            <td className="px-5 py-4 text-right text-base font-black text-slate-900">
+                {formatPeso(order.total_centavos)}
+            </td>
+            <td className="px-5 py-4">
+                <OrderDate order={order} />
+            </td>
+            <td className="px-5 py-4">
+                <OrderStatusBadge order={order} />
+            </td>
+            <td className="px-5 py-4 text-right">
+                <button
+                    type="button"
+                    onClick={onView}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                >
+                    <Eye size={15} />
+                    View Details
+                </button>
+            </td>
+        </tr>
+    );
+}
+
+/**
+ * Open orders: the pick-up date in V1's date colors (red passed, amber
+ * today, blue later). Others: when they were released or cancelled.
+ */
+function OrderDate({ order }: { order: SpecialistOrder }) {
+    if (order.status === 'placed' || order.status === 'ready') {
+        const due = new Date(`${order.pick_up_by}T00:00:00`).getTime();
+        const now = new Date();
+        const today = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+        ).getTime();
+
+        return (
+            <p
+                className={cn(
+                    'text-sm font-black whitespace-nowrap',
+                    due < today
+                        ? 'text-red-600'
+                        : due === today
+                          ? 'text-amber-600'
+                          : 'text-blue-700',
+                )}
+            >
+                {due === today ? 'Today' : formatDateOrdered(order.pick_up_by)}
+                {due < today && (
+                    <span className="block text-xs font-bold">Date passed</span>
+                )}
+            </p>
+        );
+    }
+
+    if (order.status === 'picked_up') {
+        return (
+            <p className="text-sm whitespace-nowrap text-slate-700">
+                {formatDateOrdered(order.picked_up_at)}
+                {order.handled_by && (
+                    <span className="block text-xs text-slate-500">
+                        by {order.handled_by}
+                    </span>
+                )}
+            </p>
+        );
+    }
+
+    return (
+        <p className="text-sm whitespace-nowrap text-slate-700">
+            {formatDateOrdered(order.cancelled_at)}
+            <span className="block text-xs text-slate-500">
+                {order.expired ? 'Expired' : (order.handled_by ?? '')}
+            </span>
+        </p>
     );
 }
 
@@ -463,60 +487,5 @@ function PausedStudents({ students }: { students: PausedStudent[] }) {
                 ))}
             </ul>
         </Panel>
-    );
-}
-
-function OrderWhen({ order }: { order: SpecialistOrder }) {
-    if (order.status === 'placed' || order.status === 'ready') {
-        return (
-            <p className="text-slate-600">
-                Pick up by{' '}
-                <strong className="text-slate-900">
-                    {formatDateOrdered(order.pick_up_by)}
-                </strong>
-                {order.ready_at && (
-                    <span className="block text-xs text-slate-500">
-                        Ready since {formatDateTime(order.ready_at)}
-                    </span>
-                )}
-            </p>
-        );
-    }
-
-    if (order.status === 'picked_up') {
-        return (
-            <p className="flex items-start gap-1.5 text-slate-600">
-                <CheckCircle2
-                    size={16}
-                    className="mt-0.5 shrink-0 text-emerald-600"
-                />
-                <span>
-                    Released {formatDateTime(order.picked_up_at)}
-                    {order.handled_by && (
-                        <span className="block text-xs text-slate-500">
-                            by {order.handled_by}
-                        </span>
-                    )}
-                </span>
-            </p>
-        );
-    }
-
-    return (
-        <p className="text-slate-600">
-            {order.expired
-                ? `Expired: not released by ${formatDateOrdered(order.pick_up_by)}`
-                : `Cancelled ${formatDateTime(order.cancelled_at)}`}
-            {!order.expired && order.cancel_reason && (
-                <span className="block text-xs text-slate-500">
-                    {order.cancel_reason}
-                </span>
-            )}
-            {order.handled_by && (
-                <span className="block text-xs text-slate-500">
-                    by {order.handled_by}
-                </span>
-            )}
-        </p>
     );
 }
