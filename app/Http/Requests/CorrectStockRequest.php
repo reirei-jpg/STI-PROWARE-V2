@@ -55,6 +55,9 @@ class CorrectStockRequest extends FormRequest
             ],
             // Pesos per piece, for a count that adds pieces (checked below).
             'unit_cost' => ['nullable', 'numeric', 'min:0.01', 'max:1000000'],
+            // Who received pieces given free (promo).
+            'recipient_name' => [Rule::requiredIf($reason?->needsRecipient() === true), 'nullable', 'string', 'max:120'],
+            'enrollment_form_number' => [Rule::requiredIf($reason?->needsRecipient() === true), 'nullable', 'string', 'max:40'],
         ];
     }
 
@@ -74,6 +77,8 @@ class CorrectStockRequest extends FormRequest
             'actual_count.integer' => 'Enter a whole number of pieces.',
             'actual_count.min' => 'The count cannot be below 0.',
             'note.required' => 'Write what happened, since the reason is Other.',
+            'recipient_name.required' => 'Enter the name of the student who received it.',
+            'enrollment_form_number.required' => 'Enter the student\'s enrollment form #.',
             'unit_cost.numeric' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
             'unit_cost.min' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
         ];
@@ -120,6 +125,18 @@ class CorrectStockRequest extends FormRequest
     public function reason(): StockCorrectionReason
     {
         return StockCorrectionReason::from((string) $this->input('reason'));
+    }
+
+    /**
+     * The student who received pieces given free (promo); null otherwise.
+     *
+     * @return array{name: string, enrollment_form_number: string}|null
+     */
+    public function recipient(): ?array
+    {
+        return $this->reason()->needsRecipient()
+            ? ['name' => $this->string('recipient_name')->trim()->toString(), 'enrollment_form_number' => $this->string('enrollment_form_number')->trim()->toString()]
+            : null;
     }
 
     /**

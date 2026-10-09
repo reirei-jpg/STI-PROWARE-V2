@@ -73,18 +73,15 @@ final class StockCost
                 continue;
             }
 
-            $cost = self::take($layers, -$movement->quantity);
+            // Every piece that leaves (sold, given free, damaged...) keeps its cost.
+            $rounded = ($cost = self::take($layers, -$movement->quantity)) === null ? null : (int) round($cost);
 
-            if ($movement->type === StockMovementType::Sale) {
-                $rounded = $cost === null ? null : (int) round($cost);
+            if ($movement->cost_centavos !== $rounded) {
+                $movement->forceFill(['cost_centavos' => $rounded])->saveQuietly();
+            }
 
-                if ($movement->cost_centavos !== $rounded) {
-                    $movement->forceFill(['cost_centavos' => $rounded])->saveQuietly();
-                }
-
-                if ($movement->order_item_id !== null) {
-                    $soldItems[$movement->order_item_id] = ['cost' => $rounded, 'pieces' => -$movement->quantity];
-                }
+            if ($movement->type === StockMovementType::Sale && $movement->order_item_id !== null) {
+                $soldItems[$movement->order_item_id] = ['cost' => $rounded, 'pieces' => -$movement->quantity];
             }
         }
 

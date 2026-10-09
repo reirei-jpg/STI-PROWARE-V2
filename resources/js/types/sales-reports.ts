@@ -1,75 +1,78 @@
 export type SalesPeriod = 'today' | 'week' | 'month' | 'custom';
 
-/** The numbers for the period's cards. */
+export type SalesTab = 'spent' | 'sold' | 'free';
+
+/** The numbers at the top for the period. */
 export type SalesSummary = {
+    /** What the uploaded eStore orders cost. */
+    spent_centavos: number;
+    purchase_orders: number;
+    /** What students paid (released orders). */
+    price_centavos: number;
+    /** What those items cost on the eStore orders (those with a Cost). */
+    cost_centavos: number;
+    profit_centavos: number;
     orders: number;
     pieces: number;
-    sales_centavos: number;
-    /** eStore cost of the lines that have one. */
-    cost_centavos: number;
-    /** Sales of the lines that have a cost (profit is counted on these). */
-    costed_sales_centavos: number;
-    profit_centavos: number;
-    /** Null when nothing with a cost was sold. */
-    margin_percent: number | null;
-    /** Lines sold whose pieces have no eStore price yet. */
-    uncosted_lines: number;
-    discount_centavos: number;
-    on_sale_pieces: number;
-    /** Lines ordered before normal prices were kept. */
-    discount_not_recorded_lines: number;
+    /** Sales whose Cost is not set yet (left out of the profit). */
+    missing_cost_lines: number;
+    below_cost_lines: number;
+    below_cost_loss_centavos: number;
+    free_pieces: number;
+    /** Free uniforms at what they cost PROWARE. */
+    free_cost_centavos: number;
+    /** Free uniforms at their normal Price. */
+    free_price_centavos: number;
 };
 
-/** One product (size or color) in the period. */
-export type ProductSales = {
-    variant_id: number;
-    product_id: number;
-    product_name: string;
-    variant_label: string | null;
-    pieces: number;
-    sales_centavos: number;
-    cost_centavos: number;
-    costed_sales_centavos: number;
-    uncosted_lines: number;
-    profit_centavos: number;
-    discount_centavos: number;
-    on_sale_pieces: number;
-};
-
-/** One release of a product, in its details popup. */
-export type ProductRelease = {
-    order_id: number;
+/** One uploaded eStore order. */
+export type SpentRow = {
+    id: number;
     order_number: string | null;
-    released_at: string | null;
-    student_name: string;
-    quantity: number;
-    unit_name: string;
-    pieces: number;
-    unit_price_centavos: number;
-    normal_unit_price_centavos: number | null;
-    line_total_centavos: number;
-    cost_centavos: number | null;
-    profit_centavos: number | null;
-    on_sale: boolean;
+    date_ordered: string;
+    items_count: number;
+    total_centavos: number;
+    uploaded_by: string;
 };
 
-export type ProductSalesDetails = {
-    product: ProductSales | null;
-    /** The newest first, up to 100. */
-    releases: ProductRelease[];
-    releases_count: number;
-};
-
-/** A size or color with pieces in stock that have no eStore price. */
-export type VariantNeedingPrice = {
+/** One item sold at one price. */
+export type SoldRow = {
+    key: string;
     variant_id: number;
-    product_id: number;
     product_name: string;
     variant_label: string | null;
-    uncosted_pieces: number;
+    unit_name: string;
+    pieces_per_unit: number;
+    quantity: number;
+    price_each_centavos: number;
+    /** The normal price, when it was sold on sale. */
+    normal_each_centavos: number | null;
+    /** Null while its Cost is not set. */
+    cost_each_centavos: number | null;
+    price_total_centavos: number;
+    cost_total_centavos: number | null;
+    profit_centavos: number | null;
+    below_cost: boolean;
+    loss_centavos: number;
+    missing_cost_lines: number;
+};
+
+/** One free uniform given (promo). */
+export type FreeRow = {
+    id: number;
+    given_at: string | null;
+    product_name: string;
+    variant_label: string | null;
+    pieces: number;
+    recipient_name: string | null;
+    enrollment_form_number: string | null;
+    cost_centavos: number | null;
+    price_centavos: number;
+    recorded_by: string | null;
 };
 
 export type SalesReportFilters = {
+    tab: SalesTab;
     period: SalesPeriod;
     date_from: string;
     date_to: string;

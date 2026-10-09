@@ -39,7 +39,7 @@ function receivedJacketOrder(int $packs, int $pricePerPack): PurchaseOrder
     $order = PurchaseOrder::factory()->withItems([[
         'item_code' => 'UJKT01-02', 'description' => 'STI Jacket', 'quantity_ordered' => $packs, 'quantity_delivered' => 0,
         'unit_price_centavos' => $pricePerPack, 'amount_centavos' => $packs * $pricePerPack,
-    ]])->create();
+    ]])->create(['date_ordered' => now()->toDateString(), 'total_amount_centavos' => $packs * $pricePerPack]);
 
     test()->actingAs(test()->specialist)->post(route('deliveries.store'), [
         'received_on' => now()->toDateString(),
@@ -129,44 +129,88 @@ test('a recount that adds pieces needs their eStore price', function () {
         ->assertSessionHasNoErrors();
 });
 
-test('the sales report shows sales, cost, profit and discounts for the period', function () {
+test('the sales report shows what was spent, sold at Cost and Price, the profit and sales on sale', function () {
     $variant = costedJacket();
-    receivedJacketOrder(packs: 2, pricePerPack: 100000); // ₱200 a piece
+    receivedJacketOrder(packs: 2, pricePerPack: 100000); // Cost ₱200 a piece
     releasedJackets($variant, 2); // 2 × ₱400
     $variant->product->update(['status' => ProductStatus::OnSale]);
-    releasedJackets($variant, 3); // 3 × ₱350, ₱50 off each
+    releasedJackets($variant, 3); // 3 × ₱350 on sale
     $this->actingAs($this->specialist);
 
     $this->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
         ->component('sales-reports/index')
-        ->where('filters.period', 'month')
-        ->where('summary.orders', 2)
-        ->where('summary.pieces', 5)
-        ->where('summary.sales_centavos', 2 * 40000 + 3 * 35000)
+        ->where('filters.tab', 'sold')
+        ->where('summary.spent_centavos', 200000)
+        ->where('summary.purchase_orders', 1)
+        ->where('summary.price_centavos', 2 * 40000 + 3 * 35000)
         ->where('summary.cost_centavos', 5 * 20000)
         ->where('summary.profit_centavos', 185000 - 100000)
-        ->where('summary.margin_percent', 45.9)
-        ->where('summary.discount_centavos', 3 * 5000)
-        ->where('summary.on_sale_pieces', 3)
-        ->where('products.data.0.product_name', 'STI Jacket')
-        ->where('products.data.0.profit_centavos', 85000)
-        ->missing('details')
-        ->reloadOnly('details', fn (Assert $reload) => $reload->where('details', null))
+        ->where('summary.below_cost_lines', 0)
+        // One row per price: the sale price is its own row.
+        ->where('sold.data.0.price_each_centavos', 35000)
+        ->where('sold.data.0.normal_each_centavos', 40000)
+        ->where('sold.data.0.cost_each_centavos', 20000)
+        ->where('sold.data.0.quantity', 3)
+        ->where('sold.data.0.profit_centavos', 3 * 15000)
+        ->where('sold.data.1.price_each_centavos', 40000)
+        ->where('sold.data.1.normal_each_centavos', null)
+        ->where('sold.data.1.profit_centavos', 2 * 20000)
+        ->where('spent', null)
     );
 
-    $this->get(route('sales-reports.index', ['details' => $variant->id]))->assertInertia(fn (Assert $page) => $page
-        ->reloadOnly('details', fn (Assert $reload) => $reload
-            ->where('details.releases_count', 2)
-            ->where('details.releases.0.on_sale', true)
-            ->where('details.releases.0.profit_centavos', 3 * 35000 - 3 * 20000)
-            ->where('details.releases.1.on_sale', false)));
+    $this->get(route('sales-reports.index', ['tab' => 'spent']))->assertInertia(fn (Assert $page) => $page
+        ->where('spent.data.0.total_centavos', 200000)
+        ->where('spent.data.0.items_count', 1)
+        ->where('sold', null));
 
-    // A day with no releases.
+    // A period with nothing.
     $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-09-01', 'date_to' => '2026-09-30']))
-        ->assertInertia(fn (Assert $page) => $page->where('summary.sales_centavos', 0)->where('summary.margin_percent', null));
+        ->assertInertia(fn (Assert $page) => $page->where('summary.price_centavos', 0)->where('summary.spent_centavos', 0));
 
     $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-01-to-2026-10-09.csv')->streamedContent();
-    expect($csv)->toContain('"STI Jacket",,5,1850.00,1000.00,850.00,150.00,3,0');
+    expect($csv)->toContain('"STI Jacket",,Piece,3,200.00,350.00,400.00,1050.00,600.00,450.00,');
+});
+
+test('an item put on sale below its Cost shows what was lost', function () {
+    $variant = costedJacket();
+    receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200
+    $variant->product->update(['status' => ProductStatus::OnSale, 'sale_price_centavos' => 15000]);
+    releasedJackets($variant, 2); // 2 × ₱150
+
+    $this->actingAs($this->specialist)->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('summary.below_cost_lines', 1)
+        ->where('summary.below_cost_loss_centavos', 2 * 5000)
+        ->where('summary.profit_centavos', -10000)
+        ->where('sold.data.0.below_cost', true)
+        ->where('sold.data.0.loss_centavos', 10000));
+});
+
+test('a free uniform (promo) is written down with who got it and what it was worth', function () {
+    $variant = costedJacket();
+    receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200
+    $this->actingAs($this->specialist);
+
+    $this->post(route('products.stock.correct', $variant->product), ['product_variant_id' => $variant->id, 'reason' => 'given_free', 'pieces_to_remove' => 2])
+        ->assertSessionHasErrors([
+            'recipient_name' => 'Enter the name of the student who received it.',
+            'enrollment_form_number' => 'Enter the student\'s enrollment form #.',
+        ]);
+
+    $this->post(route('products.stock.correct', $variant->product), [
+        'product_variant_id' => $variant->id, 'reason' => 'given_free', 'pieces_to_remove' => 2,
+        'recipient_name' => 'Maria Santos', 'enrollment_form_number' => '2026-01234',
+    ])->assertSessionHasNoErrors();
+
+    expect($variant->refresh()->stock_on_hand)->toBe(3);
+
+    $this->get(route('sales-reports.index', ['tab' => 'free']))->assertInertia(fn (Assert $page) => $page
+        ->where('summary.free_pieces', 2)
+        ->where('summary.free_cost_centavos', 2 * 20000)
+        ->where('summary.free_price_centavos', 2 * 40000)
+        ->where('summary.price_centavos', 0)
+        ->where('free.data.0.recipient_name', 'Maria Santos')
+        ->where('free.data.0.enrollment_form_number', '2026-01234')
+        ->where('free.data.0.pieces', 2));
 });
 
 test('only the Specialist sees sales reports and sets eStore prices', function () {
@@ -190,14 +234,14 @@ test('stock from before deliveries were recorded waits for its price, then its s
 
     $this->actingAs($this->specialist)->get(route('sales-reports.index'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('needingPrice.0.variant_id', $variant->id)
-            ->where('needingPrice.0.uncosted_pieces', 1)
-            ->where('summary.uncosted_lines', 1));
+            ->where('sold.data.0.cost_each_centavos', null)
+            ->where('sold.data.0.missing_cost_lines', 1)
+            ->where('summary.missing_cost_lines', 1));
 
     $this->post(route('sales-reports.price', $variant), ['unit_cost' => ''])
-        ->assertSessionHasErrors(['unit_cost' => 'Enter the eStore price per piece, e.g. 250 or 18.50.']);
+        ->assertSessionHasErrors(['unit_cost' => 'Enter the Cost per piece, e.g. 250 or 18.50.']);
     $this->post(route('sales-reports.price', $variant), ['unit_cost' => '180'])
-        ->assertInertiaFlash('toast.message', 'eStore price of STI Jacket set to ₱180.00 per piece. Its sales were costed again.');
+        ->assertInertiaFlash('toast.message', 'Cost of STI Jacket set to ₱180.00 per piece. Its sales were worked out again.');
 
     expect($order->items->sole()->refresh()->cost_centavos)->toBe(3 * 18000)
         ->and($variant->refresh()->uncosted_pieces)->toBe(0);

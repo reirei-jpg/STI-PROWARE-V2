@@ -10,11 +10,13 @@ use Illuminate\Validation\Rule;
 /**
  * The Sales Reports filters, read from the page address: the period
  * (today, this week, this month, or chosen dates; this month by default),
- * a product search, and which product's sales to show in detail.
+ * which tab, and a product search.
  */
 class SalesReportRequest extends FormRequest
 {
     public const PERIODS = ['today', 'week', 'month', 'custom'];
+
+    public const TABS = ['spent', 'sold', 'free'];
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -26,8 +28,17 @@ class SalesReportRequest extends FormRequest
             'date_from' => ['nullable', 'date_format:Y-m-d', Rule::requiredIf($this->input('period') === 'custom')],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from', Rule::requiredIf($this->input('period') === 'custom')],
             'search' => ['nullable', 'string', 'max:120'],
-            'details' => ['nullable', 'integer'],
+            'tab' => ['nullable', Rule::in(self::TABS)],
         ];
+    }
+
+    /**
+     * What we spent (eStore orders), What we sold, Given free; What we sold
+     * by default.
+     */
+    public function tab(): string
+    {
+        return $this->string('tab')->toString() ?: 'sold';
     }
 
     /**

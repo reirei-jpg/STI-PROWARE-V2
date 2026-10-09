@@ -3,174 +3,180 @@
 namespace App\Services\Reports;
 
 use App\Enums\OrderStatus;
+use App\Enums\StockCorrectionReason;
+use App\Enums\StockMovementType;
 use App\Models\OrderItem;
-use App\Models\ProductVariant;
+use App\Models\PurchaseOrder;
+use App\Models\StockMovement;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
- * The Sales Reports: what the released orders of a period collected, what
- * their pieces cost on the eStore (as on the uploaded purchase orders), the
- * profit, and how much less was collected because items were on sale. Only
- * released orders are sales. Lines without a cost are left out of the cost
- * and profit (and counted, so the Specialist can fix their price); lines
- * placed before normal prices were kept have no discount recorded.
+ * The Sales Reports for a period, in four parts:
+ * 1. Spent: the uploaded eStore purchase orders and what they cost.
+ * 2. Sold: each item sold (released orders) with its Cost (what PROWARE
+ *    paid on the eStore order, oldest pieces first), its Price (what the
+ *    student paid; on sale when lower than the normal price) and the
+ *    Profit.
+ * 3. Sold below cost: sales whose Price was lower than their Cost, and how
+ *    much was lost.
+ * 4. Given free: free uniforms (promo) and what they were worth at Cost
+ *    and at Price.
+ * Sales without a Cost yet are left out of the profit and counted, so the
+ * Specialist can set their price.
  *
- * @phpstan-type ProductSales array{variant_id: int, product_id: int, product_name: string, variant_label: string|null, pieces: int, sales_centavos: int, cost_centavos: int, costed_sales_centavos: int, uncosted_lines: int, profit_centavos: int, discount_centavos: int, on_sale_pieces: int}
+ * @phpstan-type SoldRow array{key: string, variant_id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, price_each_centavos: int, normal_each_centavos: int|null, cost_each_centavos: int|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null, below_cost: bool, loss_centavos: int, missing_cost_lines: int}
  */
 final class SalesReport
 {
-    /** Releases listed in a product's details popup. */
-    public const DETAILS_SHOWN = 100;
-
     /**
-     * The numbers for the cards at the top.
+     * The numbers at the top.
      *
-     * @return array{orders: int, pieces: int, sales_centavos: int, cost_centavos: int, costed_sales_centavos: int, profit_centavos: int, margin_percent: float|null, uncosted_lines: int, discount_centavos: int, on_sale_pieces: int, discount_not_recorded_lines: int}
+     * @return array{spent_centavos: int, purchase_orders: int, price_centavos: int, cost_centavos: int, profit_centavos: int, orders: int, pieces: int, missing_cost_lines: int, below_cost_lines: int, below_cost_loss_centavos: int, free_pieces: int, free_cost_centavos: int, free_price_centavos: int}
      */
     public static function summary(CarbonImmutable $from, CarbonImmutable $to): array
     {
-        $totals = self::lines($from, $to)
+        $sold = self::soldLines($from, $to)
             ->selectRaw('count(distinct order_items.order_id) as orders')
             ->selectRaw('coalesce(sum(order_items.quantity * order_items.pieces_per_unit), 0) as pieces')
-            ->selectRaw('coalesce(sum(order_items.line_total_centavos), 0) as sales')
+            ->selectRaw('coalesce(sum(order_items.line_total_centavos), 0) as price')
             ->selectRaw('coalesce(sum(order_items.cost_centavos), 0) as cost')
-            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.line_total_centavos else 0 end), 0) as costed_sales')
-            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is null then 1 else 0 end), 0) as uncosted_lines')
-            ->selectRaw(self::DISCOUNT_SQL.' as discount')
-            ->selectRaw(self::ON_SALE_PIECES_SQL.' as on_sale_pieces')
-            ->selectRaw('coalesce(sum(case when order_items.normal_unit_price_centavos is null then 1 else 0 end), 0) as not_recorded')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.line_total_centavos else 0 end), 0) as costed_price')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is null then 1 else 0 end), 0) as missing_cost')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos > order_items.line_total_centavos then 1 else 0 end), 0) as below_lines')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos > order_items.line_total_centavos then order_items.cost_centavos - order_items.line_total_centavos else 0 end), 0) as below_loss')
             ->toBase()
             ->first();
 
-        $costedSales = (int) ($totals->costed_sales ?? 0);
-        $cost = (int) ($totals->cost ?? 0);
-        $profit = $costedSales - $cost;
+        $free = self::givenFree($from, $to)->get();
 
         return [
-            'orders' => (int) ($totals->orders ?? 0),
-            'pieces' => (int) ($totals->pieces ?? 0),
-            'sales_centavos' => (int) ($totals->sales ?? 0),
-            'cost_centavos' => $cost,
-            'costed_sales_centavos' => $costedSales,
-            'profit_centavos' => $profit,
-            'margin_percent' => $costedSales > 0 ? round($profit / $costedSales * 100, 1) : null,
-            'uncosted_lines' => (int) ($totals->uncosted_lines ?? 0),
-            'discount_centavos' => (int) ($totals->discount ?? 0),
-            'on_sale_pieces' => (int) ($totals->on_sale_pieces ?? 0),
-            'discount_not_recorded_lines' => (int) ($totals->not_recorded ?? 0),
+            'spent_centavos' => (int) self::purchaseOrders($from, $to)->get()->sum(fn (PurchaseOrder $order): int => self::orderTotal($order)),
+            'purchase_orders' => self::purchaseOrders($from, $to)->count(),
+            'price_centavos' => (int) ($sold->price ?? 0),
+            'cost_centavos' => (int) ($sold->cost ?? 0),
+            'profit_centavos' => (int) ($sold->costed_price ?? 0) - (int) ($sold->cost ?? 0),
+            'orders' => (int) ($sold->orders ?? 0),
+            'pieces' => (int) ($sold->pieces ?? 0),
+            'missing_cost_lines' => (int) ($sold->missing_cost ?? 0),
+            'below_cost_lines' => (int) ($sold->below_lines ?? 0),
+            'below_cost_loss_centavos' => (int) ($sold->below_loss ?? 0),
+            'free_pieces' => (int) $free->sum(fn (StockMovement $movement): int => -$movement->quantity),
+            'free_cost_centavos' => (int) $free->sum('cost_centavos'),
+            'free_price_centavos' => (int) $free->sum(fn (StockMovement $movement): int => self::freePriceValue($movement)),
         ];
     }
 
     /**
-     * Sales per product and size or color, the biggest sales first, 20 at a
-     * time; searchable by product name.
+     * 1. The eStore purchase orders ordered in the period, newest first.
      *
-     * @return LengthAwarePaginator<int, ProductSales>
+     * @return LengthAwarePaginator<int, array{id: int, order_number: string|null, date_ordered: string, items_count: int, total_centavos: int, uploaded_by: string}>
      */
-    public static function byProduct(CarbonImmutable $from, CarbonImmutable $to, ?string $search): LengthAwarePaginator
+    public static function spent(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
     {
-        return self::grouped($from, $to, $search)
-            ->orderByDesc('sales')
+        return self::purchaseOrders($from, $to)
+            ->with('uploader')
+            ->withCount('items')
+            ->withSum('items', 'amount_centavos')
+            ->latest('date_ordered')
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (PurchaseOrder $order): array => [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'date_ordered' => $order->date_ordered->toDateString(),
+                'items_count' => (int) $order->getAttribute('items_count'),
+                'total_centavos' => self::orderTotal($order),
+                'uploaded_by' => $order->uploader->name,
+            ]);
+    }
+
+    /**
+     * 2 and 3. Each item sold, one row per price it was sold at (so a sale
+     * price is its own row), the biggest sales first; searchable by name.
+     *
+     * @return LengthAwarePaginator<int, SoldRow>
+     */
+    public static function sold(CarbonImmutable $from, CarbonImmutable $to, ?string $search): LengthAwarePaginator
+    {
+        return self::soldGroups($from, $to, $search)
+            ->orderByDesc('price_total')
             ->orderBy('product_name')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (object $row): array => self::productRow($row));
+            ->through(fn (object $row): array => self::soldRow($row));
     }
 
     /**
-     * Every product line of the period, for the CSV export.
+     * Every sold row of the period, for the CSV.
      *
-     * @return list<ProductSales>
+     * @return list<SoldRow>
      */
-    public static function allByProduct(CarbonImmutable $from, CarbonImmutable $to): array
+    public static function allSold(CarbonImmutable $from, CarbonImmutable $to): array
     {
-        return array_values(self::grouped($from, $to, null)
-            ->orderByDesc('sales')
+        return array_values(self::soldGroups($from, $to, null)
+            ->orderByDesc('price_total')
             ->orderBy('product_name')
             ->get()
-            ->map(fn (object $row): array => self::productRow($row))
+            ->map(fn (object $row): array => self::soldRow($row))
             ->all());
     }
 
     /**
-     * One product's (size or color's) releases in the period, the newest
-     * first, for its details popup.
+     * 4. Free uniforms given in the period (promo), the newest first.
      *
-     * @return array{product: ProductSales|null, releases: list<array{order_id: int, order_number: string|null, released_at: string|null, student_name: string, quantity: int, unit_name: string, pieces: int, unit_price_centavos: int, normal_unit_price_centavos: int|null, line_total_centavos: int, cost_centavos: int|null, profit_centavos: int|null, on_sale: bool}>, releases_count: int}
+     * @return LengthAwarePaginator<int, array{id: int, given_at: string|null, product_name: string, variant_label: string|null, pieces: int, recipient_name: string|null, enrollment_form_number: string|null, cost_centavos: int|null, price_centavos: int, recorded_by: string|null}>
      */
-    public static function details(int $variantId, CarbonImmutable $from, CarbonImmutable $to): array
+    public static function free(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
     {
-        $lines = self::lines($from, $to)->where('order_items.product_variant_id', $variantId);
-        $product = self::grouped($from, $to, null)->where('order_items.product_variant_id', $variantId)->toBase()->first();
-
-        return [
-            'product' => $product === null ? null : self::productRow($product),
-            'releases' => array_values((clone $lines)
-                ->select('order_items.*')
-                ->with('order.student')
-                ->orderByDesc('orders.picked_up_at')
-                ->orderByDesc('order_items.id')
-                ->limit(self::DETAILS_SHOWN)
-                ->get()
-                ->map(fn (OrderItem $item): array => [
-                    'order_id' => $item->order_id,
-                    'order_number' => $item->order->number,
-                    'released_at' => $item->order->picked_up_at?->toIso8601String(),
-                    'student_name' => $item->order->student->name,
-                    'quantity' => $item->quantity,
-                    'unit_name' => $item->unit_name,
-                    'pieces' => $item->quantity * $item->pieces_per_unit,
-                    'unit_price_centavos' => $item->unit_price_centavos,
-                    'normal_unit_price_centavos' => $item->normal_unit_price_centavos,
-                    'line_total_centavos' => $item->line_total_centavos,
-                    'cost_centavos' => $item->cost_centavos,
-                    'profit_centavos' => $item->cost_centavos === null ? null : $item->line_total_centavos - $item->cost_centavos,
-                    'on_sale' => $item->normal_unit_price_centavos !== null && $item->unit_price_centavos < $item->normal_unit_price_centavos,
-                ])
-                ->all()),
-            'releases_count' => $lines->count(),
-        ];
+        return self::givenFree($from, $to)
+            ->with(['variant.product', 'recorder'])
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (StockMovement $movement): array => [
+                'id' => $movement->id,
+                'given_at' => $movement->created_at?->toIso8601String(),
+                'product_name' => $movement->variant->product->name,
+                'variant_label' => $movement->variant->choices === [] ? null : $movement->variant->label(),
+                'pieces' => -$movement->quantity,
+                'recipient_name' => $movement->recipient_name,
+                'enrollment_form_number' => $movement->enrollment_form_number,
+                'cost_centavos' => $movement->cost_centavos,
+                'price_centavos' => self::freePriceValue($movement),
+                'recorded_by' => $movement->recorder?->name,
+            ]);
     }
 
     /**
-     * Sizes and colors with pieces in stock that have no eStore price yet.
-     *
-     * @return list<array{variant_id: int, product_id: int, product_name: string, variant_label: string|null, uncosted_pieces: int}>
+     * @return Builder<PurchaseOrder>
      */
-    public static function needingPrice(): array
+    private static function purchaseOrders(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
-        return array_values(ProductVariant::query()
-            ->with('product')
-            ->where('uncosted_pieces', '>', 0)
-            ->orderByDesc('uncosted_pieces')
-            ->limit(50)
-            ->get()
-            ->map(fn (ProductVariant $variant): array => [
-                'variant_id' => $variant->id,
-                'product_id' => $variant->product_id,
-                'product_name' => $variant->product->name,
-                'variant_label' => $variant->choices === [] ? null : $variant->label(),
-                'uncosted_pieces' => $variant->uncosted_pieces,
-            ])
-            ->all());
+        return PurchaseOrder::query()
+            ->whereDate('date_ordered', '>=', $from->toDateString())
+            ->whereDate('date_ordered', '<=', $to->toDateString());
     }
 
-    /** (normal price − price paid) × quantity, for lines sold on sale. */
-    private const DISCOUNT_SQL = 'coalesce(sum(case when order_items.normal_unit_price_centavos > order_items.unit_price_centavos then (order_items.normal_unit_price_centavos - order_items.unit_price_centavos) * order_items.quantity else 0 end), 0)';
-
-    private const ON_SALE_PIECES_SQL = 'coalesce(sum(case when order_items.normal_unit_price_centavos > order_items.unit_price_centavos then order_items.quantity * order_items.pieces_per_unit else 0 end), 0)';
+    /**
+     * The order's total as uploaded, or its items added up when the eStore
+     * email had no total.
+     */
+    private static function orderTotal(PurchaseOrder $order): int
+    {
+        return $order->total_amount_centavos ?? (int) ($order->getAttribute('items_sum_amount_centavos') ?? $order->items()->sum('amount_centavos'));
+    }
 
     /**
-     * Order lines of the orders released in the period.
+     * Order lines of the orders released in the period. No columns chosen
+     * here: totals pick their own (PostgreSQL refuses * beside sums).
      *
      * @return Builder<OrderItem>
      */
-    private static function lines(CarbonImmutable $from, CarbonImmutable $to): Builder
+    private static function soldLines(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
-        // No columns chosen here: totals pick their own (PostgreSQL refuses
-        // order_items.* beside sums), and the details list asks for them.
         return OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.status', OrderStatus::PickedUp)
@@ -180,49 +186,80 @@ final class SalesReport
     /**
      * @return Builder<OrderItem>
      */
-    private static function grouped(CarbonImmutable $from, CarbonImmutable $to, ?string $search): Builder
+    private static function soldGroups(CarbonImmutable $from, CarbonImmutable $to, ?string $search): Builder
     {
-        return self::lines($from, $to)
+        return self::soldLines($from, $to)
             ->when($search !== null, fn (Builder $query) => $query->whereLike('order_items.product_name', "%{$search}%"))
-            ->groupBy('order_items.product_variant_id', 'order_items.product_id')
-            ->select('order_items.product_variant_id', 'order_items.product_id')
+            ->groupBy('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos', 'order_items.normal_unit_price_centavos')
+            ->select('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos', 'order_items.normal_unit_price_centavos')
             ->selectRaw('max(order_items.product_name) as product_name')
             ->selectRaw('max(order_items.variant_label) as variant_label')
-            ->selectRaw('sum(order_items.quantity * order_items.pieces_per_unit) as pieces')
-            ->selectRaw('sum(order_items.line_total_centavos) as sales')
-            ->selectRaw('coalesce(sum(order_items.cost_centavos), 0) as cost')
-            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.line_total_centavos else 0 end), 0) as costed_sales')
-            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is null then 1 else 0 end), 0) as uncosted_lines')
-            ->selectRaw(self::DISCOUNT_SQL.' as discount')
-            ->selectRaw(self::ON_SALE_PIECES_SQL.' as on_sale_pieces');
+            ->selectRaw('sum(order_items.quantity) as quantity')
+            ->selectRaw('sum(order_items.line_total_centavos) as price_total')
+            ->selectRaw('coalesce(sum(order_items.cost_centavos), 0) as cost_total')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.quantity else 0 end), 0) as costed_quantity')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is null then 1 else 0 end), 0) as missing_cost');
     }
 
     /**
-     * One grouped row (a model or a plain database row) as the page shows it.
+     * One sold row: the Cost and Price per unit, the totals and the Profit
+     * of the part with a Cost.
      *
-     * @return ProductSales
+     * @return SoldRow
      */
-    private static function productRow(object $row): array
+    private static function soldRow(object $row): array
     {
         /** @var array<string, mixed> $values */
         $values = $row instanceof OrderItem ? $row->getAttributes() : get_object_vars($row);
-        $number = fn (string $key): int => is_numeric($values[$key] ?? null) ? (int) $values[$key] : 0;
-        $costedSales = $number('costed_sales');
-        $cost = $number('cost');
+        $number = fn (string $key): ?int => is_numeric($values[$key] ?? null) ? (int) $values[$key] : null;
+
+        $priceEach = (int) $number('unit_price_centavos');
+        $normalEach = $number('normal_unit_price_centavos');
+        $costedQuantity = (int) $number('costed_quantity');
+        $costTotal = (int) $number('cost_total');
+        $costEach = $costedQuantity > 0 ? (int) round($costTotal / $costedQuantity) : null;
+        $profit = $costedQuantity > 0 ? $priceEach * $costedQuantity - $costTotal : null;
 
         return [
-            'variant_id' => $number('product_variant_id'),
-            'product_id' => $number('product_id'),
+            'key' => implode('-', [$number('product_variant_id'), $values['unit_name'] ?? '', $priceEach, $normalEach ?? 'x']),
+            'variant_id' => (int) $number('product_variant_id'),
             'product_name' => is_string($values['product_name'] ?? null) ? $values['product_name'] : '',
             'variant_label' => is_string($values['variant_label'] ?? null) ? $values['variant_label'] : null,
-            'pieces' => $number('pieces'),
-            'sales_centavos' => $number('sales'),
-            'cost_centavos' => $cost,
-            'costed_sales_centavos' => $costedSales,
-            'uncosted_lines' => $number('uncosted_lines'),
-            'profit_centavos' => $costedSales - $cost,
-            'discount_centavos' => $number('discount'),
-            'on_sale_pieces' => $number('on_sale_pieces'),
+            'unit_name' => is_string($values['unit_name'] ?? null) ? $values['unit_name'] : 'Piece',
+            'pieces_per_unit' => (int) ($number('pieces_per_unit') ?? 1),
+            'quantity' => (int) $number('quantity'),
+            'price_each_centavos' => $priceEach,
+            // Shown crossed out when it was sold on sale.
+            'normal_each_centavos' => $normalEach !== null && $normalEach > $priceEach ? $normalEach : null,
+            'cost_each_centavos' => $costEach,
+            'price_total_centavos' => (int) $number('price_total'),
+            'cost_total_centavos' => $costedQuantity > 0 ? $costTotal : null,
+            'profit_centavos' => $profit,
+            'below_cost' => $profit !== null && $profit < 0,
+            'loss_centavos' => $profit !== null && $profit < 0 ? -$profit : 0,
+            'missing_cost_lines' => (int) $number('missing_cost'),
         ];
+    }
+
+    /**
+     * Pieces given free (promo) in the period.
+     *
+     * @return Builder<StockMovement>
+     */
+    private static function givenFree(CarbonImmutable $from, CarbonImmutable $to): Builder
+    {
+        return StockMovement::query()
+            ->with('variant.product')
+            ->where('type', StockMovementType::Correction)
+            ->where('reason', StockCorrectionReason::GivenFree)
+            ->whereBetween('created_at', [$from, $to]);
+    }
+
+    /**
+     * What free pieces would have sold for at their normal price.
+     */
+    private static function freePriceValue(StockMovement $movement): int
+    {
+        return (int) ($movement->variant->normalPiecePrice() ?? 0) * -$movement->quantity;
     }
 }

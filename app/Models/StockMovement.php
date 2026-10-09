@@ -26,7 +26,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $units_received
  * @property string|null $unit_name
  * @property int|null $pieces_per_unit
- * @property int|null $cost_centavos eStore cost of the pieces that came in, or that a sale took out (StockCost)
+ * @property int|null $cost_centavos eStore cost of the pieces that came in, or that left (a sale, a correction) (StockCost)
+ * @property string|null $recipient_name the student who received pieces given free (promo)
+ * @property string|null $enrollment_form_number their enrollment form #
  * @property StockCorrectionReason|null $reason
  * @property string|null $note
  * @property int|null $recorded_by
@@ -34,7 +36,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['type', 'quantity', 'balance_after', 'delivery_item_id', 'units_received', 'unit_name', 'pieces_per_unit', 'cost_centavos', 'reason', 'note', 'recorded_by', 'order_item_id'])]
+#[Fillable(['type', 'quantity', 'balance_after', 'delivery_item_id', 'units_received', 'unit_name', 'pieces_per_unit', 'cost_centavos', 'reason', 'note', 'recipient_name', 'enrollment_form_number', 'recorded_by', 'order_item_id'])]
 class StockMovement extends Model
 {
     /** @use HasFactory<StockMovementFactory> */

@@ -53,6 +53,7 @@ class ProductStockController extends Controller
             $reason->removesPieces() ? $request->integer('pieces_to_remove') : $request->integer('actual_count'),
             $request->note(),
             $request->centavosPerPiece(),
+            $request->recipient(),
         );
 
         $before = $correction->balance_after - $correction->quantity;
