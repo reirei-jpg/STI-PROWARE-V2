@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Orders\CancelOrderByStudent;
 use App\Actions\Orders\PlaceOrder;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PlaceOrderRequest;
 use App\Models\Order;
+use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\OrderRow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * The student's orders on the phone app: place the order from the cart, My
- * Orders, one order, and cancelling while it is still Placed. Same rules as
+ * Orders, one order, its issuance slip, and cancelling while it is still
+ * Placed. Same rules as
  * the website (PlaceOrder, CancelOrderByStudent).
  */
 class OrderController extends Controller
@@ -33,11 +36,21 @@ class OrderController extends Controller
     }
 
     /**
-     * Place Order: the stock is taken now and held until pickup.
+     * The order's issuance slip with its QR, to show the Specialist.
      */
-    public function store(Request $request, PlaceOrder $placeOrder): JsonResponse
+    public function slip(Request $request, Order $order): JsonResponse
     {
-        $order = $placeOrder->handle($request->user());
+        abort_unless($order->user_id === $request->user()->id, 404);
+
+        return response()->json(IssuanceSlip::of($order->load(['items', 'student', 'handler'])));
+    }
+
+    /**
+     * Place Order: its items are held until the Specialist releases them.
+     */
+    public function store(PlaceOrderRequest $request, PlaceOrder $placeOrder): JsonResponse
+    {
+        $order = $placeOrder->handle($request->user(), $request->section());
 
         return response()->json([
             'message' => PlaceOrder::message($order),

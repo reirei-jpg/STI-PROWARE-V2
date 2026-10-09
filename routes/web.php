@@ -41,6 +41,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('my-orders', [StudentOrderController::class, 'index'])->name('my-orders.index');
         Route::post('my-orders', [StudentOrderController::class, 'store'])->name('my-orders.store');
         Route::post('my-orders/{order}/cancel', [StudentOrderController::class, 'cancel'])->name('my-orders.cancel');
+        Route::get('my-orders/{order}/slip', [StudentOrderController::class, 'slip'])->name('my-orders.slip');
+        Route::get('my-orders/{order}/slip/print', [StudentOrderController::class, 'printSlip'])->name('my-orders.slip.print');
     });
 
     Route::middleware('role:specialist,school_admin')->group(function () {
@@ -58,9 +60,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('purchase-orders/{purchaseOrder}/close', [PurchaseOrderDeliveryController::class, 'close'])->name('purchase-orders.close');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/slip', [OrderController::class, 'slip'])->name('orders.slip');
+        Route::get('orders/{order}/slip/print', [OrderController::class, 'printSlip'])->name('orders.slip.print');
+        Route::patch('orders/hold-days', [OrderController::class, 'holdDays'])->name('orders.hold-days');
+        Route::post('students/{student}/lift-pause', [OrderController::class, 'liftPause'])->name('students.lift-pause');
         Route::post('orders/{order}/ready', [OrderController::class, 'ready'])->name('orders.ready');
-        Route::post('orders/{order}/picked-up', [OrderController::class, 'pickedUp'])->name('orders.picked-up');
-        Route::post('orders/{order}/undo-pickup', [OrderController::class, 'undoPickup'])->name('orders.undo-pickup');
+        Route::post('orders/{order}/release', [OrderController::class, 'release'])->name('orders.release');
+        Route::post('orders/{order}/undo-release', [OrderController::class, 'undoRelease'])->name('orders.undo-release');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');

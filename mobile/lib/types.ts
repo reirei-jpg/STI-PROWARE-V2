@@ -96,15 +96,22 @@ export type CartView = {
     total_centavos: number;
     can_place_order: boolean;
     pick_up_by: string;
+    /** The course/section the student gave last time, for the slip. */
+    section: string | null;
+    /** Why Place Order would be refused (too many waiting, or paused). */
+    order_refusal: string | null;
 };
 
 /** A student's order, with each item at the price it was ordered at. */
 export type StudentOrder = {
     id: number;
     number: string | null;
+    /** What the slip's QR holds. */
+    slip_code: string | null;
     status: 'placed' | 'ready' | 'picked_up' | 'cancelled';
     status_label: string;
     student_name: string;
+    student_section: string | null;
     total_centavos: number;
     items: {
         id: number;
@@ -121,8 +128,35 @@ export type StudentOrder = {
     ready_at: string | null;
     picked_up_at: string | null;
     cancelled_at: string | null;
+    /** Cancelled by itself: not released by its pick-up date. */
+    expired: boolean;
     cancel_reason: string | null;
     can_cancel: boolean;
+};
+
+/** An order's issuance slip, as on STI College-Ormoc's paper form. */
+export type IssuanceSlipData = {
+    school: string;
+    address_lines: string[];
+    order_id: number;
+    number: string | null;
+    date: string | null;
+    student_name: string;
+    section: string | null;
+    items: {
+        quantity: number;
+        item: string;
+        unit_price_centavos: number;
+        amount_centavos: number;
+    }[];
+    total_centavos: number;
+    status: StudentOrder['status'];
+    status_label: string;
+    pick_up_by: string;
+    released_on: string | null;
+    issued_by: string | null;
+    /** The QR (an SVG picture of the slip code); null for old orders. */
+    qr_svg: string | null;
 };
 
 /** A student's preorder (a reservation; nothing to pay). */
@@ -148,6 +182,13 @@ export type StudentNotificationData =
           order_number: string;
           total_centavos: number;
           pick_up_by: string | null;
+      }
+    | {
+          kind: 'order_last_day';
+          order_id: number;
+          order_number: string;
+          total_centavos: number;
+          pick_up_by: string;
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string }
@@ -214,7 +255,14 @@ export type SpecialistTasks = {
 /** A student's order on the Specialist's list. */
 export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {
     handled_by: string | null;
-    can_undo_pickup: boolean;
+    can_undo_release: boolean;
+};
+
+/** A scanned slip (or typed order number): the order, its slip, and the student's other open orders. */
+export type SlipLookup = {
+    order: SpecialistOrder;
+    slip: IssuanceSlipData;
+    other_open_orders: { id: number; number: string | null; status_label: string }[];
 };
 
 export type SpecialistOrderCounts = {

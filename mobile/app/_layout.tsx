@@ -41,11 +41,14 @@ function RootNavigator() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="product/[id]" />
                 <Stack.Screen name="order/[id]" />
+                <Stack.Screen name="slip/[id]" />
             </Stack.Protected>
 
             <Stack.Protected guard={isSpecialist}>
                 <Stack.Screen name="(staff)" />
                 <Stack.Screen name="staff-order/[id]" />
+                <Stack.Screen name="scan-slip" />
+                <Stack.Screen name="slip-check" />
                 <Stack.Screen name="stock/[id]" />
                 <Stack.Screen name="record-delivery" />
             </Stack.Protected>

@@ -51,6 +51,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+        Route::get('orders/{order}/slip', [OrderController::class, 'slip'])->name('orders.slip');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');
@@ -64,9 +65,10 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
 
         Route::get('orders', [SpecialistOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [SpecialistOrderController::class, 'show'])->name('orders.show');
+        Route::get('slips/{code}', [SpecialistOrderController::class, 'slip'])->name('slips.show');
         Route::post('orders/{order}/ready', [SpecialistOrderController::class, 'ready'])->name('orders.ready');
-        Route::post('orders/{order}/picked-up', [SpecialistOrderController::class, 'pickedUp'])->name('orders.picked-up');
-        Route::post('orders/{order}/undo-pickup', [SpecialistOrderController::class, 'undoPickup'])->name('orders.undo-pickup');
+        Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');
+        Route::post('orders/{order}/undo-release', [SpecialistOrderController::class, 'undoRelease'])->name('orders.undo-release');
         Route::post('orders/{order}/cancel', [SpecialistOrderController::class, 'cancel'])->name('orders.cancel');
 
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');

@@ -26,6 +26,13 @@
       "expo-status-bar",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow STI PROWARE to use the camera to scan issuance slips.",
+          "recordAudioAndroid": false
+        }
+      ],
       "./plugins/with-cleartext-traffic",
       "./plugins/with-short-native-build-path",
       [

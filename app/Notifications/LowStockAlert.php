@@ -49,7 +49,8 @@ class LowStockAlert extends Notification implements PushesToPhones
             'kind' => 'low_stock',
             'product_id' => $this->variant->product_id,
             'product_name' => $this->variant->displayName(),
-            'stock_on_hand' => $this->variant->stock_on_hand,
+            // Kept as stock_on_hand for the bell; it is the pieces free to sell.
+            'stock_on_hand' => $this->variant->freeToSell(),
             'alert_at' => $this->variant->product->low_stock_alert_at,
         ];
     }

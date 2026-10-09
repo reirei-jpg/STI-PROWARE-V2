@@ -1,23 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Banknote, CircleCheck, PackageCheck, Undo2, XCircle } from 'lucide-react-native';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ArrowLeft, CircleCheck, PackageCheck, Undo2, XCircle } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import BottomSheet from '@/components/BottomSheet';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
+import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime, formatPeso } from '@/lib/format';
+import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
-
-type Step = 'ready' | 'picked-up' | 'undo-pickup';
 
 /**
  * One student's order on the Specialist's phone, with the website's steps:
- * Ready for pickup (the student is told), Picked up (paid in cash), undo a
- * pickup the same day, and Cancel with the reason the student will see.
+ * Ready for pickup (the student is told), Release once the student has
+ * paid (the items leave the shelf only then), undo a release the same day,
+ * and Cancel with the reason the student will see.
  */
 export default function StaffOrderScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -74,26 +73,7 @@ export default function StaffOrderScreen() {
         }
     };
 
-    const step = (which: Step): void => {
-        if (!order) {
-            return;
-        }
-
-        if (which === 'picked-up') {
-            Alert.alert(
-                `Hand over ${order.number}?`,
-                `Did ${order.student_name} pay ${formatPeso(order.total_centavos)} in cash?`,
-                [
-                    { text: 'Not yet', style: 'cancel' },
-                    { text: 'Yes, paid', onPress: () => void run(which) },
-                ],
-            );
-
-            return;
-        }
-
-        void run(which);
-    };
+    const isOpen = order?.status === 'placed' || order?.status === 'ready';
 
     return (
         <ScrollView
@@ -127,6 +107,7 @@ export default function StaffOrderScreen() {
                             </Text>
                             <Text className="font-sans-semibold text-base text-slate-800">
                                 {order.student_name}
+                                {order.student_section ? ` · ${order.student_section}` : ''}
                             </Text>
                             <Text className="font-sans text-xs text-slate-500">
                                 Placed {formatDateTime(order.placed_at)}
@@ -160,35 +141,34 @@ export default function StaffOrderScreen() {
                                 tone="blue"
                                 icon={<PackageCheck size={18} color="#ffffff" />}
                                 busy={busy}
-                                onPress={() => step('ready')}
+                                onPress={() => void run('ready')}
                             >
                                 Ready for pickup
                             </ActionButton>
                         )}
-                        {order.status === 'ready' && (
-                            <ActionButton
-                                tone="green"
-                                icon={<Banknote size={18} color="#ffffff" />}
+                        {isOpen && (
+                            <ReleaseBox
+                                order={order}
                                 busy={busy}
-                                onPress={() => step('picked-up')}
-                            >
-                                {`Picked up · paid ${formatPeso(order.total_centavos)}`}
-                            </ActionButton>
+                                onRelease={() => void run('release', { paid: true })}
+                            />
                         )}
-                        {order.can_undo_pickup && (
+                        {order.can_undo_release && (
                             <ActionButton
+                                small
                                 tone="plain"
-                                icon={<Undo2 size={18} color="#334155" />}
+                                icon={<Undo2 size={16} color="#334155" />}
                                 busy={busy}
-                                onPress={() => step('undo-pickup')}
+                                onPress={() => void run('undo-release')}
                             >
-                                Undo pickup
+                                Undo release
                             </ActionButton>
                         )}
-                        {(order.status === 'placed' || order.status === 'ready') && (
+                        {isOpen && (
                             <ActionButton
+                                small
                                 tone="red"
-                                icon={<XCircle size={18} color="#b91c1c" />}
+                                icon={<XCircle size={16} color="#b91c1c" />}
                                 busy={busy}
                                 onPress={() => setCancelling(true)}
                             >
@@ -222,10 +202,12 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
         order.status === 'placed'
             ? 'New order: prepare it, then mark it Ready for pickup. The student is told.'
             : order.status === 'ready'
-              ? `Waiting for ${order.student_name} to pick it up and pay ${formatPeso(order.total_centavos)} in cash.`
+              ? `Waiting for ${order.student_name} to show the issuance slip and pay ${formatPeso(order.total_centavos)}.`
               : order.status === 'picked_up'
-                ? `Picked up and paid ${formatDateTime(order.picked_up_at)}.`
-                : `Cancelled ${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` · ${order.cancel_reason}` : ''}`;
+                ? `Released ${formatDateTime(order.picked_up_at)}.`
+                : order.expired
+                  ? `Expired: not released by ${formatDate(order.pick_up_by)}.`
+                  : `Cancelled ${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` · ${order.cancel_reason}` : ''}`;
 
     return (
         <View
@@ -237,103 +219,5 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
                 <Text className={`text-xs ${note.className}`}>{note.text}</Text>
             )}
         </View>
-    );
-}
-
-function ActionButton({
-    tone,
-    icon,
-    busy,
-    onPress,
-    children,
-}: {
-    tone: 'blue' | 'green' | 'red' | 'plain';
-    icon: ReactNode;
-    busy: boolean;
-    onPress: () => void;
-    children: string;
-}) {
-    const classes = {
-        blue: 'bg-brand',
-        green: 'bg-emerald-600',
-        red: 'border border-red-200 bg-red-50',
-        plain: 'border border-slate-200 bg-white',
-    }[tone];
-    const text = { blue: 'text-white', green: 'text-white', red: 'text-red-700', plain: 'text-slate-700' }[tone];
-
-    return (
-        <Pressable
-            onPress={onPress}
-            disabled={busy}
-            accessibilityRole="button"
-            className={`flex-row items-center justify-center gap-2 rounded-2xl py-4 ${classes} ${busy ? 'opacity-60' : ''}`}
-        >
-            {icon}
-            <Text className={`font-sans-bold text-base ${text}`}>{children}</Text>
-        </Pressable>
-    );
-}
-
-/** Cancel with the reason the student will see, like the website. */
-function CancelSheet({
-    order,
-    open,
-    onClose,
-    onCancel,
-    busy,
-    error,
-}: {
-    order: SpecialistOrder;
-    open: boolean;
-    onClose: () => void;
-    onCancel: (reason: string) => void;
-    busy: boolean;
-    error: string | null;
-}) {
-    const [reason, setReason] = useState('');
-
-    useEffect(() => {
-        if (open) {
-            setReason('');
-        }
-    }, [open]);
-
-    return (
-        <BottomSheet
-            open={open}
-            onClose={onClose}
-            title={`Cancel ${order.number}?`}
-            subtitle={`${order.student_name} · ${formatPeso(order.total_centavos)}`}
-            icon={<XCircle size={20} color="#b91c1c" />}
-            footer={
-                <Pressable
-                    onPress={() => onCancel(reason.trim())}
-                    disabled={busy || reason.trim() === ''}
-                    accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-red-600 py-4 ${busy || reason.trim() === '' ? 'opacity-50' : ''}`}
-                >
-                    {busy && <ActivityIndicator color="#ffffff" />}
-                    <Text className="font-sans-bold text-base text-white">Cancel order</Text>
-                </Pressable>
-            }
-        >
-            <Text className="font-sans text-sm leading-5 text-slate-700">
-                Its items go back to stock and {order.student_name} is told why.
-            </Text>
-            <View className="gap-2">
-                <Text className="font-sans-bold text-sm text-slate-700">Reason (the student will see it)</Text>
-                <TextInput
-                    value={reason}
-                    onChangeText={setReason}
-                    placeholder="e.g. The item was damaged."
-                    placeholderTextColor="#94a3b8"
-                    maxLength={200}
-                    multiline
-                    className="min-h-24 rounded-xl border border-slate-200 bg-white px-3 py-3 font-sans text-sm text-slate-900"
-                    style={{ textAlignVertical: 'top' }}
-                />
-            </View>
-            {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
-        </BottomSheet>
     );
 }

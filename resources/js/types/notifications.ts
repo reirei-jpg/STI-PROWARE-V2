@@ -61,6 +61,15 @@ export type OrderReadyData = {
     pick_up_by: string | null;
 };
 
+/** Today is the last day to get the order before it expires. */
+export type OrderLastDayData = {
+    kind: 'order_last_day';
+    order_id: number;
+    order_number: string | null;
+    total_centavos: number;
+    pick_up_by: string;
+};
+
 export type OrderCancelledData = {
     kind: 'order_cancelled';
     order_id: number;
@@ -108,6 +117,7 @@ export type StaffNotification = {
         | SaleEndedData
         | OrderPlacedData
         | OrderReadyData
+        | OrderLastDayData
         | OrderCancelledData
         | PreorderArrivedData
         | DeliveryRecordedData

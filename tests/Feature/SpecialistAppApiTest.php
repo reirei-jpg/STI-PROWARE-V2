@@ -20,14 +20,16 @@ beforeEach(function () {
 });
 
 /**
- * Juan's placed order of one ₱700.00 item.
+ * Juan's order of one ₱700.00 item, from a size with 10 pieces on the shelf;
+ * while the order is open, its piece is held.
  */
 function juansOrder(OrderStatus $status = OrderStatus::Placed): Order
 {
+    $variant = ProductVariant::factory()->create(['stock_on_hand' => 10, 'held_pieces' => $status->isOpen() ? 1 : 0]);
     $order = Order::factory()
         ->for(User::factory()->student()->create(['name' => 'Juan Dela Cruz']), 'student')
         ->create(['status' => $status, 'total_centavos' => 70000]);
-    OrderItem::factory()->for($order)->create(['unit_price_centavos' => 70000, 'line_total_centavos' => 70000]);
+    OrderItem::factory()->for($order)->for($variant, 'variant')->create(['unit_price_centavos' => 70000, 'line_total_centavos' => 70000]);
 
     return $order;
 }
@@ -80,7 +82,7 @@ test('the app lists the Specialist\'s orders exactly as the website does', funct
         ->and($app['counts'])->toBe($website['counts']);
 });
 
-test('the Specialist prepares, hands over and can undo a pickup the same day on the app', function () {
+test('the Specialist prepares, releases once paid, and can undo a release the same day on the app', function () {
     Notification::fake();
     $order = juansOrder();
     Sanctum::actingAs(User::factory()->specialist()->create(['name' => 'Carlo Mendoza']));
@@ -92,14 +94,22 @@ test('the Specialist prepares, hands over and can undo a pickup the same day on 
         ->assertJsonPath('order.handled_by', 'Carlo Mendoza');
     Notification::assertSentTo($order->student, OrderReady::class);
 
-    $this->postJson(route('api.v1.specialist.orders.picked-up', $order))
-        ->assertOk()
-        ->assertJsonPath('message', "Order {$order->number} picked up · ₱700.00 paid in cash.")
-        ->assertJsonPath('order.can_undo_pickup', true);
+    $variant = $order->items()->sole()->variant;
 
-    $this->postJson(route('api.v1.specialist.orders.undo-pickup', $order))
+    $this->postJson(route('api.v1.specialist.orders.release', $order))
+        ->assertJsonValidationErrors(['paid' => 'Confirm that the student has paid before releasing the items.']);
+
+    $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
+        ->assertOk()
+        ->assertJsonPath('message', "Order {$order->number} released to Juan Dela Cruz · ₱700.00 paid.")
+        ->assertJsonPath('order.status_label', 'Released')
+        ->assertJsonPath('order.can_undo_release', true);
+    expect($variant->refresh())->stock_on_hand->toBe(9)->held_pieces->toBe(0);
+
+    $this->postJson(route('api.v1.specialist.orders.undo-release', $order))
         ->assertOk()
         ->assertJsonPath('order.status', 'ready');
+    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(1);
 });
 
 test('the app refuses a step that no longer fits the order, in words', function () {
@@ -109,20 +119,21 @@ test('the app refuses a step that no longer fits the order, in words', function 
 
     $this->postJson(route('api.v1.specialist.orders.ready', $order))
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} is Picked up, so it cannot be marked ready."]);
-    $this->postJson(route('api.v1.specialist.orders.undo-pickup', $order))
-        ->assertJsonValidationErrors(['order' => "Order {$order->number}'s pickup can only be undone on the day it was marked."]);
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} is Released, so it cannot be marked ready."]);
+    $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} is Released, so it cannot be released."]);
+    $this->postJson(route('api.v1.specialist.orders.undo-release', $order))
+        ->assertJsonValidationErrors(['order' => "Order {$order->number}'s release can only be undone on the day it was released."]);
     $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'Changed mind'])
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} is Picked up, so it cannot be cancelled."]);
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} is Released, so it cannot be cancelled."]);
 
     expect($order->refresh()->status)->toBe(OrderStatus::PickedUp);
 });
 
-test('cancelling on the app needs a reason, puts the stock back and tells the student', function () {
+test('cancelling on the app needs a reason, ends the hold and tells the student', function () {
     Notification::fake();
-    $variant = ProductVariant::factory()->create(['stock_on_hand' => 3]);
     $order = juansOrder();
-    $order->items()->update(['product_variant_id' => $variant->id, 'product_id' => $variant->product_id, 'quantity' => 2]);
+    $variant = $order->items()->sole()->variant;
     Sanctum::actingAs(User::factory()->specialist()->create());
 
     $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => ''])
@@ -133,7 +144,7 @@ test('cancelling on the app needs a reason, puts the stock back and tells the st
         ->assertOk()
         ->assertJsonPath('order.status', 'cancelled')
         ->assertJsonPath('order.cancel_reason', 'The item was damaged.');
-    expect($variant->refresh()->stock_on_hand)->toBe(5);
+    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0);
     Notification::assertSentTo($order->student, OrderCancelled::class);
 });
 

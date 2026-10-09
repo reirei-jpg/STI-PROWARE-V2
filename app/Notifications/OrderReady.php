@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 
 /**
  * Tells the student their order is ready at the PROWARE office, and the
- * last day to pick it up and pay in cash. Also pushed to their phones.
+ * last day to show its issuance slip and pay. Also pushed to their phones.
  */
 class OrderReady extends Notification implements PushesToPhones
 {
@@ -44,7 +44,7 @@ class OrderReady extends Notification implements PushesToPhones
     {
         return [
             'title' => "Order {$this->order->number} is ready for pickup",
-            'body' => 'Pick it up at the PROWARE office and pay ₱'.number_format($this->order->total_centavos / 100, 2)." in cash by {$this->order->pick_up_by->format('M j, Y')}.",
+            'body' => 'Show its issuance slip at the PROWARE office and pay ₱'.number_format($this->order->total_centavos / 100, 2)." by {$this->order->pick_up_by->format('M j, Y')}.",
             'data' => ['kind' => 'order_ready', 'order_id' => $this->order->id],
         ];
     }

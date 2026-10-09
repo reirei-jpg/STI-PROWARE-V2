@@ -29,7 +29,7 @@ type Show = 'orders' | 'preorders';
 /**
  * My Orders and My Preorders, with a switch between them. Each order is one
  * short row (number, status, total, pick-up date); tapping it opens the
- * order with its items and Cancel. Open orders come first.
+ * order with its issuance slip, items and Cancel. Open orders come first.
  */
 export default function OrdersScreen() {
     const insets = useSafeAreaInsets();
@@ -63,7 +63,7 @@ export default function OrdersScreen() {
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
                     {show === 'orders'
-                        ? 'Pay in cash when you pick up at the PROWARE office.'
+                        ? 'Show the issuance slip at the PROWARE office by the pick-up date, and pay there.'
                         : 'Reserved items. Nothing to pay now.'}
                 </Text>
             </View>

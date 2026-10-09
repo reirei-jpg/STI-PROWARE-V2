@@ -1,11 +1,14 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     Banknote,
     CheckCircle2,
+    Clock,
     PackageCheck,
+    QrCode,
     Search,
     ShoppingBag,
     Undo2,
+    Unlock,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
@@ -14,46 +17,56 @@ import OrderItems, { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
-import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import SlipScanBox from '@/components/slip-scan-box';
+import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { OrderRow, Paginated } from '@/types';
+import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
 
 type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
 
-type SpecialistOrder = OrderRow & {
-    handled_by: string | null;
-    can_undo_pickup: boolean;
+type PausedStudent = {
+    id: number;
+    name: string;
+    email: string;
+    paused_until: string;
 };
 
 const chips: { value: Show; label: string }[] = [
     { value: 'placed', label: 'New' },
     { value: 'ready', label: 'Ready for pickup' },
-    { value: 'picked_up', label: 'Picked up' },
+    { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
     { value: 'all', label: 'All' },
 ];
 
 const descriptions: Record<Show, string> = {
     placed: 'Orders to prepare. The nearest pick-up date first.',
-    ready: 'Waiting for the student to pick up and pay. The nearest pick-up date first.',
-    picked_up: 'Picked up and paid in cash. Newest first.',
-    cancelled: 'Their items went back to stock. Newest first.',
+    ready: 'Waiting for the student to show the slip and pay. The nearest pick-up date first.',
+    picked_up: 'Paid and handed over. Newest first.',
+    cancelled: 'Their items are free to sell again. Newest first.',
     all: 'Every order, newest first.',
 };
 
 /**
- * The Specialist's Student Orders page: prepare new orders, mark them
- * Ready for pickup (the student is told), then Picked up when the student
- * pays in cash. Orders not picked up by their date cancel themselves.
+ * The Specialist's Student Orders page. A student shows the order's
+ * issuance slip: scan its QR (or type the order number) to open it, check
+ * it, and release the items once paid. Here too: prepare new orders and
+ * mark them Ready for pickup (the student is told), set how many days new
+ * orders hold their items, and let students paused for expired orders
+ * order again. Orders not released by their date expire by themselves.
  */
 export default function OrdersIndex({
     orders,
     filters,
     counts,
+    holdDays,
+    pausedStudents,
 }: {
     orders: Paginated<SpecialistOrder>;
     filters: { show: Show; search: string | null };
     counts: Record<Exclude<Show, 'all'>, number>;
+    holdDays: number;
+    pausedStudents: PausedStudent[];
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [cancelling, setCancelling] = useState<SpecialistOrder | null>(null);
@@ -88,16 +101,27 @@ export default function OrdersIndex({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
-    const act = (url: string, order: SpecialistOrder) => {
+    const act = (
+        url: string,
+        order: SpecialistOrder,
+        data: Record<string, boolean> = {},
+    ) => {
         setBusy(order.id);
-        router.post(
-            url,
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => setBusy(null),
-            },
-        );
+        router.post(url, data, {
+            preserveScroll: true,
+            onFinish: () => setBusy(null),
+        });
+    };
+
+    // The items leave the shelf only when the student has paid.
+    const release = (order: SpecialistOrder) => {
+        if (
+            window.confirm(
+                `Has ${order.student_name} paid ${formatPeso(order.total_centavos)} for ${order.number}?`,
+            )
+        ) {
+            act(OrderController.release(order.id).url, order, { paid: true });
+        }
     };
 
     return (
@@ -107,8 +131,17 @@ export default function OrdersIndex({
             <div className="space-y-7">
                 <PageHeader
                     title="Student Orders"
-                    description="Orders students placed on the storefront. Prepare them, mark them Ready for pickup, and mark them Picked up when the student pays in cash. Orders not picked up by their date are cancelled by themselves and their items go back to stock."
+                    description="Orders students placed on the storefront. Prepare them and mark them Ready for pickup. When the student shows the issuance slip, scan it and release the items once paid. Orders not released by their pick-up date expire, and their items are free to sell again."
                 />
+
+                <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
+                    <SlipScanBox />
+                    <HoldDaysSetting holdDays={holdDays} />
+                </div>
+
+                {pausedStudents.length > 0 && (
+                    <PausedStudents students={pausedStudents} />
+                )}
 
                 <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
                     <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
@@ -191,6 +224,13 @@ export default function OrdersIndex({
                                             </p>
                                             <p className="text-sm font-bold text-slate-700">
                                                 {order.student_name}
+                                                {order.student_section && (
+                                                    <span className="font-normal text-slate-500">
+                                                        {' '}
+                                                        ·{' '}
+                                                        {order.student_section}
+                                                    </span>
+                                                )}
                                             </p>
                                             <p className="text-xs text-slate-500">
                                                 Placed{' '}
@@ -211,6 +251,20 @@ export default function OrdersIndex({
 
                                         <div className="space-y-2 text-sm">
                                             <OrderWhen order={order} />
+
+                                            <Link
+                                                href={OrderController.slip({
+                                                    query: {
+                                                        code:
+                                                            order.slip_code ??
+                                                            order.number,
+                                                    },
+                                                })}
+                                                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 font-black text-blue-700 transition hover:bg-blue-100"
+                                            >
+                                                <QrCode size={16} />
+                                                Open slip
+                                            </Link>
 
                                             {order.status === 'placed' && (
                                                 <button
@@ -240,12 +294,7 @@ export default function OrdersIndex({
                                                             busy === order.id
                                                         }
                                                         onClick={() =>
-                                                            act(
-                                                                OrderController.pickedUp(
-                                                                    order.id,
-                                                                ).url,
-                                                                order,
-                                                            )
+                                                            release(order)
                                                         }
                                                         className={cn(
                                                             'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-black transition disabled:opacity-60',
@@ -256,7 +305,7 @@ export default function OrdersIndex({
                                                         )}
                                                     >
                                                         <Banknote size={16} />
-                                                        Picked up (paid)
+                                                        Release (paid)
                                                     </button>
                                                     <button
                                                         type="button"
@@ -270,23 +319,23 @@ export default function OrdersIndex({
                                                 </>
                                             )}
 
-                                            {order.can_undo_pickup && (
+                                            {order.can_undo_release && (
                                                 <button
                                                     type="button"
                                                     disabled={busy === order.id}
                                                     onClick={() =>
                                                         act(
-                                                            OrderController.undoPickup(
+                                                            OrderController.undoRelease(
                                                                 order.id,
                                                             ).url,
                                                             order,
                                                         )
                                                     }
                                                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                                                    title="Marked by mistake? Put it back to Ready for pickup (today only)."
+                                                    title="Released by mistake? Put it back to Ready for pickup (today only)."
                                                 >
                                                     <Undo2 size={16} />
-                                                    Undo pickup
+                                                    Undo release
                                                 </button>
                                             )}
                                         </div>
@@ -305,6 +354,115 @@ export default function OrdersIndex({
                 onClose={() => setCancelling(null)}
             />
         </>
+    );
+}
+
+/**
+ * How many days new orders hold their items before they expire (1 to 3).
+ * Orders already placed keep their pick-up date.
+ */
+function HoldDaysSetting({ holdDays }: { holdDays: number }) {
+    const [saving, setSaving] = useState<number | null>(null);
+
+    const choose = (days: number) => {
+        setSaving(days);
+        router.patch(
+            OrderController.holdDays().url,
+            { hold_days: days },
+            { preserveScroll: true, onFinish: () => setSaving(null) },
+        );
+    };
+
+    return (
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="flex items-center gap-2 font-black text-slate-900">
+                <Clock size={20} className="text-amber-600" />
+                Hold items for
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+                Days a new order keeps its items for the student before it
+                expires.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+                {[1, 2, 3].map((days) => (
+                    <button
+                        key={days}
+                        type="button"
+                        disabled={saving !== null || days === holdDays}
+                        onClick={() => choose(days)}
+                        className={cn(
+                            'h-11 rounded-xl text-sm font-black transition',
+                            days === holdDays
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60',
+                        )}
+                    >
+                        {days} {days === 1 ? 'day' : 'days'}
+                    </button>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+/**
+ * Students whose orders expired too often, who cannot order until the date
+ * shown, with Lift pause for a mistake or a good reason.
+ */
+function PausedStudents({ students }: { students: PausedStudent[] }) {
+    const [lifting, setLifting] = useState<number | null>(null);
+
+    const lift = (student: PausedStudent) => {
+        if (
+            window.confirm(
+                `Let ${student.name} order again before ${formatDateOrdered(student.paused_until)}?`,
+            )
+        ) {
+            setLifting(student.id);
+            router.post(
+                OrderController.liftPause(student.id).url,
+                {},
+                { preserveScroll: true, onFinish: () => setLifting(null) },
+            );
+        }
+    };
+
+    return (
+        <Panel
+            title="Students who cannot order now"
+            description="Their orders expired 3 times in 30 days without being picked up, so ordering is paused for 7 days."
+            className="border-l-4 border-l-amber-500"
+        >
+            <ul className="divide-y divide-slate-100">
+                {students.map((student) => (
+                    <li
+                        key={student.id}
+                        className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div>
+                            <p className="font-black text-slate-900">
+                                {student.name}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                                {student.email} · Paused until{' '}
+                                <strong className="text-amber-700">
+                                    {formatDateOrdered(student.paused_until)}
+                                </strong>
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            disabled={lifting === student.id}
+                            onClick={() => lift(student)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                        >
+                            <Unlock size={16} />
+                            Lift pause
+                        </button>
+                    </li>
+                ))}
+            </ul>
+        </Panel>
     );
 }
 
@@ -333,7 +491,7 @@ function OrderWhen({ order }: { order: SpecialistOrder }) {
                     className="mt-0.5 shrink-0 text-emerald-600"
                 />
                 <span>
-                    Picked up {formatDateTime(order.picked_up_at)}
+                    Released {formatDateTime(order.picked_up_at)}
                     {order.handled_by && (
                         <span className="block text-xs text-slate-500">
                             by {order.handled_by}
@@ -346,8 +504,10 @@ function OrderWhen({ order }: { order: SpecialistOrder }) {
 
     return (
         <p className="text-slate-600">
-            Cancelled {formatDateTime(order.cancelled_at)}
-            {order.cancel_reason && (
+            {order.expired
+                ? `Expired: not released by ${formatDateOrdered(order.pick_up_by)}`
+                : `Cancelled ${formatDateTime(order.cancelled_at)}`}
+            {!order.expired && order.cancel_reason && (
                 <span className="block text-xs text-slate-500">
                     {order.cancel_reason}
                 </span>

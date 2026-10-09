@@ -28,6 +28,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
+ * @property string|null $section a student's course/section, e.g. "BSIT 1-A" (asked at checkout)
+ * @property Carbon|null $ordering_resumed_at when the Specialist lifted an ordering pause
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -50,6 +52,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'role' => UserRole::class,
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'ordering_resumed_at' => 'datetime',
         ];
     }
 

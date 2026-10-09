@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Specialist;
 use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelOrderRequest;
+use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
 use App\Services\Shop\SpecialistOrders;
 use Illuminate\Http\JsonResponse;
@@ -33,19 +34,31 @@ class OrderController extends Controller
         return response()->json(self::row($order));
     }
 
+    /**
+     * The order a scanned issuance slip (or a typed order number) is for.
+     */
+    public function slip(string $code): JsonResponse
+    {
+        $slip = SpecialistOrders::bySlip($code);
+
+        return $slip === null
+            ? response()->json(['message' => 'This is not a PROWARE issuance slip.'], 404)
+            : response()->json($slip);
+    }
+
     public function ready(Request $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
     {
         return self::done($handle->ready($order, $request->user()), $order);
     }
 
-    public function pickedUp(Request $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
+    public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
     {
-        return self::done($handle->pickedUp($order, $request->user()), $order);
+        return self::done($handle->release($order, $request->user()), $order);
     }
 
-    public function undoPickup(Order $order, HandleOrderBySpecialist $handle): JsonResponse
+    public function undoRelease(Request $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
     {
-        return self::done($handle->undoPickup($order), $order);
+        return self::done($handle->undoRelease($order, $request->user()), $order);
     }
 
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse

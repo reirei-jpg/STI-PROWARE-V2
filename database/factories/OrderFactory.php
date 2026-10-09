@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\Shop\OrderRules;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -23,7 +24,7 @@ class OrderFactory extends Factory
             'user_id' => User::factory()->student(),
             'status' => OrderStatus::Placed,
             'total_centavos' => 35000,
-            'pick_up_by' => now()->addDays(Order::PICK_UP_DAYS)->endOfDay(),
+            'pick_up_by' => OrderRules::holdUntil(),
         ];
     }
 

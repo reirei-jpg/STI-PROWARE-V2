@@ -9,7 +9,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('orders:cancel-unclaimed')]
-#[Description('Cancel orders not picked up by their pick-up date and put their stock back')]
+#[Description('Expire orders not released by their pick-up date, so their held items are free to sell again')]
 class CancelUnclaimedOrders extends Command
 {
     /**
@@ -23,7 +23,7 @@ class CancelUnclaimedOrders extends Command
             $cancelOrder->handle($order, null, 'Not picked up by '.$order->pick_up_by->format('M j, Y').'.');
         }
 
-        $this->info("Cancelled {$orders->count()} order(s) not picked up in time.");
+        $this->info("Expired {$orders->count()} order(s) not picked up in time.");
 
         return self::SUCCESS;
     }

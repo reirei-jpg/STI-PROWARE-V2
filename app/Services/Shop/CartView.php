@@ -20,7 +20,10 @@ use Illuminate\Database\Eloquent\Collection;
 final class CartView
 {
     /**
-     * @return array{lines: list<array<string, mixed>>, selected_count: int, total_centavos: int, can_place_order: bool, pick_up_by: string}
+     * With the student's saved course/section (for the issuance slip) and,
+     * when a guard would refuse the order (too many waiting, or paused), why.
+     *
+     * @return array{lines: list<array<string, mixed>>, selected_count: int, total_centavos: int, can_place_order: bool, pick_up_by: string, section: string|null, order_refusal: string|null}
      */
     public static function for(User $student): array
     {
@@ -37,7 +40,9 @@ final class CartView
             'selected_count' => $ticked->count(),
             'total_centavos' => (int) $ticked->whereNull('problem')->sum('line_total_centavos'),
             'can_place_order' => $ticked->isNotEmpty() && $ticked->whereNotNull('problem')->isEmpty(),
-            'pick_up_by' => now()->addDays(Order::PICK_UP_DAYS)->toDateString(),
+            'pick_up_by' => OrderRules::holdUntil()->toDateString(),
+            'section' => $student->section,
+            'order_refusal' => $lines === [] ? null : OrderRules::refusal($student),
         ];
     }
 
@@ -55,15 +60,15 @@ final class CartView
         $otherLines = $cart->filter(fn (CartItem $other): bool => $other->product_variant_id === $line->product_variant_id && $other->id !== $line->id);
 
         // How many more fit in the cart at all (the + button's limit).
-        $mostAllowed = Cart::mostOf($variant->stock_on_hand, (int) $otherLines->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
+        $mostAllowed = Cart::mostOf($variant->freeToSell(), (int) $otherLines->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
 
         // How many can be ordered with the other ticked lines, as Place
         // Order will take them; lines set aside do not count.
-        $mostOrderable = Cart::mostOf($variant->stock_on_hand, (int) $otherLines->where('selected', true)->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
+        $mostOrderable = Cart::mostOf($variant->freeToSell(), (int) $otherLines->where('selected', true)->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
 
         $problem = match (true) {
             $unitPrice === null => 'No longer for sale. Remove it, or untick it to order the rest.',
-            $variant->stock_on_hand === 0 => 'Out of stock. Remove it, or untick it to order the rest.',
+            $variant->freeToSell() === 0 => 'Out of stock. Remove it, or untick it to order the rest.',
             $mostOrderable === 0 => 'Not enough left for this. Remove it, or untick it to order the rest.',
             $line->quantity > $mostOrderable => 'Only '.Units::count($mostOrderable, $line->pack->name ?? 'Piece').' can be ordered now. Lower the quantity.',
             default => null,

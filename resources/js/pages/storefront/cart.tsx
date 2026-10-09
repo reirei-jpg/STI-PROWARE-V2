@@ -1,7 +1,8 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
-    Banknote,
+    CalendarDays,
+    GraduationCap,
     ImageIcon,
     LoaderCircle,
     Minus,
@@ -11,6 +12,7 @@ import {
     TriangleAlert,
 } from 'lucide-react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import InputError from '@/components/input-error';
@@ -41,9 +43,9 @@ function selectLines(ids: number[], selected: boolean): void {
 
 /**
  * The student's cart at today's prices, and Place Order for the ticked
- * items (the rest stay in the cart for later). They pay in cash at the
- * PROWARE office when they pick the order up; the items are held for them
- * until the pick-up date.
+ * items (the rest stay in the cart for later), with the course/section for
+ * the issuance slip. They show the slip and pay at the PROWARE office; the
+ * items are held for them until the pick-up date.
  */
 export default function Cart({
     lines,
@@ -51,15 +53,21 @@ export default function Cart({
     total_centavos: total,
     can_place_order: canPlaceOrder,
     pick_up_by: pickUpBy,
+    section,
+    order_refusal: orderRefusal,
 }: {
     lines: CartLine[];
     selected_count: number;
     total_centavos: number;
     can_place_order: boolean;
     pick_up_by: string;
+    /** The course/section the student gave last time, for the slip. */
+    section: string | null;
+    /** Why Place Order would be refused (too many waiting, or paused). */
+    order_refusal: string | null;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
-    const placeOrder = useForm({});
+    const placeOrder = useForm({ section: section ?? '' });
     const allTicked = lines.every((line) => line.selected);
     const tickedHaveProblems = lines.some(
         (line) => line.selected && line.problem !== null,
@@ -128,79 +136,148 @@ export default function Cart({
                             </ul>
                         </div>
 
-                        <aside className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
-                            <div className="flex items-baseline justify-between">
-                                <span className="text-sm font-bold text-slate-600">
-                                    Total ({selectedCount}{' '}
-                                    {selectedCount === 1 ? 'item' : 'items'})
-                                </span>
-                                <span className="text-2xl font-black text-slate-900">
-                                    {formatPeso(total)}
-                                </span>
+                        <aside className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24">
+                            <div className="bg-linear-to-br from-[#0D6EFD] to-blue-700 px-5 py-5 text-white">
+                                <p className="text-xs font-black tracking-wide text-blue-100 uppercase">
+                                    Order summary
+                                </p>
+                                <div className="mt-2 flex items-end justify-between gap-3">
+                                    <span className="text-sm font-bold text-blue-50">
+                                        {selectedCount}{' '}
+                                        {selectedCount === 1 ? 'item' : 'items'}
+                                    </span>
+                                    <span className="text-3xl font-black tracking-tight">
+                                        {formatPeso(total)}
+                                    </span>
+                                </div>
                             </div>
 
-                            <p className="flex gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
-                                <Banknote
-                                    size={20}
-                                    className="mt-0.5 shrink-0"
-                                />
-                                <span>
-                                    Pay in cash at the PROWARE office when you
-                                    pick it up. Pick it up by{' '}
-                                    <strong>
-                                        {formatDateOrdered(pickUpBy)}
-                                    </strong>
-                                    , or the order is cancelled.
-                                </span>
-                            </p>
-
-                            <InputError message={errors.cart} />
-
-                            {selectedCount === 0 ? (
-                                <p className="text-sm text-slate-600">
-                                    Tick the items you want to order.
+                            <div className="space-y-5 p-5">
+                                <ol className="space-y-3">
+                                    <Step number={1}>Place your order</Step>
+                                    <Step number={2}>
+                                        Show your issuance slip at the PROWARE
+                                        office by{' '}
+                                        <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 font-black text-blue-700">
+                                            <CalendarDays size={14} />
+                                            {formatDateOrdered(pickUpBy)}
+                                        </span>
+                                    </Step>
+                                    <Step number={3}>
+                                        Pay there and get your items
+                                    </Step>
+                                </ol>
+                                <p className="-mt-2 pl-10 text-xs text-slate-500">
+                                    Not picked up by then? The order is
+                                    cancelled.
                                 </p>
-                            ) : (
-                                tickedHaveProblems && (
-                                    <p className="text-sm text-red-600">
-                                        Fix or untick the items marked in red
-                                        first.
-                                    </p>
-                                )
-                            )}
 
-                            <button
-                                type="button"
-                                disabled={
-                                    !canPlaceOrder || placeOrder.processing
-                                }
-                                onClick={() =>
-                                    placeOrder.post(
-                                        StudentOrderController.store().url,
-                                    )
-                                }
-                                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {placeOrder.processing && (
-                                    <LoaderCircle
-                                        size={17}
-                                        className="animate-spin"
-                                    />
-                                )}
-                                Place Order
-                                {selectedCount > 0 && ` (${selectedCount})`}
-                            </button>
-                            {selectedCount > 0 &&
-                                selectedCount < lines.length && (
-                                    <p className="text-center text-xs text-slate-500">
-                                        Unticked items stay in your cart.
+                                <div>
+                                    <label
+                                        htmlFor="section"
+                                        className="text-sm font-black text-slate-700"
+                                    >
+                                        Course/Section
+                                    </label>
+                                    <div className="relative mt-1">
+                                        <GraduationCap
+                                            size={18}
+                                            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400"
+                                        />
+                                        <input
+                                            id="section"
+                                            value={placeOrder.data.section}
+                                            onChange={(event) =>
+                                                placeOrder.setData(
+                                                    'section',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            maxLength={40}
+                                            placeholder="e.g. BSIT 1-A"
+                                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pr-3 pl-10 text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                                        />
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Printed on your issuance slip. Kept for
+                                        next time.
                                     </p>
+                                    <InputError
+                                        message={placeOrder.errors.section}
+                                    />
+                                </div>
+
+                                <InputError message={errors.cart} />
+
+                                {orderRefusal !== null ? (
+                                    <p className="flex gap-2 rounded-xl border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">
+                                        <TriangleAlert
+                                            size={18}
+                                            className="mt-0.5 shrink-0"
+                                        />
+                                        {orderRefusal}
+                                    </p>
+                                ) : selectedCount === 0 ? (
+                                    <p className="text-sm text-slate-600">
+                                        Tick the items you want to order.
+                                    </p>
+                                ) : (
+                                    tickedHaveProblems && (
+                                        <p className="text-sm text-red-600">
+                                            Fix or untick the items marked in
+                                            red first.
+                                        </p>
+                                    )
                                 )}
+
+                                <button
+                                    type="button"
+                                    disabled={
+                                        !canPlaceOrder ||
+                                        orderRefusal !== null ||
+                                        placeOrder.processing
+                                    }
+                                    onClick={() =>
+                                        placeOrder.post(
+                                            StudentOrderController.store().url,
+                                        )
+                                    }
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0D6EFD] px-5 py-3.5 text-base font-black text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
+                                >
+                                    {placeOrder.processing && (
+                                        <LoaderCircle
+                                            size={18}
+                                            className="animate-spin"
+                                        />
+                                    )}
+                                    Place Order
+                                    {selectedCount > 0 &&
+                                        ` · ${formatPeso(total)}`}
+                                </button>
+                                {selectedCount > 0 &&
+                                    selectedCount < lines.length && (
+                                        <p className="-mt-2 text-center text-xs text-slate-500">
+                                            Unticked items stay in your cart.
+                                        </p>
+                                    )}
+                            </div>
                         </aside>
                     </div>
                 )}
             </div>
         </>
+    );
+}
+
+/** One numbered step of what happens after Place Order. */
+function Step({ number, children }: { number: number; children: ReactNode }) {
+    return (
+        <li className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-black text-blue-700 ring-1 ring-blue-200">
+                {number}
+            </span>
+            <span className="pt-0.5">{children}</span>
+        </li>
     );
 }
 

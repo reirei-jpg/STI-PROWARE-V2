@@ -188,8 +188,8 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.student_name} · {data.items_count}{' '}
                     {data.items_count === 1 ? 'item' : 'items'} ·{' '}
-                    {formatPeso(data.total_centavos)} to pay in cash. Prepare
-                    it, then mark it Ready for pickup.
+                    {formatPeso(data.total_centavos)} to pay. Prepare it, then
+                    mark it Ready for pickup.
                 </span>
             </>
         );
@@ -202,12 +202,27 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Order {data.order_number} is ready for pickup
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    Pick it up at the PROWARE office and pay{' '}
-                    {formatPeso(data.total_centavos)} in cash
+                    Show its issuance slip at the PROWARE office and pay{' '}
+                    {formatPeso(data.total_centavos)}
                     {data.pick_up_by
                         ? ` by ${formatDateOrdered(data.pick_up_by)}`
                         : ''}
                     .
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'order_last_day') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Last day to get order {data.order_number}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Show its issuance slip at the PROWARE office today and pay{' '}
+                    {formatPeso(data.total_centavos)}. After today it expires
+                    and the items go back on sale.
                 </span>
             </>
         );

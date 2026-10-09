@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { ChevronRight, Package, Search, X } from 'lucide-react-native';
+import { ChevronRight, Package, ScanLine, Search, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -23,16 +23,17 @@ type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
 const TABS: { value: Show; label: string }[] = [
     { value: 'placed', label: 'New' },
     { value: 'ready', label: 'Ready' },
-    { value: 'picked_up', label: 'Picked up' },
+    { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
     { value: 'all', label: 'All' },
 ];
 
 /**
  * Students' orders on the Specialist's phone, like the website's Orders
- * page: New orders by default (nearest pick-up date first), Ready, Picked
- * up, Cancelled or All, with a search by order number or student. Tapping
- * an order opens it with Ready for pickup, Picked up and Cancel.
+ * page: Scan issuance slip at the top, then New orders by default (nearest
+ * pick-up date first), Ready, Released, Cancelled or All, with a search by
+ * order number or student. Tapping an order opens it with Ready for pickup,
+ * Release and Cancel.
  */
 export default function StaffOrdersScreen() {
     const insets = useSafeAreaInsets();
@@ -78,9 +79,18 @@ export default function StaffOrdersScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    Prepare, mark ready, and hand over when the student pays.
+                    Prepare, mark ready, and release when the student pays.
                 </Text>
             </View>
+
+            <Pressable
+                onPress={() => router.push('/scan-slip')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
+            >
+                <ScanLine size={19} color="#ffffff" />
+                <Text className="font-sans-bold text-base text-white">Scan issuance slip</Text>
+            </Pressable>
 
             <View className="flex-row items-center gap-2 rounded-full border border-slate-200 bg-white px-4">
                 <Search size={17} color="#94a3b8" />

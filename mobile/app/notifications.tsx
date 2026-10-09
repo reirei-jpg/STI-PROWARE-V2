@@ -33,9 +33,16 @@ function describe(data: StudentNotificationData): {
         case 'order_ready':
             return {
                 title: `Order ${data.order_number} is ready for pickup`,
-                body: `Pick it up at the PROWARE office and pay ${formatPeso(data.total_centavos)} in cash${data.pick_up_by ? ` by ${formatDate(data.pick_up_by)}` : ''}.`,
+                body: `Show its issuance slip at the PROWARE office and pay ${formatPeso(data.total_centavos)}${data.pick_up_by ? ` by ${formatDate(data.pick_up_by)}` : ''}.`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
+            };
+        case 'order_last_day':
+            return {
+                title: `Last day to get order ${data.order_number}`,
+                body: `Show its issuance slip at the PROWARE office today and pay ${formatPeso(data.total_centavos)}. After today it expires and the items go back on sale.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
             };
         case 'order_cancelled':
             return {
@@ -228,8 +235,8 @@ export default function NotificationsScreen() {
                             No notifications yet
                         </Text>
                         <Text className="mt-1 text-center font-sans text-sm text-slate-500">
-                            You will be told here when an order is ready, is
-                            cancelled, or a preordered item arrives.
+                            You will be told here when an order is ready, on its
+                            last day, when it is cancelled, or a preordered item arrives.
                         </Text>
                     </View>
                 )

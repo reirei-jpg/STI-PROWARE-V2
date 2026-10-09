@@ -49,7 +49,7 @@ class ProductController extends Controller
             ->withCount('variants')
             ->withSum('variants', 'stock_on_hand')
             ->withMin('variants as lowest_variant_sale_price', 'sale_price_centavos')
-            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at')])
+            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')])
             ->addSelect([
                 'first_received_at' => $movementsOfThisProduct()->selectRaw('min(stock_movements.created_at)'),
                 'last_sale_at' => $movementsOfThisProduct()

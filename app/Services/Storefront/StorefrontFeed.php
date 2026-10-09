@@ -4,6 +4,7 @@ namespace App\Services\Storefront;
 
 use App\Enums\ProductStatus;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -42,7 +43,7 @@ final class StorefrontFeed
     {
         return array_values(Product::query()
             ->where('status', ProductStatus::OnSale)
-            ->whereHas('variants', fn (Builder $variants) => $variants->where('stock_on_hand', '>', 0))
+            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0'))
             ->with(self::RELATIONS)
             ->orderBy('sale_ends_at')
             ->latest('id')
@@ -66,9 +67,9 @@ final class StorefrontFeed
             ->whereHas('variants.stockMovements')
             ->with(self::RELATIONS)
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
-            ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->where('stock_on_hand', '>', 0)))
-            ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->where('stock_on_hand', '>', 0)))
-            ->orderByRaw('case when exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > 0) then 0 else 1 end')
+            ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
+            ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
+            ->orderByRaw('case when exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > product_variants.held_pieces) then 0 else 1 end')
             ->latest('created_at')
             ->latest('id');
     }

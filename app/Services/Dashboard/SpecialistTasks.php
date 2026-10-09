@@ -106,13 +106,13 @@ final class SpecialistTasks
         $atWarning = fn () => ProductVariant::query()
             ->join('products', 'products.id', '=', 'product_variants.product_id')
             ->whereIn('products.status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at');
+            ->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at');
 
         $total = $atWarning()->distinct()->count('product_variants.product_id');
 
         $productIds = $atWarning()
             ->groupBy('product_variants.product_id')
-            ->selectRaw('product_variants.product_id, min(product_variants.stock_on_hand) as lowest')
+            ->selectRaw('product_variants.product_id, min(product_variants.stock_on_hand - product_variants.held_pieces) as lowest')
             ->orderBy('lowest')
             ->orderBy('product_variants.product_id')
             ->limit(self::SHOWN_PER_KIND)
@@ -135,16 +135,16 @@ final class SpecialistTasks
             /** @var ProductVariant $first */
             $first = $variants->first();
             $product = $first->product;
-            $out = $variants->filter(fn (ProductVariant $variant): bool => $variant->stock_on_hand === 0);
-            $low = $variants->filter(fn (ProductVariant $variant): bool => $variant->stock_on_hand > 0);
+            $out = $variants->filter(fn (ProductVariant $variant): bool => $variant->freeToSell() === 0);
+            $low = $variants->filter(fn (ProductVariant $variant): bool => $variant->freeToSell() > 0);
             $hasOptions = $first->choices !== [];
 
             $detail = $hasOptions
                 ? implode(' · ', array_filter([
                     $out->isEmpty() ? null : self::listed($out->map(fn (ProductVariant $variant): string => $variant->label())->all()).' out of stock',
-                    $low->isEmpty() ? null : self::listed($low->map(fn (ProductVariant $variant): string => $variant->label().' '.Units::count($variant->stock_on_hand, 'Piece'))->all()).' left',
+                    $low->isEmpty() ? null : self::listed($low->map(fn (ProductVariant $variant): string => $variant->label().' '.Units::count($variant->freeToSell(), 'Piece'))->all()).' left',
                 ]))
-                : Units::count($first->stock_on_hand, 'Piece').' left · warned at '.Units::count($product->low_stock_alert_at, 'Piece');
+                : Units::count($first->freeToSell(), 'Piece').' left · warned at '.Units::count($product->low_stock_alert_at, 'Piece');
 
             $tasks[] = self::task(
                 key: "low-{$productId}",

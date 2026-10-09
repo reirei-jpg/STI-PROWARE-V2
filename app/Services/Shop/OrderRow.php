@@ -47,16 +47,21 @@ final class OrderRow
     }
 
     /**
-     * @return array{id: int, number: string|null, status: string, status_label: string, student_name: string, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string, ready_at: string|null, picked_up_at: string|null, cancelled_at: string|null, cancel_reason: string|null}
+     * With what the issuance slip needs: its QR code (slip_code) and the
+     * student's course/section.
+     *
+     * @return array{id: int, number: string|null, slip_code: string|null, status: string, status_label: string, student_name: string, student_section: string|null, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string, ready_at: string|null, picked_up_at: string|null, cancelled_at: string|null, expired: bool, cancel_reason: string|null}
      */
     public static function of(Order $order): array
     {
         return [
             'id' => $order->id,
             'number' => $order->number,
+            'slip_code' => $order->slip_code,
             'status' => $order->status->value,
             'status_label' => $order->status->label(),
             'student_name' => $order->student->name,
+            'student_section' => $order->student_section,
             'total_centavos' => $order->total_centavos,
             'items' => array_values($order->items->map(fn (OrderItem $item): array => [
                 'id' => $item->id,
@@ -73,6 +78,7 @@ final class OrderRow
             'ready_at' => $order->ready_at?->toIso8601String(),
             'picked_up_at' => $order->picked_up_at?->toIso8601String(),
             'cancelled_at' => $order->cancelled_at?->toIso8601String(),
+            'expired' => $order->expired_at !== null,
             'cancel_reason' => $order->cancel_reason,
         ];
     }

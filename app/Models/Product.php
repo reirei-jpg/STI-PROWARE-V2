@@ -132,7 +132,7 @@ class Product extends Model
     protected function lowOnStock(Builder $query): void
     {
         $query->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('variants', fn (Builder $variants) => $variants->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at'));
+            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at'));
     }
 
     /**

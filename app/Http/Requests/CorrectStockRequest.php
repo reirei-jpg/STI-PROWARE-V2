@@ -75,8 +75,9 @@ class CorrectStockRequest extends FormRequest
     }
 
     /**
-     * The correction must change the stock, and cannot take out more pieces
-     * than are in stock.
+     * The correction must change the stock, cannot take out more pieces than
+     * are in stock, and cannot leave fewer on the shelf than are held for
+     * students' open orders (cancel those orders first).
      *
      * @return array<int, callable(Validator): void>
      */
@@ -88,18 +89,17 @@ class CorrectStockRequest extends FormRequest
                     return;
                 }
 
-                $stock = $this->variant()->stock_on_hand;
+                $variant = $this->variant();
+                $stock = $variant->stock_on_hand;
+                $field = $this->reason()->removesPieces() ? 'pieces_to_remove' : 'actual_count';
+                $after = $this->reason()->removesPieces() ? $stock - $this->integer('pieces_to_remove') : $this->integer('actual_count');
 
-                if ($this->reason()->removesPieces()) {
-                    if ($this->integer('pieces_to_remove') > $stock) {
-                        $validator->errors()->add('pieces_to_remove', "Only {$stock} pcs are in stock.");
-                    }
-
-                    return;
-                }
-
-                if ($this->integer('actual_count') === $stock) {
+                if ($this->reason()->removesPieces() && $this->integer('pieces_to_remove') > $stock) {
+                    $validator->errors()->add('pieces_to_remove', "Only {$stock} pcs are in stock.");
+                } elseif (! $this->reason()->removesPieces() && $after === $stock) {
                     $validator->errors()->add('actual_count', "The stock is already {$stock} pcs, so nothing would change.");
+                } elseif ($after < $variant->held_pieces) {
+                    $validator->errors()->add($field, "{$variant->held_pieces} pcs are held for students' orders, so the shelf cannot have fewer. Cancel those orders first, or count again.");
                 }
             },
         ];

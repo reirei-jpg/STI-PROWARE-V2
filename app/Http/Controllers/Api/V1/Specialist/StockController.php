@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Specialist;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterStockHistoryRequest;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\Stock\ProductStock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +30,8 @@ class StockController extends Controller
         return response()->json(Product::query()
             ->with('mainPhoto')
             ->withSum('variants', 'stock_on_hand')
-            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereColumn('product_variants.stock_on_hand', '<=', 'products.low_stock_alert_at')])
+            ->withSum('variants', 'held_pieces')
+            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')])
             ->when($search !== '', fn (Builder $query) => $query->whereLike('name', "%{$search}%"))
             ->when($request->boolean('low'), fn (Builder $query) => $query->lowOnStock())
             ->orderBy('name')
@@ -42,6 +44,7 @@ class StockController extends Controller
                 'photo_url' => $product->mainPhoto?->url(),
                 'status_label' => $product->status->label(),
                 'stock_on_hand' => (int) $product->getAttribute('variants_sum_stock_on_hand'),
+                'held_pieces' => (int) $product->getAttribute('variants_sum_held_pieces'),
                 'low_stock_alert_at' => $product->low_stock_alert_at,
                 'is_low' => (bool) $product->getAttribute('has_variant_at_alert'),
             ]));
