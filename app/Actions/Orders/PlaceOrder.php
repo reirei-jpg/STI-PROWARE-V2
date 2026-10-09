@@ -3,13 +3,13 @@
 namespace App\Actions\Orders;
 
 use App\Enums\OrderStatus;
-use App\Enums\StockMovementType;
 use App\Enums\UserRole;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
+use App\Services\Shop\OrderRules;
 use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Support\Facades\DB;
@@ -17,19 +17,33 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Turns the ticked items in a student's cart into an order: checks each can
- * still be bought and is in stock, keeps each line with today's price,
- * takes the pieces out of stock (held until pickup, recorded as "Sale ·
- * PW-0001"), removes them from the cart (unticked items stay) and tells
- * the Specialist.
+ * Turns the ticked items in a student's cart into an order: checks the
+ * student may order (OrderRules), that each item can still be bought and
+ * enough is free to sell, keeps each line with today's price, HOLDS the
+ * pieces for the order (they stay on the shelf until the Specialist
+ * releases them), removes them from the cart (unticked items stay) and
+ * tells the Specialist. The student's course/section is kept for the
+ * issuance slip.
  */
 class PlaceOrder
 {
     public function __construct(private LowStockAlerts $lowStockAlerts) {}
 
-    public function handle(User $student): Order
+    public function handle(User $student, ?string $section = null): Order
     {
-        $order = DB::transaction(function () use ($student): Order {
+        $refusal = OrderRules::refusal($student);
+
+        if ($refusal !== null) {
+            throw ValidationException::withMessages(['cart' => $refusal]);
+        }
+
+        $section = $section === null || trim($section) === '' ? null : trim($section);
+
+        if ($section !== null && $section !== $student->section) {
+            $student->forceFill(['section' => $section])->save();
+        }
+
+        $order = DB::transaction(function () use ($student, $section): Order {
             $cart = $student->cartItems()->where('selected', true)->with(['variant.product', 'pack.product'])->orderBy('id')->get();
 
             if ($cart->isEmpty()) {
@@ -49,9 +63,10 @@ class PlaceOrder
             $this->ensureCanBeOrdered($cart->all(), $variants->all());
 
             $order = $student->orders()->create([
+                'student_section' => $section ?? $student->section,
                 'status' => OrderStatus::Placed,
                 'total_centavos' => 0,
-                'pick_up_by' => now()->addDays(Order::PICK_UP_DAYS)->endOfDay(),
+                'pick_up_by' => OrderRules::holdUntil(),
             ]);
             $order->forceFill(['number' => Order::numberFor($order->id)])->save();
 
@@ -75,19 +90,8 @@ class PlaceOrder
                     'line_total_centavos' => $unitPrice * $line->quantity,
                 ]);
 
-                $balance = $variant->stock_on_hand - $item->pieces();
-                $variant->forceFill(['stock_on_hand' => $balance])->save();
-
-                $variant->stockMovements()->create([
-                    'type' => StockMovementType::Sale,
-                    'quantity' => -$item->pieces(),
-                    'balance_after' => $balance,
-                    'order_item_id' => $item->id,
-                    'units_received' => $item->quantity,
-                    'unit_name' => $item->unit_name,
-                    'pieces_per_unit' => $piecesPerUnit,
-                    'recorded_by' => $student->id,
-                ]);
+                // Held, not sold: the pieces stay on the shelf until released.
+                $variant->forceFill(['held_pieces' => $variant->held_pieces + $item->pieces()])->save();
 
                 $total += $item->line_total_centavos;
             }
@@ -109,17 +113,17 @@ class PlaceOrder
     }
 
     /**
-     * "Order PW-0001 placed. Pick it up and pay in cash at the PROWARE office
-     * by Oct 7, 2026." (website and phone app).
+     * "Order PW-0001 placed. Show its issuance slip at the PROWARE office by
+     * Oct 7, 2026, to pay and get your items." (website and phone app).
      */
     public static function message(Order $order): string
     {
-        return "Order {$order->number} placed. Pick it up and pay in cash at the PROWARE office by {$order->pick_up_by->format('M j, Y')}.";
+        return "Order {$order->number} placed. Show its issuance slip at the PROWARE office by {$order->pick_up_by->format('M j, Y')}, to pay and get your items.";
     }
 
     /**
      * Every item must still be for sale at a price, and the pieces asked for
-     * each size or color must be in stock.
+     * each size or color must be free to sell (not held for other orders).
      *
      * @param  array<int, CartItem>  $cart
      * @param  array<int, ProductVariant>  $variants  locked, by id
@@ -141,11 +145,12 @@ class PlaceOrder
 
         foreach ($piecesWanted as $variantId => $pieces) {
             $variant = $variants[$variantId];
+            $free = $variant->freeToSell();
 
-            if ($pieces > $variant->stock_on_hand) {
-                throw ValidationException::withMessages(['cart' => $variant->stock_on_hand === 0
+            if ($pieces > $free) {
+                throw ValidationException::withMessages(['cart' => $free === 0
                     ? "{$variant->displayName()} is out of stock. Remove it from your cart."
-                    : "Only {$variant->stock_on_hand} pcs of {$variant->displayName()} are left. Change your cart."]);
+                    : "Only {$free} pcs of {$variant->displayName()} are left. Change your cart."]);
             }
         }
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Http\Requests\CancelOrderRequest;
+use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
 use App\Services\Shop\SpecialistOrders;
 use Closure;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 /**
  * The Specialist's Orders page: students' orders to prepare and hand over.
- * The steps (Ready for pickup, Picked up, undo, Cancel) are in
+ * The steps (Ready for pickup, Release, undo release, Cancel) are in
  * HandleOrderBySpecialist, shared with the phone app.
  */
 class OrderController extends Controller
@@ -40,14 +41,14 @@ class OrderController extends Controller
         return $this->respond(fn (): string => $handle->ready($order, $request->user()));
     }
 
-    public function pickedUp(Request $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
+    public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
-        return $this->respond(fn (): string => $handle->pickedUp($order, $request->user()));
+        return $this->respond(fn (): string => $handle->release($order, $request->user()));
     }
 
-    public function undoPickup(Order $order, HandleOrderBySpecialist $handle): RedirectResponse
+    public function undoRelease(Request $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
-        return $this->respond(fn (): string => $handle->undoPickup($order));
+        return $this->respond(fn (): string => $handle->undoRelease($order, $request->user()));
     }
 
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse

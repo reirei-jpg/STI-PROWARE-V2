@@ -14,7 +14,7 @@ import OrderItems, { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
-import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { OrderRow, Paginated } from '@/types';
 
@@ -22,7 +22,7 @@ type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
 
 type SpecialistOrder = OrderRow & {
     handled_by: string | null;
-    can_undo_pickup: boolean;
+    can_undo_release: boolean;
 };
 
 const chips: { value: Show; label: string }[] = [
@@ -88,16 +88,27 @@ export default function OrdersIndex({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
-    const act = (url: string, order: SpecialistOrder) => {
+    const act = (
+        url: string,
+        order: SpecialistOrder,
+        data: Record<string, boolean> = {},
+    ) => {
         setBusy(order.id);
-        router.post(
-            url,
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => setBusy(null),
-            },
-        );
+        router.post(url, data, {
+            preserveScroll: true,
+            onFinish: () => setBusy(null),
+        });
+    };
+
+    // The items leave the shelf only when the student has paid.
+    const release = (order: SpecialistOrder) => {
+        if (
+            window.confirm(
+                `Has ${order.student_name} paid ${formatPeso(order.total_centavos)} for ${order.number}?`,
+            )
+        ) {
+            act(OrderController.release(order.id).url, order, { paid: true });
+        }
     };
 
     return (
@@ -240,12 +251,7 @@ export default function OrdersIndex({
                                                             busy === order.id
                                                         }
                                                         onClick={() =>
-                                                            act(
-                                                                OrderController.pickedUp(
-                                                                    order.id,
-                                                                ).url,
-                                                                order,
-                                                            )
+                                                            release(order)
                                                         }
                                                         className={cn(
                                                             'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-black transition disabled:opacity-60',
@@ -256,7 +262,7 @@ export default function OrdersIndex({
                                                         )}
                                                     >
                                                         <Banknote size={16} />
-                                                        Picked up (paid)
+                                                        Release (paid)
                                                     </button>
                                                     <button
                                                         type="button"
@@ -270,23 +276,23 @@ export default function OrdersIndex({
                                                 </>
                                             )}
 
-                                            {order.can_undo_pickup && (
+                                            {order.can_undo_release && (
                                                 <button
                                                     type="button"
                                                     disabled={busy === order.id}
                                                     onClick={() =>
                                                         act(
-                                                            OrderController.undoPickup(
+                                                            OrderController.undoRelease(
                                                                 order.id,
                                                             ).url,
                                                             order,
                                                         )
                                                     }
                                                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                                                    title="Marked by mistake? Put it back to Ready for pickup (today only)."
+                                                    title="Released by mistake? Put it back to Ready for pickup (today only)."
                                                 >
                                                     <Undo2 size={16} />
-                                                    Undo pickup
+                                                    Undo release
                                                 </button>
                                             )}
                                         </div>

@@ -12,3 +12,4 @@ Schedule::command('sales:check')->hourly()->withoutOverlapping();
 // Orders not picked up by their pick-up date cancel themselves and their
 // stock goes back.
 Schedule::command('orders:cancel-unclaimed')->hourly()->withoutOverlapping();
+Schedule::command('orders:remind-last-day')->hourly()->withoutOverlapping();

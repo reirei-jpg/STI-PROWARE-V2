@@ -27,7 +27,7 @@ class NotificationController extends Controller
             'low_stock' => to_route('products.stock', $notification->data['product_id']),
             'sale_ending', 'sale_ended' => to_route('products.index', ['search' => $notification->data['product_name']]),
             'order_placed' => to_route('orders.index', ['show' => 'all', 'search' => $notification->data['order_number']]),
-            'order_ready', 'order_cancelled' => to_route('my-orders.index'),
+            'order_ready', 'order_cancelled', 'order_last_day' => to_route('my-orders.index'),
             'preorder_arrived' => to_route('home', ['search' => $notification->data['product_name']]),
             default => to_route('purchase-orders.index', ['view' => $notification->data['purchase_order_id'] ?? null]),
         };

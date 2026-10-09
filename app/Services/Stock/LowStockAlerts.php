@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Notification;
 
 /**
  * Warns the Specialist when a variant of a product students can buy
- * (Available or On Sale) falls to the product's low-stock number. Each
+ * (Available or On Sale) falls to the product's low-stock number, counting
+ * what is free to sell (pieces held for orders are as good as gone). Each
  * variant is warned once; when its stock rises above the number again
  * (e.g. a delivery arrives) it can be warned again next time.
  */
@@ -26,7 +27,7 @@ final class LowStockAlerts
         $variant->loadMissing('product');
         $product = $variant->product;
 
-        if ($variant->stock_on_hand > $product->low_stock_alert_at) {
+        if ($variant->freeToSell() > $product->low_stock_alert_at) {
             if ($variant->low_stock_notified_at !== null) {
                 $variant->forceFill(['low_stock_notified_at' => null])->save();
             }
@@ -54,7 +55,7 @@ final class LowStockAlerts
     {
         $product->variants()
             ->whereNotNull('low_stock_notified_at')
-            ->where('stock_on_hand', '>', $product->low_stock_alert_at)
+            ->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > ?', [$product->low_stock_alert_at])
             ->update(['low_stock_notified_at' => null]);
     }
 

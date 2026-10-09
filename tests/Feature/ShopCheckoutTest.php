@@ -112,7 +112,7 @@ test('a product sold only by the pack needs a pack, and only packs sold to stude
         ->assertSessionHasErrors(['product_pack_id' => 'Choose one of the packs shown.']);
 });
 
-test('placing an order takes the stock, keeps today\'s prices and tells the specialist', function () {
+test('placing an order holds the stock, keeps today\'s prices, notes the section and tells the specialist', function () {
     Notification::fake();
     [$product, $variant, $box] = ballpen(stock: 30);
     $product->update(['status' => ProductStatus::OnSale, 'sale_price_centavos' => 1000]);
@@ -121,22 +121,26 @@ test('placing an order takes the stock, keeps today\'s prices and tells the spec
     CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create(['product_pack_id' => $box->id, 'quantity' => 2]);
 
     $this->actingAs($this->student)
-        ->post(route('my-orders.store'))
+        ->post(route('my-orders.store'), ['section' => ' BSIT 1-A '])
         ->assertRedirect(route('my-orders.index'))
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 placed. Pick it up and pay in cash at the PROWARE office by Oct 6, 2026.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 placed. Show its issuance slip at the PROWARE office by Oct 5, 2026, to pay and get your items.');
 
     $order = Order::sole();
     expect($order)
         ->number->toBe('PW-0001')
         ->status->toBe(OrderStatus::Placed)
+        ->student_section->toBe('BSIT 1-A')
         ->total_centavos->toBe(3 * 1000 + 2 * 12000)
-        ->and($order->pick_up_by->toDateTimeString())->toBe('2026-10-06 23:59:59')
+        ->and($order->slip_code)->toHaveLength(32)
+        ->and($order->pick_up_by->toDateTimeString())->toBe('2026-10-05 23:59:59')
         ->and($order->items()->orderBy('id')->get(['unit_name', 'pieces_per_unit', 'quantity', 'unit_price_centavos', 'line_total_centavos'])->toArray())->toBe([
             ['unit_name' => 'Piece', 'pieces_per_unit' => 1, 'quantity' => 3, 'unit_price_centavos' => 1000, 'line_total_centavos' => 3000],
             ['unit_name' => 'Box', 'pieces_per_unit' => 12, 'quantity' => 2, 'unit_price_centavos' => 12000, 'line_total_centavos' => 24000],
         ])
-        ->and($variant->refresh()->stock_on_hand)->toBe(30 - 3 - 24)
-        ->and(StockMovement::query()->where('type', StockMovementType::Sale)->orderBy('id')->pluck('balance_after')->all())->toBe([27, 3])
+        ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(3 + 24)
+        ->and($variant->freeToSell())->toBe(3)
+        ->and(StockMovement::query()->where('type', StockMovementType::Sale)->count())->toBe(0)
+        ->and($this->student->refresh()->section)->toBe('BSIT 1-A')
         ->and($this->student->cartItems()->count())->toBe(0);
 
     Notification::assertSentTo($this->specialist, OrderPlaced::class, fn (OrderPlaced $notice) => $notice->toArray($this->specialist) === [
@@ -147,9 +151,10 @@ test('placing an order takes the stock, keeps today\'s prices and tells the spec
     $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page
         ->component('storefront/my-orders')
         ->where('orders.data.0.number', 'PW-0001')
-        ->where('orders.data.0.pick_up_by', '2026-10-06')
+        ->where('orders.data.0.pick_up_by', '2026-10-05')
+        ->where('orders.data.0.student_section', 'BSIT 1-A')
     );
-    expect((new OrderReady($order))->toArray($this->student)['pick_up_by'])->toBe('2026-10-06');
+    expect((new OrderReady($order))->toArray($this->student)['pick_up_by'])->toBe('2026-10-05');
 });
 
 test('an order cannot be placed when stock ran out after it went in the cart', function () {
@@ -183,8 +188,8 @@ test('only the ticked items are ordered and the unticked ones stay in the cart',
     expect(Order::query()->sole()->items()->pluck('product_name')->all())->toBe(['STI Ballpen'])
         ->and(Order::query()->sole()->total_centavos)->toBe(3000)
         ->and($this->student->cartItems()->pluck('id')->all())->toBe([$later->id])
-        ->and($ballpen->refresh()->stock_on_hand)->toBe(8)
-        ->and($umbrella->refresh()->stock_on_hand)->toBe(5);
+        ->and($ballpen->refresh()->held_pieces)->toBe(2)
+        ->and($umbrella->refresh()->held_pieces)->toBe(0);
 });
 
 test('the cart totals only ticked items, and an unticked item\'s problem does not block the order', function () {
@@ -240,9 +245,10 @@ test('placing an order with nothing ticked asks to tick the items, and adding an
     expect($line->refresh()->selected)->toBeTrue();
 });
 
-test('a student can cancel a placed order and the stock goes back', function () {
+test('a student can cancel a placed order and its hold ends', function () {
     [, $variant] = ballpen(stock: 10);
     $order = placedOrder($variant, 4);
+    expect($variant->refresh()->held_pieces)->toBe(4);
 
     $this->post(route('my-orders.cancel', $order))
         ->assertInertiaFlash('toast.message', 'Order PW-0001 was cancelled.');
@@ -250,11 +256,9 @@ test('a student can cancel a placed order and the stock goes back', function () 
     expect($order->refresh())
         ->status->toBe(OrderStatus::Cancelled)
         ->cancel_reason->toBe('Cancelled by the student.')
-        ->and($variant->refresh()->stock_on_hand)->toBe(10)
-        ->and(StockMovement::query()->latest('id')->first())
-        ->type->toBe(StockMovementType::OrderCancelled)
-        ->quantity->toBe(4)
-        ->balance_after->toBe(10);
+        ->expired_at->toBeNull()
+        ->and($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0)
+        ->and(StockMovement::query()->whereNotNull('order_item_id')->count())->toBe(0);
 
     expect($this->student->notifications()->count())->toBe(0);
 });
@@ -281,31 +285,67 @@ test('a student cannot see or cancel another student\'s order', function () {
     $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page->has('orders.data', 0));
 });
 
-test('the specialist marks an order ready, then picked up, and can undo a pickup the same day', function () {
-    [, $variant] = ballpen();
+test('the specialist marks an order ready, then releases it once paid, and the items leave the shelf only then', function () {
+    [, $variant] = ballpen(stock: 30);
     $order = placedOrder($variant, 2);
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.ready', $order))
         ->assertInertiaFlash('toast.message', 'Order PW-0001 is ready for pickup. Juan Dela Cruz was notified.');
     expect($order->refresh()->status)->toBe(OrderStatus::Ready)
-        ->and($this->student->notifications()->sole()->type)->toBe(OrderReady::class);
+        ->and($this->student->notifications()->sole()->type)->toBe(OrderReady::class)
+        ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2);
 
-    $this->post(route('orders.picked-up', $order))
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 picked up · ₱30.00 paid in cash.');
-    expect($order->refresh())->status->toBe(OrderStatus::PickedUp)->handled_by->toBe($this->specialist->id);
+    $this->post(route('orders.release', $order))
+        ->assertSessionHasErrors(['paid' => 'Confirm that the student has paid before releasing the items.']);
+    expect($order->refresh()->status)->toBe(OrderStatus::Ready);
 
-    $this->post(route('orders.undo-pickup', $order));
-    expect($order->refresh())->status->toBe(OrderStatus::Ready)->picked_up_at->toBeNull();
-
-    $this->post(route('orders.picked-up', $order));
-    $this->travel(1)->day();
-    $this->post(route('orders.undo-pickup', $order))
-        ->assertInertiaFlash('toast.message', 'Order PW-0001\'s pickup can only be undone on the day it was marked.');
-    expect($order->refresh()->status)->toBe(OrderStatus::PickedUp);
+    $this->post(route('orders.release', $order), ['paid' => true])
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 released to Juan Dela Cruz · ₱30.00 paid.');
+    expect($order->refresh())
+        ->status->toBe(OrderStatus::PickedUp)
+        ->handled_by->toBe($this->specialist->id)
+        ->and($order->status->label())->toBe('Released')
+        ->and($variant->refresh())->stock_on_hand->toBe(28)->held_pieces->toBe(0)
+        ->and(StockMovement::query()->latest('id')->first())
+        ->type->toBe(StockMovementType::Sale)
+        ->quantity->toBe(-2)
+        ->balance_after->toBe(28)
+        ->recorded_by->toBe($this->specialist->id);
 });
 
-test('the specialist cancels with a reason, the stock goes back and the student is told', function () {
+test('a release marked by mistake is undone the same day and the items are held again', function () {
+    [, $variant] = ballpen(stock: 30);
+    $order = placedOrder($variant, 2);
+    $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
+
+    $this->post(route('orders.undo-release', $order))
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 is back to Ready for pickup. Its items are back on the shelf, held for it.');
+    expect($order->refresh())->status->toBe(OrderStatus::Ready)->picked_up_at->toBeNull()
+        ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2)
+        ->and(StockMovement::query()->latest('id')->first())->type->toBe(StockMovementType::ReleaseUndone)->quantity->toBe(2);
+
+    $this->post(route('orders.release', $order), ['paid' => true]);
+    $this->travel(1)->day();
+    $this->post(route('orders.undo-release', $order))
+        ->assertInertiaFlash('toast.message', 'Order PW-0001\'s release can only be undone on the day it was released.');
+    expect($order->refresh()->status)->toBe(OrderStatus::PickedUp)
+        ->and($variant->refresh()->stock_on_hand)->toBe(28);
+});
+
+test('an order cannot be released twice', function () {
+    [, $variant] = ballpen(stock: 30);
+    $order = placedOrder($variant, 2);
+    $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
+
+    $this->post(route('orders.release', $order), ['paid' => true])
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 is Released, so it cannot be released.');
+
+    expect($variant->refresh()->stock_on_hand)->toBe(28)
+        ->and(StockMovement::query()->where('type', StockMovementType::Sale)->count())->toBe(1);
+});
+
+test('the specialist cancels with a reason, the hold ends and the student is told', function () {
     [, $variant] = ballpen(stock: 10);
     $order = placedOrder($variant, 3);
     $this->actingAs($this->specialist);
@@ -314,35 +354,36 @@ test('the specialist cancels with a reason, the stock goes back and the student 
         ->assertSessionHasErrors(['reason' => 'Write why the order is cancelled. The student will see it.']);
 
     $this->post(route('orders.cancel', $order), ['reason' => 'The ballpens were damaged.'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 was cancelled and its items went back to stock. Juan Dela Cruz was notified.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 was cancelled and its items are free to sell again. Juan Dela Cruz was notified.');
 
     expect($order->refresh())
         ->status->toBe(OrderStatus::Cancelled)
         ->handled_by->toBe($this->specialist->id)
-        ->and($variant->refresh()->stock_on_hand)->toBe(10)
+        ->and($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0)
         ->and($this->student->notifications()->sole()->data)->toMatchArray(['kind' => 'order_cancelled', 'reason' => 'The ballpens were damaged.']);
 
-    // A picked-up order cannot be cancelled.
-    $pickedUp = placedOrder($variant, 1);
-    $pickedUp->forceFill(['status' => OrderStatus::PickedUp])->save();
-    $this->actingAs($this->specialist)->post(route('orders.cancel', $pickedUp), ['reason' => 'Mistake'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0002 is Picked up, so it cannot be cancelled.');
+    // A released order cannot be cancelled.
+    $released = placedOrder($variant, 1);
+    $this->actingAs($this->specialist)->post(route('orders.release', $released), ['paid' => true]);
+    $this->post(route('orders.cancel', $released), ['reason' => 'Mistake'])
+        ->assertInertiaFlash('toast.message', 'Order PW-0002 is Released, so it cannot be cancelled.');
 });
 
-test('orders not picked up by their date cancel themselves', function () {
+test('orders not released within the hold expire, and their items are free to sell again', function () {
     [, $variant] = ballpen(stock: 10);
     $late = placedOrder($variant, 2);
     $this->travelTo(CarbonImmutable::parse('2026-10-05 09:00', 'Asia/Manila'));
     $onTime = placedOrder($variant, 1);
 
-    $this->travelTo(CarbonImmutable::parse('2026-10-07 00:30', 'Asia/Manila'));
+    $this->travelTo(CarbonImmutable::parse('2026-10-06 00:30', 'Asia/Manila'));
     $this->artisan('orders:cancel-unclaimed')->assertSuccessful();
 
     expect($late->refresh())
         ->status->toBe(OrderStatus::Cancelled)
-        ->cancel_reason->toBe('Not picked up by Oct 6, 2026.')
+        ->cancel_reason->toBe('Not picked up by Oct 5, 2026.')
+        ->expired_at->not->toBeNull()
         ->and($onTime->refresh()->status)->toBe(OrderStatus::Placed)
-        ->and($variant->refresh()->stock_on_hand)->toBe(9)
+        ->and($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(1)
         ->and($this->student->notifications()->sole()->type)->toBe(OrderCancelled::class);
 });
 
@@ -416,21 +457,31 @@ test('opening an order notice goes to the order', function () {
         ->assertRedirect(route('my-orders.index'));
 });
 
-test('stock history shows the order and a cancelled order does not count as a sale', function () {
+test('a held order shows who holds the stock, and only a released order is a sale in the stock history', function () {
     [$product, $variant] = ballpen(stock: 10);
     StockMovement::factory()->for($variant, 'variant')->create(['created_at' => now()->subDays(30)]);
     $order = placedOrder($variant, 2);
     $this->actingAs($this->specialist);
 
     $this->get(route('products.stock', $product))->assertInertia(fn (Assert $page) => $page
+        ->where('product.stock_on_hand', 10)
+        ->where('product.held_pieces', 2)
+        ->where('product.free_to_sell', 8)
+        ->where('holds.0.order_number', 'PW-0001')
+        ->where('holds.0.student_name', 'Juan Dela Cruz')
+        ->where('holds.0.pieces', 2)
+        ->where('movements.data.0.type', 'delivery')
+    );
+    $this->get(route('products.index', ['stock' => 'slow']))
+        ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 1));
+
+    $this->post(route('orders.release', $order), ['paid' => true]);
+
+    $this->get(route('products.stock', $product))->assertInertia(fn (Assert $page) => $page
+        ->where('holds', [])
         ->where('movements.data.0.type', 'sale')
         ->where('movements.data.0.order', ['number' => 'PW-0001', 'student_name' => 'Juan Dela Cruz'])
     );
     $this->get(route('products.index', ['stock' => 'slow']))
         ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 0));
-
-    $this->post(route('orders.cancel', $order), ['reason' => 'Changed mind']);
-
-    $this->get(route('products.index', ['stock' => 'slow']))
-        ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 1)->where('products.data.0.last_sale_at', null));
 });

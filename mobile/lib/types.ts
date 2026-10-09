@@ -214,7 +214,7 @@ export type SpecialistTasks = {
 /** A student's order on the Specialist's list. */
 export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {
     handled_by: string | null;
-    can_undo_pickup: boolean;
+    can_undo_release: boolean;
 };
 
 export type SpecialistOrderCounts = {

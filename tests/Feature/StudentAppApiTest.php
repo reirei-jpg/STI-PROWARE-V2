@@ -145,18 +145,19 @@ test('the app\'s cart follows the website\'s rules', function () {
     $this->deleteJson(route('api.v1.cart.destroy', $theirs))->assertNotFound();
 });
 
-test('placing, seeing and cancelling an order on the app', function () {
+test('placing (with the section), seeing and cancelling an order on the app', function () {
     [, $variant] = appBallpen(stock: 10);
     CartItem::factory()->for($this->student, 'student')->for($variant, 'variant')->create(['quantity' => 4]);
     Sanctum::actingAs($this->student);
 
-    $order = $this->postJson(route('api.v1.orders.store'))
+    $order = $this->postJson(route('api.v1.orders.store'), ['section' => 'BSHM 2-B'])
         ->assertCreated()
-        ->assertJsonPath('message', 'Order PW-0001 placed. Pick it up and pay in cash at the PROWARE office by Oct 7, 2026.')
+        ->assertJsonPath('message', 'Order PW-0001 placed. Show its issuance slip at the PROWARE office by Oct 6, 2026, to pay and get your items.')
+        ->assertJsonPath('order.student_section', 'BSHM 2-B')
         ->assertJsonPath('order.can_cancel', true)
         ->json('order');
 
-    expect($variant->refresh()->stock_on_hand)->toBe(6);
+    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(4);
 
     $this->getJson(route('api.v1.orders.index'))->assertJsonPath('data.0.number', 'PW-0001');
     $this->getJson(route('api.v1.orders.show', $order['id']))->assertJsonPath('items.0.quantity', 4);
@@ -164,7 +165,7 @@ test('placing, seeing and cancelling an order on the app', function () {
     $this->postJson(route('api.v1.orders.cancel', $order['id']))
         ->assertOk()
         ->assertJsonPath('order.status', 'cancelled');
-    expect($variant->refresh()->stock_on_hand)->toBe(10);
+    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0);
 });
 
 test('the app refuses to cancel a prepared order or another student\'s order', function () {

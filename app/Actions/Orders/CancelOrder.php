@@ -3,7 +3,6 @@
 namespace App\Actions\Orders;
 
 use App\Enums\OrderStatus;
-use App\Enums\StockMovementType;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -12,8 +11,10 @@ use App\Services\Stock\LowStockAlerts;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Cancels an order that was not picked up yet: its pieces go back to stock
- * (recorded as "Order cancelled · PW-0001"). When the student did not
+ * Cancels an order that was not released yet: its hold ends, so its pieces
+ * (which never left the shelf) are free to sell again. When it cancels
+ * itself for not being released in time, it is marked expired (this counts
+ * towards the no-show pause in OrderRules). When the student did not
  * cancel it themselves, they are told why.
  */
 class CancelOrder
@@ -21,7 +22,7 @@ class CancelOrder
     public function __construct(private LowStockAlerts $lowStockAlerts) {}
 
     /**
-     * @param  User|null  $cancelledBy  null when it cancels itself (not picked up in time)
+     * @param  User|null  $cancelledBy  null when it expired (not released in time)
      */
     public function handle(Order $order, ?User $cancelledBy, string $reason): void
     {
@@ -34,19 +35,7 @@ class CancelOrder
 
             foreach ($order->items as $item) {
                 $variant = ProductVariant::query()->with('product')->lockForUpdate()->findOrFail($item->product_variant_id);
-                $balance = $variant->stock_on_hand + $item->pieces();
-                $variant->forceFill(['stock_on_hand' => $balance])->save();
-
-                $variant->stockMovements()->create([
-                    'type' => StockMovementType::OrderCancelled,
-                    'quantity' => $item->pieces(),
-                    'balance_after' => $balance,
-                    'order_item_id' => $item->id,
-                    'units_received' => $item->quantity,
-                    'unit_name' => $item->unit_name,
-                    'pieces_per_unit' => $item->pieces_per_unit,
-                    'recorded_by' => $cancelledBy?->id,
-                ]);
+                $variant->forceFill(['held_pieces' => max(0, $variant->held_pieces - $item->pieces())])->save();
 
                 $this->lowStockAlerts->check($variant);
             }
@@ -54,6 +43,7 @@ class CancelOrder
             $order->forceFill([
                 'status' => OrderStatus::Cancelled,
                 'cancelled_at' => now(),
+                'expired_at' => $cancelledBy === null ? now() : null,
                 'cancel_reason' => $reason,
                 'handled_by' => $cancelledBy?->isStudent() ? null : $cancelledBy?->id,
             ])->save();

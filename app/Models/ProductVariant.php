@@ -19,8 +19,11 @@ use Illuminate\Support\Carbon;
  *
  * Its eStore Item Code links it to the items on uploaded purchase orders;
  * Head Office sends that item by the piece, or by the pack in estore_pack_id.
- * Stock on hand is counted in pieces and only changes through a stock
- * movement, so every change is in the stock history.
+ * Stock on hand is the pieces on the shelf, counted in pieces; it only
+ * changes through a stock movement, so every change is in the stock
+ * history. Held pieces are on the shelf but kept for students' open orders
+ * until the Specialist releases them; students can only buy the rest
+ * (free to sell).
  *
  * @property int $id
  * @property int $product_id
@@ -30,7 +33,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $estore_pack_id
  * @property int|null $price_centavos
  * @property int|null $sale_price_centavos its own sale price while On Sale; empty: the product's sale price, if any
- * @property int $stock_on_hand
+ * @property int $stock_on_hand pieces on the shelf
+ * @property int $held_pieces pieces on the shelf kept for open orders
  * @property Carbon|null $low_stock_notified_at when the low-stock warning was sent; cleared when stock rises above the number
  * @property int $position
  * @property Carbon|null $created_at
@@ -42,6 +46,9 @@ class ProductVariant extends Model
     /** @use HasFactory<ProductVariantFactory> */
     use HasFactory;
 
+    /** "Free to sell" (on the shelf, less held) for queries. */
+    public const FREE_TO_SELL_SQL = '(product_variants.stock_on_hand - product_variants.held_pieces)';
+
     /**
      * @return array<string, string>
      */
@@ -52,8 +59,18 @@ class ProductVariant extends Model
             'price_centavos' => 'integer',
             'sale_price_centavos' => 'integer',
             'stock_on_hand' => 'integer',
+            'held_pieces' => 'integer',
             'low_stock_notified_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Pieces students can still buy: on the shelf, less what is held for
+     * open orders.
+     */
+    public function freeToSell(): int
+    {
+        return max(0, $this->stock_on_hand - $this->held_pieces);
     }
 
     /**

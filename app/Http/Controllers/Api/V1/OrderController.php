@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Orders\CancelOrderByStudent;
 use App\Actions\Orders\PlaceOrder;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PlaceOrderRequest;
 use App\Models\Order;
 use App\Services\Shop\OrderRow;
 use Illuminate\Http\JsonResponse;
@@ -33,11 +34,11 @@ class OrderController extends Controller
     }
 
     /**
-     * Place Order: the stock is taken now and held until pickup.
+     * Place Order: its items are held until the Specialist releases them.
      */
-    public function store(Request $request, PlaceOrder $placeOrder): JsonResponse
+    public function store(PlaceOrderRequest $request, PlaceOrder $placeOrder): JsonResponse
     {
-        $order = $placeOrder->handle($request->user());
+        $order = $placeOrder->handle($request->user(), $request->section());
 
         return response()->json([
             'message' => PlaceOrder::message($order),

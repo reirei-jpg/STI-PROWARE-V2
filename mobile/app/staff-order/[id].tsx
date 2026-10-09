@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDateTime, formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
 
-type Step = 'ready' | 'picked-up' | 'undo-pickup';
+type Step = 'ready' | 'release' | 'undo-release';
 
 /**
  * One student's order on the Specialist's phone, with the website's steps:
@@ -79,13 +79,13 @@ export default function StaffOrderScreen() {
             return;
         }
 
-        if (which === 'picked-up') {
+        if (which === 'release') {
             Alert.alert(
-                `Hand over ${order.number}?`,
-                `Did ${order.student_name} pay ${formatPeso(order.total_centavos)} in cash?`,
+                `Release ${order.number}?`,
+                `Has ${order.student_name} paid ${formatPeso(order.total_centavos)}?`,
                 [
                     { text: 'Not yet', style: 'cancel' },
-                    { text: 'Yes, paid', onPress: () => void run(which) },
+                    { text: 'Yes, paid', onPress: () => void run(which, { paid: true }) },
                 ],
             );
 
@@ -170,19 +170,19 @@ export default function StaffOrderScreen() {
                                 tone="green"
                                 icon={<Banknote size={18} color="#ffffff" />}
                                 busy={busy}
-                                onPress={() => step('picked-up')}
+                                onPress={() => step('release')}
                             >
-                                {`Picked up · paid ${formatPeso(order.total_centavos)}`}
+                                {`Release · paid ${formatPeso(order.total_centavos)}`}
                             </ActionButton>
                         )}
-                        {order.can_undo_pickup && (
+                        {order.can_undo_release && (
                             <ActionButton
                                 tone="plain"
                                 icon={<Undo2 size={18} color="#334155" />}
                                 busy={busy}
-                                onPress={() => step('undo-pickup')}
+                                onPress={() => step('undo-release')}
                             >
-                                Undo pickup
+                                Undo release
                             </ActionButton>
                         )}
                         {(order.status === 'placed' || order.status === 'ready') && (

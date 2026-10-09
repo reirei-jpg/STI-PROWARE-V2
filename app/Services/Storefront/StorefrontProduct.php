@@ -26,7 +26,8 @@ final class StorefrontProduct
      */
     public static function tile(Product $product): array
     {
-        $stock = (int) $product->variants->sum('stock_on_hand');
+        // What students can still buy: on the shelf, less what is held for orders.
+        $stock = (int) $product->variants->sum(fn (ProductVariant $variant): int => $variant->freeToSell());
         $isPreorder = $product->status === ProductStatus::Preorder;
         $almostSoldOut = ! $isPreorder && $stock > 0 && $stock <= $product->low_stock_alert_at;
 
@@ -90,7 +91,7 @@ final class StorefrontProduct
                 'choices' => $option->choices,
             ])->all(),
             'variants' => $product->variants->map(function (ProductVariant $variant) use ($product, $isPreorder, $canBuy): array {
-                $stock = $variant->stock_on_hand;
+                $stock = $variant->freeToSell();
                 $variant->setRelation('product', $product);
 
                 return [

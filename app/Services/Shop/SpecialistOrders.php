@@ -66,7 +66,45 @@ final class SpecialistOrders
         return [
             ...OrderRow::of($order),
             'handled_by' => $order->handler?->name,
-            'can_undo_pickup' => HandleOrderBySpecialist::canUndoPickup($order),
+            'can_undo_release' => HandleOrderBySpecialist::canUndoRelease($order),
+        ];
+    }
+
+    /**
+     * The order an issuance slip is for, from its QR code (or its order
+     * number, e.g. typed as "PW-0042" when there is nothing to scan), with
+     * the student's other open orders. Null when it is not a PROWARE slip.
+     *
+     * @return array{order: array<string, mixed>, other_open_orders: list<array{id: int, number: string|null, status_label: string}>}|null
+     */
+    public static function bySlip(string $code): ?array
+    {
+        $code = trim($code);
+
+        if ($code === '') {
+            return null;
+        }
+
+        $order = Order::query()
+            ->with(['items', 'student', 'handler'])
+            ->where('slip_code', $code)
+            ->orWhere('number', strtoupper($code))
+            ->first();
+
+        if ($order === null) {
+            return null;
+        }
+
+        return [
+            'order' => self::row($order),
+            'other_open_orders' => array_values(Order::query()
+                ->open()
+                ->where('user_id', $order->user_id)
+                ->whereKeyNot($order->id)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (Order $other): array => ['id' => $other->id, 'number' => $other->number, 'status_label' => $other->status->label()])
+                ->all()),
         ];
     }
 

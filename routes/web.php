@@ -59,8 +59,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::post('orders/{order}/ready', [OrderController::class, 'ready'])->name('orders.ready');
-        Route::post('orders/{order}/picked-up', [OrderController::class, 'pickedUp'])->name('orders.picked-up');
-        Route::post('orders/{order}/undo-pickup', [OrderController::class, 'undoPickup'])->name('orders.undo-pickup');
+        Route::post('orders/{order}/release', [OrderController::class, 'release'])->name('orders.release');
+        Route::post('orders/{order}/undo-release', [OrderController::class, 'undoRelease'])->name('orders.undo-release');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');

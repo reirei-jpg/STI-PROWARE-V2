@@ -72,21 +72,21 @@ final class Cart
     }
 
     /**
-     * The most of this piece or pack the student can have in the cart: the
-     * stock, less the pieces their other cart lines of the same size or
-     * color take.
+     * The most of this piece or pack the student can have in the cart: what
+     * is free to sell (not held for orders), less the pieces their other cart
+     * lines of the same size or color take.
      */
     public function mostAllowed(User $student, ProductVariant $variant, ?ProductPack $pack, ?CartItem $except = null): int
     {
-        return self::mostOf($variant->stock_on_hand, $this->piecesInOtherLines($student, $variant, $except), $pack->pieces ?? 1);
+        return self::mostOf($variant->freeToSell(), $this->piecesInOtherLines($student, $variant, $except), $pack->pieces ?? 1);
     }
 
     /**
      * How many units fit in the pieces the other cart lines leave free.
      */
-    public static function mostOf(int $stockOnHand, int $piecesInOtherLines, int $piecesPerUnit): int
+    public static function mostOf(int $freeToSell, int $piecesInOtherLines, int $piecesPerUnit): int
     {
-        return min(self::MAX_QUANTITY, intdiv(max(0, $stockOnHand - $piecesInOtherLines), $piecesPerUnit));
+        return min(self::MAX_QUANTITY, intdiv(max(0, $freeToSell - $piecesInOtherLines), $piecesPerUnit));
     }
 
     private function ensureInStock(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity, ?CartItem $line): void
@@ -106,10 +106,10 @@ final class Cart
         $inOtherLines = $this->piecesInOtherLines($student, $variant, $line);
 
         $message = match (true) {
-            $variant->stock_on_hand === 0 => "{$variant->displayName()} is out of stock.",
-            $most === 0 && $inOtherLines > 0 => "Your cart already has {$this->pieces($inOtherLines)} of {$variant->displayName()}, and only {$this->pieces($variant->stock_on_hand)} are left.",
-            $most === 0 => "Only {$this->pieces($variant->stock_on_hand)} of {$variant->displayName()} are left, not enough for 1 {$unit} ({$this->pieces($piecesPerUnit)}).",
-            default => "You can have at most {$this->units($most, $unit, $piecesPerUnit)} of {$variant->displayName()} in your cart (only {$this->pieces($variant->stock_on_hand)} left).",
+            $variant->freeToSell() === 0 => "{$variant->displayName()} is out of stock.",
+            $most === 0 && $inOtherLines > 0 => "Your cart already has {$this->pieces($inOtherLines)} of {$variant->displayName()}, and only {$this->pieces($variant->freeToSell())} are left.",
+            $most === 0 => "Only {$this->pieces($variant->freeToSell())} of {$variant->displayName()} are left, not enough for 1 {$unit} ({$this->pieces($piecesPerUnit)}).",
+            default => "You can have at most {$this->units($most, $unit, $piecesPerUnit)} of {$variant->displayName()} in your cart (only {$this->pieces($variant->freeToSell())} left).",
         };
 
         throw ValidationException::withMessages(['quantity' => $message]);
