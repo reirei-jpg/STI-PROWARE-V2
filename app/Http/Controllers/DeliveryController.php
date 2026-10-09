@@ -18,17 +18,27 @@ use Inertia\Response;
 class DeliveryController extends Controller
 {
     /**
-     * Recorded deliveries, newest first, searchable by SI #, DR # or Order #.
+     * Received deliveries (newest first, searchable by SI #, DR # or
+     * Order #) or the purchase orders still waiting for their delivery,
+     * with the numbers at the top and one delivery's details when asked.
      */
     public function index(FilterDeliveriesRequest $request): Response
     {
+        $show = $request->show();
+        $waiting = $request->showsWaiting();
+
         return Inertia::render('deliveries/index', [
-            'deliveries' => DeliveryScreens::recorded($request->search(), $request->dateFrom(), $request->dateTo()),
+            'deliveries' => $waiting ? null : DeliveryScreens::recorded($request->search(), $request->dateFrom(), $request->dateTo(), $show),
+            'waitingOrders' => $waiting ? DeliveryScreens::waitingOrders($request->search(), $show) : null,
+            'summary' => DeliveryScreens::summary(),
+            'details' => Inertia::optional(fn (): ?array => $request->filled('details') ? DeliveryScreens::details($request->integer('details')) : null),
             'filters' => [
+                'show' => $show,
                 'search' => $request->search(),
                 'date_from' => $request->dateFrom(),
                 'date_to' => $request->dateTo(),
             ],
+            'today' => now()->toDateString(),
         ]);
     }
 

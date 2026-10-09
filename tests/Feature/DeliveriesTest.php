@@ -299,6 +299,53 @@ test('deliveries can be searched by SI # or Order #', function () {
         );
 });
 
+test('the deliveries page shows what arrived, what is late or due, and a delivery\'s details', function () {
+    $late = orderWith(['UTMP02-03' => 10], ['order_number' => '30650', 'expected_delivery_date' => now()->subDay()->toDateString()]);
+    $dueSoon = orderWith(['UTMS02-03' => 10], ['order_number' => '30722', 'expected_delivery_date' => now()->addDays(3)->toDateString()]);
+    $arrived = orderWith(['UTMS04-01' => 5], ['order_number' => '30801']);
+    $this->actingAs($this->specialist);
+
+    $this->post(route('deliveries.store'), [
+        'received_on' => now()->toDateString(),
+        'sales_invoice_number' => '1210000031492',
+        'items' => [['purchase_order_item_id' => itemOf($arrived, 'UTMS04-01'), 'quantity_received' => 5]],
+    ])->assertSessionHasNoErrors();
+    $delivery = Delivery::sole();
+
+    $this->get(route('deliveries.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('filters.show', 'received')
+        ->where('deliveries.data.0.first_item.item_code', 'UTMS04-01')
+        ->where('deliveries.data.0.first_item.product', null)
+        ->where('deliveries.data.0.items_count', 1)
+        ->where('waitingOrders', null)
+        ->where('summary.late', 1)
+        ->where('summary.this_week', 1)
+        ->where('summary.waiting', 2)
+        ->where('summary.this_month.deliveries', 1)
+        ->where('summary.not_in_stock', 1)
+    );
+
+    $this->get(route('deliveries.index', ['show' => 'waiting']))->assertInertia(fn (Assert $page) => $page
+        ->where('deliveries', null)
+        ->where('waitingOrders.data.0.id', $late->id)
+        ->where('waitingOrders.data.1.id', $dueSoon->id)
+        ->where('waitingOrders.data.1.quantity_remaining', 10)
+        ->has('waitingOrders.data', 2)
+    );
+    $this->get(route('deliveries.index', ['show' => 'late']))->assertInertia(fn (Assert $page) => $page
+        ->has('waitingOrders.data', 1)
+        ->where('waitingOrders.data.0.order_number', '30650'));
+
+    $this->get(route('deliveries.index', ['details' => $delivery->id]))->assertInertia(fn (Assert $page) => $page
+        ->missing('details')
+        ->reloadOnly('details', fn (Assert $reload) => $reload
+            ->where('details.sales_invoice_number', '1210000031492')
+            ->where('details.items.0.quantity_received', 5)
+            ->where('details.items.0.product', null)
+            ->where('details.orders.0.order_number', '30801')
+            ->where('details.orders.0.delivery_status', 'completed')));
+});
+
 test('the school admin can only watch deliveries, not record them', function () {
     $order = orderWith(['UTMP02-03' => 10]);
     $this->actingAs(User::factory()->schoolAdmin()->create());

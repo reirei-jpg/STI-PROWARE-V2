@@ -4,23 +4,46 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
- * The search and date filters on the Deliveries list, read from the page
- * address.
+ * The filters on the Deliveries page, read from the page address: which
+ * list (Received, or Waiting to arrive, or one of the cards' lists), the
+ * search, the received dates, and which delivery's details to load.
  */
 class FilterDeliveriesRequest extends FormRequest
 {
+    /** Lists of received deliveries. */
+    public const RECEIVED = ['received', 'this_month', 'not_in_stock'];
+
+    /** Lists of purchase orders still waiting for their delivery. */
+    public const WAITING = ['waiting', 'late', 'this_week'];
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
+            'show' => ['nullable', Rule::in([...self::RECEIVED, ...self::WAITING])],
             'search' => ['nullable', 'string', 'max:40'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'details' => ['nullable', 'integer'],
         ];
+    }
+
+    /**
+     * Received deliveries by default.
+     */
+    public function show(): string
+    {
+        return $this->string('show')->toString() ?: 'received';
+    }
+
+    public function showsWaiting(): bool
+    {
+        return in_array($this->show(), self::WAITING, true);
     }
 
     /**

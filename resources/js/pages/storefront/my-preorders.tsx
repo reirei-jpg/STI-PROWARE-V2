@@ -19,11 +19,13 @@ type MyPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'cancelled';
+    status: 'active' | 'arrived' | 'cancelled';
     status_label: string;
     preorders_close_on: string | null;
     can_cancel: boolean;
     created_at: string | null;
+    /** When the student was told it arrived. */
+    arrived_at: string | null;
 };
 
 /**
@@ -124,15 +126,28 @@ export default function MyPreorders({
                                                     ? 'piece'
                                                     : 'pieces'}
                                             </p>
-                                            <p className="mt-0.5 text-xs text-slate-500">
-                                                {preorder.status_label}{' '}
-                                                {formatDateTime(
-                                                    preorder.created_at,
-                                                )}
-                                                {preorder.status === 'active' &&
-                                                    preorder.preorders_close_on &&
-                                                    ` · preorders close ${formatDateOrdered(preorder.preorders_close_on)}`}
-                                            </p>
+                                            {preorder.status === 'arrived' ? (
+                                                <p className="mt-0.5 text-xs font-bold text-emerald-700">
+                                                    Arrived{' '}
+                                                    {formatDateOrdered(
+                                                        preorder.arrived_at,
+                                                    )}{' '}
+                                                    · add it to your cart in the
+                                                    store. It is not held for
+                                                    you.
+                                                </p>
+                                            ) : (
+                                                <p className="mt-0.5 text-xs text-slate-500">
+                                                    {preorder.status_label}{' '}
+                                                    {formatDateTime(
+                                                        preorder.created_at,
+                                                    )}
+                                                    {preorder.status ===
+                                                        'active' &&
+                                                        preorder.preorders_close_on &&
+                                                        ` · preorders close ${formatDateOrdered(preorder.preorders_close_on)}`}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 

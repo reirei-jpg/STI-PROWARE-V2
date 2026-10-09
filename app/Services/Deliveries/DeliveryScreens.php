@@ -5,6 +5,7 @@ namespace App\Services\Deliveries;
 use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
+use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Services\Stock\LinkedItems;
@@ -18,19 +19,24 @@ use Illuminate\Support\Collection;
  * Specialist's phone: recorded deliveries, the items still waiting to
  * arrive (Record Delivery), and what a recorded delivery did.
  *
- * @phpstan-type RecordedDelivery array{id: int, received_on: string, sales_invoice_number: string|null, delivery_receipt_number: string|null, note: string|null, recorded_by: string, recorded_at: string|null, orders: list<array{id: int, order_number: string|null}>, pieces_added_to_stock: int, items_not_in_stock: int, order_numbers: list<string>}
+ * @phpstan-type WaitingOrder array{id: int, order_number: string|null, date_ordered: string, category: string|null, items_count: int, expected_delivery_date: string|null, expected_delivery_note: string|null, delivery_status: string, delivery_status_label: string, quantity_ordered_total: int, quantity_received_total: int, percent_received: int, quantity_remaining: int}
+ * @phpstan-type RecordedDelivery array{id: int, received_on: string, sales_invoice_number: string|null, delivery_receipt_number: string|null, note: string|null, recorded_by: string, recorded_at: string|null, orders: list<array{id: int, order_number: string|null}>, pieces_added_to_stock: int, items_not_in_stock: int, order_numbers: list<string>, first_item: array{id: int, item_code: string, description: string, quantity_received: int, product: string|null, pieces_added: int}|null, items_count: int}
  */
 final class DeliveryScreens
 {
     /**
-     * Recorded deliveries, newest first, searchable by SI #, DR # or Order #.
+     * Recorded deliveries, newest first, searchable by SI #, DR # or Order #;
+     * this month's only, or only those with items not in stock yet, when
+     * asked. Each with its first item and how many items it had.
      *
      * @return LengthAwarePaginator<int, RecordedDelivery>
      */
-    public static function recorded(?string $search, ?string $dateFrom = null, ?string $dateTo = null): LengthAwarePaginator
+    public static function recorded(?string $search, ?string $dateFrom = null, ?string $dateTo = null, ?string $only = null): LengthAwarePaginator
     {
         return Delivery::query()
-            ->with(['recorder', 'items.purchaseOrderItem.purchaseOrder'])
+            ->with(['recorder', 'items.purchaseOrderItem.purchaseOrder', 'items.stockMovements.variant.product'])
+            ->when($only === 'this_month', fn (Builder $query) => $query->whereDate('received_on', '>=', now()->startOfMonth()->toDateString()))
+            ->when($only === 'not_in_stock', fn (Builder $query) => $query->whereHas('items', fn (Builder $items) => $items->whereDoesntHave('stockMovements')))
             ->withCount(['items as items_not_in_stock_count' => fn (Builder $query) => $query->whereDoesntHave('stockMovements')])
             ->addSelect(['pieces_added_to_stock' => StockMovement::query()
                 ->selectRaw('coalesce(sum(stock_movements.quantity), 0)')
@@ -66,7 +72,147 @@ final class DeliveryScreens
                 'pieces_added_to_stock' => (int) $delivery->getAttribute('pieces_added_to_stock'),
                 'items_not_in_stock' => (int) $delivery->getAttribute('items_not_in_stock_count'),
                 'order_numbers' => self::orderNumbers($delivery),
+                'first_item' => $delivery->items->isEmpty() ? null : self::deliveredItem($delivery->items->firstOrFail()),
+                'items_count' => $delivery->items->count(),
             ]);
+    }
+
+    /**
+     * One recorded delivery for its details popup: the receipt numbers and
+     * note, who recorded it, each item that arrived (the product it went
+     * into, or that it is not linked yet), and the orders it belongs to with
+     * how far along they are now.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function details(int $deliveryId): ?array
+    {
+        $delivery = Delivery::query()
+            ->with(['recorder', 'items.purchaseOrderItem.purchaseOrder', 'items.stockMovements.variant.product'])
+            ->find($deliveryId);
+
+        if ($delivery === null) {
+            return null;
+        }
+
+        return [
+            'id' => $delivery->id,
+            'received_on' => $delivery->received_on->toDateString(),
+            'sales_invoice_number' => $delivery->sales_invoice_number,
+            'delivery_receipt_number' => $delivery->delivery_receipt_number,
+            'note' => $delivery->note,
+            'recorded_by' => $delivery->recorder->name,
+            'recorded_at' => $delivery->created_at?->toIso8601String(),
+            'items' => array_values($delivery->items->map(fn (DeliveryItem $item): array => self::deliveredItem($item))->all()),
+            'orders' => array_values($delivery->items
+                ->map(fn (DeliveryItem $item): PurchaseOrder => $item->purchaseOrderItem->purchaseOrder)
+                ->unique('id')
+                ->map(fn (PurchaseOrder $order): array => [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'delivery_status' => $order->delivery_status->value,
+                    'delivery_status_label' => $order->delivery_status->label(),
+                    'percent_received' => $order->percentReceived(),
+                    'quantity_remaining' => $order->quantityRemaining(),
+                ])
+                ->all()),
+        ];
+    }
+
+    /**
+     * What one delivered line was: its eStore item code and description,
+     * how many arrived as ordered on the eStore, and the product it went
+     * into with the pieces added (null while it is not linked).
+     *
+     * @return array{id: int, item_code: string, description: string, quantity_received: int, product: string|null, pieces_added: int}
+     */
+    private static function deliveredItem(DeliveryItem $item): array
+    {
+        $movement = $item->stockMovements->first();
+
+        return [
+            'id' => $item->id,
+            'item_code' => $item->purchaseOrderItem->item_code,
+            'description' => $item->purchaseOrderItem->description,
+            'quantity_received' => $item->quantity_received,
+            'product' => $movement === null ? null : ($item->stockMovements->count() > 1 ? $movement->variant->product->name : $movement->variant->displayName()),
+            'pieces_added' => (int) $item->stockMovements->sum('quantity'),
+        ];
+    }
+
+    /**
+     * Purchase orders still waiting for (part of) their delivery: the late
+     * ones and those expected soonest first, then those without a date;
+     * late or expected this week only when asked. Searchable by Order #.
+     *
+     * @return LengthAwarePaginator<int, WaitingOrder>
+     */
+    public static function waitingOrders(?string $search, ?string $only = null): LengthAwarePaginator
+    {
+        $today = now()->toDateString();
+
+        return self::openOrders()
+            ->withCount('items')
+            ->when($only === 'late', fn (Builder $query) => $query->whereDate('expected_delivery_date', '<', $today))
+            ->when($only === 'this_week', fn (Builder $query) => $query->whereBetween('expected_delivery_date', [$today, now()->addDays(7)->toDateString()]))
+            ->when($search, fn (Builder $query, string $term) => $query->whereLike('order_number', "%{$term}%"))
+            ->orderByRaw('case when expected_delivery_date is null then 1 else 0 end')
+            ->orderBy('expected_delivery_date')
+            ->orderBy('date_ordered')
+            ->orderBy('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (PurchaseOrder $order): array => [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'date_ordered' => $order->date_ordered->toDateString(),
+                'category' => $order->category,
+                'items_count' => (int) $order->getAttribute('items_count'),
+                'expected_delivery_date' => $order->expected_delivery_date?->toDateString(),
+                'expected_delivery_note' => $order->expected_delivery_note,
+                'delivery_status' => $order->delivery_status->value,
+                'delivery_status_label' => $order->delivery_status->label(),
+                'quantity_ordered_total' => $order->quantity_ordered_total,
+                'quantity_received_total' => $order->quantity_received_total,
+                'percent_received' => $order->percentReceived(),
+                'quantity_remaining' => $order->quantityRemaining(),
+            ]);
+    }
+
+    /**
+     * The numbers at the top of the Deliveries page.
+     *
+     * @return array{late: int, this_week: int, waiting: int, this_month: array{deliveries: int, pieces: int}, not_in_stock: int}
+     */
+    public static function summary(): array
+    {
+        $today = now()->toDateString();
+        $monthStart = now()->startOfMonth()->toDateString();
+
+        return [
+            'late' => self::openOrders()->whereDate('expected_delivery_date', '<', $today)->count(),
+            'this_week' => self::openOrders()->whereBetween('expected_delivery_date', [$today, now()->addDays(7)->toDateString()])->count(),
+            'waiting' => self::openOrders()->count(),
+            'this_month' => [
+                'deliveries' => Delivery::query()->whereDate('received_on', '>=', $monthStart)->count(),
+                'pieces' => (int) StockMovement::query()
+                    ->join('delivery_items', 'delivery_items.id', '=', 'stock_movements.delivery_item_id')
+                    ->join('deliveries', 'deliveries.id', '=', 'delivery_items.delivery_id')
+                    ->whereDate('deliveries.received_on', '>=', $monthStart)
+                    ->sum('stock_movements.quantity'),
+            ],
+            'not_in_stock' => DeliveryItem::query()->whereDoesntHave('stockMovements')->count(),
+        ];
+    }
+
+    /**
+     * Purchase orders not fully delivered yet.
+     *
+     * @return Builder<PurchaseOrder>
+     */
+    private static function openOrders(): Builder
+    {
+        return PurchaseOrder::query()->whereIn('delivery_status', [DeliveryStatus::Awaiting, DeliveryStatus::PartiallyReceived]);
     }
 
     /**

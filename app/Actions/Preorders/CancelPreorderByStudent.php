@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
  * A student cancels their own preorder, from the website or the phone app,
  * while preorders for the product are still open.
  *
- * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, can_cancel: bool, created_at: string|null}
+ * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, can_cancel: bool, created_at: string|null, arrived_at: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -51,8 +51,8 @@ class CancelPreorderByStudent
     }
 
     /**
-     * A page of the student's My Preorders (website and phone app): active
-     * ones first, newest first, 20 at a time.
+     * A page of the student's My Preorders (website and phone app): waiting
+     * ones first, then arrived, then cancelled, newest first, 20 at a time.
      *
      * @return LengthAwarePaginator<int, PreorderRow>
      */
@@ -60,7 +60,7 @@ class CancelPreorderByStudent
     {
         return $student->preorders()
             ->with(['product.mainPhoto', 'variant'])
-            ->orderByRaw("case when status = 'active' then 0 else 1 end")
+            ->orderByRaw("case when status = 'active' then 0 when status = 'arrived' then 1 else 2 end")
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -86,6 +86,7 @@ class CancelPreorderByStudent
             'preorders_close_on' => $preorder->product->preorders_close_on?->toDateString(),
             'can_cancel' => self::refusal($preorder) === null,
             'created_at' => $preorder->created_at?->toIso8601String(),
+            'arrived_at' => $preorder->arrived_at?->toIso8601String(),
         ];
     }
 }

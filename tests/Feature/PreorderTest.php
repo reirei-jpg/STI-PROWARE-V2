@@ -6,7 +6,9 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Notifications\PreorderArrived;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -167,8 +169,73 @@ test('the specialist sees how many students preordered each size, not counting c
                 ['id' => $small->id, 'label' => 'S/M', 'estore_item_code' => null, 'students' => 2, 'pieces' => 3],
                 ['id' => $large->id, 'label' => 'M/L', 'estore_item_code' => null, 'students' => 1, 'pieces' => 4],
             ])
-            ->where('totals', ['students' => 3, 'pieces' => 7])
+            ->where('summary.open', ['products' => 2, 'students' => 3, 'pieces' => 7])
         );
+});
+
+test('preorder products move from taking preorders to to order to arrived', function () {
+    Notification::fake();
+    [$open, $openSize] = preorderShirt('2026-10-20', 'Intramurals Jersey');
+    [$closed, $closedSize] = preorderShirt('2026-10-02', 'STI Mug');
+    $arriving = Product::factory()->create(['name' => 'Chibi Keychain', 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-02']);
+    $arrivingSize = ProductVariant::factory()->for($arriving)->create();
+    Preorder::factory()->forVariant($openSize)->create(['quantity' => 1]);
+    Preorder::factory()->forVariant($closedSize)->create(['quantity' => 2]);
+    Preorder::factory()->forVariant($arrivingSize)->for($this->student, 'student')->create(['quantity' => 3]);
+    $specialist = User::factory()->specialist()->create();
+
+    $this->actingAs($specialist)->put(route('products.update', $arriving), [
+        'name' => 'Chibi Keychain', 'sold_by_piece' => '1', 'price' => '25', 'status' => 'available', 'sale_price' => '',
+        'low_stock_alert_at' => '5', 'photos' => [['id' => $arriving->photos()->create(['path' => 'products/a.jpg', 'position' => 0])->id, 'label' => '']], 'packs' => [], 'options' => [],
+        'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
+    ])->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($this->student, PreorderArrived::class);
+    expect(Preorder::query()->where('product_id', $arriving->id)->sole())
+        ->status->toBe(PreorderStatus::Arrived)
+        ->arrived_at->not->toBeNull();
+
+    $this->get(route('preorders.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('products.data.0.name', 'STI Mug')
+        ->where('products.data.0.stage', 'to_order')
+        ->where('products.data.1.name', 'Intramurals Jersey')
+        ->where('products.data.1.stage', 'open')
+        ->where('products.data.2.name', 'Chibi Keychain')
+        ->where('products.data.2.stage', 'arrived')
+        ->where('products.data.2.pieces_total', 3)
+        ->where('summary', [
+            'open' => ['products' => 1, 'students' => 1, 'pieces' => 1],
+            'to_order' => ['products' => 1, 'students' => 1, 'pieces' => 2],
+            'arrived' => ['products' => 1, 'students' => 1, 'pieces' => 3],
+        ])
+    );
+    $this->get(route('preorders.index', ['stage' => 'to_order']))->assertInertia(fn (Assert $page) => $page
+        ->has('products.data', 1)
+        ->where('products.data.0.name', 'STI Mug'));
+
+    // The CSV is what is still to order: arrived preorders are left out.
+    $csv = $this->get(route('preorders.export'))->streamedContent();
+    expect($csv)->toContain('STI Mug')->not->toContain('Chibi Keychain');
+
+    $this->actingAs($this->student)->get(route('my-preorders.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('preorders.data.0.status_label', 'Arrived')
+        ->where('preorders.data.0.can_cancel', false));
+});
+
+test('a product\'s details list what to order and who preordered, only when asked', function () {
+    [$product, $small] = preorderShirt('2026-10-02');
+    $small->update(['estore_item_code' => 'PRSH01-01']);
+    Preorder::factory()->forVariant($small)->for($this->student, 'student')->create(['quantity' => 2]);
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->get(route('preorders.index', ['details' => $product->id]))->assertInertia(fn (Assert $page) => $page
+        ->missing('details')
+        ->reloadOnly('details', fn (Assert $reload) => $reload
+            ->where('details.stage', 'to_order')
+            ->where('details.variants.0.estore_item_code', 'PRSH01-01')
+            ->where('details.variants.0.pieces', 2)
+            ->where('details.preorders.0.student_name', 'Juan Dela Cruz')
+            ->where('details.preorders_count', 1)));
 });
 
 test('the specialist can see who preordered a product', function () {
