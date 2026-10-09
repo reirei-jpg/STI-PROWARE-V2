@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import {
     ArrowLeft,
+    Ban,
     CircleCheck,
     PackageCheck,
     ScanLine,
     SearchX,
+    ShieldAlert,
     TriangleAlert,
     Undo2,
     XCircle,
@@ -18,15 +20,17 @@ import OrderStatusPill from '@/components/OrderStatusPill';
 import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import type { SlipLookup, SpecialistOrder } from '@/lib/types';
 
 /**
  * A scanned issuance slip on the Specialist's phone, like the website's:
- * checks in V1's colors (green fine, red stop, amber look), the amount to
- * collect, and the next step: Ready for pickup, Release once the student
- * has paid (the items leave the shelf only then), Undo release the same
- * day, or Cancel. The slip itself is below. Not a PROWARE slip: says so.
+ * first a large banner that answers "can I release this?" (green OK, red
+ * stop), then the student, the checks, and the release as numbered steps
+ * (collect, tick paid, release: the items leave the shelf only then).
+ * Ready for pickup, Undo release (same day) and Cancel sit below, smaller.
+ * After a step, Scan the next slip is the main button. Not a PROWARE slip:
+ * says so.
  */
 export default function SlipCheckScreen() {
     const { code } = useLocalSearchParams<{ code: string }>();
@@ -123,134 +127,173 @@ export default function SlipCheckScreen() {
             </Pressable>
 
             {notFound ? (
-                <View
-                    style={{ borderLeftWidth: 5, borderLeftColor: '#ef4444' }}
-                    className="items-center gap-2 rounded-3xl border border-slate-200 bg-white px-6 py-10"
-                >
-                    <SearchX size={40} color="#f87171" />
-                    <Text className="font-sans-bold text-lg text-slate-900">Not a PROWARE slip</Text>
-                    <Text className="text-center font-sans text-sm leading-5 text-slate-500">
-                        No order has the code <Text className="font-sans-bold text-slate-700">{code}</Text>.
-                        Scan the slip again, or type its order number (PW-0042). The student can also open
-                        the slip from My Orders.
-                    </Text>
-                </View>
+                <>
+                    <View
+                        style={{ borderLeftWidth: 5, borderLeftColor: '#ef4444' }}
+                        className="items-center gap-2 rounded-3xl border border-slate-200 bg-white px-6 py-10"
+                    >
+                        <SearchX size={40} color="#f87171" />
+                        <Text className="font-sans-bold text-lg text-slate-900">Not a PROWARE slip</Text>
+                        <Text className="text-center font-sans text-sm leading-5 text-slate-500">
+                            No order has the code{' '}
+                            <Text className="font-sans-bold text-slate-700">{code}</Text>. Scan the slip
+                            again, or type its order number (PW-0042). The student can also open the slip
+                            from My Orders.
+                        </Text>
+                    </View>
+                    <ScanNextButton main onPress={scanNext}>
+                        Scan again
+                    </ScanNextButton>
+                </>
             ) : loadError && result === null ? (
                 <Text className="font-sans-semibold text-sm text-red-600">{loadError}</Text>
             ) : result === null || order === undefined ? (
                 <ActivityIndicator color="#0D6EFD" className="mt-10" />
             ) : (
                 <>
-                    <View className="flex-row items-start justify-between gap-3">
-                        <View className="flex-1">
-                            <Text className="font-sans-bold text-2xl text-slate-900">{order.number}</Text>
-                            <Text className="font-sans-semibold text-base text-slate-800">
-                                {order.student_name}
-                                {order.student_section ? ` · ${order.student_section}` : ''}
-                            </Text>
-                        </View>
-                        <OrderStatusPill order={order} />
-                    </View>
-
-                    <View className="gap-2">
-                        <OrderStateCheck order={order} />
-                        {isOpen && (
-                            <Check tone="green">
-                                Pick up by <Text className="font-sans-bold">{formatDate(order.pick_up_by)}</Text>.
-                                Its items are held for it.
-                            </Check>
-                        )}
-                        {result.other_open_orders.length > 0 && (
-                            <Check tone="amber">
-                                {order.student_name} has{' '}
-                                {result.other_open_orders.length === 1
-                                    ? 'another order'
-                                    : `${result.other_open_orders.length} other orders`}{' '}
-                                waiting.
-                            </Check>
-                        )}
-                        {result.other_open_orders.length > 0 && (
-                            <View className="flex-row flex-wrap gap-2">
-                                {result.other_open_orders.map((other) => (
-                                    <Pressable
-                                        key={other.id}
-                                        onPress={() => router.setParams({ code: other.number ?? '' })}
-                                        accessibilityRole="button"
-                                        className="rounded-xl border border-amber-300 bg-white px-3 py-2"
-                                    >
-                                        <Text className="font-sans-bold text-sm text-amber-800">
-                                            Open {other.number} ({other.status_label})
-                                        </Text>
-                                    </Pressable>
-                                ))}
+                    {done ? (
+                        <View className="gap-3 rounded-3xl bg-emerald-600 p-5">
+                            <View className="flex-row items-start gap-3">
+                                <CircleCheck size={26} color="#ffffff" />
+                                <Text className="flex-1 font-sans-bold text-base leading-6 text-white">
+                                    {done}
+                                </Text>
                             </View>
-                        )}
-                    </View>
-
-                    {isOpen && (
-                        <View className="rounded-2xl bg-emerald-50 px-4 py-3">
-                            <Text className="font-sans-bold text-xs uppercase tracking-wide text-emerald-800">
-                                To collect
-                            </Text>
-                            <Text className="font-sans-bold text-3xl text-emerald-900">
-                                {formatPeso(order.total_centavos)}
-                            </Text>
+                            <Pressable
+                                onPress={scanNext}
+                                accessibilityRole="button"
+                                className="flex-row items-center justify-center gap-2 rounded-2xl bg-white py-3.5"
+                            >
+                                <ScanLine size={18} color="#047857" />
+                                <Text className="font-sans-bold text-base text-emerald-700">
+                                    Scan the next slip
+                                </Text>
+                            </Pressable>
                         </View>
+                    ) : (
+                        <ReleaseVerdict order={order} />
                     )}
 
-                    {done && (
-                        <View className="flex-row items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                            <CircleCheck size={18} color="#047857" />
-                            <Text className="flex-1 font-sans-semibold text-sm text-emerald-800">{done}</Text>
-                        </View>
-                    )}
                     {error && (
                         <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
                             <Text className="font-sans-semibold text-sm text-red-700">{error}</Text>
                         </View>
                     )}
 
-                    <View className="gap-3">
-                        {order.status === 'placed' && (
-                            <ActionButton
-                                tone="blue"
-                                icon={<PackageCheck size={18} color="#ffffff" />}
-                                busy={busy}
-                                onPress={() => void run('ready')}
-                            >
-                                Ready for pickup
-                            </ActionButton>
-                        )}
-                        {isOpen && (
-                            <ReleaseBox
-                                order={order}
-                                busy={busy}
-                                onRelease={() => void run('release', { paid: true })}
-                            />
-                        )}
-                        {order.can_undo_release && (
-                            <ActionButton
-                                tone="plain"
-                                icon={<Undo2 size={18} color="#334155" />}
-                                busy={busy}
-                                onPress={() => void run('undo-release')}
-                            >
-                                Undo release
-                            </ActionButton>
-                        )}
-                        {isOpen && (
-                            <ActionButton
-                                tone="red"
-                                icon={<XCircle size={18} color="#b91c1c" />}
-                                busy={busy}
-                                onPress={() => setCancelling(true)}
-                            >
-                                Cancel order
-                            </ActionButton>
-                        )}
+                    <View className="flex-row items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                        <View className="h-12 w-12 items-center justify-center rounded-full border border-blue-200 bg-blue-50">
+                            <Text className="font-sans-bold text-base text-blue-700">
+                                {initials(order.student_name)}
+                            </Text>
+                        </View>
+                        <View className="flex-1">
+                            <Text numberOfLines={1} className="font-sans-bold text-base text-slate-900">
+                                {order.student_name}
+                            </Text>
+                            <Text className="font-sans text-sm text-slate-500">
+                                <Text className="font-sans-bold text-slate-700">{order.number}</Text>
+                                {order.student_section ? ` · ${order.student_section}` : ''}
+                            </Text>
+                        </View>
+                        <OrderStatusPill order={order} />
                     </View>
 
+                    {(isOpen || result.other_open_orders.length > 0) && (
+                        <View className="gap-2">
+                            {isOpen && (
+                                <Check tone="green">
+                                    Pick up by{' '}
+                                    <Text className="font-sans-bold">{formatDate(order.pick_up_by)}</Text>. Its
+                                    items are held for it.
+                                </Check>
+                            )}
+                            {result.other_open_orders.length > 0 && (
+                                <>
+                                    <Check tone="amber">
+                                        {order.student_name} has{' '}
+                                        {result.other_open_orders.length === 1
+                                            ? 'another order'
+                                            : `${result.other_open_orders.length} other orders`}{' '}
+                                        waiting.
+                                    </Check>
+                                    <View className="flex-row flex-wrap gap-2">
+                                        {result.other_open_orders.map((other) => (
+                                            <Pressable
+                                                key={other.id}
+                                                onPress={() => router.setParams({ code: other.number ?? '' })}
+                                                accessibilityRole="button"
+                                                className="rounded-xl border border-amber-300 bg-white px-3 py-2"
+                                            >
+                                                <Text className="font-sans-bold text-sm text-amber-800">
+                                                    Open {other.number} ({other.status_label})
+                                                </Text>
+                                            </Pressable>
+                                        ))}
+                                    </View>
+                                </>
+                            )}
+                        </View>
+                    )}
+
+                    {isOpen && (
+                        <ReleaseBox
+                            order={order}
+                            busy={busy}
+                            onRelease={() => void run('release', { paid: true })}
+                        />
+                    )}
+
+                    {(order.status === 'placed' || order.can_undo_release || isOpen) && (
+                        <View className="flex-row flex-wrap gap-2">
+                            {order.status === 'placed' && (
+                                <View className="min-w-36 flex-1">
+                                    <ActionButton
+                                        small
+                                        tone="plain"
+                                        icon={<PackageCheck size={16} color="#1d4ed8" />}
+                                        busy={busy}
+                                        onPress={() => void run('ready')}
+                                    >
+                                        Ready for pickup
+                                    </ActionButton>
+                                </View>
+                            )}
+                            {order.can_undo_release && (
+                                <View className="min-w-36 flex-1">
+                                    <ActionButton
+                                        small
+                                        tone="plain"
+                                        icon={<Undo2 size={16} color="#334155" />}
+                                        busy={busy}
+                                        onPress={() => void run('undo-release')}
+                                    >
+                                        Undo release
+                                    </ActionButton>
+                                </View>
+                            )}
+                            {isOpen && (
+                                <View className="min-w-36 flex-1">
+                                    <ActionButton
+                                        small
+                                        tone="red"
+                                        icon={<XCircle size={16} color="#b91c1c" />}
+                                        busy={busy}
+                                        onPress={() => setCancelling(true)}
+                                    >
+                                        Cancel order
+                                    </ActionButton>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
                     <IssuanceSlipCard slip={result.slip} showQr={false} />
+
+                    {!done && (
+                        <ScanNextButton main={!isOpen} onPress={scanNext}>
+                            Scan the next slip
+                        </ScanNextButton>
+                    )}
 
                     <CancelSheet
                         order={order}
@@ -266,55 +309,75 @@ export default function SlipCheckScreen() {
                     />
                 </>
             )}
-
-            {(notFound || result !== null) && (
-                <ActionButton
-                    tone={notFound || !isOpen ? 'blue' : 'plain'}
-                    icon={<ScanLine size={18} color={notFound || !isOpen ? '#ffffff' : '#334155'} />}
-                    busy={busy}
-                    onPress={scanNext}
-                >
-                    {notFound ? 'Scan again' : 'Scan the next slip'}
-                </ActionButton>
-            )}
         </ScrollView>
     );
 }
 
-/**
- * Green while the order can still be released; red when it was released
- * already (so the items are not handed over twice) or cancelled.
- */
-function OrderStateCheck({ order }: { order: SpecialistOrder }) {
-    switch (order.status) {
-        case 'placed':
-            return <Check tone="green">Not released yet. The office is preparing it.</Check>;
-        case 'ready':
-            return <Check tone="green">Not released yet. Ready for pickup.</Check>;
-        case 'picked_up':
-            return (
-                <Check tone="red">
-                    Already released {formatDateTime(order.picked_up_at)}
-                    {order.handled_by ? ` by ${order.handled_by}` : ''}. Do not hand the items over again.
-                </Check>
-            );
-        default:
-            return (
-                <Check tone="red">
-                    {order.expired
-                        ? `Expired: not released by ${formatDate(order.pick_up_by)}.`
-                        : `Cancelled ${formatDateTime(order.cancelled_at)}.`}{' '}
-                    This slip can no longer be used.
-                    {!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}
-                </Check>
-            );
-    }
+/** "Juan Dela Cruz" -> "JC". */
+function initials(name: string): string {
+    const words = name.trim().split(/\s+/);
+
+    return `${words[0]?.[0] ?? ''}${words.length > 1 ? (words[words.length - 1][0] ?? '') : ''}`.toUpperCase();
 }
 
-function Check({ tone, children }: { tone: 'green' | 'red' | 'amber'; children: ReactNode }) {
+/**
+ * The answer first, in V1's colors: green while the items can still be
+ * released, red when they were released already (so they are not handed
+ * over twice) or the order was cancelled or expired.
+ */
+function ReleaseVerdict({ order }: { order: SpecialistOrder }) {
+    const ok = order.status === 'placed' || order.status === 'ready';
+    const title = ok
+        ? 'OK to release'
+        : order.status === 'picked_up'
+          ? 'Do not release: already released'
+          : order.expired
+            ? 'Do not release: expired'
+            : 'Do not release: cancelled';
+    const text =
+        order.status === 'ready'
+            ? 'Ready for pickup and not released yet.'
+            : order.status === 'placed'
+              ? 'Not released yet. The office is still preparing it.'
+              : order.status === 'picked_up'
+                ? `Released ${formatDateTime(order.picked_up_at)}${order.handled_by ? ` by ${order.handled_by}` : ''}. Do not hand the items over again.`
+                : `${order.expired ? `Not released by ${formatDate(order.pick_up_by)}.` : `Cancelled ${formatDateTime(order.cancelled_at)}.`} This slip can no longer be used.${!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}`;
+
+    return (
+        <View className={`flex-row items-center gap-4 rounded-3xl p-5 ${ok ? 'bg-emerald-600' : 'bg-red-600'}`}>
+            <View className="h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
+                {ok ? (
+                    <CircleCheck size={30} color="#ffffff" />
+                ) : order.status === 'picked_up' ? (
+                    <ShieldAlert size={30} color="#ffffff" />
+                ) : (
+                    <Ban size={30} color="#ffffff" />
+                )}
+            </View>
+            <View className="flex-1 gap-0.5">
+                <Text className="font-sans-bold text-lg uppercase tracking-wide text-white">{title}</Text>
+                <Text className="font-sans text-sm leading-5 text-white/90">{text}</Text>
+            </View>
+        </View>
+    );
+}
+
+function ScanNextButton({ main, onPress, children }: { main: boolean; onPress: () => void; children: string }) {
+    return (
+        <ActionButton
+            tone={main ? 'blue' : 'plain'}
+            icon={<ScanLine size={18} color={main ? '#ffffff' : '#334155'} />}
+            busy={false}
+            onPress={onPress}
+        >
+            {children}
+        </ActionButton>
+    );
+}
+
+function Check({ tone, children }: { tone: 'green' | 'amber'; children: ReactNode }) {
     const style = {
         green: { box: 'bg-emerald-50', text: 'text-emerald-900', icon: <CircleCheck size={16} color="#047857" /> },
-        red: { box: 'bg-red-50', text: 'text-red-900', icon: <XCircle size={16} color="#b91c1c" /> },
         amber: { box: 'bg-amber-50', text: 'text-amber-900', icon: <TriangleAlert size={16} color="#b45309" /> },
     }[tone];
 

@@ -1,12 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Ban,
     Banknote,
     CheckCircle2,
     LoaderCircle,
     PackageCheck,
     Printer,
     SearchX,
+    ShieldAlert,
     TriangleAlert,
     Undo2,
     XCircle,
@@ -34,11 +36,12 @@ type SlipResult = {
 };
 
 /**
- * A scanned issuance slip: the order beside its slip, with checks in V1's
- * colors (green fine, red stop), the amount to collect, and the next step:
- * Ready for pickup, Release once the student has paid (the items leave
- * the shelf only then), Undo release the same day, Cancel, or Print the
- * slip for the signatures. Not a PROWARE slip: says so.
+ * A scanned issuance slip: first a large banner that answers "can I
+ * release this?" (green OK, red stop), then the order beside its slip with
+ * the student, the checks, and the release as numbered steps: collect the
+ * amount, tick that the student has paid, release the items (they leave
+ * the shelf only then). Ready for pickup, Undo release (same day), Print
+ * and Cancel sit below, smaller. Not a PROWARE slip: says so.
  */
 export default function OrderSlip({
     code,
@@ -77,13 +80,16 @@ export default function OrderSlip({
                 {result === null ? (
                     code !== '' && <NotFound code={code} />
                 ) : (
-                    <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]">
-                        <IssuanceSlip
-                            slip={result.slip}
-                            className="rounded-2xl shadow-sm"
-                        />
-                        <ReleaseCard result={result} />
-                    </div>
+                    <>
+                        <ReleaseVerdict order={result.order} />
+                        <div className="grid items-start gap-6 lg:grid-cols-[1fr_24rem]">
+                            <IssuanceSlip
+                                slip={result.slip}
+                                className="rounded-2xl shadow-sm"
+                            />
+                            <ReleaseCard result={result} />
+                        </div>
+                    </>
                 )}
             </div>
         </>
@@ -107,6 +113,70 @@ function NotFound({ code }: { code: string }) {
     );
 }
 
+/**
+ * The answer first, in V1's colors: green while the items can still be
+ * released, red when they were released already (so they are not handed
+ * over twice) or the order was cancelled or expired.
+ */
+function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
+    const verdict = (() => {
+        switch (order.status) {
+            case 'placed':
+            case 'ready':
+                return {
+                    tone: 'green' as const,
+                    icon: <CheckCircle2 size={30} />,
+                    title: 'OK to release',
+                    text:
+                        order.status === 'ready'
+                            ? 'Ready for pickup and not released yet.'
+                            : 'Not released yet. The office is still preparing it.',
+                };
+            case 'picked_up':
+                return {
+                    tone: 'red' as const,
+                    icon: <ShieldAlert size={30} />,
+                    title: 'Do not release: already released',
+                    text: `Released ${formatDateTime(order.picked_up_at)}${order.handled_by ? ` by ${order.handled_by}` : ''}. Do not hand the items over again.`,
+                };
+            default:
+                return {
+                    tone: 'red' as const,
+                    icon: <Ban size={30} />,
+                    title: order.expired
+                        ? 'Do not release: expired'
+                        : 'Do not release: cancelled',
+                    text: `${
+                        order.expired
+                            ? `Not released by ${formatDateOrdered(order.pick_up_by)}.`
+                            : `Cancelled ${formatDateTime(order.cancelled_at)}.`
+                    } This slip can no longer be used.${!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}`,
+                };
+        }
+    })();
+
+    return (
+        <section
+            className={cn(
+                'flex items-center gap-4 rounded-3xl px-6 py-5 shadow-sm',
+                verdict.tone === 'green'
+                    ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                    : 'bg-red-600 text-white shadow-red-600/20',
+            )}
+        >
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/20">
+                {verdict.icon}
+            </span>
+            <div>
+                <p className="text-xl font-black tracking-wide uppercase">
+                    {verdict.title}
+                </p>
+                <p className="mt-0.5 text-sm text-white/90">{verdict.text}</p>
+            </div>
+        </section>
+    );
+}
+
 function ReleaseCard({ result }: { result: SlipResult }) {
     const { order, other_open_orders: otherOpenOrders } = result;
     const [paid, setPaid] = useState(false);
@@ -124,80 +194,71 @@ function ReleaseCard({ result }: { result: SlipResult }) {
     };
 
     return (
-        <aside className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <p className="text-2xl font-black text-slate-900">
-                        {order.number}
-                    </p>
-                    <p className="text-sm font-bold text-slate-700">
+        <aside className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+            <div className="flex items-center gap-3">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-base font-black text-blue-700 ring-1 ring-blue-200">
+                    {initials(order.student_name)}
+                </span>
+                <div className="min-w-0 flex-1">
+                    <p className="truncate font-black text-slate-900">
                         {order.student_name}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                        <span className="font-bold text-slate-700">
+                            {order.number}
+                        </span>
+                        {order.student_section && ` · ${order.student_section}`}
                     </p>
                 </div>
                 <OrderStatusBadge order={order} />
             </div>
 
-            <ul className="space-y-2 text-sm">
-                <OrderStateCheck order={order} />
-                {isOpen && (
-                    <Check ok>
-                        Pick up by{' '}
-                        <strong>{formatDateOrdered(order.pick_up_by)}</strong>.
-                        Its items are held for it.
-                    </Check>
-                )}
-                {otherOpenOrders.length > 0 && (
-                    <Check tone="amber">
-                        {order.student_name} has{' '}
-                        {otherOpenOrders.length === 1
-                            ? 'another order'
-                            : `${otherOpenOrders.length} other orders`}{' '}
-                        waiting:{' '}
-                        {otherOpenOrders.map((other, index) => (
-                            <span key={other.id}>
-                                {index > 0 && ', '}
-                                <Link
-                                    href={OrderController.slip({
-                                        query: { code: other.number ?? '' },
-                                    })}
-                                    className="font-black underline"
-                                >
-                                    {other.number}
-                                </Link>{' '}
-                                ({other.status_label})
-                            </span>
-                        ))}
-                    </Check>
-                )}
-            </ul>
-
-            {isOpen && (
-                <div className="rounded-2xl bg-emerald-50 px-4 py-3">
-                    <p className="text-xs font-black tracking-wide text-emerald-800 uppercase">
-                        To collect
-                    </p>
-                    <p className="text-3xl font-black text-emerald-900">
-                        {formatPeso(order.total_centavos)}
-                    </p>
-                </div>
+            {(isOpen || otherOpenOrders.length > 0) && (
+                <ul className="space-y-2 text-sm">
+                    {isOpen && (
+                        <Check tone="green">
+                            Pick up by{' '}
+                            <strong>
+                                {formatDateOrdered(order.pick_up_by)}
+                            </strong>
+                            . Its items are held for it.
+                        </Check>
+                    )}
+                    {otherOpenOrders.length > 0 && (
+                        <Check tone="amber">
+                            {order.student_name} has{' '}
+                            {otherOpenOrders.length === 1
+                                ? 'another order'
+                                : `${otherOpenOrders.length} other orders`}{' '}
+                            waiting:{' '}
+                            {otherOpenOrders.map((other, index) => (
+                                <span key={other.id}>
+                                    {index > 0 && ', '}
+                                    <Link
+                                        href={OrderController.slip({
+                                            query: { code: other.number ?? '' },
+                                        })}
+                                        className="font-black underline"
+                                    >
+                                        {other.number}
+                                    </Link>{' '}
+                                    ({other.status_label})
+                                </span>
+                            ))}
+                        </Check>
+                    )}
+                </ul>
             )}
 
-            <div className="space-y-2">
-                {order.status === 'placed' && (
-                    <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => act(OrderController.ready(order.id).url)}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
-                    >
-                        <PackageCheck size={16} />
-                        Ready for pickup
-                    </button>
-                )}
-
-                {isOpen && (
-                    <>
-                        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-800 has-checked:border-emerald-400 has-checked:bg-emerald-50">
+            {isOpen && (
+                <ol className="space-y-3">
+                    <ReleaseStep number={1} title="Collect the payment">
+                        <p className="text-3xl font-black tracking-tight text-emerald-700">
+                            {formatPeso(order.total_centavos)}
+                        </p>
+                    </ReleaseStep>
+                    <ReleaseStep number={2} title="Confirm it">
+                        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-800 transition has-checked:border-emerald-400 has-checked:bg-emerald-50">
                             <input
                                 type="checkbox"
                                 checked={paid}
@@ -209,6 +270,8 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                             The student has paid{' '}
                             {formatPeso(order.total_centavos)}.
                         </label>
+                    </ReleaseStep>
+                    <ReleaseStep number={3} title="Hand over the items">
                         <button
                             type="button"
                             disabled={!paid || busy}
@@ -217,34 +280,45 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                                     paid: true,
                                 })
                             }
-                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                         >
                             {busy ? (
                                 <LoaderCircle
-                                    size={17}
+                                    size={18}
                                     className="animate-spin"
                                 />
                             ) : (
-                                <Banknote size={17} />
+                                <Banknote size={18} />
                             )}
                             Release the items
                         </button>
-                    </>
+                    </ReleaseStep>
+                </ol>
+            )}
+
+            <div className="grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
+                {order.status === 'placed' && (
+                    <SmallButton
+                        tone="blue"
+                        disabled={busy}
+                        onClick={() => act(OrderController.ready(order.id).url)}
+                    >
+                        <PackageCheck size={16} />
+                        Ready for pickup
+                    </SmallButton>
                 )}
 
                 {order.can_undo_release && (
-                    <button
-                        type="button"
+                    <SmallButton
                         disabled={busy}
                         onClick={() =>
                             act(OrderController.undoRelease(order.id).url)
                         }
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
                         title="Released by mistake? Put it back to Ready for pickup (today only)."
                     >
                         <Undo2 size={16} />
                         Undo release
-                    </button>
+                    </SmallButton>
                 )}
 
                 {order.status !== 'cancelled' && (
@@ -252,21 +326,18 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                         href={OrderController.printSlip(order.id).url}
                         target="_blank"
                         rel="noopener"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
                     >
                         <Printer size={16} />
-                        Print slip for signatures
+                        Print slip
                     </a>
                 )}
 
                 {isOpen && (
-                    <button
-                        type="button"
-                        onClick={() => setCancelling(true)}
-                        className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
-                    >
+                    <SmallButton tone="red" onClick={() => setCancelling(true)}>
+                        <XCircle size={16} />
                         Cancel order
-                    </button>
+                    </SmallButton>
                 )}
             </div>
 
@@ -278,65 +349,92 @@ function ReleaseCard({ result }: { result: SlipResult }) {
     );
 }
 
-/**
- * Green while the order can still be released; red when it was released
- * already (so the items are not handed over twice) or cancelled.
- */
-function OrderStateCheck({ order }: { order: SpecialistOrderRow }) {
-    switch (order.status) {
-        case 'placed':
-            return (
-                <Check ok>Not released yet. The office is preparing it.</Check>
-            );
-        case 'ready':
-            return <Check ok>Not released yet. Ready for pickup.</Check>;
-        case 'picked_up':
-            return (
-                <Check ok={false}>
-                    Already released {formatDateTime(order.picked_up_at)}
-                    {order.handled_by && ` by ${order.handled_by}`}. Do not hand
-                    the items over again.
-                </Check>
-            );
-        default:
-            return (
-                <Check ok={false}>
-                    {order.expired
-                        ? `Expired: not released by ${formatDateOrdered(order.pick_up_by)}.`
-                        : `Cancelled ${formatDateTime(order.cancelled_at)}.`}{' '}
-                    This slip can no longer be used.
-                    {!order.expired &&
-                        order.cancel_reason &&
-                        ` ${order.cancel_reason}`}
-                </Check>
-            );
-    }
+/** "Juan Dela Cruz" -> "JC". */
+function initials(name: string): string {
+    const words = name.trim().split(/\s+/);
+
+    return `${words[0]?.[0] ?? ''}${words.length > 1 ? (words[words.length - 1][0] ?? '') : ''}`.toUpperCase();
+}
+
+function ReleaseStep({
+    number,
+    title,
+    children,
+}: {
+    number: number;
+    title: string;
+    children: ReactNode;
+}) {
+    return (
+        <li className="flex gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-black text-emerald-700 ring-1 ring-emerald-200">
+                {number}
+            </span>
+            <div className="min-w-0 flex-1 space-y-1.5">
+                <p className="pt-0.5 text-xs font-black tracking-wide text-slate-500 uppercase">
+                    {title}
+                </p>
+                {children}
+            </div>
+        </li>
+    );
+}
+
+function SmallButton({
+    tone = 'plain',
+    disabled = false,
+    onClick,
+    title,
+    children,
+}: {
+    tone?: 'plain' | 'blue' | 'red';
+    disabled?: boolean;
+    onClick: () => void;
+    title?: string;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            disabled={disabled}
+            onClick={onClick}
+            title={title}
+            className={cn(
+                'inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-black transition disabled:opacity-60',
+                tone === 'plain' &&
+                    'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                tone === 'blue' &&
+                    'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
+                tone === 'red' &&
+                    'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+            )}
+        >
+            {children}
+        </button>
+    );
 }
 
 function Check({
-    ok,
     tone,
     children,
 }: {
-    ok?: boolean;
-    tone?: 'amber';
+    tone: 'green' | 'amber';
     children: ReactNode;
 }) {
-    const color = tone ?? (ok ? 'green' : 'red');
-
     return (
         <li
             className={cn(
                 'flex gap-2 rounded-xl px-3 py-2 leading-6',
-                color === 'green' && 'bg-emerald-50 text-emerald-900',
-                color === 'red' && 'bg-red-50 text-red-900',
-                color === 'amber' && 'bg-amber-50 text-amber-900',
+                tone === 'green' && 'bg-emerald-50 text-emerald-900',
+                tone === 'amber' && 'bg-amber-50 text-amber-900',
             )}
         >
             <span className="mt-1 shrink-0">
-                {color === 'green' && <CheckCircle2 size={16} />}
-                {color === 'red' && <XCircle size={16} />}
-                {color === 'amber' && <TriangleAlert size={16} />}
+                {tone === 'green' ? (
+                    <CheckCircle2 size={16} />
+                ) : (
+                    <TriangleAlert size={16} />
+                )}
             </span>
             <span>{children}</span>
         </li>

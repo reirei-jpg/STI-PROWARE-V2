@@ -155,8 +155,9 @@ export default function StaffOrderScreen() {
                         )}
                         {order.can_undo_release && (
                             <ActionButton
+                                small
                                 tone="plain"
-                                icon={<Undo2 size={18} color="#334155" />}
+                                icon={<Undo2 size={16} color="#334155" />}
                                 busy={busy}
                                 onPress={() => void run('undo-release')}
                             >
@@ -165,8 +166,9 @@ export default function StaffOrderScreen() {
                         )}
                         {isOpen && (
                             <ActionButton
+                                small
                                 tone="red"
-                                icon={<XCircle size={18} color="#b91c1c" />}
+                                icon={<XCircle size={16} color="#b91c1c" />}
                                 busy={busy}
                                 onPress={() => setCancelling(true)}
                             >

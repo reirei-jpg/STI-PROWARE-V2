@@ -142,6 +142,51 @@ export default function Dashboard({
                     }
                 />
 
+                <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    <SummaryTile
+                        href={
+                            OrderController.index({
+                                query: { show: 'ready' },
+                            }).url
+                        }
+                        icon={Banknote}
+                        tone="amber"
+                        label="To collect"
+                        value={formatPeso(tasks.cash.waiting_centavos)}
+                        detail={`${tasks.cash.waiting_orders} ${tasks.cash.waiting_orders === 1 ? 'order' : 'orders'} ready for pickup`}
+                    />
+                    <SummaryTile
+                        href={
+                            OrderController.index({
+                                query: { show: 'picked_up' },
+                            }).url
+                        }
+                        icon={CheckCircle2}
+                        tone="green"
+                        label="Collected today"
+                        value={formatPeso(tasks.cash.collected_centavos)}
+                        detail={`${tasks.cash.collected_orders} ${tasks.cash.collected_orders === 1 ? 'order' : 'orders'} released`}
+                    />
+                    <SummaryTile
+                        href="#do-now"
+                        icon={Flame}
+                        tone="red"
+                        label="Do now"
+                        value={String(countTasks(tasks.now))}
+                        detail={countTasks(tasks.now) === 1 ? 'task' : 'tasks'}
+                    />
+                    <SummaryTile
+                        href="#today"
+                        icon={CalendarClock}
+                        tone="blue"
+                        label="Today"
+                        value={String(countTasks(tasks.today))}
+                        detail={
+                            countTasks(tasks.today) === 1 ? 'task' : 'tasks'
+                        }
+                    />
+                </section>
+
                 {allClear ? (
                     <section className="rounded-3xl border border-emerald-200 bg-emerald-50 px-6 py-14 text-center">
                         <CheckCircle2
@@ -159,111 +204,156 @@ export default function Dashboard({
                 ) : (
                     <>
                         <TaskGroup
+                            id="do-now"
                             title="Do now"
                             dotClassName="bg-red-500"
+                            badgeClassName="bg-red-50 text-red-700"
                             tasks={tasks.now}
                         />
                         <TaskGroup
+                            id="today"
                             title="Today"
                             dotClassName="bg-amber-400"
+                            badgeClassName="bg-amber-50 text-amber-700"
                             tasks={tasks.today}
                         />
                         <TaskGroup
+                            id="this-week"
                             title="This week"
                             dotClassName="bg-blue-500"
+                            badgeClassName="bg-blue-50 text-blue-700"
                             tasks={tasks.week}
                         />
                     </>
                 )}
-
-                <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
-                    <Link
-                        href={OrderController.index({
-                            query: { show: 'ready' },
-                        })}
-                        className="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-50"
-                    >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                            <PackageCheck size={20} />
-                        </span>
-                        <span>
-                            <span className="block text-sm text-slate-500">
-                                Waiting for pickup
-                            </span>
-                            <span className="block font-black text-slate-900">
-                                {tasks.cash.waiting_orders}{' '}
-                                {tasks.cash.waiting_orders === 1
-                                    ? 'order'
-                                    : 'orders'}{' '}
-                                · {formatPeso(tasks.cash.waiting_centavos)} to
-                                collect
-                            </span>
-                        </span>
-                    </Link>
-                    <Link
-                        href={OrderController.index({
-                            query: { show: 'picked_up' },
-                        })}
-                        className="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-50"
-                    >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-                            <Banknote size={20} />
-                        </span>
-                        <span>
-                            <span className="block text-sm text-slate-500">
-                                Collected today (cash)
-                            </span>
-                            <span className="block font-black text-slate-900">
-                                {tasks.cash.collected_orders}{' '}
-                                {tasks.cash.collected_orders === 1
-                                    ? 'order'
-                                    : 'orders'}{' '}
-                                · {formatPeso(tasks.cash.collected_centavos)}
-                            </span>
-                        </span>
-                    </Link>
-                </section>
             </div>
         </>
     );
 }
 
+/** Tasks in a group, not counting the "and N more" link. */
+function countTasks(tasks: Task[]): number {
+    return tasks.filter((task) => task.kind !== 'more').length;
+}
+
+const tileClasses = {
+    amber: 'bg-amber-50 text-amber-700',
+    green: 'bg-emerald-50 text-emerald-700',
+    red: 'bg-red-50 text-red-700',
+    blue: 'bg-blue-50 text-blue-700',
+} as const;
+
+/** One number at the top of the dashboard, opening what it counts. */
+function SummaryTile({
+    href,
+    icon: Icon,
+    tone,
+    label,
+    value,
+    detail,
+}: {
+    href: string;
+    icon: LucideIcon;
+    tone: keyof typeof tileClasses;
+    label: string;
+    value: string;
+    detail: string;
+}) {
+    const content = (
+        <>
+            <span
+                className={cn(
+                    'flex size-11 items-center justify-center rounded-2xl',
+                    tileClasses[tone],
+                )}
+            >
+                <Icon size={21} />
+            </span>
+            <span className="mt-4 block text-xs font-black tracking-wide text-slate-500 uppercase">
+                {label}
+            </span>
+            <span className="mt-0.5 block text-2xl font-black tracking-tight text-slate-900">
+                {value}
+            </span>
+            <span className="block text-sm text-slate-500">{detail}</span>
+        </>
+    );
+    const classes =
+        'block rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md';
+
+    return href.startsWith('#') ? (
+        <a href={href} className={classes}>
+            {content}
+        </a>
+    ) : (
+        <Link href={href} className={classes}>
+            {content}
+        </Link>
+    );
+}
+
 /**
  * One group of the to-do list ("Do now", "Today", "This week"). An empty
- * group says so, so the Specialist knows nothing was missed.
+ * group shrinks to one line that says so, so the Specialist knows nothing
+ * was missed.
  */
 function TaskGroup({
+    id,
     title,
     dotClassName,
+    badgeClassName,
     tasks,
 }: {
+    id: string;
     title: string;
     dotClassName: string;
+    badgeClassName: string;
     tasks: Task[];
 }) {
+    if (tasks.length === 0) {
+        return (
+            <section
+                id={id}
+                className="flex scroll-mt-24 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm shadow-sm"
+            >
+                <span
+                    className={cn('h-2.5 w-2.5 rounded-full', dotClassName)}
+                />
+                <span className="font-black tracking-wide text-slate-700 uppercase">
+                    {title}
+                </span>
+                <span className="ml-auto flex items-center gap-1.5 text-slate-500">
+                    <CheckCircle2 size={16} className="text-emerald-500" />
+                    Nothing here
+                </span>
+            </section>
+        );
+    }
+
     return (
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <section
+            id={id}
+            className="scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+        >
             <h2 className="flex items-center gap-2 border-b border-slate-100 px-6 py-4 text-sm font-black tracking-wide text-slate-700 uppercase">
                 <span
                     className={cn('h-2.5 w-2.5 rounded-full', dotClassName)}
                 />
                 {title}
-                <span className="font-bold text-slate-400 normal-case">
-                    · {tasks.length === 0 ? 'nothing' : tasks.length}
+                <span
+                    className={cn(
+                        'rounded-full px-2 py-0.5 text-xs font-black',
+                        badgeClassName,
+                    )}
+                >
+                    {countTasks(tasks)}
                 </span>
             </h2>
-            {tasks.length === 0 ? (
-                <p className="flex items-center gap-2 px-6 py-4 text-sm text-slate-500">
-                    <CheckCircle2 size={16} className="text-emerald-500" />
-                    Nothing here.
-                </p>
-            ) : (
-                <ul className="divide-y divide-slate-100">
-                    {tasks.map((task) => (
-                        <TaskRow key={task.key} task={task} />
-                    ))}
-                </ul>
-            )}
+            <ul className="divide-y divide-slate-100">
+                {tasks.map((task) => (
+                    <TaskRow key={task.key} task={task} />
+                ))}
+            </ul>
         </section>
     );
 }
@@ -286,7 +376,7 @@ function TaskRow({ task }: { task: Task }) {
     }
 
     return (
-        <li className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <li className="flex flex-col gap-3 px-6 py-4 transition hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
                 <span
                     className={cn(

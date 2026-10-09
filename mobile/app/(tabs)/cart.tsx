@@ -1,8 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import {
-    Banknote,
     Check,
     CircleCheck,
+    GraduationCap,
     ImageIcon,
     QrCode,
     ShoppingCart,
@@ -24,11 +24,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderItemsList from '@/components/OrderItemsList';
+import OrderSteps from '@/components/OrderSteps';
 import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
-import { formatDate, formatPeso, formatUnits, unitWord } from '@/lib/format';
+import { formatPeso, formatUnits, unitWord } from '@/lib/format';
 import type { CartLine, CartView, StudentOrder } from '@/lib/types';
 
 /**
@@ -94,7 +95,6 @@ export default function CartScreen() {
     if (placed) {
         return (
             <OrderPlaced
-                message={placed.message}
                 order={placed.order}
                 onDone={(next) => {
                     setPlaced(null);
@@ -218,21 +218,44 @@ export default function CartScreen() {
                 )}
 
                 {cart !== null && lines.length > 0 && (
-                    <View className="gap-1.5 rounded-3xl border border-slate-200 bg-white p-4">
-                        <Text className="font-sans-bold text-sm text-slate-700">Course/Section</Text>
-                        <TextInput
-                            value={section}
-                            onChangeText={setSectionText}
-                            maxLength={40}
-                            placeholder="e.g. BSIT 1-A"
-                            placeholderTextColor="#94a3b8"
-                            autoCapitalize="characters"
-                            autoCorrect={false}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-3 font-sans-semibold text-sm text-slate-900"
-                        />
-                        <Text className="font-sans text-xs text-slate-500">
-                            Printed on your issuance slip. Kept for next time.
-                        </Text>
+                    <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                        <View className="flex-row items-end justify-between gap-3 bg-brand px-5 py-4">
+                            <View>
+                                <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-blue-100">
+                                    Order summary
+                                </Text>
+                                <Text className="mt-0.5 font-sans-semibold text-sm text-blue-50">
+                                    {ticked.length} {ticked.length === 1 ? 'item' : 'items'}
+                                </Text>
+                            </View>
+                            <Text className="font-sans-bold text-2xl text-white">
+                                {formatPeso(cart.total_centavos)}
+                            </Text>
+                        </View>
+
+                        <View className="gap-5 p-4">
+                            <OrderSteps pickUpBy={cart.pick_up_by} />
+
+                            <View className="gap-1.5">
+                                <Text className="font-sans-bold text-sm text-slate-700">Course/Section</Text>
+                                <View className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3">
+                                    <GraduationCap size={18} color="#94a3b8" />
+                                    <TextInput
+                                        value={section}
+                                        onChangeText={setSectionText}
+                                        maxLength={40}
+                                        placeholder="e.g. BSIT 1-A"
+                                        placeholderTextColor="#94a3b8"
+                                        autoCapitalize="characters"
+                                        autoCorrect={false}
+                                        className="flex-1 py-3 font-sans-semibold text-sm text-slate-900"
+                                    />
+                                </View>
+                                <Text className="font-sans text-xs text-slate-500">
+                                    Printed on your issuance slip. Kept for next time.
+                                </Text>
+                            </View>
+                        </View>
                     </View>
                 )}
             </ScrollView>
@@ -240,17 +263,8 @@ export default function CartScreen() {
             {cart !== null && lines.length > 0 && (
                 <View
                     style={{ paddingBottom: 12 }}
-                    className="gap-3 border-t border-slate-200 bg-white px-4 pt-3"
+                    className="gap-2.5 border-t border-slate-200 bg-white px-4 pt-3"
                 >
-                    <View className="flex-row items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2.5">
-                        <Banknote size={18} color="#047857" />
-                        <Text className="flex-1 font-sans text-xs leading-5 text-emerald-900">
-                            You get an issuance slip. Show it at the PROWARE office by{' '}
-                            <Text className="font-sans-bold">{formatDate(cart.pick_up_by)}</Text>,
-                            pay there, and get your items, or the order is cancelled.
-                        </Text>
-                    </View>
-
                     {error && (
                         <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
                     )}
@@ -276,27 +290,17 @@ export default function CartScreen() {
                         )
                     )}
 
-                    <View className="flex-row items-center gap-3">
-                        <View className="flex-1">
-                            <Text className="font-sans text-xs text-slate-500">
-                                Total ({ticked.length} {ticked.length === 1 ? 'item' : 'items'})
-                            </Text>
-                            <Text className="font-sans-bold text-xl text-slate-900">
-                                {formatPeso(cart.total_centavos)}
-                            </Text>
-                        </View>
-                        <Pressable
-                            onPress={placeOrder}
-                            disabled={!canPlaceOrder || placing}
-                            accessibilityRole="button"
-                            className={`flex-row items-center gap-2 rounded-2xl bg-brand px-6 py-4 ${!canPlaceOrder || placing ? 'opacity-50' : ''}`}
-                        >
-                            {placing && <ActivityIndicator color="#ffffff" />}
-                            <Text className="font-sans-bold text-base text-white">
-                                Place Order{ticked.length > 0 ? ` (${ticked.length})` : ''}
-                            </Text>
-                        </Pressable>
-                    </View>
+                    <Pressable
+                        onPress={placeOrder}
+                        disabled={!canPlaceOrder || placing}
+                        accessibilityRole="button"
+                        className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4 ${!canPlaceOrder || placing ? 'opacity-50' : ''}`}
+                    >
+                        {placing && <ActivityIndicator color="#ffffff" />}
+                        <Text className="font-sans-bold text-base text-white">
+                            Place Order{ticked.length > 0 ? ` · ${formatPeso(cart.total_centavos)}` : ''}
+                        </Text>
+                    </Pressable>
                     {ticked.length > 0 && ticked.length < lines.length && (
                         <Text className="text-center font-sans text-xs text-slate-500">
                             Unticked items stay in your cart.
@@ -492,11 +496,9 @@ function CartLineRow({
 }
 
 function OrderPlaced({
-    message,
     order,
     onDone,
 }: {
-    message: string;
     order: StudentOrder;
     onDone: (next: 'slip' | 'orders' | 'store') => void;
 }) {
@@ -512,29 +514,39 @@ function OrderPlaced({
                 gap: 16,
             }}
         >
-            <View className="items-center gap-2 rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-6">
-                <CircleCheck size={44} color="#059669" />
-                <Text className="font-sans-bold text-xl text-emerald-900">
+            <View className="items-center gap-2 rounded-3xl bg-emerald-600 px-5 py-7">
+                <View className="h-16 w-16 items-center justify-center rounded-full bg-white/20">
+                    <CircleCheck size={40} color="#ffffff" />
+                </View>
+                <Text className="mt-1 font-sans-bold text-xl text-white">
                     Order {order.number} placed
                 </Text>
-                <Text className="text-center font-sans text-sm leading-5 text-emerald-900">
-                    {message}
+                <Text className="font-sans-bold text-3xl text-white">
+                    {formatPeso(order.total_centavos)}
                 </Text>
             </View>
+
+            <View className="gap-4 rounded-3xl border border-slate-200 bg-white p-4">
+                <Text className="font-sans-bold text-xs uppercase tracking-wide text-slate-500">
+                    What happens next
+                </Text>
+                <OrderSteps pickUpBy={order.pick_up_by} placed />
+            </View>
+
+            <Pressable
+                onPress={() => onDone('slip')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
+            >
+                <QrCode size={19} color="#ffffff" />
+                <Text className="font-sans-bold text-base text-white">Show issuance slip</Text>
+            </Pressable>
 
             <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
                 <OrderItemsList order={order} />
             </View>
 
             <View className="gap-3">
-                <Pressable
-                    onPress={() => onDone('slip')}
-                    accessibilityRole="button"
-                    className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
-                >
-                    <QrCode size={19} color="#ffffff" />
-                    <Text className="font-sans-bold text-base text-white">Show issuance slip</Text>
-                </Pressable>
                 <Pressable
                     onPress={() => onDone('orders')}
                     accessibilityRole="button"
