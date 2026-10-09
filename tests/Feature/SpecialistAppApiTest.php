@@ -64,9 +64,8 @@ test('the to-do list is the website dashboard\'s, and says which phone screen op
     $tasks = $this->getJson(route('api.v1.specialist.tasks'))->assertOk();
 
     $tasks->assertJsonPath('now.0.title', "Prepare {$order->number} · Juan Dela Cruz")
-        ->assertJsonPath('now.0.target', ['screen' => 'order', 'id' => $order->id])
-        ->assertJsonPath('cash.waiting_orders', 0);
-    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week', 'cash']);
+        ->assertJsonPath('now.0.target', ['screen' => 'order', 'id' => $order->id]);
+    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week']);
 });
 
 test('the app lists the Specialist\'s orders exactly as the website does', function () {

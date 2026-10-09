@@ -237,12 +237,6 @@ export type SpecialistTasks = {
     now: SpecialistTask[];
     today: SpecialistTask[];
     week: SpecialistTask[];
-    cash: {
-        waiting_orders: number;
-        waiting_centavos: number;
-        collected_orders: number;
-        collected_centavos: number;
-    };
 };
 
 /** A student's order on the Specialist's list. */

@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * The Specialist's to-do list on the phone: the website dashboard's Do now
- * / Today / This week and the cash to collect (SpecialistTasks). Each task
+ * / Today / This week (SpecialistTasks). Each task
  * says which phone screen opens it, or that it is done on the website.
  */
 class TaskController extends Controller

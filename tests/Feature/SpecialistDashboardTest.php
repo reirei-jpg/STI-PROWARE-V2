@@ -26,7 +26,7 @@ test('an empty to-do list is all clear', function () {
             ->where('tasks.now', [])
             ->where('tasks.today', [])
             ->where('tasks.week', [])
-            ->where('tasks.cash', ['waiting_orders' => 0, 'waiting_centavos' => 0, 'collected_orders' => 0, 'collected_centavos' => 0])
+            ->missing('tasks.cash')
         );
 });
 
@@ -57,7 +57,6 @@ test('the to-do list puts each task in its group, most urgent first', function (
             ->where('tasks.today.1.title', fn (string $title) => str_starts_with($title, 'Last day to pick up'))
             ->where('tasks.week.0.title', 'Preorders for Anniversary Shirt close Mon, Oct 5')
             ->where('tasks.week.0.detail', '3 pcs preordered so far. Order them in the eStore after it closes.')
-            ->where('tasks.cash', ['waiting_orders' => 1, 'waiting_centavos' => 30000, 'collected_orders' => 1, 'collected_centavos' => 15000])
         );
 });
 

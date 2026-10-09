@@ -35,7 +35,7 @@ final class SpecialistTasks
     public const SLOW_MOVING_DAYS = 18;
 
     /**
-     * @return array{now: list<array<string, mixed>>, today: list<array<string, mixed>>, week: list<array<string, mixed>>, cash: array{waiting_orders: int, waiting_centavos: int, collected_orders: int, collected_centavos: int}}
+     * @return array{now: list<array<string, mixed>>, today: list<array<string, mixed>>, week: list<array<string, mixed>>}
      */
     public function all(): array
     {
@@ -55,7 +55,6 @@ final class SpecialistTasks
                 ...$this->preordersClosing(),
                 ...$this->slowMoving(),
             ],
-            'cash' => $this->cash(),
         ];
     }
 
@@ -327,24 +326,6 @@ final class SpecialistTasks
             label: 'See slow-moving',
             url: route('products.index', ['stock' => 'slow']),
         )];
-    }
-
-    /**
-     * Cash still to collect (orders ready for pickup) and collected today.
-     *
-     * @return array{waiting_orders: int, waiting_centavos: int, collected_orders: int, collected_centavos: int}
-     */
-    private function cash(): array
-    {
-        $ready = Order::query()->where('status', OrderStatus::Ready);
-        $collected = Order::query()->where('status', OrderStatus::PickedUp)->whereDate('picked_up_at', now()->toDateString());
-
-        return [
-            'waiting_orders' => $ready->count(),
-            'waiting_centavos' => (int) $ready->sum('total_centavos'),
-            'collected_orders' => $collected->count(),
-            'collected_centavos' => (int) $collected->sum('total_centavos'),
-        ];
     }
 
     private function days(): string
