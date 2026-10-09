@@ -14,6 +14,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatPeso } from '@/lib/format';
+import { wholeNumberInput } from '@/lib/number-input';
 import { formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -387,9 +388,11 @@ function PickerForm({
                             onChange={(event) =>
                                 setData(
                                     'quantity',
-                                    event.target.value
-                                        .replace(/\D/g, '')
-                                        .slice(0, 4),
+                                    // Never more than what is left to buy.
+                                    wholeNumberInput(
+                                        event.target.value,
+                                        variant ? Math.max(most, 1) : 1000,
+                                    ),
                                 )
                             }
                             onBlur={() => setQuantity(quantity)}
@@ -412,9 +415,9 @@ function PickerForm({
                                 ` (${formatUnits(quantity * piecesPerUnit, 'Piece')})`}
                         </span>
                     </div>
-                    {variant && quantity > most && most > 0 && (
-                        <p className="text-sm text-red-600">
-                            Only {formatUnits(most, unitName)} can be added.
+                    {variant && quantity >= most && most > 0 && (
+                        <p className="text-sm font-bold text-amber-700">
+                            Only {formatUnits(most, unitName)} left to add.
                         </p>
                     )}
                     <InputError message={errors.quantity} />

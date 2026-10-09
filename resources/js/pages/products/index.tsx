@@ -23,6 +23,7 @@ import Panel, { TableHeading } from '@/components/panel';
 import EndSaleButton from '@/components/end-sale-button';
 import ProductStatusBadge from '@/components/product-status-badge';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
+import { wholeNumberInput } from '@/lib/number-input';
 import { formatDateTime, formatPeso } from '@/lib/format';
 import type {
     Paginated,
@@ -337,9 +338,10 @@ export default function ProductsIndex({
                                 value={slowDays}
                                 onChange={(event) =>
                                     setSlowDays(
-                                        event.target.value
-                                            .replace(/\D/g, '')
-                                            .slice(0, 3),
+                                        wholeNumberInput(
+                                            event.target.value,
+                                            365,
+                                        ),
                                     )
                                 }
                                 inputMode="numeric"

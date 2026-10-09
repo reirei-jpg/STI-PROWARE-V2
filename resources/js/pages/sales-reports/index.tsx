@@ -19,6 +19,7 @@ import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading } from '@/components/panel';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { priceInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -621,9 +622,7 @@ function SetCost({ row }: { row: SoldRow }) {
                     onChange={(event) =>
                         form.setData(
                             'unit_cost',
-                            event.target.value
-                                .replace(/[^\d.]/g, '')
-                                .slice(0, 10),
+                            priceInput(event.target.value),
                         )
                     }
                     inputMode="decimal"

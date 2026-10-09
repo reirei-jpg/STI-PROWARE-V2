@@ -15,6 +15,7 @@ import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrde
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
+import { wholeNumberInput } from '@/lib/number-input';
 import { formatDateOrdered } from '@/lib/format';
 import { formatConversion, formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -247,7 +248,7 @@ export default function RecordDelivery({
     ) => {
         const counts = {
             ...splitCounts[group.item_code],
-            [variantId]: value.replace(/\D/g, '').slice(0, 7),
+            [variantId]: wholeNumberInput(value, 1000000),
         };
         setSplitCounts({ ...splitCounts, [group.item_code]: counts });
 

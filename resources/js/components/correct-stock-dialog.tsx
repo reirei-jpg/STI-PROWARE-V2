@@ -10,6 +10,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -35,7 +36,7 @@ type CorrectionForm = {
 };
 
 /** Keeps only digits, so "45 pcs" becomes "45". */
-const digitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 7);
+const digitsOnly = (value: string) => wholeNumberInput(value, 1000000);
 
 /**
  * The pop-up where the Specialist corrects a variant's stock. For damaged,
@@ -363,9 +364,7 @@ function CorrectionForm({
                                 onChange={(event) =>
                                     setData(
                                         'unit_cost',
-                                        event.target.value
-                                            .replace(/[^\d.]/g, '')
-                                            .slice(0, 10),
+                                        priceInput(event.target.value),
                                     )
                                 }
                                 inputMode="decimal"

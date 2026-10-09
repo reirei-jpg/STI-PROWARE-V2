@@ -21,6 +21,7 @@ import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
 import { formatDateTime, formatPeso } from '@/lib/format';
+import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
 import { variantCombinations } from '@/lib/product-variants';
 import { cn } from '@/lib/utils';
@@ -72,8 +73,8 @@ const emptyVariantInput: VariantInput = {
     price: '',
 };
 
-/** Keeps only digits, so "50 pcs" becomes "50". */
-const digitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 6);
+/** Keeps only digits, so "50 pcs" becomes "50", up to 100,000 (as the server allows). */
+const digitsOnly = (value: string) => wholeNumberInput(value, 100000);
 
 const statuses: { value: ProductStatus; label: string; description: string }[] =
     [
@@ -1591,7 +1592,8 @@ function PesoInput({
             </span>
             <input
                 value={disabled ? '' : value}
-                onChange={(event) => onChange(event.target.value)}
+                // Up to ₱100,000.00; endless numbers cannot be typed.
+                onChange={(event) => onChange(priceInput(event.target.value))}
                 inputMode="decimal"
                 placeholder={placeholder}
                 aria-label={label}

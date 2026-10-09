@@ -37,6 +37,9 @@ class SaveProductRequest extends FormRequest
 
     public const MAX_PACKS = 5;
 
+    /** The highest price anyone can type anywhere in PROWARE, in pesos. */
+    public const MAX_PRICE_PESOS = 100000;
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -62,7 +65,7 @@ class SaveProductRequest extends FormRequest
                 'nullable',
                 'decimal:0,2',
                 'gt:0',
-                'max:1000000',
+                'max:'.self::MAX_PRICE_PESOS,
             ],
             'status' => ['required', Rule::in(array_map(fn (ProductStatus $status): string => $status->value, $statuses))],
             'low_stock_alert_at' => ['required', 'integer', 'min:0', 'max:100000'],
@@ -82,7 +85,7 @@ class SaveProductRequest extends FormRequest
             'packs.*.name' => ['required', 'string', 'max:30'],
             'packs.*.pieces' => ['required', 'integer', 'min:2', 'max:100000'],
             'packs.*.sold_to_students' => ['required', 'boolean'],
-            'packs.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'packs.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
 
             'photos' => [
                 Rule::requiredIf($this->input('status') !== ProductStatus::Draft->value),
@@ -112,7 +115,7 @@ class SaveProductRequest extends FormRequest
             'variants.*.combination' => ['present', 'nullable', 'string'],
             'variants.*.estore_item_code' => ['nullable', 'string', 'max:40'],
             'variants.*.estore_pack_key' => ['nullable', 'string', 'max:40'],
-            'variants.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:1000000'],
+            'variants.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
         ];
     }
 
@@ -126,6 +129,9 @@ class SaveProductRequest extends FormRequest
             'price.required' => 'Enter the Selling Price per piece (set by Head Office).',
             'price.decimal' => 'Enter the Selling Price in pesos, e.g. 350 or 350.50.',
             'price.gt' => 'The Selling Price must be more than ₱0.',
+            'price.max' => 'The Selling Price cannot be more than ₱100,000.00.',
+            'packs.*.price.max' => 'The pack price cannot be more than ₱100,000.00.',
+            'variants.*.price.max' => 'A variant\'s price cannot be more than ₱100,000.00.',
             'low_stock_alert_at.required' => 'Enter the number of pieces to be warned at, e.g. 5.',
             'low_stock_alert_at.integer' => 'Enter the number of pieces as a whole number.',
             'low_stock_alert_at.min' => 'The number cannot be below 0.',

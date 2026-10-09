@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SalesReportRequest;
+use App\Http\Requests\SaveProductRequest;
 use App\Models\ProductVariant;
 use App\Services\Reports\SalesReport;
 use App\Services\Stock\StockCost;
@@ -87,8 +88,9 @@ class SalesReportController extends Controller
     public function setPrice(Request $request, ProductVariant $variant): RedirectResponse
     {
         $centavos = (int) round((float) $request->validate(
-            ['unit_cost' => ['required', 'numeric', 'min:0.01', 'max:1000000']],
+            ['unit_cost' => ['required', 'numeric', 'min:0.01', 'max:'.SaveProductRequest::MAX_PRICE_PESOS]],
             [
+                'unit_cost.max' => 'The Cost per piece cannot be more than ₱100,000.00.',
                 'unit_cost.required' => 'Enter the Cost per piece, e.g. 250 or 18.50.',
                 'unit_cost.numeric' => 'Enter the Cost per piece, e.g. 250 or 18.50.',
                 'unit_cost.min' => 'Enter the Cost per piece, e.g. 250 or 18.50.',

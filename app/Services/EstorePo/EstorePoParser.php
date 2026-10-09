@@ -36,6 +36,17 @@ class EstorePoParser
 
     private const UNSUPPORTED_FILE_MESSAGE = 'PROWARE can\'t read this file type yet. Paste the order details email instead, or upload it as a Word (.docx) or text file.';
 
+    /** A line above these looks wrong and cannot be saved. */
+    public const MAX_UNIT_PRICE_CENTAVOS = 100000 * 100;
+
+    public const MAX_QUANTITY = 100000;
+
+    /** Numbers longer than this are not read as they are (they would overflow). */
+    private const MAX_DIGITS = 12;
+
+    /** What an endless number is read as: far above every limit. */
+    private const TOO_BIG = 999_999_999_999_99;
+
     /**
      * Scan a file on disk. Word (.docx) and plain text files are supported.
      *
@@ -461,8 +472,14 @@ class EstorePoParser
             $warn('Quantity ordered is 0.');
         }
 
+        if ($quantityOrdered !== null && $quantityOrdered > self::MAX_QUANTITY) {
+            $warn('Quantity ordered ('.number_format($quantityOrdered).') looks wrong: it is more than '.number_format(self::MAX_QUANTITY).'. Check the eStore email.', blocking: true);
+        }
+
         if ($unitPriceCentavos === null) {
             $warn('Unit price is missing or not a valid amount.', blocking: true);
+        } elseif ($unitPriceCentavos > self::MAX_UNIT_PRICE_CENTAVOS) {
+            $warn('Unit price ('.$this->formatMoney($unitPriceCentavos).') looks wrong: it is more than '.$this->formatMoney(self::MAX_UNIT_PRICE_CENTAVOS).'. Check the eStore email.', blocking: true);
         }
 
         if ($amountCentavos === null) {
@@ -470,6 +487,7 @@ class EstorePoParser
         }
 
         if ($quantityOrdered !== null && $unitPriceCentavos !== null && $amountCentavos !== null
+            && $quantityOrdered <= self::MAX_QUANTITY && $unitPriceCentavos <= self::MAX_UNIT_PRICE_CENTAVOS
             && $quantityOrdered * $unitPriceCentavos !== $amountCentavos) {
             $warn(sprintf(
                 '%d × %s = %s, but the document says %s.',
@@ -590,6 +608,11 @@ class EstorePoParser
             return null;
         }
 
+        // An endless number is read as "too big" instead of overflowing.
+        if (strlen(ltrim($matches[1], '0')) > self::MAX_DIGITS) {
+            return self::TOO_BIG;
+        }
+
         return ((int) $matches[1]) * 100 + (int) str_pad($matches[2] ?? '0', 2, '0');
     }
 
@@ -601,7 +624,7 @@ class EstorePoParser
             return null;
         }
 
-        return (int) $matches[1];
+        return strlen(ltrim($matches[1], '0')) > self::MAX_DIGITS ? self::TOO_BIG : (int) $matches[1];
     }
 
     /**

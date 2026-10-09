@@ -10,6 +10,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { wholeNumberInput } from '@/lib/number-input';
 import { formatPeso } from '@/lib/format';
 import { formatConversion } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -443,9 +444,10 @@ function LinkItemForm({
                                             onChange={(event) =>
                                                 setData(
                                                     'new_pack_pieces',
-                                                    event.target.value
-                                                        .replace(/\D/g, '')
-                                                        .slice(0, 6),
+                                                    wholeNumberInput(
+                                                        event.target.value,
+                                                        100000,
+                                                    ),
                                                 )
                                             }
                                             inputMode="numeric"

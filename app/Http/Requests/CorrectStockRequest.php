@@ -54,7 +54,7 @@ class CorrectStockRequest extends FormRequest
                 'max:200',
             ],
             // Pesos per piece, for a count that adds pieces (checked below).
-            'unit_cost' => ['nullable', 'numeric', 'min:0.01', 'max:1000000'],
+            'unit_cost' => ['nullable', 'numeric', 'min:0.01', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             // Who received pieces given free (promo).
             'recipient_name' => [Rule::requiredIf($reason?->needsRecipient() === true), 'nullable', 'string', 'max:120'],
             'enrollment_form_number' => [Rule::requiredIf($reason?->needsRecipient() === true), 'nullable', 'string', 'max:40'],
@@ -81,6 +81,7 @@ class CorrectStockRequest extends FormRequest
             'enrollment_form_number.required' => 'Enter the student\'s enrollment form #.',
             'unit_cost.numeric' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
             'unit_cost.min' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
+            'unit_cost.max' => 'The eStore price per piece cannot be more than ₱100,000.00.',
         ];
     }
 

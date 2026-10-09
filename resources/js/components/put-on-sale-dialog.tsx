@@ -11,6 +11,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateTime, formatPeso } from '@/lib/format';
+import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { ProductSaleDetails } from '@/types';
@@ -355,9 +356,10 @@ function SaleFormBody({
                             onChange={(event) =>
                                 setData(
                                     'days',
-                                    event.target.value
-                                        .replace(/\D/g, '')
-                                        .slice(0, 3),
+                                    wholeNumberInput(
+                                        event.target.value,
+                                        details.max_days,
+                                    ),
                                 )
                             }
                             inputMode="numeric"
@@ -501,7 +503,9 @@ function SalePriceField({
                 </span>
                 <input
                     value={value}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) =>
+                        onChange(priceInput(event.target.value))
+                    }
                     inputMode="decimal"
                     className={cn(inputClasses, 'pl-7')}
                 />

@@ -18,6 +18,7 @@ import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderC
 import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
@@ -409,10 +410,12 @@ function CartLineRow({ line }: { line: CartLine }) {
                         <input
                             value={quantity}
                             onChange={(event) =>
+                                // Never more than what is left to buy.
                                 setQuantity(
-                                    event.target.value
-                                        .replace(/\D/g, '')
-                                        .slice(0, 4),
+                                    wholeNumberInput(
+                                        event.target.value,
+                                        Math.max(line.most_allowed, 1),
+                                    ),
                                 )
                             }
                             onBlur={() => save(current)}
@@ -438,6 +441,13 @@ function CartLineRow({ line }: { line: CartLine }) {
                         {line.pieces_per_unit > 1 &&
                             ` = ${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')}`}
                     </p>
+                    {current >= line.most_allowed && line.most_allowed > 0 && (
+                        <p className="text-center text-xs font-bold text-amber-700">
+                            Only{' '}
+                            {formatUnits(line.most_allowed, line.unit_name)}{' '}
+                            left
+                        </p>
+                    )}
                 </div>
 
                 <p className="w-24 text-right font-black text-slate-900">
