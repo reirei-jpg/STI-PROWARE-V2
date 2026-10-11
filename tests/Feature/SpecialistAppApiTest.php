@@ -123,7 +123,7 @@ test('the app refuses a step that no longer fits the order, in words', function 
         ->assertJsonValidationErrors(['order' => "Order {$order->number} is Released, so it cannot be released."]);
     $this->postJson(route('api.v1.specialist.orders.undo-release', $order))
         ->assertJsonValidationErrors(['order' => "Order {$order->number}'s release can only be undone on the day it was released."]);
-    $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'Changed mind'])
+    $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'student_asked'])
         ->assertJsonValidationErrors(['order' => "Order {$order->number} is Released, so it cannot be cancelled."]);
 
     expect($order->refresh()->status)->toBe(OrderStatus::PickedUp);
@@ -136,13 +136,13 @@ test('cancelling on the app needs a reason, ends the hold and tells the student'
     Sanctum::actingAs(User::factory()->specialist()->create());
 
     $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => ''])
-        ->assertJsonValidationErrors(['reason' => 'Write why the order is cancelled. The student will see it.']);
+        ->assertJsonValidationErrors(['reason' => 'Choose why the order is cancelled. The student will see it.']);
     expect($order->refresh()->status)->toBe(OrderStatus::Placed);
 
-    $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'The item was damaged.'])
+    $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'item_damaged'])
         ->assertOk()
         ->assertJsonPath('order.status', 'cancelled')
-        ->assertJsonPath('order.cancel_reason', 'The item was damaged.');
+        ->assertJsonPath('order.cancel_reason', 'The item is damaged');
     expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0);
     Notification::assertSentTo($order->student, OrderCancelled::class);
 });

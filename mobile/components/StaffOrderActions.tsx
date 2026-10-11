@@ -1,8 +1,10 @@
 import { Banknote, Check, XCircle } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import BottomSheet from '@/components/BottomSheet';
+import CancelReasonList from '@/components/CancelReasonList';
+import { STAFF_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons';
 import { formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
 
@@ -139,15 +141,18 @@ export function CancelSheet({
     order: SpecialistOrder;
     open: boolean;
     onClose: () => void;
-    onCancel: (reason: string) => void;
+    onCancel: (reason: string, note: string) => void;
     busy: boolean;
     error: string | null;
 }) {
     const [reason, setReason] = useState('');
+    const [note, setNote] = useState('');
+    const ready = cancelReasonReady(reason, note);
 
     useEffect(() => {
         if (open) {
             setReason('');
+            setNote('');
         }
     }, [open]);
 
@@ -160,10 +165,10 @@ export function CancelSheet({
             icon={<XCircle size={20} color="#b91c1c" />}
             footer={
                 <Pressable
-                    onPress={() => onCancel(reason.trim())}
-                    disabled={busy || reason.trim() === ''}
+                    onPress={() => onCancel(reason, note.trim())}
+                    disabled={busy || !ready}
                     accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-red-600 py-4 ${busy || reason.trim() === '' ? 'opacity-50' : ''}`}
+                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-red-600 py-4 ${busy || !ready ? 'opacity-50' : ''}`}
                 >
                     {busy && <ActivityIndicator color="#ffffff" />}
                     <Text className="font-sans-bold text-base text-white">Cancel order</Text>
@@ -173,19 +178,15 @@ export function CancelSheet({
             <Text className="font-sans text-sm leading-5 text-slate-700">
                 Its items go back to stock and {order.student_name} is told why.
             </Text>
-            <View className="gap-2">
-                <Text className="font-sans-bold text-sm text-slate-700">Reason (the student will see it)</Text>
-                <TextInput
-                    value={reason}
-                    onChangeText={setReason}
-                    placeholder="e.g. The item was damaged."
-                    placeholderTextColor="#94a3b8"
-                    maxLength={200}
-                    multiline
-                    className="min-h-24 rounded-xl border border-slate-200 bg-white px-3 py-3 font-sans text-sm text-slate-900"
-                    style={{ textAlignVertical: 'top' }}
-                />
-            </View>
+            <Text className="font-sans-bold text-sm text-slate-700">Why is it cancelled? (the student will see it)</Text>
+            <CancelReasonList
+                reasons={STAFF_CANCEL_REASONS}
+                reason={reason}
+                note={note}
+                onReason={setReason}
+                onNote={setNote}
+                notePlaceholder="e.g. The student changed course and needs another uniform."
+            />
             {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
         </BottomSheet>
     );

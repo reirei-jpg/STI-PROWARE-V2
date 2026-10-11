@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Orders\CancelOrderByStudent;
 use App\Actions\Orders\PlaceOrder;
 use App\Http\Requests\PlaceOrderRequest;
+use App\Http\Requests\StudentCancelOrderRequest;
 use App\Models\Order;
 use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\OrderRow;
@@ -82,7 +83,7 @@ class StudentOrderController extends Controller
      * The student cancels while the order is still Placed; once the office
      * has prepared it, they are asked to talk to the office.
      */
-    public function cancel(Request $request, Order $order, CancelOrderByStudent $cancelOrder): RedirectResponse
+    public function cancel(StudentCancelOrderRequest $request, Order $order, CancelOrderByStudent $cancelOrder): RedirectResponse
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
@@ -94,7 +95,7 @@ class StudentOrderController extends Controller
             return back();
         }
 
-        $cancelOrder->handle($order, $request->user());
+        $cancelOrder->handle($order, $request->user(), $request->reasonText());
 
         Inertia::flash('toast', [
             'type' => 'success',

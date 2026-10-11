@@ -63,7 +63,7 @@ class OrderController extends Controller
 
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
     {
-        return self::done($handle->cancel($order, $request->user(), $request->string('reason')->toString()), $order);
+        return self::done($handle->cancel($order, $request->user(), $request->reasonText()), $order);
     }
 
     private static function done(string $message, Order $order): JsonResponse

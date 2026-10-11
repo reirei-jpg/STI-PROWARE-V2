@@ -303,11 +303,18 @@ test('a student can cancel a placed order and its hold ends', function () {
     expect($variant->refresh()->held_pieces)->toBe(4);
 
     $this->post(route('my-orders.cancel', $order))
+        ->assertSessionHasErrors(['reason' => 'Choose why you are cancelling.']);
+    $this->post(route('my-orders.cancel', $order), ['reason' => 'other', 'note' => 'no'])
+        ->assertSessionHasErrors(['note' => 'Write a little more about why you are cancelling.']);
+    $this->post(route('my-orders.cancel', $order), ['reason' => 'item_damaged'])
+        ->assertSessionHasErrors(['reason' => 'Choose one of the reasons shown.']);
+
+    $this->post(route('my-orders.cancel', $order), ['reason' => 'wrong_size_or_color'])
         ->assertInertiaFlash('toast.message', 'Order PW-0001 was cancelled.');
 
     expect($order->refresh())
         ->status->toBe(OrderStatus::Cancelled)
-        ->cancel_reason->toBe('Cancelled by the student.')
+        ->cancel_reason->toBe('I ordered the wrong size or color')
         ->expired_at->toBeNull()
         ->and($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0)
         ->and(StockMovement::query()->whereNotNull('order_item_id')->count())->toBe(0);
@@ -320,7 +327,7 @@ test('once the order is ready the student can no longer cancel it', function () 
     $order = placedOrder($variant);
     $order->forceFill(['status' => OrderStatus::Ready])->save();
 
-    $this->post(route('my-orders.cancel', $order))
+    $this->post(route('my-orders.cancel', $order), ['reason' => 'ordered_by_mistake'])
         ->assertInertiaFlash('toast.message', 'Order PW-0001 is already prepared, so it can no longer be cancelled here. Please talk to the PROWARE office.');
 
     expect($order->refresh()->status)->toBe(OrderStatus::Ready);
@@ -331,7 +338,7 @@ test('a student cannot see or cancel another student\'s order', function () {
     $order = placedOrder($variant);
 
     $this->actingAs(User::factory()->student()->create())
-        ->post(route('my-orders.cancel', $order))
+        ->post(route('my-orders.cancel', $order), ['reason' => 'ordered_by_mistake'])
         ->assertNotFound();
 
     $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page->has('orders.data', 0));
@@ -403,11 +410,15 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.cancel', $order), ['reason' => ''])
-        ->assertSessionHasErrors(['reason' => 'Write why the order is cancelled. The student will see it.']);
-    $this->post(route('orders.cancel', $order), ['reason' => 'x'])
-        ->assertSessionHasErrors(['reason' => 'Write a little more about why the order is cancelled. The student will see it.']);
+        ->assertSessionHasErrors(['reason' => 'Choose why the order is cancelled. The student will see it.']);
+    $this->post(route('orders.cancel', $order), ['reason' => 'other'])
+        ->assertSessionHasErrors(['note' => 'Write why the order is cancelled. The student will see it.']);
+    $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'x'])
+        ->assertSessionHasErrors(['note' => 'Write a little more about why the order is cancelled. The student will see it.']);
+    $this->post(route('orders.cancel', $order), ['reason' => 'wrong_size_or_color'])
+        ->assertSessionHasErrors(['reason' => 'Choose one of the reasons shown.']);
 
-    $this->post(route('orders.cancel', $order), ['reason' => 'The ballpens were damaged.'])
+    $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'The ballpens were damaged.'])
         ->assertInertiaFlash('toast.message', 'Order PW-0001 was cancelled and its items are free to sell again. Juan Dela Cruz was notified.');
 
     expect($order->refresh())
@@ -419,7 +430,7 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
     // A released order cannot be cancelled.
     $released = placedOrder($variant, 1);
     $this->actingAs($this->specialist)->post(route('orders.release', $released), ['paid' => true]);
-    $this->post(route('orders.cancel', $released), ['reason' => 'Mistake'])
+    $this->post(route('orders.cancel', $released), ['reason' => 'student_asked'])
         ->assertInertiaFlash('toast.message', 'Order PW-0002 is Released, so it cannot be cancelled.');
 });
 

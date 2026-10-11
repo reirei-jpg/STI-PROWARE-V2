@@ -1,15 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Banknote, QrCode } from 'lucide-react-native';
+import { ArrowLeft, Banknote, QrCode, XCircle } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import BottomSheet from '@/components/BottomSheet';
+import CancelReasonList from '@/components/CancelReasonList';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, {
     dateTierClasses,
     orderStripeColors,
 } from '@/components/OrderStatusPill';
 import { ApiError } from '@/lib/api';
+import { STUDENT_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons';
 import { useAuth } from '@/lib/auth';
 import { dueDateTier, formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { StudentOrder } from '@/lib/types';
@@ -40,35 +43,35 @@ export default function OrderScreen() {
             );
     }, [id, request]);
 
-    const cancel = (current: StudentOrder): void => {
-        Alert.alert(`Cancel order ${current.number}?`, 'The items go back to the store.', [
-            { text: 'Keep it', style: 'cancel' },
-            {
-                text: 'Cancel order',
-                style: 'destructive',
-                onPress: async () => {
-                    setCancelling(true);
-                    setError(null);
+    // Cancel opens a sheet to pick why, like in online shops.
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [reason, setReason] = useState('');
+    const [note, setNote] = useState('');
 
-                    try {
-                        const result = await request<{ order: StudentOrder }>(
-                            `/orders/${current.id}/cancel`,
-                            { method: 'POST' },
-                        );
+    const openCancel = (): void => {
+        setReason('');
+        setNote('');
+        setError(null);
+        setSheetOpen(true);
+    };
 
-                        setOrder(result.order);
-                    } catch (caught) {
-                        setError(
-                            caught instanceof ApiError
-                                ? caught.message
-                                : 'The order could not be cancelled. Please try again.',
-                        );
-                    } finally {
-                        setCancelling(false);
-                    }
-                },
-            },
-        ]);
+    const cancel = async (current: StudentOrder): Promise<void> => {
+        setCancelling(true);
+        setError(null);
+
+        try {
+            const result = await request<{ order: StudentOrder }>(`/orders/${current.id}/cancel`, {
+                method: 'POST',
+                body: { reason, note: note.trim() },
+            });
+
+            setOrder(result.order);
+            setSheetOpen(false);
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'The order could not be cancelled. Please try again.');
+        } finally {
+            setCancelling(false);
+        }
     };
 
     return (
@@ -133,7 +136,7 @@ export default function OrderScreen() {
 
                     {order.can_cancel && (
                         <Pressable
-                            onPress={() => cancel(order)}
+                            onPress={openCancel}
                             disabled={cancelling}
                             accessibilityRole="button"
                             className={`flex-row items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 ${cancelling ? 'opacity-60' : ''}`}
@@ -144,7 +147,35 @@ export default function OrderScreen() {
                             </Text>
                         </Pressable>
                     )}
-                </>
+
+                    <BottomSheet
+                        open={sheetOpen}
+                        onClose={() => setSheetOpen(false)}
+                        title={`Cancel order ${order.number}?`}
+                        subtitle={`Why are you cancelling? ${formatPeso(order.total_centavos)} · the items go back on sale`}
+                        icon={<XCircle size={20} color="#b91c1c" />}
+                        footer={
+                            <Pressable
+                                onPress={() => cancel(order)}
+                                disabled={cancelling || !cancelReasonReady(reason, note)}
+                                accessibilityRole="button"
+                                className={`flex-row items-center justify-center gap-2 rounded-2xl bg-red-600 py-4 ${cancelling || !cancelReasonReady(reason, note) ? 'opacity-50' : ''}`}
+                            >
+                                {cancelling && <ActivityIndicator color="#ffffff" />}
+                                <Text className="font-sans-bold text-base text-white">Cancel order</Text>
+                            </Pressable>
+                        }
+                    >
+                        <CancelReasonList
+                            reasons={STUDENT_CANCEL_REASONS}
+                            reason={reason}
+                            note={note}
+                            onReason={setReason}
+                            onNote={setNote}
+                            notePlaceholder="e.g. I will order together with my classmates instead."
+                        />
+                        {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
+                    </BottomSheet>                </>
             )}
         </ScrollView>
     );

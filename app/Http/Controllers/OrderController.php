@@ -86,7 +86,7 @@ class OrderController extends Controller
 
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
-        return $this->respond(fn (): string => $handle->cancel($order, $request->user(), $request->string('reason')->toString()));
+        return $this->respond(fn (): string => $handle->cancel($order, $request->user(), $request->reasonText()));
     }
 
     /**
