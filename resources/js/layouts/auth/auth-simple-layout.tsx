@@ -1,38 +1,75 @@
 import { Link } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
+/**
+ * The sign-in pages (log in, forgot and reset password, two-factor), as on
+ * V1: blue and yellow shapes in STI's colors around a big white card with
+ * the STI badge, the page's title and its description.
+ */
 export default function AuthSimpleLayout({
     children,
     title,
     description,
 }: AuthLayoutProps) {
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
-            <div className="w-full max-w-sm">
-                <div className="flex flex-col gap-8">
-                    <div className="flex flex-col items-center gap-4">
+        <main className="relative flex min-h-svh items-center justify-center overflow-hidden bg-white px-5 py-10">
+            {/* STI blue and yellow shapes, for decoration only. */}
+            <div
+                aria-hidden="true"
+                className="absolute inset-x-0 top-0 h-20 bg-[#0D6EFD] sm:h-28"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute top-14 right-0 hidden h-72 w-32 rounded-l-[3rem] bg-yellow-400 md:block lg:w-44"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute top-104 right-0 hidden h-40 w-32 bg-[#0D6EFD] md:block lg:w-44"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute bottom-32 left-0 hidden h-44 w-28 bg-[#0D6EFD] md:block lg:w-36"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute -bottom-16 left-24 hidden h-48 w-md rounded-t-[4rem] bg-yellow-400 md:block"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute right-0 -bottom-20 hidden h-52 w-100 rounded-tl-[4rem] bg-[#0D6EFD] md:block"
+            />
+
+            <section className="relative z-10 w-full max-w-4xl rounded-[2.5rem] border border-slate-100 bg-white px-6 py-12 shadow-[0_30px_70px_rgba(0,0,0,.12)] sm:px-12 md:px-20 md:py-16 lg:px-44">
+                <div className="mx-auto w-full max-w-md">
+                    <div className="text-center">
                         <Link
                             href={home()}
-                            className="flex flex-col items-center gap-2 font-medium"
+                            className="inline-flex items-center justify-center gap-3"
                         >
-                            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                                <AppLogoIcon className="size-9 fill-current text-[var(--foreground)] dark:text-white" />
-                            </div>
-                            <span className="sr-only">{title}</span>
+                            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-sm font-black text-blue-700 shadow-md">
+                                STI
+                            </span>
+                            <span className="text-2xl font-bold text-slate-950">
+                                PROWARE
+                            </span>
                         </Link>
 
-                        <div className="space-y-2 text-center">
-                            <h1 className="text-xl font-medium">{title}</h1>
-                            <p className="text-center text-sm text-muted-foreground">
+                        {title && (
+                            <h1 className="mt-8 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                                {title}
+                            </h1>
+                        )}
+                        {description && (
+                            <p className="mt-3 text-sm leading-6 text-slate-500">
                                 {description}
                             </p>
-                        </div>
+                        )}
                     </div>
-                    {children}
+
+                    <div className="mt-8">{children}</div>
                 </div>
-            </div>
-        </div>
+            </section>
+        </main>
     );
 }

@@ -1,109 +1,213 @@
-import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
+import { Form, Head, Link } from '@inertiajs/react';
+import { Eye, EyeOff, LoaderCircle, LockKeyhole, Mail } from 'lucide-react';
+import { useState } from 'react';
+import PasskeyVerify from '@/components/passkey-verify';
+import { MicrosoftLogo } from '@/components/sign-in-prompt';
+import { home } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import PasskeyVerify from '@/components/passkey-verify';
 
 type Props = {
     status?: string;
     canResetPassword: boolean;
 };
 
+const fieldClasses =
+    'w-full rounded-full border bg-transparent py-4 pl-14 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400';
+
+/**
+ * PROWARE's sign-in, laid out as on V1: students sign in with their STI
+ * Microsoft 365 account; staff (and demo accounts) with their PROWARE
+ * email and password below.
+ */
 export default function Login({ status, canResetPassword }: Props) {
+    const [showPassword, setShowPassword] = useState(false);
+    const [triedMicrosoft, setTriedMicrosoft] = useState(false);
+
     return (
         <>
-            <Head title="Log in" />
+            <Head title="PROWARE Login" />
 
             <PasskeyVerify />
+
+            {status && (
+                <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    {status}
+                </div>
+            )}
+
+            <button
+                type="button"
+                onClick={() => setTriedMicrosoft(true)}
+                className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-300 bg-white px-6 py-4 text-sm font-bold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 focus:ring-4 focus:ring-blue-100 focus:outline-none"
+                data-test="microsoft-sign-in-button"
+            >
+                <MicrosoftLogo className="h-5 w-5" />
+                Sign in with Microsoft 365
+            </button>
+            <p className="mt-2 text-center text-xs text-slate-500">
+                For students, with your STI account (@sti.edu.ph)
+            </p>
+
+            {triedMicrosoft && (
+                <div
+                    role="status"
+                    className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+                >
+                    <p className="font-bold">Not connected yet</p>
+                    <p className="mt-1">
+                        Microsoft 365 sign-in is waiting for STI&apos;s
+                        Microsoft account details. For now, sign in with your
+                        email and password below.
+                    </p>
+                </div>
+            )}
+
+            <div className="my-8 flex items-center gap-4">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs font-bold tracking-wide text-slate-400 uppercase">
+                    or with your PROWARE email
+                </span>
+                <span className="h-px flex-1 bg-slate-200" />
+            </div>
 
             <Form
                 {...store.form()}
                 resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
+                className="space-y-6"
             >
                 {({ processing, errors }) => (
                     <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <Input
+                        <div>
+                            <label htmlFor="email" className="sr-only">
+                                Email address
+                            </label>
+                            <div className="relative">
+                                <Mail
+                                    size={19}
+                                    className="pointer-events-none absolute top-1/2 left-5 -translate-y-1/2 text-slate-500"
+                                />
+                                <input
                                     id="email"
                                     type="email"
                                     name="email"
                                     required
-                                    autoFocus
-                                    tabIndex={1}
                                     autoComplete="email"
-                                    placeholder="email@example.com"
+                                    maxLength={255}
+                                    placeholder="Email address"
+                                    className={`${fieldClasses} pr-5 ${
+                                        errors.email
+                                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
+                                            : 'border-slate-300 focus:border-[#0D6EFD] focus:ring-4 focus:ring-blue-100'
+                                    }`}
                                 />
-                                <InputError message={errors.email} />
                             </div>
+                            {errors.email && (
+                                <p className="mt-2 px-4 text-sm text-red-600">
+                                    {errors.email}
+                                </p>
+                            )}
+                        </div>
 
-                            <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
-                                    {canResetPassword && (
-                                        <TextLink
-                                            href={request()}
-                                            className="ml-auto text-sm"
-                                            tabIndex={5}
-                                        >
-                                            Forgot your password?
-                                        </TextLink>
-                                    )}
-                                </div>
-                                <PasswordInput
+                        <div>
+                            <label htmlFor="password" className="sr-only">
+                                Password
+                            </label>
+                            <div className="relative">
+                                <LockKeyhole
+                                    size={19}
+                                    className="pointer-events-none absolute top-1/2 left-5 -translate-y-1/2 text-slate-500"
+                                />
+                                <input
                                     id="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     name="password"
                                     required
-                                    tabIndex={2}
                                     autoComplete="current-password"
+                                    maxLength={255}
                                     placeholder="Password"
+                                    className={`${fieldClasses} pr-14 ${
+                                        errors.password
+                                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
+                                            : 'border-slate-300 focus:border-[#0D6EFD] focus:ring-4 focus:ring-blue-100'
+                                    }`}
                                 />
-                                <InputError message={errors.password} />
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowPassword((current) => !current)
+                                    }
+                                    className="absolute top-1/2 right-5 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
+                                    aria-label={
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    }
+                                >
+                                    {showPassword ? (
+                                        <EyeOff size={19} />
+                                    ) : (
+                                        <Eye size={19} />
+                                    )}
+                                </button>
                             </div>
-
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember">Remember me</Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Log in
-                            </Button>
+                            {errors.password && (
+                                <p className="mt-2 px-4 text-sm text-red-600">
+                                    {errors.password}
+                                </p>
+                            )}
                         </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-2">
+                            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+                                <input
+                                    type="checkbox"
+                                    name="remember"
+                                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                Remember me
+                            </label>
+                            {canResetPassword && (
+                                <Link
+                                    href={request()}
+                                    className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                                >
+                                    Forgot password?
+                                </Link>
+                            )}
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-[#005BFF] via-[#0D6EFD] to-[#0045CC] px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:from-blue-600 hover:to-blue-800 focus:ring-4 focus:ring-blue-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                            data-test="login-button"
+                        >
+                            {processing && (
+                                <LoaderCircle
+                                    size={17}
+                                    className="animate-spin"
+                                />
+                            )}
+                            {processing ? 'Logging in...' : 'Login'}
+                        </button>
                     </>
                 )}
             </Form>
 
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
+            <div className="mt-8 text-center">
+                <Link
+                    href={home()}
+                    className="text-sm text-slate-400 transition hover:text-slate-700"
+                >
+                    Return to home
+                </Link>
+            </div>
         </>
     );
 }
 
 Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
+    title: 'STI PROWARE',
+    description: 'Merchandise and Inventory Management System',
 };
