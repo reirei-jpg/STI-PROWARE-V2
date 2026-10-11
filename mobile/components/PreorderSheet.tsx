@@ -13,7 +13,8 @@ import { formatDate, unitWord } from '@/lib/format';
 import type { StorefrontProductDetails } from '@/lib/types';
 
 /** As on the website: a reservation, so no stock limit, only this one. */
-const MOST = 1000;
+/** At most 99 of one item (PlacePreorderRequest::MAX_QUANTITY on the server). */
+const MOST = 99;
 
 /**
  * Preorder, like the website's: which size or color and how many. Nothing

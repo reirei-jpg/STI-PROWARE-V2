@@ -17,7 +17,8 @@ class CancelOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reason' => ['required', 'string', 'max:200'],
+            // A real reason (as on V1), like Close order (short).
+            'reason' => ['required', 'string', 'min:5', 'max:200'],
         ];
     }
 
@@ -28,6 +29,8 @@ class CancelOrderRequest extends FormRequest
     {
         return [
             'reason.required' => 'Write why the order is cancelled. The student will see it.',
+            'reason.min' => 'Write a little more about why the order is cancelled. The student will see it.',
+            'reason.max' => 'Keep the reason to 200 characters or less.',
         ];
     }
 }

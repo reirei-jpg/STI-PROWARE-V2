@@ -156,6 +156,19 @@ test('a draft can be saved without a photo but other statuses cannot', function 
     'available' => ['available', false],
 ]);
 
+test('two products cannot have the same name, but an older duplicate keeps its name when edited', function () {
+    Product::factory()->create(['name' => 'STI Mug']);
+    $older = Product::factory()->create(['name' => 'STI MUG']);
+    ProductVariant::factory()->for($older)->create();
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->post(route('products.store'), productForm(['name' => '  sti mug ']))
+        ->assertSessionHasErrors(['name' => 'There is already a product named "STI Mug". Use another name, or edit that product.']);
+
+    $this->put(route('products.update', $older), productForm(['name' => 'STI MUG', 'status' => 'draft', 'photos' => []]))
+        ->assertSessionHasNoErrors();
+});
+
 test('the form explains what is wrong', function (array $overrides, string $field, string $message) {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('products.store'), productForm($overrides))

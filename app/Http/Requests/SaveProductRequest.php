@@ -202,6 +202,7 @@ class SaveProductRequest extends FormRequest
                     $validator->errors()->add('options', 'These options make more than '.self::MAX_VARIANTS.' variants. Use fewer choices.');
                 }
 
+                $this->validateUniqueName($validator);
                 $this->validatePacks($validator);
                 $this->validatePreorderCloseDate($validator);
                 $this->validateItemCodes($validator);
@@ -414,6 +415,31 @@ class SaveProductRequest extends FormRequest
             if ($pack['sold_to_students'] && $pack['price_centavos'] !== null && $pack['price_centavos'] < $packCost) {
                 $validator->errors()->add("packs.{$index}.price", self::belowCost($pack['price_centavos'], $packCost, $pack['name']));
             }
+        }
+    }
+
+    /**
+     * No two products have the same name, ignoring capital letters (as on
+     * V1), so students never see two "STI Mug" items. A product saved before
+     * this rule keeps its name when edited.
+     */
+    private function validateUniqueName(Validator $validator): void
+    {
+        $name = mb_strtolower(trim((string) $this->input('name')));
+        $product = $this->route('product');
+        $product = $product instanceof Product ? $product : null;
+
+        if ($name === '' || ($product !== null && mb_strtolower(trim($product->name)) === $name)) {
+            return;
+        }
+
+        $taken = Product::query()
+            ->when($product?->id, fn (Builder $query, int $id) => $query->whereKeyNot($id))
+            ->whereRaw('lower(trim(name)) = ?', [$name])
+            ->first();
+
+        if ($taken !== null) {
+            $validator->errors()->add('name', "There is already a product named \"{$taken->name}\". Use another name, or edit that product.");
         }
     }
 

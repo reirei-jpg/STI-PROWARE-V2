@@ -104,17 +104,18 @@ test('an impossible quantity says how many are left', function (string $quantity
     expect($this->student->cartItems()->sole()->quantity)->toBe(1);
 })->with([
     'just above the stock' => ['6'],
-    'above the most per order' => ['1001'],
+    'above the most per item' => ['100'],
     'a very long number' => ['2321312312313'],
     'longer than a number can be' => ['23213123123132132132132132131'],
 ]);
 
-test('more than 1,000 asks to talk to the office only when there is that much stock', function () {
+test('more than 99 asks to talk to the office only when there is that much stock', function () {
     [$product, $variant] = ballpen(stock: 5000);
     $this->actingAs($this->student);
 
-    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1001'])
-        ->assertSessionHasErrors(['quantity' => 'For more than 1,000, please talk to the PROWARE office.']);
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '100'])
+        ->assertSessionHasErrors(['quantity' => 'For more than 99, please talk to the PROWARE office.']);
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '99'])->assertSessionHasNoErrors();
 });
 
 test('only items students can buy now go in the cart', function (ProductStatus $status) {
@@ -403,6 +404,8 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
 
     $this->post(route('orders.cancel', $order), ['reason' => ''])
         ->assertSessionHasErrors(['reason' => 'Write why the order is cancelled. The student will see it.']);
+    $this->post(route('orders.cancel', $order), ['reason' => 'x'])
+        ->assertSessionHasErrors(['reason' => 'Write a little more about why the order is cancelled. The student will see it.']);
 
     $this->post(route('orders.cancel', $order), ['reason' => 'The ballpens were damaged.'])
         ->assertInertiaFlash('toast.message', 'Order PW-0001 was cancelled and its items are free to sell again. Juan Dela Cruz was notified.');

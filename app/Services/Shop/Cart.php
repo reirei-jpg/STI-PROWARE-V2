@@ -18,7 +18,8 @@ use Illuminate\Validation\ValidationException;
  */
 final class Cart
 {
-    public const MAX_QUANTITY = 1000;
+    /** The most of one item a student can have in a cart line (as on V1). */
+    public const MAX_QUANTITY = 99;
 
     public function add(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity): CartItem
     {
