@@ -19,7 +19,7 @@ import ProductController from '@/actions/App/Http/Controllers/ProductController'
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import EndSaleButton from '@/components/end-sale-button';
 import ProductStatusBadge from '@/components/product-status-badge';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
@@ -409,7 +409,7 @@ export default function ProductsIndex({
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            <TableScroll>
                                 <table className="w-full min-w-225">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -593,7 +593,7 @@ export default function ProductsIndex({
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </TableScroll>
 
                             <Pagination
                                 pagination={products}

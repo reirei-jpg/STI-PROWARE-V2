@@ -17,7 +17,7 @@ import DateRangeFilter from '@/components/date-range-filter';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { priceInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
@@ -405,7 +405,7 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
 
     return (
         <>
-            <div className="overflow-x-auto">
+            <TableScroll>
                 <table className="w-full min-w-180">
                     <thead className="bg-slate-50">
                         <tr>
@@ -443,7 +443,7 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </TableScroll>
             <Pagination pagination={rows} itemName="orders" />
         </>
     );
@@ -457,7 +457,7 @@ function SoldTable({ rows }: { rows: Paginated<SoldRow> }) {
 
     return (
         <>
-            <div className="overflow-x-auto">
+            <TableScroll>
                 <table className="w-full min-w-250">
                     <thead className="bg-slate-50">
                         <tr>
@@ -480,7 +480,7 @@ function SoldTable({ rows }: { rows: Paginated<SoldRow> }) {
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </TableScroll>
             <Pagination pagination={rows} itemName="items" />
         </>
     );
@@ -669,7 +669,7 @@ function FreeTable({ rows }: { rows: Paginated<FreeRow> }) {
 
     return (
         <>
-            <div className="overflow-x-auto">
+            <TableScroll>
                 <table className="w-full min-w-225">
                     <thead className="bg-slate-50">
                         <tr>
@@ -737,7 +737,7 @@ function FreeTable({ rows }: { rows: Paginated<FreeRow> }) {
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </TableScroll>
             <Pagination pagination={rows} itemName="free uniforms" />
         </>
     );

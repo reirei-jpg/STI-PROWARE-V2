@@ -15,7 +15,7 @@ import ProductController from '@/actions/App/Http/Controllers/ProductController'
 import LinkItemDialog from '@/components/link-item-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import SplitDeliveredDialog from '@/components/split-delivered-dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { formatConversion } from '@/lib/units';
@@ -212,7 +212,7 @@ export default function ItemsToLink({
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            <TableScroll>
                                 <table className="w-full min-w-250">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -331,7 +331,7 @@ export default function ItemsToLink({
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </TableScroll>
 
                             <Pagination pagination={items} itemName="items" />
                         </>

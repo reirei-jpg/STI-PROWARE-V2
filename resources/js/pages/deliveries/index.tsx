@@ -20,7 +20,7 @@ import DeliveryDetailsDialog from '@/components/delivery-details-dialog';
 import DeliveryProgress from '@/components/delivery-progress';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -492,7 +492,7 @@ function ReceivedTable({
 
     return (
         <>
-            <div className="overflow-x-auto">
+            <TableScroll>
                 <table className="w-full min-w-250">
                     <thead className="bg-slate-50">
                         <tr>
@@ -611,7 +611,7 @@ function ReceivedTable({
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </TableScroll>
 
             <Pagination pagination={deliveries} itemName="deliveries" />
         </>
@@ -644,7 +644,7 @@ function WaitingTable({
 
     return (
         <>
-            <div className="overflow-x-auto">
+            <TableScroll>
                 <table className="w-full min-w-250">
                     <thead className="bg-slate-50">
                         <tr>
@@ -728,7 +728,7 @@ function WaitingTable({
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </TableScroll>
 
             <Pagination pagination={orders} itemName="orders" />
         </>

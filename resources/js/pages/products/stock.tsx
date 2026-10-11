@@ -13,7 +13,7 @@ import ProductStockController from '@/actions/App/Http/Controllers/ProductStockC
 import CorrectStockDialog from '@/components/correct-stock-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatConversion, formatUnits } from '@/lib/units';
@@ -210,7 +210,7 @@ export default function ProductStock({
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            <TableScroll>
                                 <table className="w-full min-w-225">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -272,7 +272,7 @@ export default function ProductStock({
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </TableScroll>
 
                             <Pagination
                                 pagination={movements}

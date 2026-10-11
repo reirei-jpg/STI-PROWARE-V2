@@ -16,7 +16,7 @@ import DateRangeFilter from '@/components/date-range-filter';
 import DeliveryProgress from '@/components/delivery-progress';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
@@ -401,7 +401,7 @@ export default function PurchaseOrdersIndex({
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            <TableScroll>
                                 <table className="w-full min-w-220">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -526,7 +526,7 @@ export default function PurchaseOrdersIndex({
                                         )}
                                     </tbody>
                                 </table>
-                            </div>
+                            </TableScroll>
 
                             <Pagination
                                 pagination={purchaseOrders}

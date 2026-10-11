@@ -4,7 +4,7 @@ import { useState } from 'react';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PreorderCloseDateDialog from '@/components/preorder-close-date-dialog';
 import { CloseDate, VariantCounts } from '@/components/preorder-counts';
 import SummaryCard from '@/components/summary-card';
@@ -85,7 +85,7 @@ export default function PreorderShow({
                         </p>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            <TableScroll>
                                 <table className="w-full min-w-175">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -134,7 +134,7 @@ export default function PreorderShow({
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </TableScroll>
                             <Pagination
                                 pagination={preorders}
                                 itemName="preorders"
