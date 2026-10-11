@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\OrderLastDay;
+use App\Services\Settings\SystemSettings;
 use App\Services\Shop\OrderRules;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -102,13 +103,14 @@ test('the pause ends by itself after a week, and orders the student cancelled do
 });
 
 test('an order holds its items for the Specialist\'s number of days, from 1 to 3', function (string $setting, string $holdUntil) {
-    Setting::put(Setting::ORDER_HOLD_DAYS, $setting);
+    Setting::put(SystemSettings::ORDER_HOLD_DAYS, $setting);
 
     expect(OrderRules::holdUntil()->toDateTimeString())->toBe($holdUntil);
 })->with([
     'default (no setting) is 2 days' => ['', '2026-10-11 23:59:59'],
     '1 day' => ['1', '2026-10-10 23:59:59'],
-    'more than 3 is kept at 3' => ['9', '2026-10-12 23:59:59'],
+    '3 days' => ['3', '2026-10-12 23:59:59'],
+    'a number not on the list uses the default' => ['9', '2026-10-11 23:59:59'],
 ]);
 
 test('the student is reminded once, on the morning of the order\'s last day', function () {

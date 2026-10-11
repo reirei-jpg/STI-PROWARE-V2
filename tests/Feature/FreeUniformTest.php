@@ -207,13 +207,14 @@ test('the Specialist changes how many students a group needs in Maintenance', fu
     $set = bsitSet();
     $this->actingAs($this->specialist);
 
-    $this->patch(route('maintenance.promo-group-size'), ['group_size' => 11])
-        ->assertSessionHasErrors(['group_size' => 'Choose 2 to 10 students.']);
-    $this->patch(route('maintenance.promo-group-size'), ['group_size' => 3])->assertSessionHasNoErrors();
+    $this->patch(route('maintenance.update', 'promo_group_size'), ['value' => 11])
+        ->assertSessionHasErrors(['value' => 'Choose one of the choices shown.']);
+    $this->patch(route('maintenance.update', 'promo_group_size'), ['value' => 3])
+        ->assertInertiaFlash('toast.message', 'Students needed for free uniforms: now 3 students. Groups already recorded stay as they are.');
 
     $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('promoGroupSize.value', 3)
-        ->where('promoGroupSize.changed_by', 'Carlo Mendoza'));
+        ->where('settings', fn ($rows) => collect($rows)->firstWhere('key', 'promo_group_size')['value'] === 3
+            && collect($rows)->firstWhere('key', 'promo_group_size')['changed_by'] === 'Carlo Mendoza'));
 
     $this->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 3)])
         ->assertSessionHasNoErrors();

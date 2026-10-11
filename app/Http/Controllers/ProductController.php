@@ -15,8 +15,10 @@ use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
+use App\Services\Dashboard\SpecialistTasks;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Sales\HeadOfficeCost;
+use App\Services\Settings\SystemSettings;
 use App\Services\Stock\LinkedItems;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Database\Eloquent\Builder;
@@ -110,6 +112,8 @@ class ProductController extends Controller
                 'stock' => $stockFilter,
                 'slow_days' => $slowDays,
             ],
+            // Days without a sale before an item is slow-moving (Maintenance).
+            'defaultSlowDays' => SpecialistTasks::slowMovingDays(),
             'lowStockCount' => Product::query()->lowOnStock()->count(),
             'slowMovingCount' => Product::query()->slowMoving($slowDays)->count(),
             'itemsToLinkCount' => PurchaseOrderItem::query()
@@ -140,6 +144,8 @@ class ProductController extends Controller
             ],
             // What PROWARE paid per eStore unit, shown beside the Selling Price.
             'costs' => $orderedItem === null ? [] : HeadOfficeCost::latestUnitPrices([$orderedItem->item_code]),
+            // The low-stock warning a new product starts with (Maintenance).
+            'defaultLowStockAlert' => SystemSettings::integer(SystemSettings::DEFAULT_LOW_STOCK_ALERT),
             'today' => now()->toDateString(),
         ]);
     }
@@ -193,6 +199,7 @@ class ProductController extends Controller
             'fromItem' => null,
             // What PROWARE paid per eStore unit, shown beside the Selling Price.
             'costs' => HeadOfficeCost::latestUnitPrices(array_values(array_unique(array_filter($product->variants->pluck('estore_item_code')->all(), 'is_string')))),
+            'defaultLowStockAlert' => SystemSettings::integer(SystemSettings::DEFAULT_LOW_STOCK_ALERT),
             'today' => now()->toDateString(),
         ]);
     }

@@ -3,107 +3,62 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
-use App\Services\Deliveries\FollowUp;
-use App\Services\FreeUniforms\PromoRules;
-use App\Services\Shop\OrderRules;
+use App\Services\Settings\SystemSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The Specialist's Maintenance page: settings that change how PROWARE
- * works without changing its code, each with who changed it last: how many
- * days a new order holds its items before it expires, after how many days
- * a purchase order not complete is to be followed up, and how many students
- * must enroll together to get free uniforms.
+ * The Specialist's Maintenance page: the settings that change how PROWARE
+ * works without changing its code (SystemSettings), by area, each with its
+ * current value and who changed it last. A change applies right away, to
+ * what happens from then on.
  */
 class MaintenanceController extends Controller
 {
     public function index(): Response
     {
         return Inertia::render('maintenance/index', [
-            'holdDays' => [
-                'value' => OrderRules::holdDays(),
-                'min' => OrderRules::MIN_HOLD_DAYS,
-                'max' => OrderRules::MAX_HOLD_DAYS,
-                ...Setting::lastChange(Setting::ORDER_HOLD_DAYS),
-            ],
-            'followUpDays' => [
-                'value' => FollowUp::days(),
-                'choices' => FollowUp::CHOICES,
-                ...Setting::lastChange(Setting::DELIVERY_FOLLOW_UP_DAYS),
-            ],
-            'promoGroupSize' => [
-                'value' => PromoRules::groupSize(),
-                'min' => PromoRules::MIN_GROUP_SIZE,
-                'max' => PromoRules::MAX_GROUP_SIZE,
-                ...Setting::lastChange(Setting::PROMO_GROUP_SIZE),
-            ],
+            'areas' => SystemSettings::AREAS,
+            'settings' => SystemSettings::rows(),
         ]);
     }
 
     /**
-     * How many days new orders hold their items (1 to 3). Orders already
-     * placed keep their pick-up date.
+     * Change one setting: a number from its choices, or a short text.
      */
-    public function updateHoldDays(Request $request): RedirectResponse
+    public function update(Request $request, string $setting): RedirectResponse
     {
-        $days = (int) $request->validate(
-            ['hold_days' => ['required', 'integer', 'between:'.OrderRules::MIN_HOLD_DAYS.','.OrderRules::MAX_HOLD_DAYS]],
-            ['hold_days.between' => 'Choose 1, 2 or 3 days.', 'hold_days.required' => 'Choose 1, 2 or 3 days.'],
-        )['hold_days'];
+        abort_unless(SystemSettings::exists($setting), 404);
 
-        Setting::put(Setting::ORDER_HOLD_DAYS, $days, $request->user());
+        $definition = SystemSettings::definition($setting);
+        $maxLength = $definition['max_length'] ?? 100;
+
+        $value = $definition['type'] === 'text'
+            ? trim((string) $request->validate(
+                ['value' => ['required', 'string', 'min:3', 'max:'.$maxLength]],
+                [
+                    'value.required' => 'Type the '.mb_strtolower($definition['label']).'.',
+                    'value.min' => 'Type at least 3 characters.',
+                    'value.max' => "Keep it to {$maxLength} characters or less.",
+                ],
+            )['value'])
+            : (int) $request->validate(
+                ['value' => ['required', 'integer', Rule::in($definition['choices'] ?? [])]],
+                [
+                    'value.required' => 'Choose one of the choices shown.',
+                    'value.integer' => 'Choose one of the choices shown.',
+                    'value.in' => 'Choose one of the choices shown.',
+                ],
+            )['value'];
+
+        Setting::put($setting, $value, $request->user());
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'New orders now hold their items for '.$days.' '.($days === 1 ? 'day' : 'days').'. Orders already placed keep their pick-up date.',
-        ]);
-
-        return back();
-    }
-
-    /**
-     * After how many days from its Date Ordered a purchase order not
-     * complete is shown to follow up with Head Office.
-     */
-    public function updateFollowUpDays(Request $request): RedirectResponse
-    {
-        $choices = implode(', ', FollowUp::CHOICES);
-        $days = (int) $request->validate(
-            ['follow_up_days' => ['required', 'integer', 'in:'.implode(',', FollowUp::CHOICES)]],
-            ['follow_up_days.in' => "Choose {$choices} days.", 'follow_up_days.required' => "Choose {$choices} days."],
-        )['follow_up_days'];
-
-        Setting::put(Setting::DELIVERY_FOLLOW_UP_DAYS, $days, $request->user());
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => "Purchase orders not complete after {$days} days are now shown to follow up with Head Office.",
-        ]);
-
-        return back();
-    }
-
-    /**
-     * How many students must enroll together for each to get a free
-     * uniform set. Groups already recorded stay as they are.
-     */
-    public function updatePromoGroupSize(Request $request): RedirectResponse
-    {
-        $min = PromoRules::MIN_GROUP_SIZE;
-        $max = PromoRules::MAX_GROUP_SIZE;
-        $size = (int) $request->validate(
-            ['group_size' => ['required', 'integer', "between:{$min},{$max}"]],
-            ['group_size.between' => "Choose {$min} to {$max} students.", 'group_size.required' => "Choose {$min} to {$max} students."],
-        )['group_size'];
-
-        Setting::put(Setting::PROMO_GROUP_SIZE, $size, $request->user());
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => "Groups of at least {$size} students who enroll together now get free uniforms. Groups already recorded stay as they are.",
+            'message' => trim("{$definition['label']}: now ".SystemSettings::display($setting).'. '.($definition['saved_note'] ?? '')),
         ]);
 
         return back();

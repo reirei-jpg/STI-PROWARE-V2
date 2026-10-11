@@ -9,17 +9,22 @@ use App\Models\Product;
 use App\Models\User;
 use App\Notifications\SaleEnded;
 use App\Notifications\SaleEndingSoon;
+use App\Services\Settings\SystemSettings;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Notification;
 
 /**
  * Runs every hour: ends sales whose days are up (the product goes back to
- * Available and the Specialist is told), and from 7:00 AM tells her about
+ * Available and the Specialist is told), and from the reminder time (Maintenance, 7:00 AM by default) tells her about
  * sales ending tomorrow, once per sale.
  */
 class SaleSchedule
 {
-    public const SEND_FROM_HOUR = 7;
+    /** The hour reminders start being sent each day (Maintenance). */
+    public static function sendFromHour(): int
+    {
+        return SystemSettings::integer(SystemSettings::REMINDER_HOUR);
+    }
 
     public function __construct(private EndSale $endSale) {}
 
@@ -44,7 +49,7 @@ class SaleSchedule
      */
     public function sendEndingReminders(): int
     {
-        if (now()->hour < self::SEND_FROM_HOUR) {
+        if (now()->hour < self::sendFromHour()) {
             return 0;
         }
 

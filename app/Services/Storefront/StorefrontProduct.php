@@ -8,6 +8,7 @@ use App\Models\ProductOption;
 use App\Models\ProductPack;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
+use App\Services\Shop\Cart;
 use App\Services\Shop\ShopPrice;
 
 /**
@@ -73,6 +74,8 @@ final class StorefrontProduct
 
         return [
             ...self::tile($product),
+            // The most of one item a student can add or preorder (Maintenance).
+            'max_per_item' => Cart::maxPerItem(),
             'buy_packs' => $canBuy ? array_values($product->packs
                 ->where('sold_to_students', true)
                 ->map(fn (ProductPack $pack): array => [

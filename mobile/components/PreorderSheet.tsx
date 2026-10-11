@@ -13,8 +13,6 @@ import { formatDate, unitWord } from '@/lib/format';
 import type { StorefrontProductDetails } from '@/lib/types';
 
 /** As on the website: a reservation, so no stock limit, only this one. */
-/** At most 99 of one item (PlacePreorderRequest::MAX_QUANTITY on the server). */
-const MOST = 99;
 
 /**
  * Preorder, like the website's: which size or color and how many. Nothing
@@ -53,7 +51,7 @@ export default function PreorderSheet({
 
     const quantity = Number(quantityText) || 0;
     const hasChoices = product.variants.length > 1;
-    const canPlace = !saving && variantId !== null && quantity >= 1 && quantity <= MOST;
+    const canPlace = !saving && variantId !== null && quantity >= 1 && quantity <= product.max_per_item;
 
     const place = async (): Promise<void> => {
         if (!canPlace) {
@@ -150,7 +148,7 @@ export default function PreorderSheet({
                 <QuantityStepper
                     value={quantityText}
                     onChange={setQuantityText}
-                    most={MOST}
+                    most={product.max_per_item}
                     unitText={unitWord(quantity, 'Piece')}
                 />
                 {hasChoices && variantId === null && (
