@@ -167,6 +167,7 @@ test('my orders shows waiting orders first, past orders on their own tab, and ca
     $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page
         ->where('show', 'waiting')
         ->where('counts', ['waiting' => 2, 'past' => 1])
+        ->where('statusCounts', ['placed' => 1, 'ready' => 1, 'picked_up' => 1, 'cancelled' => 0])
         ->where('orders.data.0.id', $sooner->id)
         ->where('orders.data.1.id', $later->id)
         ->has('orders.data', 2)

@@ -31,6 +31,7 @@ class StudentOrderController extends Controller
         return Inertia::render('storefront/my-orders', [
             'show' => $show,
             'counts' => OrderRow::studentCounts($request->user()),
+            'statusCounts' => OrderRow::studentStatusCounts($request->user()),
             'orders' => OrderRow::studentPage($request->user(), $show),
         ]);
     }

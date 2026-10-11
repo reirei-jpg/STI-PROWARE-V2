@@ -42,7 +42,7 @@ final class OrderRow
     public static function studentPage(User $student, string $show = 'waiting'): LengthAwarePaginator
     {
         return $student->orders()
-            ->with(['items', 'student'])
+            ->with(['items.variant.product.mainPhoto', 'student'])
             ->when(
                 $show === 'waiting',
                 fn (Builder $query) => $query->open()->orderBy('pick_up_by')->orderBy('id'),
@@ -66,8 +66,26 @@ final class OrderRow
     }
 
     /**
+     * How many of the student's orders are in each status, for the cards at
+     * the top of My Orders.
+     *
+     * @return array{placed: int, ready: int, picked_up: int, cancelled: int}
+     */
+    public static function studentStatusCounts(User $student): array
+    {
+        $counts = $student->orders()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        return [
+            'placed' => (int) ($counts[OrderStatus::Placed->value] ?? 0),
+            'ready' => (int) ($counts[OrderStatus::Ready->value] ?? 0),
+            'picked_up' => (int) ($counts[OrderStatus::PickedUp->value] ?? 0),
+            'cancelled' => (int) ($counts[OrderStatus::Cancelled->value] ?? 0),
+        ];
+    }
+
+    /**
      * The row on the student's own My Orders (website and phone app), with
-     * whether they may still cancel it.
+     * whether they may still cancel it and the first item's photo.
      *
      * @return array<string, mixed>
      */
@@ -76,6 +94,7 @@ final class OrderRow
         return [
             ...self::of($order),
             'can_cancel' => CancelOrderByStudent::refusal($order) === null,
+            'preview_photo_url' => $order->items->first()?->variant?->product?->mainPhoto?->url(),
         ];
     }
 
