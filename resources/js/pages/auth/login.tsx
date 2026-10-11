@@ -3,7 +3,7 @@ import { Eye, EyeOff, LoaderCircle, LockKeyhole, Mail } from 'lucide-react';
 import { useState } from 'react';
 import PasskeyVerify from '@/components/passkey-verify';
 import { MicrosoftLogo } from '@/components/sign-in-prompt';
-import { home } from '@/routes';
+import { home, register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -13,7 +13,7 @@ type Props = {
 };
 
 const fieldClasses =
-    'w-full rounded-full border bg-transparent py-4 pl-14 text-base font-medium text-slate-900 outline-none transition placeholder:text-slate-400';
+    'w-full rounded-full border bg-transparent py-3 pl-12 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400';
 
 /**
  * PROWARE's sign-in, laid out as on V1: students sign in with their STI
@@ -31,7 +31,7 @@ export default function Login({ status, canResetPassword }: Props) {
             <PasskeyVerify />
 
             {status && (
-                <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
                     {status}
                 </div>
             )}
@@ -39,7 +39,7 @@ export default function Login({ status, canResetPassword }: Props) {
             <button
                 type="button"
                 onClick={() => setTriedMicrosoft(true)}
-                className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-300 bg-white px-6 py-4 text-sm font-bold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 focus:ring-4 focus:ring-blue-100 focus:outline-none"
+                className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 focus:ring-4 focus:ring-blue-100 focus:outline-none"
                 data-test="microsoft-sign-in-button"
             >
                 <MicrosoftLogo className="h-5 w-5" />
@@ -58,12 +58,12 @@ export default function Login({ status, canResetPassword }: Props) {
                     <p className="mt-1">
                         Microsoft 365 sign-in is waiting for STI&apos;s
                         Microsoft account details. For now, sign in with your
-                        email and password below.
+                        email and password below, or register as a student.
                     </p>
                 </div>
             )}
 
-            <div className="my-8 flex items-center gap-4">
+            <div className="my-5 flex items-center gap-3">
                 <span className="h-px flex-1 bg-slate-200" />
                 <span className="text-xs font-bold tracking-wide text-slate-400 uppercase">
                     or with your PROWARE email
@@ -74,7 +74,7 @@ export default function Login({ status, canResetPassword }: Props) {
             <Form
                 {...store.form()}
                 resetOnSuccess={['password']}
-                className="space-y-6"
+                className="space-y-4"
             >
                 {({ processing, errors }) => (
                     <>
@@ -84,8 +84,8 @@ export default function Login({ status, canResetPassword }: Props) {
                             </label>
                             <div className="relative">
                                 <Mail
-                                    size={19}
-                                    className="pointer-events-none absolute top-1/2 left-5 -translate-y-1/2 text-slate-500"
+                                    size={17}
+                                    className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-slate-500"
                                 />
                                 <input
                                     id="email"
@@ -115,8 +115,8 @@ export default function Login({ status, canResetPassword }: Props) {
                             </label>
                             <div className="relative">
                                 <LockKeyhole
-                                    size={19}
-                                    className="pointer-events-none absolute top-1/2 left-5 -translate-y-1/2 text-slate-500"
+                                    size={17}
+                                    className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-slate-500"
                                 />
                                 <input
                                     id="password"
@@ -126,7 +126,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     autoComplete="current-password"
                                     maxLength={255}
                                     placeholder="Password"
-                                    className={`${fieldClasses} pr-14 ${
+                                    className={`${fieldClasses} pr-12 ${
                                         errors.password
                                             ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
                                             : 'border-slate-300 focus:border-[#0D6EFD] focus:ring-4 focus:ring-blue-100'
@@ -137,7 +137,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     onClick={() =>
                                         setShowPassword((current) => !current)
                                     }
-                                    className="absolute top-1/2 right-5 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
+                                    className="absolute top-1/2 right-4 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
                                     aria-label={
                                         showPassword
                                             ? 'Hide password'
@@ -145,9 +145,9 @@ export default function Login({ status, canResetPassword }: Props) {
                                     }
                                 >
                                     {showPassword ? (
-                                        <EyeOff size={19} />
+                                        <EyeOff size={17} />
                                     ) : (
-                                        <Eye size={19} />
+                                        <Eye size={17} />
                                     )}
                                 </button>
                             </div>
@@ -180,7 +180,7 @@ export default function Login({ status, canResetPassword }: Props) {
                         <button
                             type="submit"
                             disabled={processing}
-                            className="flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-[#005BFF] via-[#0D6EFD] to-[#0045CC] px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:from-blue-600 hover:to-blue-800 focus:ring-4 focus:ring-blue-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                            className="flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-[#005BFF] via-[#0D6EFD] to-[#0045CC] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:from-blue-600 hover:to-blue-800 focus:ring-4 focus:ring-blue-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                             data-test="login-button"
                         >
                             {processing && (
@@ -195,10 +195,19 @@ export default function Login({ status, canResetPassword }: Props) {
                 )}
             </Form>
 
-            <div className="mt-8 text-center">
+            <div className="mt-6 text-center">
+                <p className="text-sm text-slate-500">
+                    Student without an account?{' '}
+                    <Link
+                        href={register()}
+                        className="font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                        Register
+                    </Link>
+                </p>
                 <Link
                     href={home()}
-                    className="text-sm text-slate-400 transition hover:text-slate-700"
+                    className="mt-2 inline-block text-sm text-slate-400 transition hover:text-slate-700"
                 >
                     Return to home
                 </Link>

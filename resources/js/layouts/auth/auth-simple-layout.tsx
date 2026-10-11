@@ -4,7 +4,7 @@ import type { AuthLayoutProps } from '@/types';
 
 /**
  * The sign-in pages (log in, forgot and reset password, two-factor), as on
- * V1: blue and yellow shapes in STI's colors around a big white card with
+ * V1: blue and yellow shapes in STI's colors around a white card with
  * the STI badge, the page's title and its description.
  */
 export default function AuthSimpleLayout({
@@ -40,34 +40,34 @@ export default function AuthSimpleLayout({
                 className="absolute right-0 -bottom-20 hidden h-52 w-100 rounded-tl-[4rem] bg-[#0D6EFD] md:block"
             />
 
-            <section className="relative z-10 w-full max-w-4xl rounded-[2.5rem] border border-slate-100 bg-white px-6 py-12 shadow-[0_30px_70px_rgba(0,0,0,.12)] sm:px-12 md:px-20 md:py-16 lg:px-44">
-                <div className="mx-auto w-full max-w-md">
+            <section className="relative z-10 w-full max-w-md rounded-3xl border border-slate-100 bg-white px-6 py-8 shadow-[0_30px_70px_rgba(0,0,0,.12)] sm:px-10">
+                <div className="w-full">
                     <div className="text-center">
                         <Link
                             href={home()}
                             className="inline-flex items-center justify-center gap-3"
                         >
-                            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-sm font-black text-blue-700 shadow-md">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400 text-xs font-black text-blue-700 shadow-md">
                                 STI
                             </span>
-                            <span className="text-2xl font-bold text-slate-950">
+                            <span className="text-xl font-bold text-slate-950">
                                 PROWARE
                             </span>
                         </Link>
 
                         {title && (
-                            <h1 className="mt-8 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                            <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-950">
                                 {title}
                             </h1>
                         )}
                         {description && (
-                            <p className="mt-3 text-sm leading-6 text-slate-500">
+                            <p className="mt-1 text-sm text-slate-500">
                                 {description}
                             </p>
                         )}
                     </div>
 
-                    <div className="mt-8">{children}</div>
+                    <div className="mt-6">{children}</div>
                 </div>
             </section>
         </main>
