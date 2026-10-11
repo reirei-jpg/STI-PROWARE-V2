@@ -11,9 +11,11 @@ import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
  * it is unavailable (out of stock, or preorders closed): then it is shown
  * greyed and nothing opens.
  *
- * Badges: SALE (original price crossed out before the sale price), COMING
- * SOON with a Preorder button, "Only 3 left" when almost sold out, and
- * OUT OF STOCK (greyed, no button). Add to Cart and Preorder ask a
+ * Badges on the photo: SALE with how much is off (original price crossed
+ * out before the sale price), when the sale ends, COMING SOON with a
+ * Preorder button, "Only 3 left" when almost sold out, and OUT OF STOCK
+ * (greyed, no button). The photo zooms in a little on hover; names keep two
+ * lines so every card's price and button line up. Add to Cart and Preorder ask a
  * signed-out visitor to sign in first, then open their pickers.
  */
 export default function StorefrontTile({
@@ -33,14 +35,15 @@ export default function StorefrontTile({
     const unavailable =
         product.sold_out || (comingSoon && !product.accepts_preorders);
     const Top = unavailable ? 'div' : 'button';
+    const percentOff = saleDiscount(product.price);
 
     return (
         <article
             className={cn(
-                'flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm',
+                'group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm',
                 unavailable
                     ? 'opacity-70'
-                    : 'transition hover:-translate-y-0.5 hover:shadow-md',
+                    : 'transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/10',
                 className,
             )}
             aria-label={
@@ -55,7 +58,7 @@ export default function StorefrontTile({
                           onClick: () => onView(product),
                           'aria-label': `View ${product.name}`,
                       })}
-                className="text-left"
+                className="text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
                 <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 text-slate-300">
                     {product.photo_url ? (
@@ -64,8 +67,10 @@ export default function StorefrontTile({
                             alt=""
                             loading="lazy"
                             className={cn(
-                                'h-full w-full object-cover',
-                                product.sold_out && 'grayscale',
+                                'h-full w-full object-cover transition duration-300',
+                                product.sold_out
+                                    ? 'grayscale'
+                                    : 'group-hover:scale-105',
                             )}
                         />
                     ) : (
@@ -73,8 +78,8 @@ export default function StorefrontTile({
                     )}
 
                     {onSale && !product.sold_out && (
-                        <span className="absolute top-2 left-2 rounded-lg bg-red-500 px-2 py-1 text-[11px] font-black text-white">
-                            SALE
+                        <span className="absolute top-2 left-2 rounded-lg bg-red-500 px-2 py-1 text-[11px] font-black text-white shadow-sm">
+                            SALE{percentOff !== null && ` −${percentOff}%`}
                         </span>
                     )}
 
@@ -87,7 +92,7 @@ export default function StorefrontTile({
                         )}
 
                     {comingSoon && (
-                        <span className="absolute top-2 left-2 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-black text-amber-950">
+                        <span className="absolute top-2 left-2 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-black text-amber-950 shadow-sm">
                             COMING SOON
                         </span>
                     )}
@@ -95,8 +100,7 @@ export default function StorefrontTile({
                     {product.almost_sold_out &&
                         product.pieces_left !== null && (
                             <span className="absolute bottom-2 left-2 rounded-lg bg-orange-500 px-2 py-1 text-[11px] font-black text-white shadow-sm">
-                                Almost sold out · Only {product.pieces_left}{' '}
-                                left
+                                Only {product.pieces_left} left
                             </span>
                         )}
 
@@ -109,7 +113,7 @@ export default function StorefrontTile({
                     )}
                 </div>
 
-                <h3 className="line-clamp-2 px-3 pt-3 text-sm font-bold text-slate-900">
+                <h3 className="line-clamp-2 min-h-[2.75rem] px-3 pt-3 text-sm leading-5 font-bold text-slate-900 group-hover:text-blue-700">
                     {product.name}
                 </h3>
             </Top>
@@ -126,11 +130,11 @@ export default function StorefrontTile({
                 )}
 
                 {product.sold_out ? (
-                    <span className="mt-auto inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
+                    <span className="mt-auto inline-flex h-10 w-full items-center justify-center rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-500">
                         Unavailable for now
                     </span>
                 ) : comingSoon && !product.accepts_preorders ? (
-                    <span className="mt-auto inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
+                    <span className="mt-auto inline-flex h-10 w-full items-center justify-center rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-500">
                         Preorders closed
                     </span>
                 ) : (
@@ -140,16 +144,16 @@ export default function StorefrontTile({
                             comingSoon ? preorder(product) : addToCart(product)
                         }
                         className={cn(
-                            'mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition',
+                            'mt-auto inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-black shadow-sm transition active:scale-[0.98]',
                             comingSoon
                                 ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                                 : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
                         )}
                     >
                         {comingSoon ? (
-                            <CalendarClock size={14} />
+                            <CalendarClock size={16} />
                         ) : (
-                            <ShoppingCart size={14} />
+                            <ShoppingCart size={16} />
                         )}
                         {comingSoon ? 'Preorder' : 'Add to Cart'}
                     </button>
@@ -163,15 +167,18 @@ export default function StorefrontTile({
  * An empty tile from the approved storefront layout, shown where a section
  * has no products yet so the layout keeps its shape: grey picture, name and
  * price bars, and the button (not clickable). `sale` and `comingSoon` add
- * the SALE or COMING SOON badge and matching look.
+ * the SALE or COMING SOON badge and matching look; `pulse` makes it a
+ * loading tile while more merchandise loads.
  */
 export function PlaceholderTile({
     sale = false,
     comingSoon = false,
+    pulse = false,
     className,
 }: {
     sale?: boolean;
     comingSoon?: boolean;
+    pulse?: boolean;
     className?: string;
 }) {
     return (
@@ -179,6 +186,7 @@ export function PlaceholderTile({
             aria-hidden="true"
             className={cn(
                 'flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm',
+                pulse && 'animate-pulse',
                 className,
             )}
         >
@@ -314,6 +322,31 @@ export function PriceLines({
             ))}
         </div>
     );
+}
+
+/**
+ * How much is off on sale, e.g. 30 for ₱50 → ₱35; null when the price per
+ * piece is a "From" price (the variants differ) or there is no sale price.
+ */
+function saleDiscount(price: StorefrontPrice): number | null {
+    const pack = price.packs.find(
+        (option) => option.sale_price_centavos !== null,
+    );
+    const [normal, sale] =
+        price.piece_centavos !== null
+            ? [price.piece_centavos, price.sale_centavos]
+            : [pack?.price_centavos ?? null, pack?.sale_price_centavos ?? null];
+
+    if (
+        price.piece_from ||
+        normal === null ||
+        sale === null ||
+        sale >= normal
+    ) {
+        return null;
+    }
+
+    return Math.round((1 - sale / normal) * 100);
 }
 
 /**
