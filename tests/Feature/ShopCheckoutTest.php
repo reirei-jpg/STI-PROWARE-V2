@@ -90,6 +90,33 @@ test('the cart refuses more than the stock, counting what is already in it', fun
     expect($this->student->cartItems()->sole()->quantity)->toBe(1);
 });
 
+test('an impossible quantity says how many are left', function (string $quantity) {
+    [$product, $variant] = ballpen(stock: 5);
+    $this->actingAs($this->student);
+
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => $quantity])
+        ->assertSessionHasErrors(['quantity' => 'You can have at most 5 pcs of STI Ballpen in your cart (only 5 pcs left).']);
+
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1']);
+    $this->patch(route('cart.update', $this->student->cartItems()->sole()), ['quantity' => $quantity])
+        ->assertSessionHasErrors(['quantity' => 'You can have at most 5 pcs of STI Ballpen in your cart (only 5 pcs left).']);
+
+    expect($this->student->cartItems()->sole()->quantity)->toBe(1);
+})->with([
+    'just above the stock' => ['6'],
+    'above the most per order' => ['1001'],
+    'a very long number' => ['2321312312313'],
+    'longer than a number can be' => ['23213123123132132132132132131'],
+]);
+
+test('more than 1,000 asks to talk to the office only when there is that much stock', function () {
+    [$product, $variant] = ballpen(stock: 5000);
+    $this->actingAs($this->student);
+
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1001'])
+        ->assertSessionHasErrors(['quantity' => 'For more than 1,000, please talk to the PROWARE office.']);
+});
+
 test('only items students can buy now go in the cart', function (ProductStatus $status) {
     [$product, $variant] = ballpen(status: $status);
 

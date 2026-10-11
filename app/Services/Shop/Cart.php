@@ -97,13 +97,15 @@ final class Cart
             return;
         }
 
-        if ($quantity > self::MAX_QUANTITY) {
-            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.']);
-        }
-
         $unit = $pack->name ?? 'Piece';
         $piecesPerUnit = $pack->pieces ?? 1;
         $inOtherLines = $this->piecesInOtherLines($student, $variant, $line);
+
+        // Only when the stock itself has more than the most one student may
+        // order; otherwise the student is told how many are left.
+        if ($quantity > self::MAX_QUANTITY && intdiv(max(0, $variant->freeToSell() - $inOtherLines), $piecesPerUnit) >= self::MAX_QUANTITY) {
+            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.']);
+        }
 
         $message = match (true) {
             $variant->freeToSell() === 0 => "{$variant->displayName()} is out of stock.",
