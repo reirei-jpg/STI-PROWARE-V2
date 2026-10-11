@@ -270,13 +270,9 @@ export default function DeliveriesIndex({
                                     onChange={(event) =>
                                         setSearch(event.target.value)
                                     }
-                                    placeholder={
-                                        showingWaiting
-                                            ? 'Search by Order #'
-                                            : 'Search by SI #, DR # or Order #'
-                                    }
+                                    placeholder="Search by Order #"
                                     className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                    aria-label="Search"
+                                    aria-label="Search by Order #"
                                 />
                             </label>
                         </div>
