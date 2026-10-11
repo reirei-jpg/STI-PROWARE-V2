@@ -76,7 +76,7 @@ export default function StaffDeliveriesScreen() {
                 <Search size={17} color="#94a3b8" />
                 <TextInput
                     value={searchText}
-                    onChangeText={setSearchText}
+                    onChangeText={setSearchText} maxLength={40}
                     placeholder="SI #, DR # or Order #"
                     placeholderTextColor="#94a3b8"
                     autoCorrect={false}

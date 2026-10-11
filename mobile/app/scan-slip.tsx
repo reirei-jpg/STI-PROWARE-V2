@@ -110,7 +110,7 @@ export default function ScanSlipScreen() {
                 <View className="flex-row items-center gap-2">
                     <TextInput
                         value={typed}
-                        onChangeText={setTyped}
+                        onChangeText={setTyped} maxLength={120}
                         placeholder="e.g. PW-0042"
                         placeholderTextColor="#94a3b8"
                         autoCapitalize="characters"

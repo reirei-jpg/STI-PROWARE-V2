@@ -265,6 +265,7 @@ export default function DeliveriesIndex({
                                 <Search size={18} className="shrink-0" />
                                 <input
                                     type="search"
+                                    maxLength={40}
                                     value={search}
                                     onChange={(event) =>
                                         setSearch(event.target.value)

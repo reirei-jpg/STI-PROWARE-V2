@@ -104,7 +104,7 @@ export default function Login() {
 
                                 <TextInput
                                     value={email}
-                                    onChangeText={setEmail}
+                                    onChangeText={setEmail} maxLength={255}
                                     onFocus={() => setFocused('email')}
                                     onBlur={() => setFocused(null)}
                                     onSubmitEditing={() =>
@@ -136,7 +136,7 @@ export default function Login() {
                             <TextInput
                                 ref={passwordInput}
                                 value={password}
-                                onChangeText={setPassword}
+                                onChangeText={setPassword} maxLength={255}
                                 onFocus={() => setFocused('password')}
                                 onBlur={() => setFocused(null)}
                                 onSubmitEditing={submit}

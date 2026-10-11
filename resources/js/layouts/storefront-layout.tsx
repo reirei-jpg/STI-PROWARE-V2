@@ -242,6 +242,7 @@ function StorefrontSearch() {
             <Search size={18} className="shrink-0" />
             <input
                 type="search"
+                maxLength={120}
                 value={term}
                 onChange={(event) => setTerm(event.target.value)}
                 placeholder="Search merchandise"

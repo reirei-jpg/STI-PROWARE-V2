@@ -219,6 +219,7 @@ export default function ProductsIndex({
                         <Search size={18} className="shrink-0" />
                         <input
                             type="search"
+                            maxLength={120}
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search by product name"

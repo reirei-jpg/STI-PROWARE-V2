@@ -31,6 +31,13 @@ function wholeNumber(text: string | undefined): number | null {
     return /^\d+$/.test(trimmed) ? Number(trimmed) : null;
 }
 
+/** Digits only, never above `most` (what is left to receive). */
+const upTo = (value: string, most: number): string => {
+    const digits = value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 7);
+
+    return digits !== '' && Number(digits) > most ? String(Math.max(0, most)) : digits;
+};
+
 const remainingOf = (group: WaitingDeliveryGroup): number =>
     group.rows.reduce((sum, row) => sum + row.quantity_remaining, 0);
 
@@ -314,7 +321,7 @@ export default function RecordDeliveryScreen() {
                                 ))}
                             </View>
                             {dateChoice === 'other' ? (
-                                <Field value={otherDate} onChangeText={setOtherDate} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+                                <Field value={otherDate} onChangeText={setOtherDate} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" maxLength={10} />
                             ) : (
                                 <Text className="font-sans text-sm text-slate-600">{formatDate(receivedOn)}</Text>
                             )}
@@ -340,7 +347,7 @@ export default function RecordDeliveryScreen() {
                             <Search size={17} color="#94a3b8" />
                             <TextInput
                                 value={searchText}
-                                onChangeText={setSearchText}
+                                onChangeText={setSearchText} maxLength={120}
                                 placeholder="Item code, name or Order #"
                                 placeholderTextColor="#94a3b8"
                                 autoCorrect={false}
@@ -490,7 +497,19 @@ function GroupCard({
                             <Text className="flex-1 font-sans-semibold text-sm text-slate-800">{variant.label}</Text>
                             <TextInput
                                 value={counts[variant.id] ?? ''}
-                                onChangeText={(value) => onCount(variant.id, value.replace(/\D/g, '').slice(0, 7))}
+                                // All sizes together never more than the pieces left to receive.
+                                onChangeText={(value) =>
+                                    onCount(
+                                        variant.id,
+                                        upTo(
+                                            value,
+                                            remaining * target.pieces_per_unit -
+                                                Object.entries(counts)
+                                                    .filter(([id]) => Number(id) !== variant.id)
+                                                    .reduce((sum, [, count]) => sum + (Number(count) || 0), 0),
+                                        ),
+                                    )
+                                }
                                 keyboardType="number-pad"
                                 placeholder="0"
                                 placeholderTextColor="#94a3b8"
@@ -509,7 +528,8 @@ function GroupCard({
                     <View className="flex-row items-center gap-3">
                         <TextInput
                             value={total}
-                            onChangeText={(value) => onTotal(value.replace(/\D/g, '').slice(0, 7))}
+                            // Never more than what is left to receive of this item.
+                            onChangeText={(value) => onTotal(upTo(value, remaining))}
                             keyboardType="number-pad"
                             placeholder="0"
                             placeholderTextColor="#94a3b8"
