@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import type { DeliveryProgress as Progress, DeliveryStatus } from '@/types';
+import { badgeClasses } from '@/lib/ui';
 
 const badgeStyles: Record<DeliveryStatus, string> = {
     awaiting: 'bg-slate-100 text-slate-700',
@@ -23,14 +24,7 @@ export function DeliveryStatusBadge({
     label: string;
 }) {
     return (
-        <span
-            className={cn(
-                'inline-flex rounded-full px-3 py-1.5 text-xs font-black whitespace-nowrap',
-                badgeStyles[status],
-            )}
-        >
-            {label}
-        </span>
+        <span className={cn(badgeClasses, badgeStyles[status])}>{label}</span>
     );
 }
 

@@ -47,7 +47,7 @@ export default function ScanPurchaseOrder({
         <>
             <Head title="Scan eStore PO" />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title="Scan eStore PO"
                     description="Paste the eStore order details email, check what PROWARE read, then save it."

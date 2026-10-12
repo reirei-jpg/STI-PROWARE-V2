@@ -1,16 +1,15 @@
 import { Head, router } from '@inertiajs/react';
-import type { LucideIcon } from 'lucide-react';
 import {
     CalendarClock,
     Download,
     Eye,
     ImageIcon,
     PackageCheck,
-    Search,
     ShoppingCart,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
+import { FilterChip } from '@/components/list-tabs';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
@@ -20,6 +19,8 @@ import PreorderDetailsDialog from '@/components/preorder-details-dialog';
 import PreorderStageBadge, {
     PreorderWhen,
 } from '@/components/preorder-stage-badge';
+import SearchBox from '@/components/search-box';
+import StatCard from '@/components/stat-card';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -128,32 +129,29 @@ export default function PreordersIndex({
                 />
 
                 <section className="grid gap-4 md:grid-cols-3">
-                    <StageCard
-                        stage="to_order"
-                        current={filters.stage}
+                    <StatCard
+                        active={filters.stage === 'to_order'}
                         icon={ShoppingCart}
                         tone="amber"
-                        title="To order in eStore"
+                        label="To order in eStore"
                         value={formatUnits(summary.to_order.pieces, 'Piece')}
                         detail={`${summary.to_order.products} ${summary.to_order.products === 1 ? 'product' : 'products'} closed · ${summary.to_order.students} ${summary.to_order.students === 1 ? 'student' : 'students'}`}
                         onClick={() => showList('to_order', search)}
                     />
-                    <StageCard
-                        stage="open"
-                        current={filters.stage}
+                    <StatCard
+                        active={filters.stage === 'open'}
                         icon={CalendarClock}
                         tone="blue"
-                        title="Taking preorders"
+                        label="Taking preorders"
                         value={`${summary.open.products} ${summary.open.products === 1 ? 'product' : 'products'}`}
                         detail={`${formatUnits(summary.open.pieces, 'Piece')} preordered so far · ${summary.open.students} ${summary.open.students === 1 ? 'student' : 'students'}`}
                         onClick={() => showList('open', search)}
                     />
-                    <StageCard
-                        stage="arrived"
-                        current={filters.stage}
+                    <StatCard
+                        active={filters.stage === 'arrived'}
                         icon={PackageCheck}
                         tone="green"
-                        title="Arrived"
+                        label="Arrived"
                         value={`${summary.arrived.products} ${summary.arrived.products === 1 ? 'product' : 'products'}`}
                         detail={`${formatUnits(summary.arrived.pieces, 'Piece')} preordered · ${summary.arrived.students} ${summary.arrived.students === 1 ? 'student' : 'students'} notified`}
                         onClick={() => showList('arrived', search)}
@@ -176,48 +174,26 @@ export default function PreordersIndex({
                                     {descriptions[filters.stage]}
                                 </p>
                             </div>
-                            <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                                <Search size={18} className="shrink-0" />
-                                <input
-                                    type="search"
-                                    maxLength={120}
-                                    value={search}
-                                    onChange={(event) =>
-                                        setSearch(event.target.value)
-                                    }
-                                    placeholder="Search by product name"
-                                    className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                    aria-label="Search by product name"
-                                />
-                            </label>
+                            <SearchBox
+                                value={search}
+                                onChange={setSearch}
+                                placeholder="Search by product name"
+                            />
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             {tabs.map((tab) => (
-                                <button
+                                <FilterChip
                                     key={tab.value}
-                                    type="button"
+                                    active={filters.stage === tab.value}
+                                    count={
+                                        tab.value === 'all'
+                                            ? undefined
+                                            : summary[tab.value].products
+                                    }
                                     onClick={() => showList(tab.value, search)}
-                                    className={cn(
-                                        'inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition',
-                                        filters.stage === tab.value
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                    )}
                                 >
                                     {tab.label}
-                                    {tab.value !== 'all' && (
-                                        <span
-                                            className={cn(
-                                                'rounded-full px-1.5 text-[11px] font-black',
-                                                filters.stage === tab.value
-                                                    ? 'bg-white/25'
-                                                    : 'bg-white',
-                                            )}
-                                        >
-                                            {summary[tab.value].products}
-                                        </span>
-                                    )}
-                                </button>
+                                </FilterChip>
                             ))}
                         </div>
                     </div>
@@ -308,69 +284,6 @@ export default function PreordersIndex({
                 onClose={() => setChanging(null)}
             />
         </>
-    );
-}
-
-const toneClasses = {
-    amber: {
-        icon: 'bg-amber-50 text-amber-600',
-        ring: 'ring-amber-400',
-    },
-    blue: { icon: 'bg-blue-50 text-blue-600', ring: 'ring-blue-400' },
-    green: {
-        icon: 'bg-emerald-50 text-emerald-600',
-        ring: 'ring-emerald-400',
-    },
-} as const;
-
-/** One stage's numbers; clicking it shows only that stage. */
-function StageCard({
-    stage,
-    current,
-    icon: Icon,
-    tone,
-    title,
-    value,
-    detail,
-    onClick,
-}: {
-    stage: PreorderStage;
-    current: Stage;
-    icon: LucideIcon;
-    tone: keyof typeof toneClasses;
-    title: string;
-    value: string;
-    detail: string;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-pressed={current === stage}
-            className={cn(
-                'flex items-start gap-4 rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
-                current === stage && `ring-2 ${toneClasses[tone].ring}`,
-            )}
-        >
-            <span
-                className={cn(
-                    'flex size-12 shrink-0 items-center justify-center rounded-2xl',
-                    toneClasses[tone].icon,
-                )}
-            >
-                <Icon size={23} />
-            </span>
-            <span className="min-w-0">
-                <span className="block text-xs font-black tracking-wide text-slate-500 uppercase">
-                    {title}
-                </span>
-                <span className="mt-0.5 block text-2xl font-black tracking-tight text-slate-900">
-                    {value}
-                </span>
-                <span className="block text-sm text-slate-500">{detail}</span>
-            </span>
-        </button>
     );
 }
 

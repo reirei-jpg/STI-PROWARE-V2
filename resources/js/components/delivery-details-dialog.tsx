@@ -18,6 +18,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { formatUnits } from '@/lib/units';
 import type { DeliveryDetails } from '@/types';
 
@@ -241,7 +242,9 @@ export default function DeliveryDetailsDialog({
                         </div>
 
                         <div className="flex justify-end border-t border-slate-100 px-6 py-4">
-                            <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                            <DialogClose
+                                className={buttonClasses.secondarySmall}
+                            >
                                 Close
                             </DialogClose>
                         </div>

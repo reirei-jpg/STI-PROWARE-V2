@@ -72,7 +72,7 @@ export default function NotificationBell() {
                                     { preserveScroll: true },
                                 )
                             }
-                            className="rounded-lg px-2 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+                            className="rounded-xl border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700 transition hover:bg-blue-50"
                         >
                             Mark all read
                         </button>

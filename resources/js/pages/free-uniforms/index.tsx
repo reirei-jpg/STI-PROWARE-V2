@@ -1,5 +1,4 @@
 import { Head, router } from '@inertiajs/react';
-import type { LucideIcon } from 'lucide-react';
 import {
     CalendarDays,
     Download,
@@ -7,7 +6,6 @@ import {
     Gift,
     Hourglass,
     Plus,
-    Search,
     SearchX,
     Shirt,
     Users,
@@ -16,12 +14,16 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
 import FreeUniformGroupDialog from '@/components/free-uniform-group-dialog';
+import { ViewTab, ViewTabs } from '@/components/list-tabs';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import RecordFreeUniformGroupDialog from '@/components/record-free-uniform-group-dialog';
+import SearchBox from '@/components/search-box';
+import StatCard from '@/components/stat-card';
 import UniformSetsDialog from '@/components/uniform-sets-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { badgeClasses, buttonClasses } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import type {
     FreeUniformFilters,
@@ -32,12 +34,6 @@ import type {
     Paginated,
     UniformSetOption,
 } from '@/types';
-
-const primaryButtonClasses =
-    'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
-
-const secondaryButtonClasses =
-    'inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-100';
 
 /**
  * Free Uniforms (the enrollment promo), as a back office: students who
@@ -130,7 +126,7 @@ export default function FreeUniformsIndex({
                             <button
                                 type="button"
                                 onClick={() => setManagingSets(true)}
-                                className={secondaryButtonClasses}
+                                className={buttonClasses.secondary}
                             >
                                 <Shirt size={17} />
                                 Uniform sets
@@ -143,7 +139,7 @@ export default function FreeUniformsIndex({
                                             : {},
                                     }).url
                                 }
-                                className={secondaryButtonClasses}
+                                className={buttonClasses.secondary}
                             >
                                 <Download size={17} />
                                 Download for Excel
@@ -155,7 +151,7 @@ export default function FreeUniformsIndex({
                                         ? setManagingSets(true)
                                         : setRecording(true)
                                 }
-                                className={primaryButtonClasses}
+                                className={buttonClasses.primary}
                             >
                                 <Plus size={18} />
                                 Record a group
@@ -165,7 +161,7 @@ export default function FreeUniformsIndex({
                 />
 
                 <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <SummaryCard
+                    <StatCard
                         icon={CalendarDays}
                         tone="blue"
                         label="This month"
@@ -176,7 +172,7 @@ export default function FreeUniformsIndex({
                                 : 'students given a set'
                         }
                     />
-                    <SummaryCard
+                    <StatCard
                         icon={Gift}
                         tone="green"
                         label="All students"
@@ -187,14 +183,14 @@ export default function FreeUniformsIndex({
                                 : 'free sets given'
                         }
                     />
-                    <SummaryCard
+                    <StatCard
                         icon={Users}
                         tone="blue"
                         label="Groups"
                         value={summary.groups}
                         detail="enrolled together"
                     />
-                    <SummaryCard
+                    <StatCard
                         icon={Hourglass}
                         tone="amber"
                         label="Still to give"
@@ -222,21 +218,21 @@ export default function FreeUniformsIndex({
 
                 <Panel>
                     <div className="space-y-4 border-b border-slate-100 px-6 py-5">
-                        <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                            <TabButton
+                        <ViewTabs>
+                            <ViewTab
                                 active={filters.show === 'all'}
                                 onClick={() => showTab('all')}
                             >
                                 All groups
-                            </TabButton>
-                            <TabButton
+                            </ViewTab>
+                            <ViewTab
                                 active={filters.show === 'still_to_give'}
                                 count={summary.still_to_give}
                                 onClick={() => showTab('still_to_give')}
                             >
                                 Still to give
-                            </TabButton>
-                        </div>
+                            </ViewTab>
+                        </ViewTabs>
 
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div>
@@ -251,20 +247,11 @@ export default function FreeUniformsIndex({
                                         : 'A piece was out of stock when the group was recorded. Open View Details to give it now.'}
                                 </p>
                             </div>
-                            <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                                <Search size={18} className="shrink-0" />
-                                <input
-                                    type="search"
-                                    maxLength={120}
-                                    value={search}
-                                    onChange={(event) =>
-                                        setSearch(event.target.value)
-                                    }
-                                    placeholder="Search by student name or Enrollment Form #"
-                                    className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                    aria-label="Search"
-                                />
-                            </label>
+                            <SearchBox
+                                value={search}
+                                onChange={setSearch}
+                                placeholder="Search by student name or Enrollment Form #"
+                            />
                         </div>
 
                         {filters.search && (
@@ -274,7 +261,7 @@ export default function FreeUniformsIndex({
                                     setSearch('');
                                     showList({ search: null });
                                 }}
-                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                className={buttonClasses.secondarySmall}
                             >
                                 <X size={15} />
                                 Clear search
@@ -398,7 +385,7 @@ function GroupsTable({
                                 <td className="px-5 py-4">
                                     <span
                                         className={cn(
-                                            'inline-flex rounded-full px-3 py-1 text-xs font-black whitespace-nowrap',
+                                            badgeClasses,
                                             group.still_to_give > 0
                                                 ? 'bg-amber-100 text-amber-800'
                                                 : 'bg-emerald-100 text-emerald-800',
@@ -435,107 +422,5 @@ function GroupsTable({
 
             <Pagination pagination={groups} itemName="groups" />
         </>
-    );
-}
-
-const toneClasses = {
-    blue: { icon: 'bg-blue-50 text-blue-600', ring: 'ring-blue-400' },
-    green: { icon: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-400' },
-    amber: { icon: 'bg-amber-50 text-amber-600', ring: 'ring-amber-400' },
-} as const;
-
-/** One number at the top; the Still to give card shows that list. */
-function SummaryCard({
-    icon: Icon,
-    tone,
-    label,
-    value,
-    detail,
-    active = false,
-    onClick,
-}: {
-    icon: LucideIcon;
-    tone: keyof typeof toneClasses;
-    label: string;
-    value: number;
-    detail: string;
-    active?: boolean;
-    onClick?: () => void;
-}) {
-    const content = (
-        <>
-            <span
-                className={cn(
-                    'flex size-11 items-center justify-center rounded-2xl',
-                    toneClasses[tone].icon,
-                )}
-            >
-                <Icon size={21} />
-            </span>
-            <span className="mt-4 text-xs font-black tracking-wide text-slate-500 uppercase">
-                {label}
-            </span>
-            <span className="mt-0.5 text-3xl font-black tracking-tight text-slate-900">
-                {value.toLocaleString('en-PH')}
-            </span>
-            <span className="text-sm text-slate-500">{detail}</span>
-        </>
-    );
-    const classes = cn(
-        'flex flex-col rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm',
-        active && `ring-2 ${toneClasses[tone].ring}`,
-    );
-
-    return onClick ? (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-pressed={active}
-            className={cn(
-                classes,
-                'transition hover:-translate-y-0.5 hover:shadow-md',
-            )}
-        >
-            {content}
-        </button>
-    ) : (
-        <div className={classes}>{content}</div>
-    );
-}
-
-function TabButton({
-    active,
-    count,
-    onClick,
-    children,
-}: {
-    active: boolean;
-    count?: number;
-    onClick: () => void;
-    children: string;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-black transition',
-                active
-                    ? 'bg-[#0D6EFD] text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-white',
-            )}
-        >
-            {children}
-            {count !== undefined && (
-                <span
-                    className={cn(
-                        'rounded-full px-2 py-0.5 text-xs',
-                        active ? 'bg-white/25' : 'bg-white text-slate-600',
-                    )}
-                >
-                    {count}
-                </span>
-            )}
-        </button>
     );
 }

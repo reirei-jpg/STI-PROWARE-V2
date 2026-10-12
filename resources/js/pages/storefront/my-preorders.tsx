@@ -347,7 +347,7 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                         <button
                                             type="button"
                                             onClick={() => setConfirming(false)}
-                                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50"
+                                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 hover:bg-slate-50"
                                         >
                                             Keep it
                                         </button>
@@ -355,7 +355,7 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                             type="button"
                                             onClick={cancel}
                                             disabled={cancelling}
-                                            className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white hover:bg-red-700 disabled:opacity-60"
+                                            className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-black text-white hover:bg-red-700 disabled:opacity-60"
                                         >
                                             {cancelling && (
                                                 <LoaderCircle

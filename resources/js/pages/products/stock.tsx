@@ -13,8 +13,9 @@ import ProductStockController from '@/actions/App/Http/Controllers/ProductStockC
 import CorrectStockDialog from '@/components/correct-stock-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
+import { FilterChip } from '@/components/list-tabs';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
-import SummaryCard from '@/components/summary-card';
+import StatCard from '@/components/stat-card';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatConversion, formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -62,7 +63,7 @@ export default function ProductStock({
         <>
             <Head title={`Stock History · ${product.name}`} />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title="Stock History"
                     description={`${product.name} · ${formatUnits(product.stock_on_hand, 'Piece')} on the shelf${product.held_pieces > 0 ? ` (${formatUnits(product.held_pieces, 'Piece')} held for orders)` : ''} ·${product.is_sold ? `you are warned at ${formatUnits(product.low_stock_alert_at, 'Piece')} per variant` : 'not watched for low stock (only Available and On Sale products are)'}. Every delivery and correction is listed here and cannot be changed or deleted.`}
@@ -94,9 +95,9 @@ export default function ProductStock({
                     }
                 />
 
-                <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {variants.map((variant) => (
-                        <SummaryCard
+                        <StatCard
                             key={variant.id}
                             label={`${product.has_options ? variant.label : 'On the shelf'}${
                                 product.is_sold &&
@@ -108,7 +109,7 @@ export default function ProductStock({
                                     : ''
                             }`}
                             value={formatUnits(variant.stock_on_hand, 'Piece')}
-                            description={`${
+                            detail={`${
                                 variant.held_pieces > 0
                                     ? `${formatUnits(variant.held_pieces, 'Piece')} held for orders · ${formatUnits(variant.free_to_sell, 'Piece')} free to sell · `
                                     : ''
@@ -171,20 +172,20 @@ export default function ProductStock({
 
                 {product.has_options && (
                     <section className="flex flex-wrap gap-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <VariantChip
+                        <FilterChip
                             active={filters.variant === null}
                             onClick={() => showVariant(null)}
                         >
                             All variants
-                        </VariantChip>
+                        </FilterChip>
                         {variants.map((variant) => (
-                            <VariantChip
+                            <FilterChip
                                 key={variant.id}
                                 active={filters.variant === variant.id}
                                 onClick={() => showVariant(variant.id)}
                             >
                                 {variant.label}
-                            </VariantChip>
+                            </FilterChip>
                         ))}
                     </section>
                 )}
@@ -363,30 +364,5 @@ function Change({ movement }: { movement: StockMovementRow }) {
                     </p>
                 )}
         </div>
-    );
-}
-
-function VariantChip({
-    active,
-    onClick,
-    children,
-}: {
-    active: boolean;
-    onClick: () => void;
-    children: string;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'rounded-xl px-4 py-2.5 text-xs font-bold transition',
-                active
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-            )}
-        >
-            {children}
-        </button>
     );
 }

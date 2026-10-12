@@ -10,12 +10,14 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
+import { ViewTab, ViewTabs } from '@/components/list-tabs';
 import PageHeader from '@/components/page-header';
 import Panel from '@/components/panel';
+import StatCard from '@/components/stat-card';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 
 type ActivityKind = 'upload' | 'delivery' | 'closed_short';
@@ -102,68 +104,66 @@ export default function SchoolAdminOverview({
         <>
             <Head title="Dashboard" />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title={`Welcome, ${firstName}`}
                     description={`${today} · the purchase orders the Specialist uploaded and what has arrived. View only.`}
                 />
 
-                <div
-                    role="tablist"
-                    aria-label="What to monitor"
-                    className="flex flex-wrap gap-2"
-                >
-                    <TabButton
+                <ViewTabs>
+                    <ViewTab
                         active={tab === 'purchase_orders'}
                         onClick={() => setTab('purchase_orders')}
                         icon={ClipboardList}
                         count={cards.awaiting + cards.partially_received}
                     >
                         Purchase Orders
-                    </TabButton>
-                    <TabButton
+                    </ViewTab>
+                    <ViewTab
                         active={tab === 'deliveries'}
                         onClick={() => setTab('deliveries')}
                         icon={Truck}
                         count={cards.deliveries_this_week}
                     >
                         Deliveries
-                    </TabButton>
-                </div>
+                    </ViewTab>
+                </ViewTabs>
 
                 {tab === 'purchase_orders' ? (
-                    <div className="space-y-7">
-                        <section className="grid gap-5 md:grid-cols-3">
-                            <OverviewCard
+                    <div className="space-y-6">
+                        <section className="grid gap-4 md:grid-cols-3">
+                            <StatCard
                                 href={PurchaseOrderController.index().url}
                                 icon={ClipboardList}
                                 label="Awaiting delivery"
                                 value={cards.awaiting}
-                            >
-                                purchase{' '}
-                                {cards.awaiting === 1 ? 'order' : 'orders'} with
-                                nothing received yet
-                            </OverviewCard>
-                            <OverviewCard
+                                tone="amber"
+                                detail={`purchase ${cards.awaiting === 1 ? 'order' : 'orders'} with nothing received yet`}
+                            />
+                            <StatCard
                                 href={PurchaseOrderController.index().url}
                                 icon={Timer}
                                 label="Partially received"
                                 value={cards.partially_received}
-                            >
-                                {cards.partially_received === 0
-                                    ? 'none in progress'
-                                    : `${cards.partially_percent}% received on average`}
-                            </OverviewCard>
-                            <OverviewCard
+                                tone="blue"
+                                detail={
+                                    cards.partially_received === 0
+                                        ? 'none in progress'
+                                        : `${cards.partially_percent}% received on average`
+                                }
+                            />
+                            <StatCard
                                 href={PurchaseOrderController.index().url}
                                 icon={CheckCircle2}
                                 label="Completed"
                                 value={cards.completed}
-                            >
-                                {cards.completed_short === 0
-                                    ? 'all fully delivered'
-                                    : `incl. ${cards.completed_short} closed short`}
-                            </OverviewCard>
+                                tone="green"
+                                detail={
+                                    cards.completed_short === 0
+                                        ? 'all fully delivered'
+                                        : `incl. ${cards.completed_short} closed short`
+                                }
+                            />
                         </section>
 
                         <ActivityPanel
@@ -177,19 +177,21 @@ export default function SchoolAdminOverview({
                         />
                     </div>
                 ) : (
-                    <div className="space-y-7">
-                        <section className="grid gap-5 md:grid-cols-2">
-                            <OverviewCard
+                    <div className="space-y-6">
+                        <section className="grid gap-4 md:grid-cols-2">
+                            <StatCard
                                 href={DeliveryController.index().url}
                                 icon={Truck}
                                 label="Deliveries this week"
                                 value={cards.deliveries_this_week}
-                            >
-                                {cards.recorded_by.length === 0
-                                    ? 'none recorded yet'
-                                    : `recorded by ${cards.recorded_by.join(', ')}`}
-                            </OverviewCard>
-                            <OverviewCard
+                                tone="blue"
+                                detail={
+                                    cards.recorded_by.length === 0
+                                        ? 'none recorded yet'
+                                        : `recorded by ${cards.recorded_by.join(', ')}`
+                                }
+                            />
+                            <StatCard
                                 href={
                                     DeliveryController.index({
                                         query: { show: 'follow_up' },
@@ -198,14 +200,9 @@ export default function SchoolAdminOverview({
                                 icon={CircleAlert}
                                 label={`Not complete after ${overview.follow_up.days} days`}
                                 value={overview.follow_up.count}
-                            >
-                                purchase{' '}
-                                {overview.follow_up.count === 1
-                                    ? 'order'
-                                    : 'orders'}{' '}
-                                ordered {overview.follow_up.days} or more days
-                                ago, not fully delivered
-                            </OverviewCard>
+                                tone="red"
+                                detail={`purchase ${overview.follow_up.count === 1 ? 'order' : 'orders'} ordered ${overview.follow_up.days} or more days ago, not fully delivered`}
+                            />
                         </section>
 
                         <ActivityPanel
@@ -223,46 +220,6 @@ export default function SchoolAdminOverview({
                 )}
             </div>
         </>
-    );
-}
-
-function TabButton({
-    active,
-    onClick,
-    icon: Icon,
-    count,
-    children,
-}: {
-    active: boolean;
-    onClick: () => void;
-    icon: LucideIcon;
-    count: number;
-    children: ReactNode;
-}) {
-    return (
-        <button
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={onClick}
-            className={cn(
-                'inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-black transition',
-                active
-                    ? 'border-[#0D6EFD] bg-[#0D6EFD] text-white shadow-sm'
-                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-            )}
-        >
-            <Icon size={17} />
-            {children}
-            <span
-                className={cn(
-                    'rounded-full px-2 py-0.5 text-xs font-black',
-                    active ? 'bg-white/25' : 'bg-slate-100 text-slate-600',
-                )}
-            >
-                {count.toLocaleString('en-PH')}
-            </span>
-        </button>
     );
 }
 
@@ -290,7 +247,7 @@ function ActivityPanel({
             actions={
                 <Link
                     href={seeAllHref}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                    className={buttonClasses.secondarySmall}
                 >
                     <SeeAllIcon size={15} />
                     {seeAllLabel}
@@ -396,41 +353,5 @@ function FollowUpPanel({
                 </ul>
             )}
         </Panel>
-    );
-}
-
-function OverviewCard({
-    href,
-    icon: Icon,
-    label,
-    value,
-    children,
-}: {
-    href: string;
-    icon: LucideIcon;
-    label: string;
-    value: number;
-    children: ReactNode;
-}) {
-    return (
-        <Link
-            href={href}
-            className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md"
-        >
-            <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-600">{label}</p>
-                    <p className="mt-2 text-3xl font-black text-slate-950">
-                        {value.toLocaleString('en-PH')}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                        {children}
-                    </p>
-                </div>
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <Icon size={20} />
-                </div>
-            </div>
-        </Link>
     );
 }

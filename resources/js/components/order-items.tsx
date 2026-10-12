@@ -2,6 +2,7 @@ import { formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { OrderRow, OrderStatus } from '@/types';
+import { badgeClasses } from '@/lib/ui';
 
 /**
  * V1's status colors, which the user chose for the whole system: amber is
@@ -19,7 +20,8 @@ export function OrderStatusBadge({ order }: { order: OrderRow }) {
     return (
         <span
             className={cn(
-                'inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-black',
+                badgeClasses,
+                'shrink-0',
                 statusClasses[order.status],
             )}
         >

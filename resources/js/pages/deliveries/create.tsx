@@ -17,6 +17,7 @@ import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatDateOrdered } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { formatConversion, formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { WaitingItemGroup, WaitingItemRow } from '@/types';
@@ -763,7 +764,7 @@ export default function RecordDelivery({
                                     totalReceived === 0 ||
                                     hasProblems
                                 }
-                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                className={buttonClasses.primary}
                                 data-test="save-delivery-button"
                             >
                                 {processing ? (

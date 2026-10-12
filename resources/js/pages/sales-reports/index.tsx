@@ -4,7 +4,6 @@ import {
     Download,
     Gift,
     LoaderCircle,
-    Search,
     ShoppingCart,
     Tag,
     TrendingDown,
@@ -15,11 +14,15 @@ import type { ReactNode } from 'react';
 import SalesReportController from '@/actions/App/Http/Controllers/SalesReportController';
 import DateRangeFilter from '@/components/date-range-filter';
 import InputError from '@/components/input-error';
+import { FilterChip, ViewTab, ViewTabs } from '@/components/list-tabs';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import SearchBox from '@/components/search-box';
+import StatCard from '@/components/stat-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { priceInput } from '@/lib/number-input';
+import { buttonClasses } from '@/lib/ui';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -152,9 +155,9 @@ export default function SalesReportsIndex({
                                       filters.period === period.value;
 
                             return (
-                                <button
+                                <FilterChip
                                     key={period.value}
-                                    type="button"
+                                    active={chosen}
                                     onClick={() => {
                                         if (period.value === 'custom') {
                                             setPickingDates(true);
@@ -165,15 +168,9 @@ export default function SalesReportsIndex({
                                         setPickingDates(false);
                                         show({ period: period.value });
                                     }}
-                                    className={cn(
-                                        'rounded-xl px-4 py-2.5 text-sm font-black transition',
-                                        chosen
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                    )}
                                 >
                                     {period.label}
-                                </button>
+                                </FilterChip>
                             );
                         })}
                     </div>
@@ -218,7 +215,8 @@ export default function SalesReportsIndex({
                             : 'xl:grid-cols-3',
                     )}
                 >
-                    <Card
+                    <StatCard
+                        active={filters.tab === 'spent'}
                         icon={ShoppingCart}
                         tone="blue"
                         label="Spent on eStore orders"
@@ -226,7 +224,9 @@ export default function SalesReportsIndex({
                         detail={`${summary.purchase_orders} ${summary.purchase_orders === 1 ? 'order' : 'orders'} uploaded`}
                         onClick={() => show({ tab: 'spent' })}
                     />
-                    <Card
+                    <StatCard
+                        active={filters.tab === 'sold'}
+                        colorValue
                         icon={
                             summary.profit_centavos < 0
                                 ? TrendingDown
@@ -245,7 +245,8 @@ export default function SalesReportsIndex({
                     />
                     {/* Selling below Cost is no longer allowed; older sales may still show. */}
                     {summary.below_cost_lines > 0 && (
-                        <Card
+                        <StatCard
+                            colorValue
                             icon={Tag}
                             tone="red"
                             label="Sold below cost"
@@ -254,7 +255,8 @@ export default function SalesReportsIndex({
                             onClick={() => show({ tab: 'sold' })}
                         />
                     )}
-                    <Card
+                    <StatCard
+                        active={filters.tab === 'free'}
                         icon={Gift}
                         tone="amber"
                         label="Given free"
@@ -266,46 +268,31 @@ export default function SalesReportsIndex({
 
                 <Panel>
                     <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                        <ViewTabs>
                             {tabs.map((tab) => (
-                                <button
+                                <ViewTab
                                     key={tab.value}
-                                    type="button"
+                                    active={filters.tab === tab.value}
                                     onClick={() => show({ tab: tab.value })}
-                                    className={cn(
-                                        'rounded-xl px-4 py-2 text-sm font-black transition',
-                                        filters.tab === tab.value
-                                            ? 'bg-[#0D6EFD] text-white shadow-sm'
-                                            : 'text-slate-600 hover:bg-white',
-                                    )}
                                 >
                                     {tab.label}
-                                </button>
+                                </ViewTab>
                             ))}
-                        </div>
+                        </ViewTabs>
                         {filters.tab === 'sold' && (
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:w-72">
-                                    <Search size={18} className="shrink-0" />
-                                    <input
-                                        type="search"
-                                        maxLength={120}
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search item"
-                                        className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                        aria-label="Search item"
-                                    />
-                                </label>
+                            <div className="flex flex-col gap-2 sm:flex-row lg:w-[32rem]">
+                                <SearchBox
+                                    value={search}
+                                    onChange={setSearch}
+                                    placeholder="Search by product name"
+                                />
                                 <a
                                     href={
                                         SalesReportController.export({
                                             query: exportQuery,
                                         }).url
                                     }
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    className={buttonClasses.secondary}
                                 >
                                     <Download size={16} />
                                     Excel (CSV)
@@ -320,69 +307,6 @@ export default function SalesReportsIndex({
                 </Panel>
             </div>
         </>
-    );
-}
-
-const toneClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-emerald-50 text-emerald-600',
-    red: 'bg-red-50 text-red-600',
-    amber: 'bg-amber-50 text-amber-600',
-} as const;
-
-function Card({
-    icon: Icon,
-    tone,
-    label,
-    value,
-    detail,
-    note,
-    onClick,
-}: {
-    icon: LucideIcon;
-    tone: keyof typeof toneClasses;
-    label: string;
-    value: string;
-    detail: string;
-    note?: string;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className="flex flex-col rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-        >
-            <span
-                className={cn(
-                    'flex size-11 items-center justify-center rounded-2xl',
-                    toneClasses[tone],
-                )}
-            >
-                <Icon size={21} />
-            </span>
-            <span className="mt-4 text-xs font-black tracking-wide text-slate-500 uppercase">
-                {label}
-            </span>
-            <span
-                className={cn(
-                    'mt-0.5 text-2xl font-black tracking-tight',
-                    tone === 'red'
-                        ? 'text-red-600'
-                        : tone === 'green'
-                          ? 'text-emerald-700'
-                          : 'text-slate-900',
-                )}
-            >
-                {value}
-            </span>
-            <span className="text-sm text-slate-500">{detail}</span>
-            {note && (
-                <span className="mt-2 text-xs font-bold text-amber-700">
-                    {note}
-                </span>
-            )}
-        </button>
     );
 }
 
@@ -599,7 +523,7 @@ function SetCost({ row }: { row: SoldRow }) {
             <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 transition hover:bg-amber-100"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-black text-amber-800 transition hover:bg-amber-100"
             >
                 Not set · Set cost
             </button>

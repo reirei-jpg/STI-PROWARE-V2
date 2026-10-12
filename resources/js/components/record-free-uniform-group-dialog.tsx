@@ -325,7 +325,7 @@ function StudentCard({
                     <button
                         type="button"
                         onClick={onRemove}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 transition hover:bg-red-100"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700 transition hover:bg-red-100"
                     >
                         <Trash2 size={13} />
                         Remove

@@ -1,15 +1,18 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, Search, ShoppingBag, Unlock } from 'lucide-react';
+import { Eye, ShoppingBag, Unlock } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
+import { FilterChip } from '@/components/list-tabs';
 import OrderDetailsDialog from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import SearchBox from '@/components/search-box';
 import SlipScanBox from '@/components/slip-scan-box';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
@@ -113,7 +116,7 @@ export default function OrdersIndex({
 
                 <Panel>
                     <div className="space-y-4 border-b border-slate-100 px-6 py-5">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div>
                                 <h2 className="font-black text-slate-900">
                                     {chips.find(
@@ -124,51 +127,27 @@ export default function OrdersIndex({
                                     {descriptions[filters.show]}
                                 </p>
                             </div>
-                            <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                                <Search size={18} className="shrink-0" />
-                                <input
-                                    type="search"
-                                    maxLength={120}
-                                    value={search}
-                                    onChange={(event) =>
-                                        setSearch(event.target.value)
-                                    }
-                                    placeholder="Search by order no. (PW-0042) or student"
-                                    className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                    aria-label="Search by order number or student name"
-                                />
-                            </label>
+                            <SearchBox
+                                value={search}
+                                onChange={setSearch}
+                                placeholder="Search by Order # or student"
+                            />
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
                             {chips.map((chip) => (
-                                <button
+                                <FilterChip
                                     key={chip.value}
-                                    type="button"
+                                    active={filters.show === chip.value}
+                                    count={
+                                        chip.value === 'all'
+                                            ? undefined
+                                            : counts[chip.value]
+                                    }
                                     onClick={() => showList(chip.value, search)}
-                                    className={cn(
-                                        'inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition',
-                                        filters.show === chip.value
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                    )}
                                 >
                                     {chip.label}
-                                    {chip.value !== 'all' && (
-                                        <span
-                                            className={cn(
-                                                'rounded-full px-1.5 text-[11px] font-black',
-                                                filters.show === chip.value
-                                                    ? 'bg-white/25'
-                                                    : 'bg-white',
-                                            )}
-                                        >
-                                            {counts[chip.value].toLocaleString(
-                                                'en-PH',
-                                            )}
-                                        </span>
-                                    )}
-                                </button>
+                                </FilterChip>
                             ))}
                         </div>
                     </div>
@@ -426,7 +405,7 @@ function PausedStudents({ students }: { students: PausedStudent[] }) {
                             type="button"
                             disabled={lifting === student.id}
                             onClick={() => lift(student)}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                            className={buttonClasses.secondarySmall}
                         >
                             <Unlock size={16} />
                             Lift pause

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import type { ProductStatus } from '@/types';
+import { badgeClasses } from '@/lib/ui';
 
 const styles: Record<ProductStatus, string> = {
     draft: 'bg-slate-100 text-slate-700',
@@ -15,14 +16,5 @@ export default function ProductStatusBadge({
     status: ProductStatus;
     label: string;
 }) {
-    return (
-        <span
-            className={cn(
-                'inline-flex rounded-full px-3 py-1.5 text-xs font-black whitespace-nowrap',
-                styles[status],
-            )}
-        >
-            {label}
-        </span>
-    );
+    return <span className={cn(badgeClasses, styles[status])}>{label}</span>;
 }

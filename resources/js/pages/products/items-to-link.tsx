@@ -5,7 +5,6 @@ import {
     CheckCircle2,
     Link2,
     PackagePlus,
-    Search,
     SearchX,
     X,
 } from 'lucide-react';
@@ -16,8 +15,10 @@ import LinkItemDialog from '@/components/link-item-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import SearchBox from '@/components/search-box';
 import SplitDeliveredDialog from '@/components/split-delivered-dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { formatConversion } from '@/lib/units';
 import type {
     ItemsToLinkFilters,
@@ -25,9 +26,6 @@ import type {
     ItemToSplit,
     Paginated,
 } from '@/types';
-
-const primaryButtonClasses =
-    'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
 
 /**
  * eStore items from uploaded orders that are not linked to a product yet.
@@ -81,35 +79,20 @@ export default function ItemsToLink({
         <>
             <Head title="Items to Link" />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title="Items to Link"
                     description="eStore items from your uploaded orders that are not linked to a product yet. Link each item once; after that, its deliveries go into stock by themselves."
                     actions={
                         <Link
                             href={ProductController.index()}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            className={buttonClasses.secondary}
                         >
                             <ArrowLeft size={18} />
                             Back to Products
                         </Link>
                     }
                 />
-
-                <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                        <Search size={18} className="shrink-0" />
-                        <input
-                            type="search"
-                            maxLength={120}
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search by Item Code or description"
-                            className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                            aria-label="Search by Item Code or description"
-                        />
-                    </label>
-                </section>
 
                 {toSplit.length > 0 && (
                     <Panel
@@ -158,6 +141,13 @@ export default function ItemsToLink({
                 <Panel
                     title="Not Linked Yet"
                     description="Items that already arrived come first: they are waiting to be added to stock. Quantities are as ordered on the eStore, because PROWARE does not know yet if Head Office counts each item by the piece or by the pack."
+                    actions={
+                        <SearchBox
+                            value={search}
+                            onChange={setSearch}
+                            placeholder="Search by Item Code or description"
+                        />
+                    }
                 >
                     {items.data.length === 0 ? (
                         <div className="px-6 py-16 text-center">
@@ -180,7 +170,7 @@ export default function ItemsToLink({
                                             setSearch('');
                                             showList({ search: null });
                                         }}
-                                        className={`mt-6 ${primaryButtonClasses}`}
+                                        className={`mt-6 ${buttonClasses.primary}`}
                                     >
                                         <X size={17} />
                                         Clear search
@@ -202,7 +192,7 @@ export default function ItemsToLink({
                                     </p>
                                     <Link
                                         href={ProductController.index()}
-                                        className={`mt-6 ${primaryButtonClasses}`}
+                                        className={`mt-6 ${buttonClasses.primary}`}
                                     >
                                         <ArrowLeft size={17} />
                                         Back to Products

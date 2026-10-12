@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
+import { buttonClasses } from '@/lib/ui';
 
 type Task = {
     key: string;
@@ -400,7 +401,9 @@ function TaskGroupDialog({
                         </div>
 
                         <div className="flex justify-end border-t border-slate-100 px-6 py-4">
-                            <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                            <DialogClose
+                                className={buttonClasses.secondarySmall}
+                            >
                                 Close
                             </DialogClose>
                         </div>

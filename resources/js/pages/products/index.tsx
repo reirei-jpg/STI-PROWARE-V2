@@ -8,7 +8,6 @@ import {
     Package,
     Pencil,
     Plus,
-    Search,
     TriangleAlert,
     Unlink,
     X,
@@ -17,23 +16,23 @@ import { useEffect, useRef, useState } from 'react';
 import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
+import { FilterChip } from '@/components/list-tabs';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import EndSaleButton from '@/components/end-sale-button';
 import ProductStatusBadge from '@/components/product-status-badge';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
+import SearchBox from '@/components/search-box';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatDateTime, formatPeso } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import type {
     Paginated,
     ProductFilters,
     ProductListItem,
     ProductStatus,
 } from '@/types';
-
-const primaryButtonClasses =
-    'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
 
 const statusChips: { value: ProductStatus | null; label: string }[] = [
     { value: null, label: 'All' },
@@ -124,7 +123,7 @@ export default function ProductsIndex({
         <>
             <Head title="Products" />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title="Products"
                     description="Merchandise students see on the storefront. Set each product as Draft, Preorder, Available or On Sale."
@@ -146,7 +145,7 @@ export default function ProductsIndex({
                             </Link>
                             <Link
                                 href={ProductController.create()}
-                                className={primaryButtonClasses}
+                                className={buttonClasses.primary}
                             >
                                 <Plus size={18} />
                                 Add Product
@@ -214,156 +213,156 @@ export default function ProductsIndex({
                     </section>
                 )}
 
-                <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-                    <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                        <Search size={18} className="shrink-0" />
-                        <input
-                            type="search"
-                            maxLength={120}
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search by product name"
-                            className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                            aria-label="Search by product name"
-                        />
-                    </label>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        {statusChips.map((chip) => (
+                <Panel>
+                    <div className="space-y-4 border-b border-slate-100 px-6 py-5">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <h2 className="font-black text-slate-900">
+                                    All Products
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Most recently changed first.
+                                </p>
+                            </div>
+                            <SearchBox
+                                value={search}
+                                onChange={setSearch}
+                                placeholder="Search by product name"
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {statusChips.map((chip) => (
+                                <FilterChip
+                                    key={chip.label}
+                                    active={filters.status === chip.value}
+                                    onClick={() =>
+                                        showList({
+                                            ...filters,
+                                            status: chip.value,
+                                        })
+                                    }
+                                >
+                                    {chip.label}
+                                </FilterChip>
+                            ))}
+                            <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
                             <button
-                                key={chip.label}
                                 type="button"
                                 onClick={() =>
                                     showList({
                                         ...filters,
-                                        status: chip.value,
+                                        stock:
+                                            filters.stock === 'low'
+                                                ? null
+                                                : 'low',
                                     })
                                 }
-                                className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                    filters.status === chip.value
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                }`}
-                            >
-                                {chip.label}
-                            </button>
-                        ))}
-                        <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
-                        <button
-                            type="button"
-                            onClick={() =>
-                                showList({
-                                    ...filters,
-                                    stock:
-                                        filters.stock === 'low' ? null : 'low',
-                                })
-                            }
-                            aria-pressed={filters.stock === 'low'}
-                            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                filters.stock === 'low'
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                            }`}
-                        >
-                            <TriangleAlert size={14} />
-                            Low stock
-                            <span
-                                className={`rounded-full px-1.5 text-[11px] font-black ${
+                                aria-pressed={filters.stock === 'low'}
+                                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
                                     filters.stock === 'low'
-                                        ? 'bg-white/25'
-                                        : 'bg-amber-100'
+                                        ? 'bg-amber-500 text-white'
+                                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
                                 }`}
                             >
-                                {lowStockCount.toLocaleString('en-PH')}
-                            </span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() =>
-                                showList({
-                                    ...filters,
-                                    stock:
-                                        filters.stock === 'slow'
-                                            ? null
-                                            : 'slow',
-                                })
-                            }
-                            aria-pressed={filters.stock === 'slow'}
-                            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                filters.stock === 'slow'
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-red-50 text-red-700 hover:bg-red-100'
-                            }`}
-                        >
-                            <Hourglass size={14} />
-                            Slow-moving
-                            <span
-                                className={`rounded-full px-1.5 text-[11px] font-black ${
-                                    filters.stock === 'slow'
-                                        ? 'bg-white/25'
-                                        : 'bg-red-100'
-                                }`}
-                            >
-                                {slowMovingCount.toLocaleString('en-PH')}
-                            </span>
-                        </button>
-                    </div>
-                </section>
-
-                {filters.stock === 'slow' && (
-                    <section className="flex flex-col gap-3 rounded-3xl border border-red-100 bg-red-50/60 p-5 text-sm text-red-900 md:flex-row md:items-center md:justify-between">
-                        <p className="leading-6">
-                            <b>Slow-moving:</b> Available products in stock that
-                            first arrived at least this many days ago and sold
-                            nothing since. Put them on sale to clear them. Until
-                            students can buy through PROWARE, nothing has sales
-                            yet, so this lists items in stock that long.
-                        </p>
-                        <form
-                            className="flex shrink-0 items-center gap-2"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                const days = Number(slowDays);
-
-                                if (
-                                    Number.isInteger(days) &&
-                                    days >= 1 &&
-                                    days <= 365
-                                ) {
-                                    showList({ ...filters, slow_days: days });
-                                }
-                            }}
-                        >
-                            <span className="font-bold">No sales for</span>
-                            <input
-                                value={slowDays}
-                                onChange={(event) =>
-                                    setSlowDays(
-                                        wholeNumberInput(
-                                            event.target.value,
-                                            365,
-                                        ),
-                                    )
-                                }
-                                inputMode="numeric"
-                                className="h-9 w-16 rounded-lg border border-red-200 bg-white px-2 text-right text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-red-100"
-                                aria-label="Days without sales"
-                            />
-                            <span className="font-bold">days</span>
-                            <button
-                                type="submit"
-                                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white hover:bg-red-700"
-                            >
-                                Show
+                                <TriangleAlert size={14} />
+                                Low stock
+                                <span
+                                    className={`rounded-full px-2 py-0.5 text-xs font-black ${
+                                        filters.stock === 'low'
+                                            ? 'bg-white/25'
+                                            : 'bg-amber-100'
+                                    }`}
+                                >
+                                    {lowStockCount.toLocaleString('en-PH')}
+                                </span>
                             </button>
-                        </form>
-                    </section>
-                )}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    showList({
+                                        ...filters,
+                                        stock:
+                                            filters.stock === 'slow'
+                                                ? null
+                                                : 'slow',
+                                    })
+                                }
+                                aria-pressed={filters.stock === 'slow'}
+                                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                    filters.stock === 'slow'
+                                        ? 'bg-red-500 text-white'
+                                        : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                }`}
+                            >
+                                <Hourglass size={14} />
+                                Slow-moving
+                                <span
+                                    className={`rounded-full px-2 py-0.5 text-xs font-black ${
+                                        filters.stock === 'slow'
+                                            ? 'bg-white/25'
+                                            : 'bg-red-100'
+                                    }`}
+                                >
+                                    {slowMovingCount.toLocaleString('en-PH')}
+                                </span>
+                            </button>
+                        </div>
+                        {filters.stock === 'slow' && (
+                            <section className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm text-red-900 md:flex-row md:items-center md:justify-between">
+                                <p className="leading-6">
+                                    <b>Slow-moving:</b> Available products in
+                                    stock that first arrived at least this many
+                                    days ago and sold nothing since. Put them on
+                                    sale to clear them. Until students can buy
+                                    through PROWARE, nothing has sales yet, so
+                                    this lists items in stock that long.
+                                </p>
+                                <form
+                                    className="flex shrink-0 items-center gap-2"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        const days = Number(slowDays);
 
-                <Panel
-                    title="All Products"
-                    description="Most recently changed first."
-                >
+                                        if (
+                                            Number.isInteger(days) &&
+                                            days >= 1 &&
+                                            days <= 365
+                                        ) {
+                                            showList({
+                                                ...filters,
+                                                slow_days: days,
+                                            });
+                                        }
+                                    }}
+                                >
+                                    <span className="font-bold">
+                                        No sales for
+                                    </span>
+                                    <input
+                                        value={slowDays}
+                                        onChange={(event) =>
+                                            setSlowDays(
+                                                wholeNumberInput(
+                                                    event.target.value,
+                                                    365,
+                                                ),
+                                            )
+                                        }
+                                        inputMode="numeric"
+                                        className="h-9 w-16 rounded-lg border border-red-200 bg-white px-2 text-right text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-red-100"
+                                        aria-label="Days without sales"
+                                    />
+                                    <span className="font-bold">days</span>
+                                    <button
+                                        type="submit"
+                                        className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-red-700"
+                                    >
+                                        Show
+                                    </button>
+                                </form>
+                            </section>
+                        )}
+                    </div>
                     {products.data.length === 0 ? (
                         <div className="px-6 py-16 text-center">
                             <Package
@@ -392,7 +391,7 @@ export default function ProductsIndex({
                                             slow_days: filters.slow_days,
                                         });
                                     }}
-                                    className={`mt-6 ${primaryButtonClasses}`}
+                                    className={`mt-6 ${buttonClasses.primary}`}
                                 >
                                     <X size={17} />
                                     Clear filters
@@ -400,7 +399,7 @@ export default function ProductsIndex({
                             ) : (
                                 <Link
                                     href={ProductController.create()}
-                                    className={`mt-6 ${primaryButtonClasses}`}
+                                    className={`mt-6 ${buttonClasses.primary}`}
                                 >
                                     <Plus size={17} />
                                     Add Product

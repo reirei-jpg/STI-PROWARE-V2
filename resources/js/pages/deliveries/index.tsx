@@ -1,12 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import type { LucideIcon } from 'lucide-react';
 import {
     CircleAlert,
     ExternalLink,
     Eye,
     PackageCheck,
     Plus,
-    Search,
     SearchX,
     Truck,
     Unlink,
@@ -18,10 +16,14 @@ import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrde
 import DateRangeFilter from '@/components/date-range-filter';
 import DeliveryDetailsDialog from '@/components/delivery-details-dialog';
 import DeliveryProgress from '@/components/delivery-progress';
+import { ViewTab, ViewTabs } from '@/components/list-tabs';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import SearchBox from '@/components/search-box';
+import StatCard from '@/components/stat-card';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -34,9 +36,6 @@ import type {
     Paginated,
     WaitingOrderRow,
 } from '@/types';
-
-const primaryButtonClasses =
-    'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
 
 const waitingLists: DeliveriesShow[] = ['waiting', 'follow_up'];
 
@@ -162,7 +161,7 @@ export default function DeliveriesIndex({
                         canRecord && (
                             <Link
                                 href={DeliveryController.create()}
-                                className={primaryButtonClasses}
+                                className={buttonClasses.primary}
                             >
                                 <Plus size={18} />
                                 Record Delivery
@@ -172,7 +171,7 @@ export default function DeliveriesIndex({
                 />
 
                 <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <SummaryCard
+                    <StatCard
                         active={filters.show === 'follow_up'}
                         icon={CircleAlert}
                         tone="red"
@@ -185,7 +184,7 @@ export default function DeliveriesIndex({
                         }
                         onClick={() => showList({ show: 'follow_up' })}
                     />
-                    <SummaryCard
+                    <StatCard
                         active={filters.show === 'waiting'}
                         icon={Truck}
                         tone="blue"
@@ -198,7 +197,7 @@ export default function DeliveriesIndex({
                         }
                         onClick={() => showList({ show: 'waiting' })}
                     />
-                    <SummaryCard
+                    <StatCard
                         active={filters.show === 'this_month'}
                         icon={PackageCheck}
                         tone="green"
@@ -207,7 +206,7 @@ export default function DeliveriesIndex({
                         detail={`${summary.this_month.deliveries === 1 ? 'delivery' : 'deliveries'} · +${formatUnits(summary.this_month.pieces, 'Piece')}`}
                         onClick={() => showList({ show: 'this_month' })}
                     />
-                    <SummaryCard
+                    <StatCard
                         active={filters.show === 'not_in_stock'}
                         icon={Unlink}
                         tone="amber"
@@ -224,8 +223,8 @@ export default function DeliveriesIndex({
 
                 <Panel>
                     <div className="space-y-4 border-b border-slate-100 px-6 py-5">
-                        <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                            <TabButton
+                        <ViewTabs>
+                            <ViewTab
                                 active={!showingWaiting}
                                 onClick={() =>
                                     showList({
@@ -236,8 +235,8 @@ export default function DeliveriesIndex({
                                 }
                             >
                                 Received
-                            </TabButton>
-                            <TabButton
+                            </ViewTab>
+                            <ViewTab
                                 active={showingWaiting}
                                 count={summary.waiting}
                                 onClick={() =>
@@ -249,8 +248,8 @@ export default function DeliveriesIndex({
                                 }
                             >
                                 Waiting to arrive
-                            </TabButton>
-                        </div>
+                            </ViewTab>
+                        </ViewTabs>
 
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div>
@@ -261,20 +260,12 @@ export default function DeliveriesIndex({
                                     {description}
                                 </p>
                             </div>
-                            <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                                <Search size={18} className="shrink-0" />
-                                <input
-                                    type="search"
-                                    maxLength={40}
-                                    value={search}
-                                    onChange={(event) =>
-                                        setSearch(event.target.value)
-                                    }
-                                    placeholder="Search by Order #"
-                                    className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                    aria-label="Search by Order #"
-                                />
-                            </label>
+                            <SearchBox
+                                value={search}
+                                onChange={setSearch}
+                                maxLength={40}
+                                placeholder="Search by Order #"
+                            />
                         </div>
 
                         {!showingWaiting && (
@@ -296,7 +287,7 @@ export default function DeliveriesIndex({
                             <button
                                 type="button"
                                 onClick={clearFilters}
-                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                className={buttonClasses.secondarySmall}
                             >
                                 <X size={15} />
                                 Clear search and dates
@@ -340,97 +331,6 @@ export default function DeliveriesIndex({
     );
 }
 
-const toneClasses = {
-    red: { icon: 'bg-red-50 text-red-600', ring: 'ring-red-400' },
-    blue: { icon: 'bg-blue-50 text-blue-600', ring: 'ring-blue-400' },
-    green: { icon: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-400' },
-    amber: { icon: 'bg-amber-50 text-amber-600', ring: 'ring-amber-400' },
-} as const;
-
-/** One number at the top; clicking it shows that list. */
-function SummaryCard({
-    active,
-    icon: Icon,
-    tone,
-    label,
-    value,
-    detail,
-    onClick,
-}: {
-    active: boolean;
-    icon: LucideIcon;
-    tone: keyof typeof toneClasses;
-    label: string;
-    value: number;
-    detail: string;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-pressed={active}
-            className={cn(
-                'flex flex-col rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
-                active && `ring-2 ${toneClasses[tone].ring}`,
-            )}
-        >
-            <span
-                className={cn(
-                    'flex size-11 items-center justify-center rounded-2xl',
-                    toneClasses[tone].icon,
-                )}
-            >
-                <Icon size={21} />
-            </span>
-            <span className="mt-4 text-xs font-black tracking-wide text-slate-500 uppercase">
-                {label}
-            </span>
-            <span className="mt-0.5 text-3xl font-black tracking-tight text-slate-900">
-                {value.toLocaleString('en-PH')}
-            </span>
-            <span className="text-sm text-slate-500">{detail}</span>
-        </button>
-    );
-}
-
-function TabButton({
-    active,
-    count,
-    onClick,
-    children,
-}: {
-    active: boolean;
-    count?: number;
-    onClick: () => void;
-    children: string;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-black transition',
-                active
-                    ? 'bg-[#0D6EFD] text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-white',
-            )}
-        >
-            {children}
-            {count !== undefined && (
-                <span
-                    className={cn(
-                        'rounded-full px-2 py-0.5 text-xs',
-                        active ? 'bg-white/25' : 'bg-white text-slate-600',
-                    )}
-                >
-                    {count}
-                </span>
-            )}
-        </button>
-    );
-}
-
 /** Recorded deliveries: what arrived, its receipt, orders, stock, who. */
 function ReceivedTable({
     deliveries,
@@ -467,7 +367,7 @@ function ReceivedTable({
                     <button
                         type="button"
                         onClick={onClear}
-                        className={`mt-6 ${primaryButtonClasses}`}
+                        className={`mt-6 ${buttonClasses.primary}`}
                     >
                         Clear search and dates
                     </button>
@@ -475,7 +375,7 @@ function ReceivedTable({
                     canRecord && (
                         <Link
                             href={DeliveryController.create()}
-                            className={`mt-6 ${primaryButtonClasses}`}
+                            className={`mt-6 ${buttonClasses.primary}`}
                         >
                             <Plus size={17} />
                             Record Delivery

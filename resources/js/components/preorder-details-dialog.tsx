@@ -20,6 +20,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateTime } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { formatUnits } from '@/lib/units';
 import type { PreorderDetails } from '@/types';
 
@@ -277,7 +278,9 @@ export default function PreorderDetailsDialog({
                                     Full list
                                 </Link>
                             </div>
-                            <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                            <DialogClose
+                                className={buttonClasses.secondarySmall}
+                            >
                                 Close
                             </DialogClose>
                         </div>

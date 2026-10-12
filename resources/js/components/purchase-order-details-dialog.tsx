@@ -15,6 +15,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { buttonClasses } from '@/lib/ui';
 import { formatConversion, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { OrderDeliveryRecord, PurchaseOrderDetails } from '@/types';
@@ -296,7 +297,7 @@ export default function PurchaseOrderDetailsDialog({
                 </div>
 
                 <div className="flex justify-end border-t border-slate-100 px-8 py-5">
-                    <DialogClose className="rounded-xl border border-slate-200 bg-white px-6 py-3 text-base font-black text-slate-700 transition hover:bg-slate-50">
+                    <DialogClose className={buttonClasses.secondarySmall}>
                         Close
                     </DialogClose>
                 </div>

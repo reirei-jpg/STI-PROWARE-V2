@@ -7,7 +7,7 @@ import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PreorderCloseDateDialog from '@/components/preorder-close-date-dialog';
 import { CloseDate, VariantCounts } from '@/components/preorder-counts';
-import SummaryCard from '@/components/summary-card';
+import StatCard from '@/components/stat-card';
 import { formatDateTime } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import type { Paginated, PreorderProductSummary, PreorderRow } from '@/types';
@@ -31,7 +31,7 @@ export default function PreorderShow({
         <>
             <Head title={`Preorders · ${product.name}`} />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title={product.name}
                     description="Every student who preordered it. Cancelled preorders are not listed."
@@ -46,17 +46,17 @@ export default function PreorderShow({
                     }
                 />
 
-                <section className="grid gap-5 md:grid-cols-3">
-                    <SummaryCard
+                <section className="grid gap-4 md:grid-cols-3">
+                    <StatCard
                         label="No. of Students"
                         value={product.students_count.toLocaleString('en-PH')}
-                        description="Students with a preorder for it."
+                        detail="Students with a preorder for it."
                         icon={Users}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Total Pieces"
                         value={formatUnits(product.pieces_total, 'Piece')}
-                        description="How many they reserved in all."
+                        detail="How many they reserved in all."
                         icon={Users}
                     />
                     <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

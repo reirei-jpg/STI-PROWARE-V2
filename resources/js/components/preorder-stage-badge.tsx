@@ -1,6 +1,7 @@
 import { formatDateOrdered } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { PreorderProductSummary, PreorderStage } from '@/types';
+import { badgeClasses } from '@/lib/ui';
 
 /** V1's colors: blue in progress, amber needs action, green good news. */
 const stages: Record<PreorderStage, { label: string; className: string }> = {
@@ -25,12 +26,7 @@ export default function PreorderStageBadge({
     stage: PreorderStage;
 }) {
     return (
-        <span
-            className={cn(
-                'inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-black whitespace-nowrap',
-                stages[stage].className,
-            )}
-        >
+        <span className={cn(badgeClasses, 'shrink-0', stages[stage].className)}>
             {stages[stage].label}
         </span>
     );

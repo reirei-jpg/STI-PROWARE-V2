@@ -4,7 +4,6 @@ import {
     ClipboardList,
     Eye,
     FileScan,
-    Search,
     SearchX,
     Wallet,
     X,
@@ -14,12 +13,15 @@ import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrde
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import DateRangeFilter from '@/components/date-range-filter';
 import DeliveryProgress from '@/components/delivery-progress';
+import { FilterChip } from '@/components/list-tabs';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
-import SummaryCard from '@/components/summary-card';
+import SearchBox from '@/components/search-box';
+import StatCard from '@/components/stat-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { badgeClasses, buttonClasses } from '@/lib/ui';
 import type {
     Auth,
     DeliveryStatus,
@@ -29,9 +31,6 @@ import type {
     PurchaseOrderSummary,
     PurchaseOrderTotals,
 } from '@/types';
-
-const primaryButtonClasses =
-    'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
 
 const noFilters: PurchaseOrderFilters = {
     search: null,
@@ -180,7 +179,7 @@ export default function PurchaseOrdersIndex({
                 onClose={closeDetails}
             />
 
-            <div className="space-y-7">
+            <div className="space-y-6">
                 <PageHeader
                     title="Purchase Orders"
                     description="Orders placed in the eStore, approved by the School Admin, and uploaded to PROWARE."
@@ -188,7 +187,7 @@ export default function PurchaseOrdersIndex({
                         isSpecialist && (
                             <Link
                                 href={PurchaseOrderScanController.create()}
-                                className={primaryButtonClasses}
+                                className={buttonClasses.primary}
                             >
                                 <FileScan size={18} />
                                 Scan eStore PO
@@ -197,157 +196,142 @@ export default function PurchaseOrdersIndex({
                     }
                 />
 
-                <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-xs">
-                            <Search size={18} className="shrink-0" />
-                            <input
-                                type="search"
-                                maxLength={40}
-                                value={search}
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                inputMode="numeric"
-                                placeholder="Search by Order #"
-                                className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                aria-label="Search by Order #"
-                            />
-                        </label>
-
-                        {categories.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-bold text-slate-500">
-                                    Category:
-                                </span>
-                                {[null, ...categories].map((category) => (
-                                    <button
-                                        key={category ?? 'all'}
-                                        type="button"
-                                        onClick={() =>
-                                            showList({ ...filters, category })
-                                        }
-                                        className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                            filters.category === category
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                    >
-                                        {category ?? 'All'}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-bold text-slate-500">
-                                Delivery:
-                            </span>
-                            {statusChips.map((chip) => (
-                                <button
-                                    key={chip.label}
-                                    type="button"
-                                    onClick={() =>
-                                        showList({
-                                            ...filters,
-                                            status: chip.value,
-                                        })
-                                    }
-                                    className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                        filters.status === chip.value
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }`}
-                                >
-                                    {chip.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        <label className="flex items-center gap-2 text-sm font-bold text-slate-500">
-                            Sort:
-                            <select
-                                value={filters.sort}
-                                onChange={(event) =>
-                                    showList({
-                                        ...filters,
-                                        sort: event.target
-                                            .value as PurchaseOrderSort,
-                                    })
-                                }
-                                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                            >
-                                {sortOptions.map((option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                    </div>
-
-                    <DateRangeFilter
-                        label="Date Ordered"
-                        dateFrom={filters.date_from}
-                        dateTo={filters.date_to}
-                        serverError={errors.date_from ?? errors.date_to}
-                        onChange={(dateFrom, dateTo) =>
-                            showList({
-                                ...filters,
-                                date_from: dateFrom,
-                                date_to: dateTo,
-                            })
-                        }
-                    />
-
-                    {isFiltered && (
-                        <button
-                            type="button"
-                            onClick={clearFilters}
-                            className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                            <X size={15} />
-                            Clear search and all filters
-                        </button>
-                    )}
-                </section>
-
                 <section className="grid gap-4 md:grid-cols-3">
-                    <SummaryCard
+                    <StatCard
                         label="Orders Uploaded"
                         value={String(summary.orders_count)}
-                        description={
+                        detail={
                             isFiltered
                                 ? summaryScope
                                 : 'eStore purchase orders uploaded to PROWARE'
                         }
                         icon={ClipboardList}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Total QTY Ordered"
                         value={summary.total_qty_ordered.toLocaleString(
                             'en-PH',
                         )}
-                        description={summaryScope}
+                        detail={summaryScope}
                         icon={Boxes}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Total Amount (Ordered)"
                         value={formatPeso(summary.total_amount_centavos)}
-                        description={`${summaryScope}, at Head Office cost`}
+                        detail={`${summaryScope}, at Head Office cost`}
                         icon={Wallet}
                     />
                 </section>
 
-                <Panel
-                    title="Uploaded Purchase Orders"
-                    description={`${sortOptions.find((option) => option.value === filters.sort)?.label ?? ''}. Open View Details to see every item, what has arrived, and the delivery history.`}
-                >
+                <Panel>
+                    <div className="space-y-4 border-b border-slate-100 px-6 py-5">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <h2 className="font-black text-slate-900">
+                                    Uploaded Purchase Orders
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {`${sortOptions.find((option) => option.value === filters.sort)?.label ?? ''}. Open View Details to see every item, what has arrived, and the delivery history.`}
+                                </p>
+                            </div>
+                            <SearchBox
+                                value={search}
+                                onChange={setSearch}
+                                maxLength={40}
+                                inputMode="numeric"
+                                placeholder="Search by Order #"
+                            />
+                        </div>
+                        {categories.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-bold text-slate-500">
+                                    Category:
+                                </span>
+                                {[null, ...categories].map((category) => (
+                                    <FilterChip
+                                        key={category ?? 'all'}
+                                        active={filters.category === category}
+                                        onClick={() =>
+                                            showList({ ...filters, category })
+                                        }
+                                    >
+                                        {category ?? 'All'}
+                                    </FilterChip>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-bold text-slate-500">
+                                    Delivery:
+                                </span>
+                                {statusChips.map((chip) => (
+                                    <FilterChip
+                                        key={chip.label}
+                                        active={filters.status === chip.value}
+                                        onClick={() =>
+                                            showList({
+                                                ...filters,
+                                                status: chip.value,
+                                            })
+                                        }
+                                    >
+                                        {chip.label}
+                                    </FilterChip>
+                                ))}
+                            </div>
+
+                            <label className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                                Sort:
+                                <select
+                                    value={filters.sort}
+                                    onChange={(event) =>
+                                        showList({
+                                            ...filters,
+                                            sort: event.target
+                                                .value as PurchaseOrderSort,
+                                        })
+                                    }
+                                    className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                                >
+                                    {sortOptions.map((option) => (
+                                        <option
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+
+                        <DateRangeFilter
+                            label="Date Ordered"
+                            dateFrom={filters.date_from}
+                            dateTo={filters.date_to}
+                            serverError={errors.date_from ?? errors.date_to}
+                            onChange={(dateFrom, dateTo) =>
+                                showList({
+                                    ...filters,
+                                    date_from: dateFrom,
+                                    date_to: dateTo,
+                                })
+                            }
+                        />
+
+                        {isFiltered && (
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className={buttonClasses.secondarySmall}
+                            >
+                                <X size={15} />
+                                Clear search and all filters
+                            </button>
+                        )}
+                    </div>
                     {purchaseOrders.data.length === 0 && isFiltered ? (
                         <div className="px-6 py-16 text-center">
                             <SearchX
@@ -364,7 +348,7 @@ export default function PurchaseOrdersIndex({
                             <button
                                 type="button"
                                 onClick={clearFilters}
-                                className={`mt-6 ${primaryButtonClasses}`}
+                                className={`mt-6 ${buttonClasses.primary}`}
                             >
                                 Clear filters
                             </button>
@@ -386,7 +370,7 @@ export default function PurchaseOrdersIndex({
                                     </p>
                                     <Link
                                         href={PurchaseOrderScanController.create()}
-                                        className={`mt-6 ${primaryButtonClasses}`}
+                                        className={`mt-6 ${buttonClasses.primary}`}
                                     >
                                         <FileScan size={17} />
                                         Scan eStore PO
@@ -447,7 +431,9 @@ export default function PurchaseOrdersIndex({
                                                     </td>
                                                     <td className="px-5 py-4">
                                                         {purchaseOrder.category ? (
-                                                            <span className="inline-flex rounded-full bg-blue-100 px-3 py-1.5 text-xs font-black text-blue-700">
+                                                            <span
+                                                                className={`${badgeClasses} bg-blue-100 text-blue-700`}
+                                                            >
                                                                 {
                                                                     purchaseOrder.category
                                                                 }
