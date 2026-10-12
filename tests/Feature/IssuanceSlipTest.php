@@ -90,6 +90,14 @@ test('a released slip shows when it was released and who issued it', function ()
     );
 });
 
+test('the Scan issuance slip page opens empty before anything is scanned', function () {
+    $this->actingAs($this->specialist)->get(route('orders.slip'))->assertInertia(fn (Assert $page) => $page
+        ->component('orders/slip')
+        ->where('code', '')
+        ->where('result', null)
+    );
+});
+
 test('the Specialist finds the order by scanning its slip or typing its number, ready to release', function () {
     $order = juansHoodieOrder();
     $this->actingAs($this->specialist);
