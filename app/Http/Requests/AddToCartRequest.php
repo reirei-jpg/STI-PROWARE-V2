@@ -48,7 +48,7 @@ class AddToCartRequest extends FormRequest
                 'integer',
                 Rule::exists('product_packs', 'id')->where('product_id', $this->product()->id)->where('sold_to_students', true),
             ],
-            // The most allowed (stock, and at most Cart::MAX_QUANTITY) is checked by the cart, with how many are left.
+            // The most allowed (stock, and at most Cart::maxPerItem()) is checked by the cart, with how many are left.
             'quantity' => ['required', 'integer', 'min:1'],
         ];
     }

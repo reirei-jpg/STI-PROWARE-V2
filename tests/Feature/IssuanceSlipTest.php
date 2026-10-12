@@ -1,12 +1,17 @@
 <?php
 
 use App\Enums\OrderStatus;
+use App\Http\Requests\PutOnSaleRequest;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Dashboard\SpecialistTasks;
+use App\Services\Sales\SaleSchedule;
+use App\Services\Settings\SystemSettings;
+use App\Services\Shop\Cart;
 use App\Services\Shop\OrderRules;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -125,31 +130,67 @@ test('the Specialist sets how many days new orders hold their items on the Maint
     $this->actingAs($this->specialist)->get(route('maintenance.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('maintenance/index')
-            ->where('holdDays.value', 2)
-            ->where('holdDays.changed_by', null));
+            ->where('areas', ['Orders', 'Deliveries', 'Products & Sales', 'Free Uniforms', 'Issuance Slip', 'Reminders'])
+            ->has('settings', 13)
+            ->where('settings.0.key', 'order_hold_days')
+            ->where('settings.0.value', 2)
+            ->where('settings.0.display', '2 days')
+            ->where('settings.0.is_default', true)
+            ->where('settings.0.changed_by', null));
 
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 4])
-        ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
+    $this->patch(route('maintenance.update', 'order_hold_days'), ['value' => 4])
+        ->assertSessionHasErrors(['value' => 'Choose one of the choices shown.']);
 
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 3])
-        ->assertInertiaFlash('toast.message', 'New orders now hold their items for 3 days. Orders already placed keep their pick-up date.');
+    $this->patch(route('maintenance.update', 'order_hold_days'), ['value' => 3])
+        ->assertInertiaFlash('toast.message', 'Days an order holds its items: now 3 days. Orders already placed keep their pick-up date.');
 
-    expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 0))->toBe(3)
+    expect(Setting::integer(SystemSettings::ORDER_HOLD_DAYS, 0))->toBe(3)
         ->and(OrderRules::holdUntil()->toDateString())->toBe('2026-10-12');
 
     $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('holdDays.value', 3)
-        ->where('holdDays.changed_by', $this->specialist->name)
-        ->where('holdDays.changed_at', now()->toIso8601String()));
+        ->where('settings.0.value', 3)
+        ->where('settings.0.is_default', false)
+        ->where('settings.0.changed_by', $this->specialist->name)
+        ->where('settings.0.changed_at', now()->toIso8601String()));
+
+    $this->patch(route('maintenance.update', 'not_a_setting'), ['value' => 1])->assertNotFound();
+});
+
+test('the settings change how PROWARE works', function () {
+    $this->actingAs($this->specialist);
+
+    $this->patch(route('maintenance.update', 'slip_school_name'), ['value' => ''])
+        ->assertSessionHasErrors(['value' => 'Type the school name on the slip.']);
+    $this->patch(route('maintenance.update', 'slip_school_name'), ['value' => 'STI COLLEGE-TACLOBAN']);
+    $this->patch(route('maintenance.update', 'slip_address_line_1'), ['value' => 'Real Street']);
+    $this->patch(route('maintenance.update', 'cart_max_per_item'), ['value' => 10]);
+    $this->patch(route('maintenance.update', 'sale_max_days'), ['value' => 30]);
+    $this->patch(route('maintenance.update', 'slow_moving_days'), ['value' => 7]);
+    $this->patch(route('maintenance.update', 'default_low_stock_alert'), ['value' => 10]);
+    $this->patch(route('maintenance.update', 'reminder_hour'), ['value' => 9])
+        ->assertInertiaFlash('toast.message', 'Time reminders are sent: now 9:00 AM.');
+
+    $this->actingAs($this->student)->get(route('my-orders.slip', juansHoodieOrder()))->assertInertia(fn (Assert $page) => $page
+        ->where('slip.school', 'STI COLLEGE-TACLOBAN')
+        ->where('slip.address_lines', ['Real Street', 'Ormoc City, Leyte Philippines']));
+
+    expect(Cart::maxPerItem())->toBe(10)
+        ->and(PutOnSaleRequest::maxDays())->toBe(30)
+        ->and(SpecialistTasks::slowMovingDays())->toBe(7)
+        ->and(SaleSchedule::sendFromHour())->toBe(9);
+
+    $this->actingAs($this->specialist);
+    $this->get(route('products.create'))->assertInertia(fn (Assert $page) => $page->where('defaultLowStockAlert', 10));
+    $this->get(route('products.index'))->assertInertia(fn (Assert $page) => $page->where('defaultSlowDays', 7)->where('filters.slow_days', 7));
 });
 
 test('only the Specialist can open and change Maintenance', function () {
     foreach ([$this->student, User::factory()->schoolAdmin()->create()] as $user) {
         $this->actingAs($user)->get(route('maintenance.index'))->assertForbidden();
-        $this->patch(route('maintenance.hold-days'), ['hold_days' => 1])->assertForbidden();
+        $this->patch(route('maintenance.update', 'order_hold_days'), ['value' => 1])->assertForbidden();
     }
 
-    expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 2))->toBe(2);
+    expect(Setting::integer(SystemSettings::ORDER_HOLD_DAYS, 2))->toBe(2);
 });
 
 test('the Specialist sees students paused for expired orders and can let them order again', function () {

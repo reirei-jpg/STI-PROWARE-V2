@@ -2,42 +2,45 @@
 
 namespace App\Services\Shop;
 
-use App\Models\Setting;
 use App\Models\User;
+use App\Services\Settings\SystemSettings;
 use Carbon\CarbonImmutable;
 
 /**
  * How long an order holds its items, and the guards that stop anyone from
  * holding items without buying them (website and phone app):
  *
- * - An order holds its items for a few days (the Specialist's setting, 2 by
+ * - An order holds its items for a few days (a Maintenance setting, 2 by
  *   default); not released by then, it expires and the items are free to
  *   sell again.
- * - A student whose orders expired several times in a month cannot order
- *   for a week, unless the Specialist lifts the pause.
+ * - A student whose orders expired several times in a month (3 by default)
+ *   cannot order for a while (7 days by default), unless the Specialist
+ *   lifts the pause. Both are Maintenance settings.
  *
  * There is no limit on how many orders a student has waiting at once; the
  * expiry and the pause are the guards.
  */
 final class OrderRules
 {
-    public const DEFAULT_HOLD_DAYS = 2;
-
-    public const MIN_HOLD_DAYS = 1;
-
-    public const MAX_HOLD_DAYS = 3;
-
-    /** Expired orders in NO_SHOW_WINDOW_DAYS that pause ordering. */
-    public const NO_SHOW_LIMIT = 3;
-
+    /** The days in which expired orders are counted for a pause. */
     public const NO_SHOW_WINDOW_DAYS = 30;
 
-    public const PAUSE_DAYS = 7;
-
-    /** Days an order holds its items (the Specialist's setting). */
+    /** Days an order holds its items (Maintenance). */
     public static function holdDays(): int
     {
-        return max(self::MIN_HOLD_DAYS, min(self::MAX_HOLD_DAYS, Setting::integer(Setting::ORDER_HOLD_DAYS, self::DEFAULT_HOLD_DAYS)));
+        return SystemSettings::integer(SystemSettings::ORDER_HOLD_DAYS);
+    }
+
+    /** Expired orders within NO_SHOW_WINDOW_DAYS that pause ordering (Maintenance). */
+    public static function pauseAfterExpired(): int
+    {
+        return SystemSettings::integer(SystemSettings::ORDER_PAUSE_AFTER_EXPIRED);
+    }
+
+    /** Days a paused student cannot order (Maintenance). */
+    public static function pauseDays(): int
+    {
+        return SystemSettings::integer(SystemSettings::ORDER_PAUSE_DAYS);
     }
 
     /** The last moment an order placed now can be released. */
@@ -55,7 +58,7 @@ final class OrderRules
         $pausedUntil = self::pausedUntil($student);
 
         if ($pausedUntil !== null) {
-            return 'Ordering is paused until '.$pausedUntil->format('M j, Y').', because '.self::NO_SHOW_LIMIT.' of your orders expired without being picked up. Ask the PROWARE office if this is a mistake.';
+            return 'Ordering is paused until '.$pausedUntil->format('M j, Y').', because '.self::pauseAfterExpired().' of your orders expired without being picked up. Ask the PROWARE office if this is a mistake.';
         }
 
         return null;
@@ -68,19 +71,20 @@ final class OrderRules
      */
     public static function pausedUntil(User $student): ?CarbonImmutable
     {
+        $limit = self::pauseAfterExpired();
         $expiries = $student->orders()
             ->whereNotNull('expired_at')
             ->where('expired_at', '>=', now()->subDays(self::NO_SHOW_WINDOW_DAYS))
             ->when($student->ordering_resumed_at, fn ($query, $resumedAt) => $query->where('expired_at', '>', $resumedAt))
             ->latest('expired_at')
-            ->limit(self::NO_SHOW_LIMIT)
+            ->limit($limit)
             ->pluck('expired_at');
 
-        if ($expiries->count() < self::NO_SHOW_LIMIT) {
+        if ($expiries->count() < $limit) {
             return null;
         }
 
-        $until = CarbonImmutable::parse($expiries->first())->addDays(self::PAUSE_DAYS);
+        $until = CarbonImmutable::parse($expiries->first())->addDays(self::pauseDays());
 
         return $until->isFuture() ? $until : null;
     }
@@ -94,7 +98,7 @@ final class OrderRules
     public static function pausedStudents(): array
     {
         $candidates = User::query()
-            ->whereHas('orders', fn ($orders) => $orders->whereNotNull('expired_at')->where('expired_at', '>=', now()->subDays(self::NO_SHOW_WINDOW_DAYS)), '>=', self::NO_SHOW_LIMIT)
+            ->whereHas('orders', fn ($orders) => $orders->whereNotNull('expired_at')->where('expired_at', '>=', now()->subDays(self::NO_SHOW_WINDOW_DAYS)), '>=', self::pauseAfterExpired())
             ->orderBy('name')
             ->get();
 

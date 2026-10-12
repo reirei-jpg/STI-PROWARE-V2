@@ -39,6 +39,8 @@ export type StorefrontVariantAvailability =
     | 'sold_out';
 
 export type StorefrontProductDetails = StorefrontTileProduct & {
+    /** The most of one item a student can add or preorder (Maintenance). */
+    max_per_item: number;
     photos: { url: string; label: string | null }[];
     options: { name: string; choices: string[] }[];
     variants: {

@@ -1,50 +1,73 @@
 import { Head, useForm } from '@inertiajs/react';
+import type { LucideIcon } from 'lucide-react';
 import {
-    CircleAlert,
-    Clock,
+    Bell,
     Gift,
     History,
     LoaderCircle,
+    Package,
+    Pencil,
+    ReceiptText,
     Save,
+    ShoppingBag,
+    Truck,
+    X,
 } from 'lucide-react';
+import { useState } from 'react';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
-import Panel from '@/components/panel';
-import type { ReactNode } from 'react';
+import Panel, { TableHeading } from '@/components/panel';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-type NumberSetting = {
-    value: number;
-    min: number;
-    max: number;
+type SettingRow = {
+    key: string;
+    area: string;
+    label: string;
+    description: string;
+    example: string;
+    type: 'choice' | 'text';
+    choices: { value: number; label: string }[];
+    max_length: number | null;
+    value: number | string;
+    display: string;
+    is_default: boolean;
     changed_at: string | null;
     changed_by: string | null;
 };
 
-type ChoiceSetting = {
-    value: number;
-    choices: number[];
-    changed_at: string | null;
-    changed_by: string | null;
+const areaIcons: Record<string, LucideIcon> = {
+    Orders: ShoppingBag,
+    Deliveries: Truck,
+    'Products & Sales': Package,
+    'Free Uniforms': Gift,
+    'Issuance Slip': ReceiptText,
+    Reminders: Bell,
 };
 
 /**
- * The Specialist's Maintenance page: settings that change how PROWARE
- * works, without changing its code. Each shows what it does, its current
- * value, and who changed it last. Changes apply right away, on the
- * website and the phone app.
+ * The Specialist's Maintenance page, as a back office: the settings that
+ * change how PROWARE works without changing its code, one table per area
+ * with each setting's current value and who changed it last. Change opens
+ * a pop-up with what the setting does, an example, and its choices.
  */
 export default function Maintenance({
-    holdDays,
-    followUpDays,
-    promoGroupSize,
+    areas,
+    settings,
 }: {
-    holdDays: NumberSetting;
-    followUpDays: ChoiceSetting;
-    promoGroupSize: NumberSetting;
+    areas: string[];
+    settings: SettingRow[];
 }) {
+    const [editing, setEditing] = useState<SettingRow | null>(null);
+
     return (
         <>
             <Head title="Maintenance" />
@@ -52,182 +75,239 @@ export default function Maintenance({
             <div className="space-y-6">
                 <PageHeader
                     title="Maintenance"
-                    description="Settings that change how PROWARE works. Changes apply right away, on the website and the phone app."
+                    description="Settings that change how PROWARE works, without changing its code. A change applies right away, on the website and the phone app."
                 />
 
-                <Panel
-                    title="Orders"
-                    description="How students' orders are handled."
-                >
-                    <HoldDaysSetting setting={holdDays} />
-                </Panel>
+                {areas.map((area) => {
+                    const rows = settings.filter(
+                        (setting) => setting.area === area,
+                    );
+                    const Icon = areaIcons[area] ?? Package;
 
-                <Panel
-                    title="Deliveries"
-                    description="How purchase orders from Head Office are followed up."
-                >
-                    <FollowUpDaysSetting setting={followUpDays} />
-                </Panel>
+                    if (rows.length === 0) {
+                        return null;
+                    }
 
-                <Panel
-                    title="Free Uniforms"
-                    description="The enrollment promo: free uniform sets for students who enroll together."
-                >
-                    <PromoGroupSizeSetting setting={promoGroupSize} />
-                </Panel>
+                    return (
+                        <Panel key={area}>
+                            <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                    <Icon size={18} />
+                                </span>
+                                <h2 className="font-black text-slate-900">
+                                    {area}
+                                </h2>
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">
+                                    {rows.length}
+                                </span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-200">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <TableHeading>Setting</TableHeading>
+                                            <TableHeading>
+                                                Current value
+                                            </TableHeading>
+                                            <TableHeading>
+                                                Last changed
+                                            </TableHeading>
+                                            <TableHeading align="right">
+                                                Actions
+                                            </TableHeading>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map((setting) => (
+                                            <SettingTableRow
+                                                key={setting.key}
+                                                setting={setting}
+                                                onChange={() =>
+                                                    setEditing(setting)
+                                                }
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Panel>
+                    );
+                })}
             </div>
+
+            <Dialog
+                open={editing !== null}
+                onOpenChange={(open) => !open && setEditing(null)}
+            >
+                <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-lg [&>button:last-child]:hidden">
+                    {editing && (
+                        <ChangeSetting
+                            key={editing.key}
+                            setting={editing}
+                            onDone={() => setEditing(null)}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
 
-/**
- * How many days a new order holds its items for the student before it
- * expires and the items are free to sell again.
- */
-function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
-    const form = useForm({ hold_days: setting.value });
-    const choices = Array.from(
-        { length: setting.max - setting.min + 1 },
-        (_, index) => setting.min + index,
-    );
-
-    return (
-        <SettingRow
-            icon={<Clock size={19} className="text-amber-600" />}
-            title="Days an order holds its items"
-            explanation="When a student places an order, its items are set aside so no one else can buy them. The student must show the issuance slip and pay within this many days; otherwise the order expires and the items go back on sale."
-            example="Example with 2 days: an order placed on Monday must be picked up by the end of Wednesday. Changing this affects new orders only; orders already placed keep their pick-up date."
-            setting={setting}
-            choices={choices}
-            chosen={form.data.hold_days}
-            onChoose={(days) => form.setData('hold_days', days)}
-            error={form.errors.hold_days}
-            processing={form.processing}
-            onSave={() =>
-                form.patch(MaintenanceController.updateHoldDays().url, {
-                    preserveScroll: true,
-                })
-            }
-        />
-    );
-}
-
-/**
- * After how many days from its Date Ordered a purchase order not complete
- * is shown to follow up with Head Office (Deliveries, dashboards).
- */
-function FollowUpDaysSetting({ setting }: { setting: ChoiceSetting }) {
-    const form = useForm({ follow_up_days: setting.value });
-
-    return (
-        <SettingRow
-            icon={<CircleAlert size={19} className="text-red-600" />}
-            title="Days before a purchase order is followed up"
-            explanation="Head Office gives no delivery date. A purchase order not fully delivered this many days after its Date Ordered is shown as Not complete on the Deliveries page and the dashboards, so you know to ask Head Office about the rest."
-            example="Example with 30 days: an order dated Sep 29 that has not fully arrived shows from Oct 29."
-            setting={setting}
-            choices={setting.choices}
-            chosen={form.data.follow_up_days}
-            onChoose={(days) => form.setData('follow_up_days', days)}
-            error={form.errors.follow_up_days}
-            processing={form.processing}
-            onSave={() =>
-                form.patch(MaintenanceController.updateFollowUpDays().url, {
-                    preserveScroll: true,
-                })
-            }
-        />
-    );
-}
-
-/**
- * How many students must enroll together for each to get a free uniform
- * set (Free Uniforms page).
- */
-function PromoGroupSizeSetting({ setting }: { setting: NumberSetting }) {
-    const form = useForm({ group_size: setting.value });
-    const choices = Array.from(
-        { length: setting.max - setting.min + 1 },
-        (_, index) => setting.min + index,
-    );
-
-    return (
-        <SettingRow
-            icon={<Gift size={19} className="text-emerald-600" />}
-            title="Students needed for free uniforms"
-            explanation="Students who enroll together in a group of at least this many each get one uniform set for free: a blouse or polo, and pants. Record them on the Free Uniforms page."
-            example="Example with 5: five friends who enroll on the same day each get a set. A group of 4 does not. Groups already recorded stay as they are."
-            unit="students"
-            setting={setting}
-            choices={choices}
-            chosen={form.data.group_size}
-            onChoose={(size) => form.setData('group_size', size)}
-            error={form.errors.group_size}
-            processing={form.processing}
-            onSave={() =>
-                form.patch(MaintenanceController.updatePromoGroupSize().url, {
-                    preserveScroll: true,
-                })
-            }
-        />
-    );
-}
-
-/**
- * One setting: what it does with an example and who changed it last, then
- * its choices as buttons and Save.
- */
-function SettingRow({
-    icon,
-    title,
-    explanation,
-    example,
-    unit = 'days',
+/** One setting: what it is, its value now, who changed it last, Change. */
+function SettingTableRow({
     setting,
-    choices,
-    chosen,
-    onChoose,
-    error,
-    processing,
-    onSave,
+    onChange,
 }: {
-    icon: ReactNode;
-    title: string;
-    explanation: string;
-    example: string;
-    /** What the numbers count, e.g. "days" or "students". */
-    unit?: string;
-    setting: {
-        value: number;
-        changed_at: string | null;
-        changed_by: string | null;
-    };
-    choices: number[];
-    chosen: number;
-    onChoose: (days: number) => void;
-    error?: string;
-    processing: boolean;
-    onSave: () => void;
+    setting: SettingRow;
+    onChange: () => void;
 }) {
-    const changed = chosen !== setting.value;
-    // "1 day", "2 days".
-    const counted = (count: number) =>
-        `${count} ${count === 1 ? unit.replace(/s$/, '') : unit}`;
+    return (
+        <tr className="border-t border-slate-100 align-top text-sm transition hover:bg-slate-50/70">
+            <td className="px-5 py-4">
+                <p className="font-bold text-slate-900">{setting.label}</p>
+                <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
+                    {setting.description}
+                </p>
+            </td>
+            <td className="px-5 py-4">
+                <p className="font-black whitespace-nowrap text-slate-900">
+                    {setting.display}
+                </p>
+                {setting.is_default && (
+                    <span className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                        Default
+                    </span>
+                )}
+            </td>
+            <td className="px-5 py-4 whitespace-nowrap">
+                {setting.changed_at ? (
+                    <>
+                        <p className="font-semibold text-slate-700">
+                            {setting.changed_by ?? 'Someone'}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                            {formatDateTime(setting.changed_at)}
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-xs text-slate-400">Never changed</p>
+                )}
+            </td>
+            <td className="px-5 py-4 text-right">
+                <button
+                    type="button"
+                    onClick={onChange}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                >
+                    <Pencil size={15} />
+                    Change
+                </button>
+            </td>
+        </tr>
+    );
+}
+
+/**
+ * The pop-up to change one setting: what it does, an example, who changed
+ * it last, its choices (or a text box), and Save.
+ */
+function ChangeSetting({
+    setting,
+    onDone,
+}: {
+    setting: SettingRow;
+    onDone: () => void;
+}) {
+    const form = useForm<{ value: number | string }>({ value: setting.value });
+    const changed = form.data.value !== setting.value;
+    const textEmpty =
+        setting.type === 'text' && String(form.data.value).trim() === '';
 
     return (
-        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
-            <div>
-                <h3 className="flex items-center gap-2 font-black text-slate-900">
-                    {icon}
-                    {title}
-                </h3>
-                <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600">
-                    {explanation}
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                form.patch(MaintenanceController.update(setting.key).url, {
+                    preserveScroll: true,
+                    onSuccess: onDone,
+                });
+            }}
+            className="flex min-h-0 flex-col"
+        >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                <div>
+                    <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
+                        {setting.area}
+                    </p>
+                    <DialogTitle className="mt-1 text-lg font-black text-slate-900">
+                        {setting.label}
+                    </DialogTitle>
+                    <DialogDescription className="mt-1 text-sm leading-6 text-slate-500">
+                        {setting.description}
+                    </DialogDescription>
+                </div>
+                <DialogClose className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                    <X size={20} />
+                    <span className="sr-only">Close</span>
+                </DialogClose>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                    <span className="font-bold text-slate-600">Example: </span>
+                    {setting.example}
                 </p>
-                <p className="mt-2 max-w-xl rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                    {example}
+
+                <p className="text-sm text-slate-600">
+                    Now:{' '}
+                    <span className="font-black text-slate-900">
+                        {setting.display}
+                    </span>
                 </p>
-                <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+
+                {setting.type === 'choice' ? (
+                    <div
+                        className={cn(
+                            'grid gap-2',
+                            setting.choices.length > 4
+                                ? 'grid-cols-3'
+                                : 'grid-cols-2',
+                        )}
+                    >
+                        {setting.choices.map((choice) => (
+                            <button
+                                key={choice.value}
+                                type="button"
+                                onClick={() =>
+                                    form.setData('value', choice.value)
+                                }
+                                aria-pressed={form.data.value === choice.value}
+                                className={cn(
+                                    'h-11 rounded-xl text-sm font-black transition',
+                                    form.data.value === choice.value
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                                )}
+                            >
+                                {choice.label}
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <input
+                        value={String(form.data.value)}
+                        onChange={(event) =>
+                            form.setData('value', event.target.value)
+                        }
+                        maxLength={setting.max_length ?? 100}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        aria-label={setting.label}
+                        autoFocus
+                    />
+                )}
+                <InputError message={form.errors.value} />
+
+                <p className="flex items-center gap-1.5 text-xs text-slate-500">
                     <History size={14} />
                     {setting.changed_at
                         ? `Last changed by ${setting.changed_by ?? 'someone'} on ${formatDateTime(setting.changed_at)}`
@@ -235,57 +315,23 @@ function SettingRow({
                 </p>
             </div>
 
-            <form
-                className="space-y-3 self-start rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    onSave();
-                }}
-            >
-                <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
-                    Now:{' '}
-                    <span className="text-slate-900">
-                        {counted(setting.value)}
-                    </span>
-                </p>
-                <div
-                    className="grid gap-2"
-                    style={{
-                        // At most three buttons per row, so "60 days" fits.
-                        gridTemplateColumns: `repeat(${Math.min(choices.length, 3)}, minmax(0, 1fr))`,
-                    }}
-                >
-                    {choices.map((days) => (
-                        <button
-                            key={days}
-                            type="button"
-                            onClick={() => onChoose(days)}
-                            aria-pressed={chosen === days}
-                            className={cn(
-                                'h-11 rounded-xl text-sm font-black transition',
-                                chosen === days
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
-                            )}
-                        >
-                            {counted(days)}
-                        </button>
-                    ))}
-                </div>
-                <InputError message={error} />
+            <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                    Cancel
+                </DialogClose>
                 <button
                     type="submit"
-                    disabled={!changed || processing}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!changed || textEmpty || form.processing}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    {processing ? (
-                        <LoaderCircle size={16} className="animate-spin" />
+                    {form.processing ? (
+                        <LoaderCircle size={17} className="animate-spin" />
                     ) : (
-                        <Save size={16} />
+                        <Save size={17} />
                     )}
                     Save
                 </button>
-            </form>
-        </div>
+            </div>
+        </form>
     );
 }

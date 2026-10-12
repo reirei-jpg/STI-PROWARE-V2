@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Order;
 use App\Notifications\OrderLastDay;
+use App\Services\Sales\SaleSchedule;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -17,7 +18,8 @@ class RemindOrdersLastDay extends Command
      */
     public function handle(): int
     {
-        if (now()->hour < 7) {
+        // Not before the reminder time set in Maintenance.
+        if (now()->hour < SaleSchedule::sendFromHour()) {
             $this->info('Too early to remind anyone.');
 
             return self::SUCCESS;
