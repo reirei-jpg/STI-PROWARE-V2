@@ -6,6 +6,7 @@ use App\Actions\Orders\CancelOrderByStudent;
 use App\Actions\Orders\PlaceOrder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PlaceOrderRequest;
+use App\Http\Requests\StudentCancelOrderRequest;
 use App\Models\Order;
 use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\OrderRow;
@@ -62,11 +63,11 @@ class OrderController extends Controller
         ], 201);
     }
 
-    public function cancel(Request $request, Order $order, CancelOrderByStudent $cancelOrder): JsonResponse
+    public function cancel(StudentCancelOrderRequest $request, Order $order, CancelOrderByStudent $cancelOrder): JsonResponse
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
-        $cancelOrder->handle($order, $request->user());
+        $cancelOrder->handle($order, $request->user(), $request->reasonText());
 
         return response()->json([
             'message' => CancelOrderByStudent::message($order),

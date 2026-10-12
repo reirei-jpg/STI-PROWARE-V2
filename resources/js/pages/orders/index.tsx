@@ -7,7 +7,7 @@ import OrderDetailsDialog from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import SlipScanBox from '@/components/slip-scan-box';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
@@ -128,6 +128,7 @@ export default function OrdersIndex({
                                 <Search size={18} className="shrink-0" />
                                 <input
                                     type="search"
+                                    maxLength={120}
                                     value={search}
                                     onChange={(event) =>
                                         setSearch(event.target.value)
@@ -190,7 +191,7 @@ export default function OrdersIndex({
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            <TableScroll>
                                 <table className="w-full min-w-225">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -226,7 +227,7 @@ export default function OrdersIndex({
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </TableScroll>
 
                             <Pagination pagination={orders} itemName="orders" />
                         </>

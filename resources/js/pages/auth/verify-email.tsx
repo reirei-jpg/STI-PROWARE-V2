@@ -1,46 +1,44 @@
-// Components
-import { Form, Head } from '@inertiajs/react';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { Form, Head, Link } from '@inertiajs/react';
+import { AuthStatus, AuthSubmitButton } from '@/components/auth-field';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 
+/** Ask for the email check link again. */
 export default function VerifyEmail({ status }: { status?: string }) {
     return (
         <>
-            <Head title="Email verification" />
+            <Head title="Check your email" />
 
             {status === 'verification-link-sent' && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    A new verification link has been sent to the email address
-                    you provided during registration.
-                </div>
+                <AuthStatus>
+                    A new link was sent to the email you registered with.
+                </AuthStatus>
             )}
 
-            <Form {...send.form()} className="space-y-6 text-center">
+            <Form {...send.form()} className="space-y-4">
                 {({ processing }) => (
-                    <>
-                        <Button disabled={processing} variant="secondary">
-                            {processing && <Spinner />}
-                            Resend verification email
-                        </Button>
-
-                        <TextLink
-                            href={logout()}
-                            className="mx-auto block text-sm"
-                        >
-                            Log out
-                        </TextLink>
-                    </>
+                    <AuthSubmitButton
+                        processing={processing}
+                        label="Send the link again"
+                        processingLabel="Sending..."
+                    />
                 )}
             </Form>
+
+            <div className="mt-6 text-center">
+                <Link
+                    href={logout()}
+                    as="button"
+                    className="text-sm text-slate-400 transition hover:text-slate-700"
+                >
+                    Log out
+                </Link>
+            </div>
         </>
     );
 }
 
 VerifyEmail.layout = {
-    title: 'Email verification',
-    description:
-        'Please verify your email address by clicking on the link we just emailed to you.',
+    title: 'Check your email',
+    description: 'Open the link we emailed you to confirm your email address.',
 };

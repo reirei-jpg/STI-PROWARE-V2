@@ -161,6 +161,9 @@ return [
     */
 
     'features' => [
+        // Temporary: students register with their school email until STI's
+        // Microsoft 365 sign-in is connected (CreateNewUser).
+        Features::registration(),
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

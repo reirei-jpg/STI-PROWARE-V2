@@ -105,6 +105,7 @@ test('the correct stock form explains what is wrong', function (array $payload, 
     'a count below zero' => [['reason' => 'recount', 'actual_count' => '-1'], 'actual_count', 'The count cannot be below 0.'],
     'the same count as now' => [['reason' => 'recount', 'actual_count' => '10'], 'actual_count', 'The stock is already 10 pcs, so nothing would change.'],
     'other without a note' => [['reason' => 'other', 'actual_count' => '4', 'note' => ' '], 'note', 'Write what happened, since the reason is Other.'],
+    'other with a one-letter note' => [['reason' => 'other', 'actual_count' => '4', 'note' => 'x'], 'note', 'Write a little more about what happened (at least 5 characters).'],
 ]);
 
 test('a variant of another product cannot be corrected from this product', function () {

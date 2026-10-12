@@ -162,8 +162,9 @@ test('placing (with the section), seeing and cancelling an order on the app', fu
     $this->getJson(route('api.v1.orders.index'))->assertJsonPath('data.0.number', 'PW-0001');
     $this->getJson(route('api.v1.orders.show', $order['id']))->assertJsonPath('items.0.quantity', 4);
 
-    $this->postJson(route('api.v1.orders.cancel', $order['id']))
+    $this->postJson(route('api.v1.orders.cancel', $order['id']), ['reason' => 'other', 'note' => 'Ordering with my class.'])
         ->assertOk()
+        ->assertJsonPath('order.cancel_reason', 'Ordering with my class.')
         ->assertJsonPath('order.status', 'cancelled');
     expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0);
 });
@@ -188,7 +189,7 @@ test('the app refuses to cancel a prepared order or another student\'s order', f
     $theirs = Order::factory()->create();
     Sanctum::actingAs($this->student);
 
-    $this->postJson(route('api.v1.orders.cancel', $ready))
+    $this->postJson(route('api.v1.orders.cancel', $ready), ['reason' => 'no_longer_needed'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['order' => "Order {$ready->number} is already prepared, so it can no longer be cancelled here. Please talk to the PROWARE office."]);
     $this->postJson(route('api.v1.orders.cancel', $theirs))->assertNotFound();

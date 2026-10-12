@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Ban,
@@ -7,11 +7,24 @@ import {
     LoaderCircle,
     PackageCheck,
     Printer,
+    X,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
+import CancelReasonPicker from '@/components/cancel-reason-picker';
 import IssuanceSlip from '@/components/issuance-slip';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    STUDENT_CANCEL_REASONS,
+    cancelReasonReady,
+} from '@/lib/cancel-reasons';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { IssuanceSlipData } from '@/types';
@@ -84,26 +97,18 @@ export default function StudentIssuanceSlip({
 }
 
 /**
- * Cancel while the office has not prepared the order yet, after a
- * "Cancel this order?" question, like My Orders had.
+ * Cancel while the office has not prepared the order yet: Cancel order
+ * opens a pop-up to pick why, like in online shops (Other asks to write
+ * why), so the PROWARE office knows.
  */
 function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
-    const [confirming, setConfirming] = useState(false);
-    const [cancelling, setCancelling] = useState(false);
+    const [open, setOpen] = useState(false);
+    const form = useForm({ reason: '', note: '' });
 
-    const cancel = () => {
-        setCancelling(true);
-        router.post(
-            StudentOrderController.cancel(slip.order_id).url,
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => {
-                    setCancelling(false);
-                    setConfirming(false);
-                },
-            },
-        );
+    const close = () => {
+        setOpen(false);
+        form.reset();
+        form.clearErrors();
     };
 
     return (
@@ -112,39 +117,92 @@ function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
                 Changed your mind? You can cancel while the office has not
                 prepared it yet.
             </p>
-            {confirming ? (
-                <div className="flex items-center gap-2 text-sm">
-                    <span className="font-bold text-slate-700">
-                        Cancel this order?
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => setConfirming(false)}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 font-black text-slate-700 hover:bg-slate-50"
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-100"
+            >
+                Cancel order
+            </button>
+
+            <Dialog open={open} onOpenChange={(isOpen) => !isOpen && close()}>
+                <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-md [&>button:last-child]:hidden">
+                    <form
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            form.post(
+                                StudentOrderController.cancel(slip.order_id)
+                                    .url,
+                                { preserveScroll: true, onSuccess: close },
+                            );
+                        }}
+                        className="flex min-h-0 flex-col"
                     >
-                        Keep it
-                    </button>
-                    <button
-                        type="button"
-                        onClick={cancel}
-                        disabled={cancelling}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 font-black text-white hover:bg-red-700 disabled:opacity-60"
-                    >
-                        {cancelling && (
-                            <LoaderCircle size={14} className="animate-spin" />
-                        )}
-                        Cancel order
-                    </button>
-                </div>
-            ) : (
-                <button
-                    type="button"
-                    onClick={() => setConfirming(true)}
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-100"
-                >
-                    Cancel order
-                </button>
-            )}
+                        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                            <div className="flex items-start gap-3">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
+                                    <Ban size={22} />
+                                </span>
+                                <div>
+                                    <DialogTitle className="text-lg font-black text-slate-900">
+                                        Cancel order {slip.number}?
+                                    </DialogTitle>
+                                    <DialogDescription className="text-sm text-slate-500">
+                                        {formatPeso(slip.total_centavos)} · the
+                                        items go back on sale
+                                    </DialogDescription>
+                                </div>
+                            </div>
+                            <DialogClose className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                                <X size={20} />
+                                <span className="sr-only">Close</span>
+                            </DialogClose>
+                        </div>
+
+                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                            <p className="text-sm font-black text-slate-700">
+                                Why are you cancelling?
+                            </p>
+                            <CancelReasonPicker
+                                reasons={STUDENT_CANCEL_REASONS}
+                                reason={form.data.reason}
+                                note={form.data.note}
+                                onReason={(value) =>
+                                    form.setData('reason', value)
+                                }
+                                onNote={(value) => form.setData('note', value)}
+                                errors={form.errors}
+                                notePlaceholder="e.g. I will order together with my classmates instead."
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                            <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                                Keep order
+                            </DialogClose>
+                            <button
+                                type="submit"
+                                disabled={
+                                    form.processing ||
+                                    !cancelReasonReady(
+                                        form.data.reason,
+                                        form.data.note,
+                                    )
+                                }
+                                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {form.processing && (
+                                    <LoaderCircle
+                                        size={17}
+                                        className="animate-spin"
+                                    />
+                                )}
+                                Cancel order
+                            </button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

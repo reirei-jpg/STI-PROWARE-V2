@@ -30,8 +30,21 @@ test('a page open to several roles lets each of them in', function (UserRole $ro
         ->assertOk();
 })->with([UserRole::Specialist, UserRole::SchoolAdmin]);
 
-test('public registration is turned off', function () {
-    $this->get('/register')->assertNotFound();
+test('registration is open only for students, never staff', function () {
+    $this->get('/register')->assertOk();
+
+    $this->post('/register', [
+        'name' => 'Juan Dela Cruz',
+        'last_name' => 'Dela Cruz',
+        'student_id' => '02000123456',
+        'email' => 'delacruz.123456@sti.edu.ph',
+        'password' => 'Demo@2026!',
+        'password_confirmation' => 'Demo@2026!',
+        'terms' => '1',
+        'role' => UserRole::Specialist->value,
+    ]);
+
+    expect(User::query()->where('email', 'delacruz.123456@sti.edu.ph')->sole()->role)->toBe(UserRole::Student);
 });
 
 test('the seeder creates the two demo staff accounts with their roles', function () {

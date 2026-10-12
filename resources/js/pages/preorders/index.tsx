@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
-import Panel, { TableHeading } from '@/components/panel';
+import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PreorderCloseDateDialog from '@/components/preorder-close-date-dialog';
 import type { CloseDateTarget } from '@/components/preorder-close-date-dialog';
 import PreorderDetailsDialog from '@/components/preorder-details-dialog';
@@ -180,6 +180,7 @@ export default function PreordersIndex({
                                 <Search size={18} className="shrink-0" />
                                 <input
                                     type="search"
+                                    maxLength={120}
                                     value={search}
                                     onChange={(event) =>
                                         setSearch(event.target.value)
@@ -240,7 +241,7 @@ export default function PreordersIndex({
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            <TableScroll>
                                 <table className="w-full min-w-225">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -274,7 +275,7 @@ export default function PreordersIndex({
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </TableScroll>
 
                             <Pagination
                                 pagination={products}

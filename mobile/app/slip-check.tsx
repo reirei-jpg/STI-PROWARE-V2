@@ -299,8 +299,8 @@ export default function SlipCheckScreen() {
                         order={order}
                         open={cancelling}
                         onClose={() => setCancelling(false)}
-                        onCancel={async (reason) => {
-                            if (await run('cancel', { reason })) {
+                        onCancel={async (reason, note) => {
+                            if (await run('cancel', { reason, note })) {
                                 setCancelling(false);
                             }
                         }}

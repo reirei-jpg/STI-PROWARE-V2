@@ -1,9 +1,9 @@
 import { Form, Head, setLayoutProps } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { useMemo, useState } from 'react';
+import { KeyRound } from 'lucide-react';
+import { AuthField, AuthSubmitButton } from '@/components/auth-field';
 import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     InputOTP,
     InputOTPGroup,
@@ -25,16 +25,15 @@ export default function TwoFactorChallenge() {
             return {
                 title: 'Recovery code',
                 description:
-                    'Please confirm access to your account by entering one of your emergency recovery codes.',
-                toggleText: 'login using an authentication code',
+                    'Type one of the recovery codes you saved when you turned on two-factor sign-in.',
+                toggleText: 'Use the code from my app instead',
             };
         }
 
         return {
             title: 'Authentication code',
-            description:
-                'Enter the authentication code provided by your authenticator application.',
-            toggleText: 'login using a recovery code',
+            description: 'Type the 6-digit code from your authenticator app.',
+            toggleText: 'Use a recovery code instead',
         };
     }, [showRecoveryInput]);
 
@@ -63,18 +62,20 @@ export default function TwoFactorChallenge() {
                     {({ errors, processing, clearErrors }) => (
                         <>
                             {showRecoveryInput ? (
-                                <>
-                                    <Input
-                                        name="recovery_code"
-                                        type="text"
-                                        placeholder="Enter recovery code"
-                                        autoFocus={showRecoveryInput}
-                                        required
-                                    />
-                                    <InputError
-                                        message={errors.recovery_code}
-                                    />
-                                </>
+                                <AuthField
+                                    icon={<KeyRound size={17} />}
+                                    error={errors.recovery_code}
+                                    input={
+                                        <input
+                                            name="recovery_code"
+                                            type="text"
+                                            placeholder="Recovery code"
+                                            aria-label="Recovery code"
+                                            autoFocus={showRecoveryInput}
+                                            required
+                                        />
+                                    }
+                                />
                             ) : (
                                 <div className="flex flex-col items-center justify-center space-y-3 text-center">
                                     <div className="flex w-full items-center justify-center">
@@ -104,19 +105,16 @@ export default function TwoFactorChallenge() {
                                 </div>
                             )}
 
-                            <Button
-                                type="submit"
-                                className="w-full"
-                                disabled={processing}
-                            >
-                                Continue
-                            </Button>
+                            <AuthSubmitButton
+                                processing={processing}
+                                label="Continue"
+                                processingLabel="Checking..."
+                            />
 
-                            <div className="text-center text-sm text-muted-foreground">
-                                <span>or you can </span>
+                            <div className="text-center">
                                 <button
                                     type="button"
-                                    className="cursor-pointer text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                    className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                                     onClick={() =>
                                         toggleRecoveryMode(clearErrors)
                                     }

@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     LayoutDashboard,
@@ -7,6 +7,7 @@ import {
     Search,
     ShoppingCart,
 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
@@ -20,6 +21,7 @@ import {
     useSignInPrompt,
 } from '@/components/sign-in-prompt';
 import { dashboard, home, logout } from '@/routes';
+import type { StorefrontFilters } from '@/types';
 
 /**
  * The public storefront layout: anyone can browse without signing in.
@@ -78,15 +80,7 @@ function StorefrontTopBar() {
                     </span>
                 </Link>
 
-                <label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 text-slate-400 focus-within:border-blue-300 focus-within:bg-white">
-                    <Search size={18} className="shrink-0" />
-                    <input
-                        type="search"
-                        placeholder="Search merchandise"
-                        className="w-full min-w-0 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-                        aria-label="Search merchandise"
-                    />
-                </label>
+                <StorefrontSearch />
 
                 {isStudent ? (
                     <Link
@@ -164,5 +158,97 @@ function StorefrontTopBar() {
                 )}
             </div>
         </header>
+    );
+}
+
+/**
+ * The one merchandise search, in the top bar. On the storefront it filters
+ * All Merchandise as the visitor types; on other pages (Cart, My Orders)
+ * pressing Enter opens the storefront with the results.
+ */
+function StorefrontSearch() {
+    const page = usePage<{ filters?: StorefrontFilters }>();
+    const onStorefront = page.component === 'storefront/home';
+    const current = onStorefront ? (page.props.filters?.search ?? '') : '';
+    const [term, setTerm] = useState(current);
+    const firstRender = useRef(true);
+
+    const search = (value: string, options: { scroll: boolean }) => {
+        const trimmed = value.trim();
+        const show = page.props.filters?.show ?? null;
+        const query: Record<string, string> = {
+            ...(trimmed !== '' ? { search: trimmed } : {}),
+            ...(onStorefront && show ? { show } : {}),
+        };
+
+        if (!onStorefront) {
+            router.get(home().url, query);
+
+            return;
+        }
+
+        router.get(home().url, query, {
+            only: ['merchandise', 'filters'],
+            reset: ['merchandise'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onSuccess: () => {
+                if (options.scroll) {
+                    document
+                        .getElementById('all-merchandise')
+                        ?.scrollIntoView({ behavior: 'smooth' });
+                }
+            },
+        });
+    };
+
+    // The search was cleared or changed on the page (e.g. Show all).
+    useEffect(() => {
+        setTerm((typed) => (typed.trim() === current ? typed : current));
+    }, [current]);
+
+    // On the storefront, search as the visitor types, after a short pause.
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
+
+            return;
+        }
+
+        if (!onStorefront || term.trim() === current) {
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () => search(term, { scroll: false }),
+            400,
+        );
+
+        return () => window.clearTimeout(timer);
+        // Only the typed text should trigger a search.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [term]);
+
+    return (
+        <form
+            role="search"
+            onSubmit={(event) => {
+                event.preventDefault();
+                search(term, { scroll: true });
+            }}
+            className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 text-slate-400 transition focus-within:border-blue-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100"
+        >
+            <Search size={18} className="shrink-0" />
+            <input
+                type="search"
+                maxLength={120}
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                placeholder="Search merchandise"
+                className="w-full min-w-0 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                aria-label="Search merchandise"
+            />
+        </form>
     );
 }

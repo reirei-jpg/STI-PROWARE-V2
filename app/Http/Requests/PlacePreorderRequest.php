@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\ProductStatus;
 use App\Models\Product;
+use App\Services\Shop\Cart;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,8 @@ use Illuminate\Validation\Validator;
  */
 class PlacePreorderRequest extends FormRequest
 {
-    public const MAX_QUANTITY = 1000;
+    /** The most of one item a student can preorder at once (as on V1). */
+    public const MAX_QUANTITY = Cart::MAX_QUANTITY;
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

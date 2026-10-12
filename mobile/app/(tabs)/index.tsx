@@ -284,7 +284,7 @@ export default function HomeScreen() {
                     <Search size={17} color="#94a3b8" />
                     <TextInput
                         value={search}
-                        onChangeText={setSearch}
+                        onChangeText={setSearch} maxLength={120}
                         placeholder="Search merchandise"
                         placeholderTextColor="#94a3b8"
                         autoCorrect={false}

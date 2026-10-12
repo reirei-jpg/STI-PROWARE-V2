@@ -52,6 +52,8 @@ class CorrectStockRequest extends FormRequest
                 Rule::requiredIf($reason === StockCorrectionReason::Other),
                 'nullable',
                 'string',
+                // Other needs a real explanation (as on V1), not just "x".
+                Rule::when($reason === StockCorrectionReason::Other, ['min:5']),
                 'max:200',
             ],
             // Pesos per piece, for a count that adds pieces (checked below).
@@ -76,6 +78,7 @@ class CorrectStockRequest extends FormRequest
             'actual_count.integer' => 'Enter a whole number of pieces.',
             'actual_count.min' => 'The count cannot be below 0.',
             'note.required' => 'Write what happened, since the reason is Other.',
+            'note.min' => 'Write a little more about what happened (at least 5 characters).',
             'unit_cost.numeric' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
             'unit_cost.min' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
             'unit_cost.max' => 'The eStore price per piece cannot be more than ₱100,000.00.',

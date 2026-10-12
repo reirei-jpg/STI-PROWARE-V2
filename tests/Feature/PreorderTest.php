@@ -60,7 +60,7 @@ test('the preorder form explains what is wrong', function (Closure $payload, str
     'no size chosen' => [fn (ProductVariant $small) => ['quantity' => '1'], 'product_variant_id', 'Choose the size or color you want.'],
     'a size of another product' => [fn (ProductVariant $small) => ['product_variant_id' => ProductVariant::factory()->create()->id, 'quantity' => '1'], 'product_variant_id', 'Choose one of this item\'s sizes or colors.'],
     'none' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '0'], 'quantity', 'Preorder at least 1.'],
-    'more than 1,000' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '1001'], 'quantity', 'For more than 1,000, please talk to the PROWARE office.'],
+    'more than 99' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '100'], 'quantity', 'For more than 99, please talk to the PROWARE office.'],
 ]);
 
 test('preorders are taken until the end of the close date', function (string $closesOn, bool $open) {

@@ -198,10 +198,14 @@ export default function RecordDelivery({
         );
     });
 
+    // Never more than what is left to receive for that order.
     const setRowQuantity = (row: WaitingItemRow, value: string) =>
         setData('quantities', {
             ...data.quantities,
-            [row.purchase_order_item_id]: value,
+            [row.purchase_order_item_id]: wholeNumberInput(
+                value,
+                row.quantity_remaining,
+            ),
         });
 
     /**
@@ -210,17 +214,18 @@ export default function RecordDelivery({
      * message explains why instead.
      */
     const setGroupTotal = (group: WaitingItemGroup, value: string) => {
-        setGroupTotals({ ...groupTotals, [group.item_code]: value });
-        shareOut(group, wholeNumber(value));
+        // Never more than what is left of this item on its orders.
+        const total = wholeNumberInput(value, remainingOf(group));
+        setGroupTotals({ ...groupTotals, [group.item_code]: total });
+        shareOut(group, wholeNumber(total));
     };
 
-    const shareOut = (group: WaitingItemGroup, total: number | null) => {
-        const remaining = group.rows.reduce(
-            (sum, row) => sum + row.quantity_remaining,
-            0,
-        );
+    /** What is left to receive of an item code, on all its orders. */
+    const remainingOf = (group: WaitingItemGroup) =>
+        group.rows.reduce((sum, row) => sum + row.quantity_remaining, 0);
 
-        if (total === null || total > remaining) {
+    const shareOut = (group: WaitingItemGroup, total: number | null) => {
+        if (total === null || total > remainingOf(group)) {
             return;
         }
 
@@ -246,13 +251,19 @@ export default function RecordDelivery({
         variantId: number,
         value: string,
     ) => {
+        const target = group.stock_target;
+        const others = Object.entries(splitCounts[group.item_code] ?? {})
+            .filter(([id]) => Number(id) !== variantId)
+            .reduce((sum, [, count]) => sum + (wholeNumber(count) ?? 0), 0);
+        // All sizes together never more than the pieces left to receive.
+        const mostPieces =
+            remainingOf(group) * (target?.pieces_per_unit ?? 1) - others;
         const counts = {
             ...splitCounts[group.item_code],
-            [variantId]: wholeNumberInput(value, 1000000),
+            [variantId]: wholeNumberInput(value, Math.max(0, mostPieces)),
         };
         setSplitCounts({ ...splitCounts, [group.item_code]: counts });
 
-        const target = group.stock_target;
         const pieces = Object.values(counts).reduce(
             (sum, count) => sum + (wholeNumber(count) ?? 0),
             0,
@@ -415,6 +426,7 @@ export default function RecordDelivery({
                                 <Search size={18} className="shrink-0" />
                                 <input
                                     type="search"
+                                    maxLength={120}
                                     value={search}
                                     onChange={(event) =>
                                         setSearch(event.target.value)

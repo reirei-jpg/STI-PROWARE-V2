@@ -18,7 +18,8 @@ use Illuminate\Validation\ValidationException;
  */
 final class Cart
 {
-    public const MAX_QUANTITY = 1000;
+    /** The most of one item a student can have in a cart line (as on V1). */
+    public const MAX_QUANTITY = 99;
 
     public function add(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity): CartItem
     {
@@ -97,13 +98,15 @@ final class Cart
             return;
         }
 
-        if ($quantity > self::MAX_QUANTITY) {
-            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.']);
-        }
-
         $unit = $pack->name ?? 'Piece';
         $piecesPerUnit = $pack->pieces ?? 1;
         $inOtherLines = $this->piecesInOtherLines($student, $variant, $line);
+
+        // Only when the stock itself has more than the most one student may
+        // order; otherwise the student is told how many are left.
+        if ($quantity > self::MAX_QUANTITY && intdiv(max(0, $variant->freeToSell() - $inOtherLines), $piecesPerUnit) >= self::MAX_QUANTITY) {
+            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.']);
+        }
 
         $message = match (true) {
             $variant->freeToSell() === 0 => "{$variant->displayName()} is out of stock.",

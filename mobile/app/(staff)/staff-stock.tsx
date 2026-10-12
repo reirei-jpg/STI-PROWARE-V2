@@ -76,7 +76,7 @@ export default function StaffStockScreen() {
                 <Search size={17} color="#94a3b8" />
                 <TextInput
                     value={searchText}
-                    onChangeText={setSearchText}
+                    onChangeText={setSearchText} maxLength={120}
                     placeholder="Search a product"
                     placeholderTextColor="#94a3b8"
                     autoCorrect={false}

@@ -19,7 +19,7 @@ import { usePagedList } from '@/lib/use-paged-list';
 /**
  * Deliveries from Head Office on the Specialist's phone: Record Delivery at
  * the counter as boxes arrive, and the deliveries already recorded (newest
- * first, searchable by SI #, DR # or Order #), like the website.
+ * first, searchable by Order #), like the website.
  */
 export default function StaffDeliveriesScreen() {
     const insets = useSafeAreaInsets();
@@ -76,8 +76,8 @@ export default function StaffDeliveriesScreen() {
                 <Search size={17} color="#94a3b8" />
                 <TextInput
                     value={searchText}
-                    onChangeText={setSearchText}
-                    placeholder="SI #, DR # or Order #"
+                    onChangeText={setSearchText} maxLength={40}
+                    placeholder="Search by Order #"
                     placeholderTextColor="#94a3b8"
                     autoCorrect={false}
                     returnKeyType="search"

@@ -68,6 +68,7 @@ class FortifyServiceProvider extends ServiceProvider
         ]));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
+        Fortify::registerView(fn () => Inertia::render('auth/register'));
 
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
     }

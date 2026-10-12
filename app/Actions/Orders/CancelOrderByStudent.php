@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * A student cancels their own order, from the website or the phone app,
- * only while it is still Placed. Once the PROWARE office has prepared it,
+ * only while it is still Placed, with the reason they picked. Once the PROWARE office has prepared it,
  * they are asked to talk to the office.
  */
 class CancelOrderByStudent
@@ -39,7 +39,7 @@ class CancelOrderByStudent
     /**
      * @throws ValidationException when the order can no longer be cancelled
      */
-    public function handle(Order $order, User $student): void
+    public function handle(Order $order, User $student, string $reason): void
     {
         $refusal = self::refusal($order);
 
@@ -47,6 +47,6 @@ class CancelOrderByStudent
             throw ValidationException::withMessages(['order' => $refusal]);
         }
 
-        $this->cancelOrder->handle($order, $student, 'Cancelled by the student.');
+        $this->cancelOrder->handle($order, $student, $reason);
     }
 }
