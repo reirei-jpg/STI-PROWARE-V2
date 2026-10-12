@@ -22,4 +22,12 @@ class PasswordUpdateRequest extends FormRequest
             'password' => $this->passwordRules(),
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return $this->passwordMessages();
+    }
 }

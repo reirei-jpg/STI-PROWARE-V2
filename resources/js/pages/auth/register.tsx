@@ -1,16 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import {
-    Eye,
-    EyeOff,
-    IdCard,
-    LoaderCircle,
-    LockKeyhole,
-    Mail,
-    User,
-    Users,
-} from 'lucide-react';
+import { IdCard, LockKeyhole, Mail, User, Users } from 'lucide-react';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
+import {
+    AuthField,
+    AuthSubmitButton,
+    ShowPasswordButton,
+    authLinkClasses,
+} from '@/components/auth-field';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 
@@ -32,7 +28,7 @@ type RegisterForm = {
 function schoolEmail(studentId: string, lastName: string): string {
     const last = lastName
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
+        .replace(/\p{M}/gu, '')
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '');
 
@@ -89,7 +85,7 @@ export default function Register() {
                 }}
                 className="space-y-4"
             >
-                <Field
+                <AuthField
                     icon={<User size={17} />}
                     error={errors.name}
                     input={
@@ -108,7 +104,7 @@ export default function Register() {
                     }
                 />
                 <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
+                    <AuthField
                         icon={<User size={17} />}
                         error={errors.last_name}
                         input={
@@ -125,7 +121,7 @@ export default function Register() {
                             />
                         }
                     />
-                    <Field
+                    <AuthField
                         icon={<IdCard size={17} />}
                         error={errors.student_id}
                         input={
@@ -146,7 +142,7 @@ export default function Register() {
                         }
                     />
                 </div>
-                <Field
+                <AuthField
                     icon={<Users size={17} />}
                     error={errors.section}
                     input={
@@ -161,7 +157,7 @@ export default function Register() {
                         />
                     }
                 />
-                <Field
+                <AuthField
                     icon={<Mail size={17} />}
                     error={errors.email}
                     hint={
@@ -179,7 +175,7 @@ export default function Register() {
                         />
                     }
                 />
-                <Field
+                <AuthField
                     icon={<LockKeyhole size={17} />}
                     error={errors.password}
                     hint="At least 8 characters, with a letter, a number and a symbol."
@@ -198,23 +194,13 @@ export default function Register() {
                         />
                     }
                     trailing={
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword((shown) => !shown)}
-                            className="text-slate-400 transition hover:text-blue-600"
-                            aria-label={
-                                showPassword ? 'Hide password' : 'Show password'
-                            }
-                        >
-                            {showPassword ? (
-                                <EyeOff size={17} />
-                            ) : (
-                                <Eye size={17} />
-                            )}
-                        </button>
+                        <ShowPasswordButton
+                            shown={showPassword}
+                            onToggle={() => setShowPassword((shown) => !shown)}
+                        />
                     }
                 />
-                <Field
+                <AuthField
                     icon={<LockKeyhole size={17} />}
                     error={errors.password_confirmation}
                     input={
@@ -251,70 +237,20 @@ export default function Register() {
                     <p className="px-4 text-sm text-red-600">{errors.terms}</p>
                 )}
 
-                <button
-                    type="submit"
-                    disabled={processing}
-                    className="flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-[#005BFF] via-[#0D6EFD] to-[#0045CC] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:from-blue-600 hover:to-blue-800 focus:ring-4 focus:ring-blue-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {processing && (
-                        <LoaderCircle size={17} className="animate-spin" />
-                    )}
-                    {processing ? 'Creating your account...' : 'Register'}
-                </button>
+                <AuthSubmitButton
+                    processing={processing}
+                    label="Register"
+                    processingLabel="Creating your account..."
+                />
             </form>
 
             <p className="mt-6 text-center text-sm text-slate-500">
                 Already have an account?{' '}
-                <Link
-                    href={login()}
-                    className="font-semibold text-blue-600 hover:text-blue-700"
-                >
+                <Link href={login()} className={authLinkClasses}>
                     Log in
                 </Link>
             </p>
         </>
-    );
-}
-
-/** A V1 round field with its icon, an optional hint, and its error. */
-function Field({
-    icon,
-    input,
-    error,
-    hint,
-    trailing,
-}: {
-    icon: ReactNode;
-    input: ReactNode;
-    error?: string;
-    hint?: string;
-    trailing?: ReactNode;
-}) {
-    return (
-        <div>
-            <div
-                className={`relative flex items-center rounded-full border transition focus-within:ring-4 ${
-                    error
-                        ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100'
-                        : 'border-slate-300 focus-within:border-[#0D6EFD] focus-within:ring-blue-100'
-                } [&_input]:w-full [&_input]:rounded-full [&_input]:bg-transparent [&_input]:py-3 [&_input]:pr-5 [&_input]:pl-12 [&_input]:text-sm [&_input]:font-medium [&_input]:text-slate-900 [&_input]:outline-none [&_input]:placeholder:text-slate-400`}
-            >
-                <span className="pointer-events-none absolute left-4 text-slate-500">
-                    {icon}
-                </span>
-                {input}
-                {trailing && (
-                    <span className="absolute right-4 flex">{trailing}</span>
-                )}
-            </div>
-            {error ? (
-                <p className="mt-1.5 px-4 text-xs text-red-600">{error}</p>
-            ) : (
-                hint && (
-                    <p className="mt-1.5 px-4 text-xs text-slate-500">{hint}</p>
-                )
-            )}
-        </div>
     );
 }
 

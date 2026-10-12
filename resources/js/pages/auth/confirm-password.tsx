@@ -1,17 +1,22 @@
 import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/routes/password/confirm';
+import { LockKeyhole } from 'lucide-react';
+import { useState } from 'react';
 import {
     index as confirmOptions,
     store as confirmStore,
 } from '@/actions/Laravel/Passkeys/Http/Controllers/PasskeyConfirmationController';
+import {
+    AuthField,
+    AuthSubmitButton,
+    ShowPasswordButton,
+} from '@/components/auth-field';
 import PasskeyVerify from '@/components/passkey-verify';
+import { store } from '@/routes/password/confirm';
 
+/** Type the password again before a sensitive change. */
 export default function ConfirmPassword() {
+    const [showPassword, setShowPassword] = useState(false);
+
     return (
         <>
             <Head title="Confirm password" />
@@ -26,33 +31,45 @@ export default function ConfirmPassword() {
                 separator="Or confirm with password"
             />
 
-            <Form {...store.form()} resetOnSuccess={['password']}>
+            <Form
+                {...store.form()}
+                resetOnSuccess={['password']}
+                className="space-y-4"
+            >
                 {({ processing, errors }) => (
-                    <div className="space-y-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <PasswordInput
-                                id="password"
-                                name="password"
-                                placeholder="Password"
-                                autoComplete="current-password"
-                                autoFocus
-                            />
+                    <>
+                        <AuthField
+                            icon={<LockKeyhole size={17} />}
+                            error={errors.password}
+                            input={
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    name="password"
+                                    required
+                                    autoComplete="current-password"
+                                    maxLength={255}
+                                    autoFocus
+                                    placeholder="Password"
+                                    aria-label="Password"
+                                />
+                            }
+                            trailing={
+                                <ShowPasswordButton
+                                    shown={showPassword}
+                                    onToggle={() =>
+                                        setShowPassword((shown) => !shown)
+                                    }
+                                />
+                            }
+                        />
 
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="flex items-center">
-                            <Button
-                                className="w-full"
-                                disabled={processing}
-                                data-test="confirm-password-button"
-                            >
-                                {processing && <Spinner />}
-                                Confirm password
-                            </Button>
-                        </div>
-                    </div>
+                        <AuthSubmitButton
+                            processing={processing}
+                            label="Confirm"
+                            processingLabel="Confirming..."
+                            dataTest="confirm-password-button"
+                        />
+                    </>
                 )}
             </Form>
         </>
@@ -60,7 +77,6 @@ export default function ConfirmPassword() {
 }
 
 ConfirmPassword.layout = {
-    title: 'Confirm password',
-    description:
-        'This is a secure area of the application. Please confirm your password before continuing.',
+    title: 'Confirm your password',
+    description: 'For your safety, type your password again to continue.',
 };

@@ -1,6 +1,13 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { Eye, EyeOff, LoaderCircle, LockKeyhole, Mail } from 'lucide-react';
+import { LockKeyhole, Mail } from 'lucide-react';
 import { useState } from 'react';
+import {
+    AuthField,
+    AuthStatus,
+    AuthSubmitButton,
+    ShowPasswordButton,
+    authLinkClasses,
+} from '@/components/auth-field';
 import PasskeyVerify from '@/components/passkey-verify';
 import { MicrosoftLogo } from '@/components/sign-in-prompt';
 import { home, register } from '@/routes';
@@ -11,9 +18,6 @@ type Props = {
     status?: string;
     canResetPassword: boolean;
 };
-
-const fieldClasses =
-    'w-full rounded-full border bg-transparent py-3 pl-12 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400';
 
 /**
  * PROWARE's sign-in, laid out as on V1: students sign in with their STI
@@ -30,11 +34,7 @@ export default function Login({ status, canResetPassword }: Props) {
 
             <PasskeyVerify />
 
-            {status && (
-                <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {status}
-                </div>
-            )}
+            {status && <AuthStatus>{status}</AuthStatus>}
 
             <button
                 type="button"
@@ -78,85 +78,44 @@ export default function Login({ status, canResetPassword }: Props) {
             >
                 {({ processing, errors }) => (
                     <>
-                        <div>
-                            <label htmlFor="email" className="sr-only">
-                                Email address
-                            </label>
-                            <div className="relative">
-                                <Mail
-                                    size={17}
-                                    className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-slate-500"
-                                />
+                        <AuthField
+                            icon={<Mail size={17} />}
+                            error={errors.email}
+                            input={
                                 <input
-                                    id="email"
                                     type="email"
                                     name="email"
                                     required
                                     autoComplete="email"
                                     maxLength={255}
                                     placeholder="Email address"
-                                    className={`${fieldClasses} pr-5 ${
-                                        errors.email
-                                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
-                                            : 'border-slate-300 focus:border-[#0D6EFD] focus:ring-4 focus:ring-blue-100'
-                                    }`}
+                                    aria-label="Email address"
                                 />
-                            </div>
-                            {errors.email && (
-                                <p className="mt-2 px-4 text-sm text-red-600">
-                                    {errors.email}
-                                </p>
-                            )}
-                        </div>
-
-                        <div>
-                            <label htmlFor="password" className="sr-only">
-                                Password
-                            </label>
-                            <div className="relative">
-                                <LockKeyhole
-                                    size={17}
-                                    className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-slate-500"
-                                />
+                            }
+                        />
+                        <AuthField
+                            icon={<LockKeyhole size={17} />}
+                            error={errors.password}
+                            input={
                                 <input
-                                    id="password"
                                     type={showPassword ? 'text' : 'password'}
                                     name="password"
                                     required
                                     autoComplete="current-password"
                                     maxLength={255}
                                     placeholder="Password"
-                                    className={`${fieldClasses} pr-12 ${
-                                        errors.password
-                                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
-                                            : 'border-slate-300 focus:border-[#0D6EFD] focus:ring-4 focus:ring-blue-100'
-                                    }`}
+                                    aria-label="Password"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowPassword((current) => !current)
+                            }
+                            trailing={
+                                <ShowPasswordButton
+                                    shown={showPassword}
+                                    onToggle={() =>
+                                        setShowPassword((shown) => !shown)
                                     }
-                                    className="absolute top-1/2 right-4 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
-                                    aria-label={
-                                        showPassword
-                                            ? 'Hide password'
-                                            : 'Show password'
-                                    }
-                                >
-                                    {showPassword ? (
-                                        <EyeOff size={17} />
-                                    ) : (
-                                        <Eye size={17} />
-                                    )}
-                                </button>
-                            </div>
-                            {errors.password && (
-                                <p className="mt-2 px-4 text-sm text-red-600">
-                                    {errors.password}
-                                </p>
-                            )}
-                        </div>
+                                />
+                            }
+                        />
 
                         <div className="flex flex-wrap items-center justify-between gap-3 px-2">
                             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
@@ -170,27 +129,19 @@ export default function Login({ status, canResetPassword }: Props) {
                             {canResetPassword && (
                                 <Link
                                     href={request()}
-                                    className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                                    className={`text-sm ${authLinkClasses}`}
                                 >
                                     Forgot password?
                                 </Link>
                             )}
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-[#005BFF] via-[#0D6EFD] to-[#0045CC] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:from-blue-600 hover:to-blue-800 focus:ring-4 focus:ring-blue-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                            data-test="login-button"
-                        >
-                            {processing && (
-                                <LoaderCircle
-                                    size={17}
-                                    className="animate-spin"
-                                />
-                            )}
-                            {processing ? 'Logging in...' : 'Login'}
-                        </button>
+                        <AuthSubmitButton
+                            processing={processing}
+                            label="Login"
+                            processingLabel="Logging in..."
+                            dataTest="login-button"
+                        />
                     </>
                 )}
             </Form>
@@ -198,10 +149,7 @@ export default function Login({ status, canResetPassword }: Props) {
             <div className="mt-6 text-center">
                 <p className="text-sm text-slate-500">
                     Student without an account?{' '}
-                    <Link
-                        href={register()}
-                        className="font-semibold text-blue-600 hover:text-blue-700"
-                    >
+                    <Link href={register()} className={authLinkClasses}>
                         Register
                     </Link>
                 </p>

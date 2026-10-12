@@ -1,10 +1,11 @@
 import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
+import { LockKeyhole, Mail } from 'lucide-react';
+import { useState } from 'react';
+import {
+    AuthField,
+    AuthSubmitButton,
+    ShowPasswordButton,
+} from '@/components/auth-field';
 import { update } from '@/routes/password';
 
 type Props = {
@@ -13,77 +14,86 @@ type Props = {
     passwordRules: string;
 };
 
+/** Set a new password from the emailed link. */
 export default function ResetPassword({ token, email, passwordRules }: Props) {
+    const [showPassword, setShowPassword] = useState(false);
+
     return (
         <>
-            <Head title="Reset password" />
+            <Head title="Set a new password" />
 
             <Form
                 {...update.form()}
                 transform={(data) => ({ ...data, token, email })}
                 resetOnSuccess={['password', 'password_confirmation']}
+                className="space-y-4"
             >
                 {({ processing, errors }) => (
-                    <div className="grid gap-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                name="email"
-                                autoComplete="email"
-                                value={email}
-                                className="mt-1 block w-full"
-                                readOnly
-                            />
-                            <InputError
-                                message={errors.email}
-                                className="mt-2"
-                            />
-                        </div>
+                    <>
+                        <AuthField
+                            icon={<Mail size={17} />}
+                            error={errors.email}
+                            input={
+                                <input
+                                    type="email"
+                                    name="email"
+                                    autoComplete="email"
+                                    value={email}
+                                    aria-label="Email address"
+                                    readOnly
+                                />
+                            }
+                        />
+                        <AuthField
+                            icon={<LockKeyhole size={17} />}
+                            error={errors.password}
+                            hint="At least 8 characters, with a letter, a number and a symbol."
+                            input={
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    name="password"
+                                    required
+                                    autoComplete="new-password"
+                                    maxLength={255}
+                                    autoFocus
+                                    placeholder="New password"
+                                    aria-label="New password"
+                                    passwordrules={passwordRules}
+                                />
+                            }
+                            trailing={
+                                <ShowPasswordButton
+                                    shown={showPassword}
+                                    onToggle={() =>
+                                        setShowPassword((shown) => !shown)
+                                    }
+                                />
+                            }
+                        />
+                        <AuthField
+                            icon={<LockKeyhole size={17} />}
+                            error={errors.password_confirmation}
+                            input={
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    name="password_confirmation"
+                                    required
+                                    autoComplete="new-password"
+                                    maxLength={255}
+                                    placeholder="Type the new password again"
+                                    aria-label="Confirm new password"
+                                    passwordrules={passwordRules}
+                                />
+                            }
+                        />
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <PasswordInput
-                                id="password"
-                                name="password"
-                                autoComplete="new-password"
-                                className="mt-1 block w-full"
-                                autoFocus
-                                placeholder="Password"
-                                passwordrules={passwordRules}
-                            />
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">
-                                Confirm password
-                            </Label>
-                            <PasswordInput
-                                id="password_confirmation"
-                                name="password_confirmation"
-                                autoComplete="new-password"
-                                className="mt-1 block w-full"
-                                placeholder="Confirm password"
-                                passwordrules={passwordRules}
-                            />
-                            <InputError
-                                message={errors.password_confirmation}
-                                className="mt-2"
-                            />
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className="mt-4 w-full"
-                            disabled={processing}
-                            data-test="reset-password-button"
-                        >
-                            {processing && <Spinner />}
-                            Reset password
-                        </Button>
-                    </div>
+                        <AuthSubmitButton
+                            processing={processing}
+                            label="Save new password"
+                            processingLabel="Saving..."
+                            dataTest="reset-password-button"
+                        />
+                    </>
                 )}
             </Form>
         </>
@@ -91,6 +101,6 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
 }
 
 ResetPassword.layout = {
-    title: 'Reset password',
-    description: 'Please enter your new password below',
+    title: 'Set a new password',
+    description: 'Choose the password you will log in with from now on.',
 };

@@ -2,11 +2,11 @@
 
 namespace App\Actions\Fortify;
 
+use App\Concerns\PasswordValidationRules;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Validator as ValidatorInstance;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
@@ -19,6 +19,8 @@ use Laravel\Fortify\Contracts\CreatesNewUsers;
  */
 class CreateNewUser implements CreatesNewUsers
 {
+    use PasswordValidationRules;
+
     /**
      * Validate and create a newly registered student.
      *
@@ -34,9 +36,10 @@ class CreateNewUser implements CreatesNewUsers
             'student_id' => ['required', 'digits:11'],
             'section' => ['nullable', 'string', 'max:40'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'max:255', Password::min(8)->letters()->numbers()->symbols(), 'confirmed'],
+            'password' => $this->passwordRules(),
             'terms' => ['accepted'],
         ], [
+            ...$this->passwordMessages(),
             'name.required' => 'Enter your full name.',
             'last_name.required' => 'Enter your last name, as in your school email.',
             'student_id.required' => 'Enter your Student ID.',
@@ -45,12 +48,6 @@ class CreateNewUser implements CreatesNewUsers
             'email.required' => 'Enter your STI school email.',
             'email.email' => 'Enter a valid email address.',
             'email.unique' => 'An account already uses this email. Log in instead.',
-            'password.required' => 'Enter a password.',
-            'password.min' => 'Your password must be at least 8 characters.',
-            'password.letters' => 'Your password must include at least one letter.',
-            'password.numbers' => 'Your password must include at least one number.',
-            'password.symbols' => 'Your password must include at least one special character (e.g. ! @ # $).',
-            'password.confirmed' => 'The password confirmation does not match.',
             'terms.accepted' => 'Confirm that this information is yours.',
         ]);
 
