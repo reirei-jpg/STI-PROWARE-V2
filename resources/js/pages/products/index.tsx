@@ -43,10 +43,7 @@ const statusChips: { value: ProductStatus | null; label: string }[] = [
     { value: 'on_sale', label: 'On Sale' },
 ];
 
-function filterQuery(
-    filters: ProductFilters,
-    defaultSlowDays: number,
-): Record<string, string> {
+function filterQuery(filters: ProductFilters): Record<string, string> {
     const query: Record<string, string> = {};
 
     if (filters.search) {
@@ -61,7 +58,7 @@ function filterQuery(
         query.stock = filters.stock;
     }
 
-    if (filters.stock === 'slow' && filters.slow_days !== defaultSlowDays) {
+    if (filters.stock === 'slow' && filters.slow_days !== 18) {
         query.slow_days = String(filters.slow_days);
     }
 
@@ -75,7 +72,6 @@ export default function ProductsIndex({
     itemsToSplitCount,
     lowStockCount,
     slowMovingCount,
-    defaultSlowDays,
 }: {
     products: Paginated<ProductListItem>;
     filters: ProductFilters;
@@ -84,8 +80,6 @@ export default function ProductsIndex({
     itemsToSplitCount: number;
     lowStockCount: number;
     slowMovingCount: number;
-    /** Days without a sale before an item is slow-moving (Maintenance). */
-    defaultSlowDays: number;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [slowDays, setSlowDays] = useState(String(filters.slow_days));
@@ -97,15 +91,11 @@ export default function ProductsIndex({
     const firstRender = useRef(true);
 
     const showList = (next: ProductFilters) => {
-        router.get(
-            ProductController.index().url,
-            filterQuery(next, defaultSlowDays),
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+        router.get(ProductController.index().url, filterQuery(next), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     };
 
     // Search as the Specialist types, after a short pause.

@@ -68,7 +68,7 @@ class ProductSaleController extends Controller
                 'sale_price_centavos' => $product->sale_price_centavos,
                 'ends_at' => $product->sale_ends_at?->toIso8601String(),
             ] : null,
-            'max_days' => PutOnSaleRequest::maxDays(),
+            'max_days' => PutOnSaleRequest::MAX_DAYS,
         ]);
     }
 

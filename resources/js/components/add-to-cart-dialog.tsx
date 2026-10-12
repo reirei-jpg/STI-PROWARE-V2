@@ -14,7 +14,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatPeso } from '@/lib/format';
-import { wholeNumberInput } from '@/lib/number-input';
+import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -208,7 +208,7 @@ function PickerForm({
         pack === undefined && (variant?.sale_price_centavos ?? null) !== null;
     const most = variant
         ? Math.min(
-              details.max_per_item,
+              MAX_PER_ITEM,
               Math.floor(variant.stock_pieces / piecesPerUnit),
           )
         : 0;
@@ -396,7 +396,7 @@ function PickerForm({
                                         event.target.value,
                                         variant
                                             ? Math.max(most, 1)
-                                            : details.max_per_item,
+                                            : MAX_PER_ITEM,
                                     ),
                                 )
                             }

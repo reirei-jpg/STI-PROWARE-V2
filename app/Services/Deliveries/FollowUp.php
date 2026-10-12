@@ -4,21 +4,28 @@ namespace App\Services\Deliveries;
 
 use App\Enums\DeliveryStatus;
 use App\Models\PurchaseOrder;
-use App\Services\Settings\SystemSettings;
+use App\Models\Setting;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Purchase orders to follow up with Head Office: not complete after a
- * number of days from their Date Ordered (a Maintenance setting, 30 by
+ * number of days from their Date Ordered (the Specialist's setting, 30 by
  * default). Head Office gives no delivery date, so the Date Ordered on the
  * eStore PO is what the system knows.
  */
 final class FollowUp
 {
-    /** Days after the Date Ordered an order should be complete (Maintenance). */
+    public const DEFAULT_DAYS = 30;
+
+    /** The choices on the Maintenance page. */
+    public const CHOICES = [14, 21, 30, 45, 60];
+
+    /** Days after the Date Ordered an order should be complete. */
     public static function days(): int
     {
-        return SystemSettings::integer(SystemSettings::DELIVERY_FOLLOW_UP_DAYS);
+        $days = Setting::integer(Setting::DELIVERY_FOLLOW_UP_DAYS, self::DEFAULT_DAYS);
+
+        return in_array($days, self::CHOICES, true) ? $days : self::DEFAULT_DAYS;
     }
 
     /**

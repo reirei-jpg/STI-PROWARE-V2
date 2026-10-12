@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * A setting the Specialist can change on the Maintenance page, by name,
- * with who changed it last. The settings, their choices and defaults are in
- * SystemSettings; a missing setting uses its default.
+ * with who changed it last. A missing setting uses the default its reader
+ * gives.
  *
  * @property string $key
  * @property string $value
@@ -21,6 +21,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['key', 'value', 'updated_by'])]
 class Setting extends Model
 {
+    public const ORDER_HOLD_DAYS = 'order_hold_days';
+
+    public const DELIVERY_FOLLOW_UP_DAYS = 'delivery_follow_up_days';
+
+    public const PROMO_GROUP_SIZE = 'promo_group_size';
+
     protected $primaryKey = 'key';
 
     protected $keyType = 'string';

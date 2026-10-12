@@ -100,15 +100,12 @@ export default function ProductForm({
     product,
     fromItem,
     costs,
-    defaultLowStockAlert,
     today,
 }: {
     product: EditableProduct | null;
     fromItem: ProductFromItem | null;
     /** What PROWARE paid per eStore unit on the latest order, by item code. */
     costs: Record<string, number>;
-    /** The low-stock warning a new product starts with (Maintenance). */
-    defaultLowStockAlert: number;
     /** Today in the school's time zone, "YYYY-MM-DD". */
     today: string;
 }) {
@@ -125,8 +122,7 @@ export default function ProductForm({
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
         preorders_close_on: product?.preorders_close_on ?? '',
-        low_stock_alert_at:
-            product?.low_stock_alert_at ?? String(defaultLowStockAlert),
+        low_stock_alert_at: product?.low_stock_alert_at ?? '5',
         photos:
             product?.photos.map((photo) => ({
                 id: photo.id,

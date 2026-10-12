@@ -6,7 +6,6 @@ use App\Models\CartItem;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Models\User;
-use App\Services\Settings\SystemSettings;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
@@ -19,11 +18,8 @@ use Illuminate\Validation\ValidationException;
  */
 final class Cart
 {
-    /** The most of one item a student can have in a cart line (Maintenance; 99 by default, as on V1). */
-    public static function maxPerItem(): int
-    {
-        return SystemSettings::integer(SystemSettings::CART_MAX_PER_ITEM);
-    }
+    /** The most of one item a student can have in a cart line (as on V1). */
+    public const MAX_QUANTITY = 99;
 
     public function add(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity): CartItem
     {
@@ -91,7 +87,7 @@ final class Cart
      */
     public static function mostOf(int $freeToSell, int $piecesInOtherLines, int $piecesPerUnit): int
     {
-        return min(self::maxPerItem(), intdiv(max(0, $freeToSell - $piecesInOtherLines), $piecesPerUnit));
+        return min(self::MAX_QUANTITY, intdiv(max(0, $freeToSell - $piecesInOtherLines), $piecesPerUnit));
     }
 
     private function ensureInStock(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity, ?CartItem $line): void
@@ -108,10 +104,8 @@ final class Cart
 
         // Only when the stock itself has more than the most one student may
         // order; otherwise the student is told how many are left.
-        $maxPerItem = self::maxPerItem();
-
-        if ($quantity > $maxPerItem && intdiv(max(0, $variant->freeToSell() - $inOtherLines), $piecesPerUnit) >= $maxPerItem) {
-            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format($maxPerItem).', please talk to the PROWARE office.']);
+        if ($quantity > self::MAX_QUANTITY && intdiv(max(0, $variant->freeToSell() - $inOtherLines), $piecesPerUnit) >= self::MAX_QUANTITY) {
+            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.']);
         }
 
         $message = match (true) {

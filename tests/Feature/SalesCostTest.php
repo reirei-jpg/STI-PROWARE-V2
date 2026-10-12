@@ -14,7 +14,6 @@ use App\Models\Setting;
 use App\Models\StockMovement;
 use App\Models\UniformSet;
 use App\Models\User;
-use App\Services\Settings\SystemSettings;
 use App\Services\Stock\StockCost;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -216,7 +215,7 @@ test('the Selling Price cannot be set below the Cost on the eStore order', funct
 test('free uniform sets count in Given free at Cost and at Price, never as a sale', function () {
     $variant = costedJacket();
     receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200
-    Setting::put(SystemSettings::PROMO_GROUP_SIZE, 2);
+    Setting::put(Setting::PROMO_GROUP_SIZE, 2);
     $set = UniformSet::factory()->create(['name' => 'BSIT', 'blouse_product_id' => null, 'polo_product_id' => $variant->product_id, 'pants_product_id' => $variant->product_id]);
     $this->actingAs($this->specialist);
 

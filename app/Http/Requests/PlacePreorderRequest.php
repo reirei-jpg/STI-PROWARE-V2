@@ -17,6 +17,9 @@ use Illuminate\Validation\Validator;
  */
 class PlacePreorderRequest extends FormRequest
 {
+    /** The most of one item a student can preorder at once (as on V1). */
+    public const MAX_QUANTITY = Cart::MAX_QUANTITY;
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -28,7 +31,7 @@ class PlacePreorderRequest extends FormRequest
                 'integer',
                 Rule::exists('product_variants', 'id')->where('product_id', $this->product()->id),
             ],
-            'quantity' => ['required', 'integer', 'min:1', 'max:'.Cart::maxPerItem()],
+            'quantity' => ['required', 'integer', 'min:1', 'max:'.self::MAX_QUANTITY],
         ];
     }
 
@@ -43,7 +46,7 @@ class PlacePreorderRequest extends FormRequest
             'quantity.required' => 'Enter how many you want.',
             'quantity.integer' => 'Enter a whole number.',
             'quantity.min' => 'Preorder at least 1.',
-            'quantity.max' => 'For more than '.number_format(Cart::maxPerItem()).', please talk to the PROWARE office.',
+            'quantity.max' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.',
         ];
     }
 

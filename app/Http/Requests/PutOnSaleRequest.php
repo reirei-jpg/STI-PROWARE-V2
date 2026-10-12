@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Services\Sales\HeadOfficeCost;
-use App\Services\Settings\SystemSettings;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -25,11 +24,7 @@ use Illuminate\Validation\Validator;
  */
 class PutOnSaleRequest extends FormRequest
 {
-    /** The most days a sale can run at once (Maintenance). */
-    public static function maxDays(): int
-    {
-        return SystemSettings::integer(SystemSettings::SALE_MAX_DAYS);
-    }
+    public const MAX_DAYS = 90;
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -42,7 +37,7 @@ class PutOnSaleRequest extends FormRequest
             'group_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             'pack_sale_prices' => ['nullable', 'array'],
             'pack_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
-            'days' => ['required', 'integer', 'min:1', 'max:'.self::maxDays()],
+            'days' => ['required', 'integer', 'min:1', 'max:'.self::MAX_DAYS],
         ];
     }
 
@@ -64,7 +59,7 @@ class PutOnSaleRequest extends FormRequest
             'days.required' => 'Enter how many days the sale lasts.',
             'days.integer' => 'Enter the number of days as a whole number.',
             'days.min' => 'A sale lasts at least 1 day.',
-            'days.max' => 'A sale lasts at most '.self::maxDays().' days.',
+            'days.max' => 'A sale lasts at most '.self::MAX_DAYS.' days.',
         ];
     }
 

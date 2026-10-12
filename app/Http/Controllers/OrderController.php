@@ -41,7 +41,6 @@ class OrderController extends Controller
             'filters' => $filters,
             'counts' => SpecialistOrders::counts(),
             'pausedStudents' => OrderRules::pausedStudents(),
-            'pauseRule' => ['after_expired' => OrderRules::pauseAfterExpired(), 'window_days' => OrderRules::NO_SHOW_WINDOW_DAYS, 'pause_days' => OrderRules::pauseDays()],
         ]);
     }
 

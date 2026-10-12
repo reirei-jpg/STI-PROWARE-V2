@@ -16,12 +16,6 @@ import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
 
 type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
 
-type PauseRule = {
-    after_expired: number;
-    window_days: number;
-    pause_days: number;
-};
-
 type PausedStudent = {
     id: number;
     name: string;
@@ -59,14 +53,11 @@ export default function OrdersIndex({
     filters,
     counts,
     pausedStudents,
-    pauseRule,
 }: {
     orders: Paginated<SpecialistOrder>;
     filters: { show: Show; search: string | null };
     counts: Record<Exclude<Show, 'all'>, number>;
     pausedStudents: PausedStudent[];
-    /** When ordering is paused, from Maintenance. */
-    pauseRule: PauseRule;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [viewingId, setViewingId] = useState<number | null>(null);
@@ -117,10 +108,7 @@ export default function OrdersIndex({
                 <SlipScanBox />
 
                 {pausedStudents.length > 0 && (
-                    <PausedStudents
-                        students={pausedStudents}
-                        rule={pauseRule}
-                    />
+                    <PausedStudents students={pausedStudents} />
                 )}
 
                 <Panel>
@@ -393,13 +381,7 @@ function OrderDate({ order }: { order: SpecialistOrder }) {
  * Students whose orders expired too often, who cannot order until the date
  * shown, with Lift pause for a mistake or a good reason.
  */
-function PausedStudents({
-    students,
-    rule,
-}: {
-    students: PausedStudent[];
-    rule: PauseRule;
-}) {
+function PausedStudents({ students }: { students: PausedStudent[] }) {
     const [lifting, setLifting] = useState<number | null>(null);
 
     const lift = (student: PausedStudent) => {
@@ -420,7 +402,7 @@ function PausedStudents({
     return (
         <Panel
             title="Students who cannot order now"
-            description={`Their orders expired ${rule.after_expired} times in ${rule.window_days} days without being picked up, so ordering is paused for ${rule.pause_days} days. Change these in Maintenance.`}
+            description="Their orders expired 3 times in 30 days without being picked up, so ordering is paused for 7 days."
             className="border-l-4 border-l-amber-500"
         >
             <ul className="divide-y divide-slate-100">

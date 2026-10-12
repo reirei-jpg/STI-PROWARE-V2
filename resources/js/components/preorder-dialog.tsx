@@ -14,7 +14,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { wholeNumberInput } from '@/lib/number-input';
+import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
 import { formatDateOrdered } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
@@ -287,7 +287,7 @@ function PreorderForm({
                                     'quantity',
                                     wholeNumberInput(
                                         event.target.value,
-                                        details.max_per_item,
+                                        MAX_PER_ITEM,
                                     ),
                                 )
                             }

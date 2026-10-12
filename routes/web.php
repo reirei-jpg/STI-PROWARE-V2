@@ -76,7 +76,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('sales-reports/variants/{variant}/price', [SalesReportController::class, 'setPrice'])->name('sales-reports.price');
 
         Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
-        Route::patch('maintenance/{setting}', [MaintenanceController::class, 'update'])->name('maintenance.update');
+        Route::patch('maintenance/hold-days', [MaintenanceController::class, 'updateHoldDays'])->name('maintenance.hold-days');
+        Route::patch('maintenance/follow-up-days', [MaintenanceController::class, 'updateFollowUpDays'])->name('maintenance.follow-up-days');
+        Route::patch('maintenance/promo-group-size', [MaintenanceController::class, 'updatePromoGroupSize'])->name('maintenance.promo-group-size');
 
         Route::get('free-uniforms', [FreeUniformController::class, 'index'])->name('free-uniforms.index');
         Route::post('free-uniforms', [FreeUniformController::class, 'store'])->name('free-uniforms.store');
