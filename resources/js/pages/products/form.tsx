@@ -905,10 +905,11 @@ export default function ProductForm({
                             </span>
                             <span className="text-xs leading-5 text-slate-500">
                                 Applies to each variant (e.g. only S/M can be
-                                low). You are told once in the bell, and again
-                                after the stock goes back above this number.
-                                Enter 0 to be told only when it runs out. Only
-                                Available and On Sale products are watched.
+                                low). You are notified once in the bell, and
+                                again after the stock goes back above this
+                                number. Enter 0 to be notified only when it runs
+                                out. Only Available and On Sale products are
+                                watched.
                             </span>
                             <InputError message={errors.low_stock_alert_at} />
                         </label>

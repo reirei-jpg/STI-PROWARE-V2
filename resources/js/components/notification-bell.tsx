@@ -90,9 +90,9 @@ export default function NotificationBell() {
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
                             {auth.user.role === 'specialist'
-                                ? 'You will be told here when stock runs low or a sale is ending.'
+                                ? 'You will be notified here when stock runs low or a sale is ending.'
                                 : auth.user.role === 'student'
-                                  ? 'You will be told here when your order is ready for pickup, or when an item you preordered arrives.'
+                                  ? 'You will be notified here when your order is ready for pickup, or when an item you preordered arrives.'
                                   : 'You will be notified here when the Specialist uploads a purchase order, records a delivery, or closes an order short.'}
                         </p>
                     </div>

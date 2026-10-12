@@ -228,7 +228,7 @@ export default function NotificationsScreen() {
                             No notifications yet
                         </Text>
                         <Text className="mt-1 text-center font-sans text-sm text-slate-500">
-                            You will be told here when an order is ready, on its
+                            You will be notified here when an order is ready, on its
                             last day, when it is cancelled, or a preordered item arrives.
                         </Text>
                     </View>

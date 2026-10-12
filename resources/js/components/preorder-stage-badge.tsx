@@ -54,7 +54,7 @@ export function PreorderWhen({
     if (product.stage === 'arrived') {
         return (
             <span className="font-bold text-emerald-700">
-                Students told {formatDateOrdered(product.arrived_at)}
+                Students notified {formatDateOrdered(product.arrived_at)}
             </span>
         );
     }

@@ -45,7 +45,7 @@ const descriptions: Record<Stage, string> = {
         'Preorders closed. Order these pieces in the eStore, then set the product to Available when they arrive.',
     open: 'Students can still preorder these. Closing soonest first.',
     arrived:
-        'For sale now. The students who preordered were told; nothing is held for them.',
+        'For sale now. The students who preordered were notified; nothing is held for them.',
 };
 
 /**
@@ -115,7 +115,7 @@ export default function PreordersIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Preorders"
-                    description="Students reserve Preorder products; when preorders close, order that many in the eStore; when they arrive, set the product to Available and the students are told."
+                    description="Students reserve Preorder products; when preorders close, order that many in the eStore; when they arrive, set the product to Available and the students are notified."
                     actions={
                         <a
                             href={PreorderController.export().url}
@@ -154,8 +154,8 @@ export default function PreordersIndex({
                         icon={PackageCheck}
                         tone="green"
                         title="Arrived"
-                        value={`${summary.arrived.students} ${summary.arrived.students === 1 ? 'student' : 'students'} told`}
-                        detail={`${summary.arrived.products} ${summary.arrived.products === 1 ? 'product' : 'products'} · ${formatUnits(summary.arrived.pieces, 'Piece')}`}
+                        value={`${summary.arrived.products} ${summary.arrived.products === 1 ? 'product' : 'products'}`}
+                        detail={`${formatUnits(summary.arrived.pieces, 'Piece')} preordered · ${summary.arrived.students} ${summary.arrived.students === 1 ? 'student' : 'students'} notified`}
                         onClick={() => showList('arrived', search)}
                     />
                 </section>

@@ -74,8 +74,8 @@ export default function ProfileScreen() {
                 <View className="mt-4 gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <Text className="font-sans text-sm leading-5 text-amber-900">
                         {user?.role === 'specialist'
-                            ? 'Notifications are off, so you will not be told on this phone when a new order comes in or stock runs low.'
-                            : 'Notifications are off, so you will not be told on this phone when an order is ready.'}{' '}
+                            ? 'Notifications are off, so you will not be notified on this phone when a new order comes in or stock runs low.'
+                            : 'Notifications are off, so you will not be notified on this phone when an order is ready.'}{' '}
                         Turn them on in the phone&apos;s settings.
                     </Text>
                     <Pressable

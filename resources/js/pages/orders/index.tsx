@@ -186,7 +186,7 @@ export default function OrdersIndex({
                             </h3>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
                                 Orders appear here when students place them from
-                                their cart. You are also told in the bell.
+                                their cart. You are also notified in the bell.
                             </p>
                         </div>
                     ) : (

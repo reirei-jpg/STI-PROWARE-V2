@@ -176,7 +176,7 @@ export function CancelSheet({
             }
         >
             <Text className="font-sans text-sm leading-5 text-slate-700">
-                Its items go back to stock and {order.student_name} is told why.
+                Its items go back to stock and {order.student_name} is notified with the reason.
             </Text>
             <Text className="font-sans-bold text-sm text-slate-700">Why is it cancelled? (the student will see it)</Text>
             <CancelReasonList

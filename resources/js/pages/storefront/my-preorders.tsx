@@ -87,7 +87,7 @@ export default function MyPreorders({
                     </h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                         Items you reserved before they arrive. There is nothing
-                        to pay now; you are told when your item arrives.
+                        to pay now; you are notified when your item arrives.
                     </p>
                 </div>
 
@@ -406,7 +406,7 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
     return (
         <>
             <p className="mt-1 text-xs leading-5 font-medium">
-                No payment is needed yet. You are told when it arrives.
+                No payment is needed yet. You are notified when it arrives.
             </p>
             {preorder.preorders_close_on && (
                 <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2">
