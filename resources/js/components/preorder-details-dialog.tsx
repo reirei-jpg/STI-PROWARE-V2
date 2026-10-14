@@ -256,7 +256,7 @@ export default function PreorderDetailsDialog({
                                             : 'Reopen / change date'}
                                     </button>
                                 )}
-                                {!arrived && (
+                                {!arrived && details.pieces_total > 0 && (
                                     <a
                                         href={
                                             PreorderController.export({

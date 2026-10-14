@@ -213,9 +213,9 @@ test('preorder products move from taking preorders to to order to arrived', func
         ->has('products.data', 1)
         ->where('products.data.0.name', 'STI Mug'));
 
-    // The CSV is what is still to order: arrived preorders are left out.
+    // The CSV is what to order: only closed preorders, not open or arrived ones.
     $csv = $this->get(route('preorders.export'))->streamedContent();
-    expect($csv)->toContain('STI Mug')->not->toContain('Chibi Keychain');
+    expect($csv)->toContain('STI Mug')->not->toContain('Chibi Keychain')->not->toContain('Intramurals Jersey');
 
     $this->actingAs($this->student)->get(route('my-preorders.index'))->assertInertia(fn (Assert $page) => $page
         ->where('preorders.data.0.status_label', 'Arrived')
@@ -254,22 +254,45 @@ test('the specialist can see who preordered a product', function () {
         );
 });
 
-test('the preorder summary can be downloaded as a CSV file for Excel', function () {
-    [, $small, $large] = preorderShirt();
+test('what to order downloads as a CSV for Excel: closed preorders only, sizes with pieces, and a total', function () {
+    [, $small, $large] = preorderShirt('2026-10-02');
+    [, , $openLarge] = preorderShirt('2026-10-20', 'Intramurals Jersey');
     $small->update(['estore_item_code' => 'PRSH01-01']);
-    Preorder::factory()->forVariant($small)->create(['quantity' => 2]);
+    $student2 = User::factory()->student()->create(['name' => 'Student 2']);
+    Preorder::factory()->forVariant($small)->for($this->student, 'student')->create(['quantity' => 2]);
+    Preorder::factory()->forVariant($large)->for($this->student, 'student')->create(['quantity' => 1]);
+    Preorder::factory()->forVariant($large)->for($student2, 'student')->create(['quantity' => 3]);
+    Preorder::factory()->forVariant($openLarge)->create(['quantity' => 5]);
 
     $response = $this->actingAs(User::factory()->specialist()->create())
         ->get(route('preorders.export'))
         ->assertOk()
-        ->assertDownload('preorders-2026-10-03.csv');
+        ->assertDownload('what-to-order-2026-10-03.csv');
 
     $lines = array_map('str_getcsv', explode("\n", trim(str_replace("\xEF\xBB\xBF", '', $response->streamedContent()))));
 
     expect($lines)->toBe([
-        ['Product', 'Size / Color', 'eStore Item Code', 'Preorders Close', 'No. of Students', 'Total Pieces'],
-        ['42nd Anniversary Shirt', 'S/M', 'PRSH01-01', 'Oct 20, 2026', '1', '2'],
-        ['42nd Anniversary Shirt', 'M/L', '', 'Oct 20, 2026', '0', '0'],
+        ['Product', 'Size / Color', 'eStore Item Code', 'Preorders Close', 'No. of Students', 'Pieces to Order'],
+        ['42nd Anniversary Shirt', 'S/M', 'PRSH01-01', 'Oct 2, 2026', '1', '2'],
+        ['42nd Anniversary Shirt', 'M/L', '', 'Oct 2, 2026', '2', '4'],
+        ['42nd Anniversary Shirt', 'Total', '', '', '2', '6'],
+    ]);
+});
+
+test('one product\'s preorders so far download without empty sizes or an empty code column', function () {
+    [$product, , $large] = preorderShirt('2026-10-20', 'Intramurals Jersey');
+    Preorder::factory()->forVariant($large)->create(['quantity' => 5]);
+
+    $response = $this->actingAs(User::factory()->specialist()->create())
+        ->get(route('preorders.export', ['product' => $product->id]))
+        ->assertOk()
+        ->assertDownload('intramurals-jersey-preorders-2026-10-03.csv');
+
+    $lines = array_map('str_getcsv', explode("\n", trim(str_replace("\xEF\xBB\xBF", '', $response->streamedContent()))));
+
+    expect($lines)->toBe([
+        ['Product', 'Size / Color', 'Preorders Close', 'No. of Students', 'Pieces to Order'],
+        ['Intramurals Jersey', 'M/L', 'Oct 20, 2026', '1', '5'],
     ]);
 });
 

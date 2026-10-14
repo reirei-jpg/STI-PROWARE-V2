@@ -117,13 +117,24 @@ export default function PreordersIndex({
                     title="Preorders"
                     description="Students reserve Preorder products; when preorders close, order that many in the eStore; when they arrive, set the product to Available and the students are notified."
                     actions={
-                        <a
-                            href={PreorderController.export().url}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
-                        >
-                            <Download size={18} />
-                            Export what to order (CSV)
-                        </a>
+                        summary.to_order.pieces > 0 ? (
+                            <a
+                                href={PreorderController.export().url}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
+                                title="The products whose preorders closed, per size or color, with a total per product"
+                            >
+                                <Download size={18} />
+                                Export what to order (CSV)
+                            </a>
+                        ) : (
+                            <span
+                                className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-5 py-3 text-sm font-black text-slate-400"
+                                title="No product's preorders have closed with pieces to order"
+                            >
+                                <Download size={18} />
+                                Nothing to order yet
+                            </span>
+                        )
                     }
                 />
 

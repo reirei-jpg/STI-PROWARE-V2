@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -107,23 +108,71 @@ class PreorderController extends Controller
     }
 
     /**
-     * What is still to order (or still being preordered), per size or
-     * color, as a CSV file that opens in Excel; one product when asked.
+     * What to order in the eStore, as a CSV file that opens in Excel: the
+     * products whose preorders closed, only the sizes or colors with pieces,
+     * and a total per product. With ?product= it is that one product's
+     * preorders so far. The eStore Item Code column is left out when no
+     * row has one.
      */
     public function export(Request $request): StreamedResponse
     {
         $productId = $request->integer('product') ?: null;
-        $products = Product::query()
-            ->where(fn (Builder $query) => $query
-                ->where('status', ProductStatus::Preorder)
-                ->orWhereHas('preorders', fn (Builder $preorders) => $preorders->where('status', PreorderStatus::Active)))
-            ->when($productId !== null, fn (Builder $query) => $query->whereKey($productId))
-            ->with('variants')
+        $products = ($productId !== null
+            ? Product::query()->whereKey($productId)
+            : $this->inStage(Product::query(), 'to_order'))
+            ->with(['variants' => fn ($variants) => $variants->orderBy('position')->orderBy('id')])
             ->orderBy('name')
             ->get();
         $counts = $this->countsByVariant($products->modelKeys(), PreorderStatus::Active);
+        $studentsByProduct = Preorder::query()
+            ->where('status', PreorderStatus::Active)
+            ->whereIn('product_id', $products->modelKeys())
+            ->groupBy('product_id')
+            ->selectRaw('product_id, count(distinct user_id) as students')
+            ->pluck('students', 'product_id');
 
-        return response()->streamDownload(function () use ($products, $counts): void {
+        // Only sizes or colors someone preordered.
+        $rows = [];
+
+        foreach ($products as $product) {
+            $variantCounts = $counts->get($product->id, collect())->keyBy('id');
+            $productRows = [];
+
+            foreach ($product->variants as $variant) {
+                $pieces = (int) ($variantCounts->get($variant->id)['pieces'] ?? 0);
+
+                if ($pieces > 0) {
+                    $productRows[] = [
+                        'product' => $product->name,
+                        'variant' => $variant->choices === [] ? '' : $variant->label(),
+                        'code' => $variant->estore_item_code ?? '',
+                        'close' => $product->preorders_close_on?->format('M j, Y') ?? '',
+                        'students' => (int) ($variantCounts->get($variant->id)['students'] ?? 0),
+                        'pieces' => $pieces,
+                    ];
+                }
+            }
+
+            if (count($productRows) > 1) {
+                $productRows[] = [
+                    'product' => $product->name,
+                    'variant' => 'Total',
+                    'code' => '',
+                    'close' => '',
+                    'students' => (int) ($studentsByProduct[$product->id] ?? 0),
+                    'pieces' => array_sum(array_column($productRows, 'pieces')),
+                ];
+            }
+
+            array_push($rows, ...$productRows);
+        }
+
+        $withCodes = collect($rows)->contains(fn (array $row): bool => $row['code'] !== '');
+        $fileName = ($productId !== null && $products->isNotEmpty()
+            ? Str::slug($products->first()->name).'-preorders-'
+            : 'what-to-order-').now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($rows, $withCodes): void {
             $file = fopen('php://output', 'w');
 
             if ($file === false) {
@@ -132,27 +181,21 @@ class PreorderController extends Controller
 
             // Lets Excel read the file as UTF-8 (₱, ñ).
             fwrite($file, "\xEF\xBB\xBF");
-            fputcsv($file, ['Product', 'Size / Color', 'eStore Item Code', 'Preorders Close', 'No. of Students', 'Total Pieces'], escape: '');
+            fputcsv($file, array_values(array_filter(
+                ['Product', 'Size / Color', $withCodes ? 'eStore Item Code' : null, 'Preorders Close', 'No. of Students', 'Pieces to Order'],
+                fn (?string $heading): bool => $heading !== null,
+            )), escape: '');
 
-            foreach ($products as $product) {
-                $variantCounts = $counts->get($product->id, collect())->keyBy('id');
-
-                foreach ($product->variants as $variant) {
-                    $row = $variantCounts->get($variant->id);
-
-                    fputcsv($file, [
-                        $product->name,
-                        $variant->choices === [] ? '' : $variant->label(),
-                        $variant->estore_item_code ?? '',
-                        $product->preorders_close_on?->format('M j, Y') ?? '',
-                        $row['students'] ?? 0,
-                        $row['pieces'] ?? 0,
-                    ], escape: '');
+            foreach ($rows as $row) {
+                if (! $withCodes) {
+                    unset($row['code']);
                 }
+
+                fputcsv($file, array_values($row), escape: '');
             }
 
             fclose($file);
-        }, 'preorders-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }, $fileName, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**
