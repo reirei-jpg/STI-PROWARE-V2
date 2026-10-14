@@ -81,27 +81,27 @@ export default function ProductDetailsDialog({
                             <div className="mt-4 flex flex-wrap gap-2">
                                 <Link
                                     href={ProductController.edit(product.id)}
-                                    className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+                                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 text-base font-black text-white shadow-sm transition hover:bg-blue-700"
                                 >
-                                    <Pencil size={15} />
+                                    <Pencil size={18} />
                                     Edit
                                 </Link>
                                 <Link
                                     href={ProductStockController.index(
                                         product.id,
                                     )}
-                                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-base font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                                 >
-                                    <Boxes size={15} />
+                                    <Boxes size={18} />
                                     Stock History
                                 </Link>
                                 {canSell && (
                                     <button
                                         type="button"
                                         onClick={() => onPutOnSale(product.id)}
-                                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                        className="inline-flex h-12 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 text-base font-black text-red-700 transition hover:bg-red-100"
                                     >
-                                        <Flame size={15} />
+                                        <Flame size={18} />
                                         {product.status === 'on_sale'
                                             ? 'Change sale'
                                             : 'Put on Sale'}
@@ -112,6 +112,7 @@ export default function ProductDetailsDialog({
                                         productId={product.id}
                                         productName={product.name}
                                         onEnded={onClose}
+                                        className="h-12 px-5 text-base [&_svg]:size-[18px]"
                                     />
                                 )}
                             </div>
