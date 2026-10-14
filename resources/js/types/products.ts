@@ -36,6 +36,30 @@ export type ProductListItem = {
     updated_at: string | null;
 };
 
+/** One product for its View Details popup on the Products list. */
+export type ProductDetails = {
+    id: number;
+    name: string;
+    status: ProductStatus;
+    status_label: string;
+    sale_ends_at: string | null;
+    /** Pieces at which the Specialist is warned, per variant. */
+    low_stock_alert_at: number;
+    /** Only Available and On Sale products are watched for low stock. */
+    watched_for_low_stock: boolean;
+    updated_at: string | null;
+    variants: {
+        id: number;
+        /** Null for a product without sizes or colors. */
+        label: string | null;
+        stock_on_hand: number;
+        held_pieces: number;
+        free_to_sell: number;
+        price_centavos: number | null;
+        sale_price_centavos: number | null;
+    }[];
+};
+
 export type ProductFilters = {
     search: string | null;
     status: ProductStatus | null;

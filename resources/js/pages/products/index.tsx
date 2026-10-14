@@ -1,12 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Boxes,
-    Flame,
+    Eye,
     Hourglass,
-    ImageIcon,
     Link2,
     Package,
-    Pencil,
     Plus,
     Search,
     TriangleAlert,
@@ -16,17 +14,17 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
-import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
-import EndSaleButton from '@/components/end-sale-button';
+import ProductDetailsDialog from '@/components/product-details-dialog';
 import ProductStatusBadge from '@/components/product-status-badge';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { wholeNumberInput } from '@/lib/number-input';
-import { formatDateTime, formatPeso } from '@/lib/format';
+import { formatDateOrdered, formatPeso } from '@/lib/format';
 import type {
     Paginated,
+    ProductDetails,
     ProductFilters,
     ProductListItem,
     ProductStatus,
@@ -72,6 +70,7 @@ export default function ProductsIndex({
     itemsToSplitCount,
     lowStockCount,
     slowMovingCount,
+    details,
 }: {
     products: Paginated<ProductListItem>;
     filters: ProductFilters;
@@ -80,10 +79,15 @@ export default function ProductsIndex({
     itemsToSplitCount: number;
     lowStockCount: number;
     slowMovingCount: number;
+    /** The product opened in View Details, loaded when it opens. */
+    details?: ProductDetails | null;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [slowDays, setSlowDays] = useState(String(filters.slow_days));
     const [selling, setSelling] = useState<number | null>(null);
+    const [viewingId, setViewingId] = useState<number | null>(null);
+    const viewing =
+        products.data.find((product) => product.id === viewingId) ?? null;
     const isFiltered =
         filters.search !== null ||
         filters.status !== null ||
@@ -119,6 +123,12 @@ export default function ProductsIndex({
         // Only the typed text should trigger a search.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
+
+    // The popup opens at once and fills in when its details arrive.
+    const openDetails = (productId: number) => {
+        setViewingId(productId);
+        router.reload({ data: { details: productId }, only: ['details'] });
+    };
 
     return (
         <>
@@ -156,214 +166,211 @@ export default function ProductsIndex({
                 />
 
                 {itemsToLinkCount > 0 && (
-                    <section className="flex flex-col gap-3 rounded-3xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-start gap-3">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-                                <Unlink size={20} />
-                            </span>
-                            <div>
-                                <p className="font-black text-amber-900">
-                                    {itemsToLinkCount === 1
-                                        ? '1 eStore item is not linked to a product yet'
-                                        : `${itemsToLinkCount.toLocaleString('en-PH')} eStore items are not linked to a product yet`}
-                                </p>
-                                <p className="mt-1 text-sm text-amber-800">
-                                    Their deliveries are not counted as stock
-                                    until you link them. Link each item once;
-                                    after that its deliveries go into stock by
-                                    themselves.
-                                </p>
-                            </div>
-                        </div>
+                    <section className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                        <p
+                            className="flex items-center gap-2 text-sm font-bold text-amber-900"
+                            title="Their deliveries are not counted as stock until you link them. Link each item once; after that its deliveries go into stock by themselves."
+                        >
+                            <Unlink size={16} className="shrink-0" />
+                            {itemsToLinkCount === 1
+                                ? '1 eStore item is not linked to a product yet'
+                                : `${itemsToLinkCount.toLocaleString('en-PH')} eStore items are not linked to a product yet`}
+                        </p>
                         <Link
                             href={ItemLinkController.index()}
-                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700"
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-amber-700"
                         >
-                            <Link2 size={17} />
+                            <Link2 size={15} />
                             Link Items
                         </Link>
                     </section>
                 )}
 
                 {itemsToSplitCount > 0 && (
-                    <section className="flex flex-col gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-start gap-3">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                                <Boxes size={20} />
-                            </span>
-                            <div>
-                                <p className="font-black text-emerald-900">
-                                    {itemsToSplitCount === 1
-                                        ? '1 delivered item is waiting to be split into stock'
-                                        : `${itemsToSplitCount.toLocaleString('en-PH')} delivered items are waiting to be split into stock`}
-                                </p>
-                                <p className="mt-1 text-sm text-emerald-800">
-                                    Their code is shared by every variant (e.g.
-                                    every color). Enter how many of each arrived
-                                    so each variant gets its stock.
-                                </p>
-                            </div>
-                        </div>
+                    <section className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                        <p
+                            className="flex items-center gap-2 text-sm font-bold text-emerald-900"
+                            title="Their code is shared by every variant (e.g. every color). Enter how many of each arrived so each variant gets its stock."
+                        >
+                            <Boxes size={16} className="shrink-0" />
+                            {itemsToSplitCount === 1
+                                ? '1 delivered item is waiting to be split into stock'
+                                : `${itemsToSplitCount.toLocaleString('en-PH')} delivered items are waiting to be split into stock`}
+                        </p>
                         <Link
                             href={ItemLinkController.index()}
-                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
                         >
-                            <Boxes size={17} />
+                            <Boxes size={15} />
                             Split into stock
                         </Link>
                     </section>
                 )}
 
-                <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-                    <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
-                        <Search size={18} className="shrink-0" />
-                        <input
-                            type="search"
-                            maxLength={120}
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search by product name"
-                            className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                            aria-label="Search by product name"
-                        />
-                    </label>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        {statusChips.map((chip) => (
+                <Panel>
+                    <div className="space-y-4 border-b border-slate-100 px-6 py-5">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <h2 className="font-black text-slate-900">
+                                    All Products
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Most recently changed first.
+                                </p>
+                            </div>
+                            <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-xs">
+                                <Search size={18} className="shrink-0" />
+                                <input
+                                    type="search"
+                                    maxLength={120}
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Search by product name"
+                                    className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                    aria-label="Search by product name"
+                                />
+                            </label>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {statusChips.map((chip) => (
+                                <button
+                                    key={chip.label}
+                                    type="button"
+                                    onClick={() =>
+                                        showList({
+                                            ...filters,
+                                            status: chip.value,
+                                        })
+                                    }
+                                    className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                        filters.status === chip.value
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    {chip.label}
+                                </button>
+                            ))}
+                            <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
                             <button
-                                key={chip.label}
                                 type="button"
                                 onClick={() =>
                                     showList({
                                         ...filters,
-                                        status: chip.value,
+                                        stock:
+                                            filters.stock === 'low'
+                                                ? null
+                                                : 'low',
                                     })
                                 }
-                                className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                    filters.status === chip.value
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                }`}
-                            >
-                                {chip.label}
-                            </button>
-                        ))}
-                        <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
-                        <button
-                            type="button"
-                            onClick={() =>
-                                showList({
-                                    ...filters,
-                                    stock:
-                                        filters.stock === 'low' ? null : 'low',
-                                })
-                            }
-                            aria-pressed={filters.stock === 'low'}
-                            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                filters.stock === 'low'
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                            }`}
-                        >
-                            <TriangleAlert size={14} />
-                            Low stock
-                            <span
-                                className={`rounded-full px-1.5 text-[11px] font-black ${
+                                aria-pressed={filters.stock === 'low'}
+                                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
                                     filters.stock === 'low'
-                                        ? 'bg-white/25'
-                                        : 'bg-amber-100'
+                                        ? 'bg-amber-500 text-white'
+                                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
                                 }`}
                             >
-                                {lowStockCount.toLocaleString('en-PH')}
-                            </span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() =>
-                                showList({
-                                    ...filters,
-                                    stock:
-                                        filters.stock === 'slow'
-                                            ? null
-                                            : 'slow',
-                                })
-                            }
-                            aria-pressed={filters.stock === 'slow'}
-                            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                filters.stock === 'slow'
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-red-50 text-red-700 hover:bg-red-100'
-                            }`}
-                        >
-                            <Hourglass size={14} />
-                            Slow-moving
-                            <span
-                                className={`rounded-full px-1.5 text-[11px] font-black ${
-                                    filters.stock === 'slow'
-                                        ? 'bg-white/25'
-                                        : 'bg-red-100'
-                                }`}
-                            >
-                                {slowMovingCount.toLocaleString('en-PH')}
-                            </span>
-                        </button>
-                    </div>
-                </section>
-
-                {filters.stock === 'slow' && (
-                    <section className="flex flex-col gap-3 rounded-3xl border border-red-100 bg-red-50/60 p-5 text-sm text-red-900 md:flex-row md:items-center md:justify-between">
-                        <p className="leading-6">
-                            <b>Slow-moving:</b> Available products in stock that
-                            first arrived at least this many days ago and sold
-                            nothing since. Put them on sale to clear them. Until
-                            students can buy through PROWARE, nothing has sales
-                            yet, so this lists items in stock that long.
-                        </p>
-                        <form
-                            className="flex shrink-0 items-center gap-2"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                const days = Number(slowDays);
-
-                                if (
-                                    Number.isInteger(days) &&
-                                    days >= 1 &&
-                                    days <= 365
-                                ) {
-                                    showList({ ...filters, slow_days: days });
-                                }
-                            }}
-                        >
-                            <span className="font-bold">No sales for</span>
-                            <input
-                                value={slowDays}
-                                onChange={(event) =>
-                                    setSlowDays(
-                                        wholeNumberInput(
-                                            event.target.value,
-                                            365,
-                                        ),
-                                    )
-                                }
-                                inputMode="numeric"
-                                className="h-9 w-16 rounded-lg border border-red-200 bg-white px-2 text-right text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-red-100"
-                                aria-label="Days without sales"
-                            />
-                            <span className="font-bold">days</span>
-                            <button
-                                type="submit"
-                                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white hover:bg-red-700"
-                            >
-                                Show
+                                <TriangleAlert size={14} />
+                                Low stock
+                                <span
+                                    className={`rounded-full px-1.5 text-[11px] font-black ${
+                                        filters.stock === 'low'
+                                            ? 'bg-white/25'
+                                            : 'bg-amber-100'
+                                    }`}
+                                >
+                                    {lowStockCount.toLocaleString('en-PH')}
+                                </span>
                             </button>
-                        </form>
-                    </section>
-                )}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    showList({
+                                        ...filters,
+                                        stock:
+                                            filters.stock === 'slow'
+                                                ? null
+                                                : 'slow',
+                                    })
+                                }
+                                aria-pressed={filters.stock === 'slow'}
+                                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                    filters.stock === 'slow'
+                                        ? 'bg-red-500 text-white'
+                                        : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                }`}
+                            >
+                                <Hourglass size={14} />
+                                Slow-moving
+                                <span
+                                    className={`rounded-full px-1.5 text-[11px] font-black ${
+                                        filters.stock === 'slow'
+                                            ? 'bg-white/25'
+                                            : 'bg-red-100'
+                                    }`}
+                                >
+                                    {slowMovingCount.toLocaleString('en-PH')}
+                                </span>
+                            </button>
+                        </div>
+                        {filters.stock === 'slow' && (
+                            <section className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm text-red-900 md:flex-row md:items-center md:justify-between">
+                                <p className="leading-6">
+                                    <b>Slow-moving:</b> Available products in
+                                    stock that first arrived at least this many
+                                    days ago and sold nothing since. Put them on
+                                    sale to clear them. Until students can buy
+                                    through PROWARE, nothing has sales yet, so
+                                    this lists items in stock that long.
+                                </p>
+                                <form
+                                    className="flex shrink-0 items-center gap-2"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        const days = Number(slowDays);
 
-                <Panel
-                    title="All Products"
-                    description="Most recently changed first."
-                >
+                                        if (
+                                            Number.isInteger(days) &&
+                                            days >= 1 &&
+                                            days <= 365
+                                        ) {
+                                            showList({
+                                                ...filters,
+                                                slow_days: days,
+                                            });
+                                        }
+                                    }}
+                                >
+                                    <span className="font-bold">
+                                        No sales for
+                                    </span>
+                                    <input
+                                        value={slowDays}
+                                        onChange={(event) =>
+                                            setSlowDays(
+                                                wholeNumberInput(
+                                                    event.target.value,
+                                                    365,
+                                                ),
+                                            )
+                                        }
+                                        inputMode="numeric"
+                                        className="h-9 w-16 rounded-lg border border-red-200 bg-white px-2 text-right text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-red-100"
+                                        aria-label="Days without sales"
+                                    />
+                                    <span className="font-bold">days</span>
+                                    <button
+                                        type="submit"
+                                        className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white hover:bg-red-700"
+                                    >
+                                        Show
+                                    </button>
+                                </form>
+                            </section>
+                        )}
+                    </div>
                     {products.data.length === 0 ? (
                         <div className="px-6 py-16 text-center">
                             <Package
@@ -410,7 +417,7 @@ export default function ProductsIndex({
                     ) : (
                         <>
                             <TableScroll stickyActions>
-                                <table className="w-full min-w-225">
+                                <table className="w-full min-w-200">
                                     <thead className="bg-slate-50">
                                         <tr>
                                             <TableHeading>Product</TableHeading>
@@ -420,12 +427,6 @@ export default function ProductsIndex({
                                             </TableHeading>
                                             <TableHeading align="right">
                                                 Stock
-                                            </TableHeading>
-                                            <TableHeading align="right">
-                                                No. of Variants
-                                            </TableHeading>
-                                            <TableHeading>
-                                                Last Updated
                                             </TableHeading>
                                             <TableHeading align="right">
                                                 Actions
@@ -438,29 +439,34 @@ export default function ProductsIndex({
                                                 key={product.id}
                                                 className="border-t border-slate-100"
                                             >
-                                                <td className="px-5 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 text-slate-300">
-                                                            {product.photo_url ? (
-                                                                <img
-                                                                    src={
-                                                                        product.photo_url
-                                                                    }
-                                                                    alt=""
-                                                                    className="h-full w-full object-cover"
-                                                                />
-                                                            ) : (
-                                                                <ImageIcon
-                                                                    size={22}
-                                                                />
+                                                <td className="px-5 py-3.5">
+                                                    <p className="font-black text-slate-900">
+                                                        {product.name}
+                                                    </p>
+                                                    <p className="mt-0.5 text-xs text-slate-500">
+                                                        {product.variants_count}{' '}
+                                                        {product.variants_count ===
+                                                        1
+                                                            ? 'variant'
+                                                            : 'variants'}
+                                                        {product.updated_at &&
+                                                            ` · updated ${formatDateOrdered(product.updated_at)}`}
+                                                    </p>
+                                                    {filters.stock ===
+                                                        'slow' && (
+                                                        <p className="mt-0.5 text-xs text-slate-500">
+                                                            In stock since{' '}
+                                                            {formatDateOrdered(
+                                                                product.first_received_at,
                                                             )}
-                                                        </div>
-                                                        <span className="font-black text-slate-900">
-                                                            {product.name}
-                                                        </span>
-                                                    </div>
+                                                            {' · '}
+                                                            {product.last_sale_at
+                                                                ? `last sale ${formatDateOrdered(product.last_sale_at)}`
+                                                                : 'no sales yet'}
+                                                        </p>
+                                                    )}
                                                 </td>
-                                                <td className="px-5 py-4">
+                                                <td className="px-5 py-3.5">
                                                     <ProductStatusBadge
                                                         status={product.status}
                                                         label={
@@ -468,39 +474,28 @@ export default function ProductsIndex({
                                                         }
                                                     />
                                                     {product.sale_ends_at && (
-                                                        <p className="mt-1 text-xs font-bold text-red-700">
+                                                        <p className="mt-1 text-xs font-bold whitespace-nowrap text-red-700">
                                                             until{' '}
-                                                            {formatDateTime(
+                                                            {formatDateOrdered(
                                                                 product.sale_ends_at,
                                                             )}
                                                         </p>
                                                     )}
-                                                    {filters.stock ===
-                                                        'slow' && (
-                                                        <p className="mt-1 text-xs text-slate-500">
-                                                            In stock since{' '}
-                                                            {formatDateTime(
-                                                                product.first_received_at,
-                                                            )}
-                                                            {' · '}
-                                                            {product.last_sale_at
-                                                                ? `last sale ${formatDateTime(product.last_sale_at)}`
-                                                                : 'no sales yet'}
-                                                        </p>
-                                                    )}
                                                 </td>
-                                                <td className="px-5 py-4 text-right">
+                                                <td className="px-5 py-3.5 text-right">
                                                     <StudentPrice
                                                         product={product}
                                                     />
                                                 </td>
-                                                <td className="px-5 py-4 text-right">
+                                                <td className="px-5 py-3.5 text-right whitespace-nowrap">
                                                     <span
                                                         className={`text-base font-black ${
-                                                            product.stock_on_hand >
-                                                            0
-                                                                ? 'text-slate-900'
-                                                                : 'text-slate-400'
+                                                            product.low_stock
+                                                                ? 'text-amber-700'
+                                                                : product.stock_on_hand >
+                                                                    0
+                                                                  ? 'text-slate-900'
+                                                                  : 'text-slate-400'
                                                         }`}
                                                     >
                                                         {product.stock_on_hand.toLocaleString(
@@ -511,83 +506,28 @@ export default function ProductsIndex({
                                                         pcs
                                                     </span>
                                                     {product.low_stock && (
-                                                        <span
-                                                            className="mt-1 flex justify-end"
-                                                            title={`A variant is at or below ${product.low_stock_alert_at} pcs`}
+                                                        <p
+                                                            className="mt-0.5 flex items-center justify-end gap-1 text-xs font-black text-amber-700"
+                                                            title={`A size or color is at or below ${product.low_stock_alert_at} pcs`}
                                                         >
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">
-                                                                <TriangleAlert
-                                                                    size={12}
-                                                                />
-                                                                Low stock
-                                                            </span>
-                                                        </span>
+                                                            <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                                            Low
+                                                        </p>
                                                     )}
                                                 </td>
-                                                <td className="px-5 py-4 text-right text-sm font-black text-slate-800">
-                                                    {product.variants_count}
-                                                </td>
-                                                <td className="px-5 py-4 text-sm text-slate-500">
-                                                    {formatDateTime(
-                                                        product.updated_at,
-                                                    )}
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Link
-                                                            href={ProductStockController.index(
+                                                <td className="px-5 py-3.5 text-right">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            openDetails(
                                                                 product.id,
-                                                            )}
-                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3.5 text-sm font-black text-slate-700 transition hover:bg-slate-100"
-                                                        >
-                                                            <Boxes size={15} />
-                                                            Stock
-                                                        </Link>
-                                                        {(product.status ===
-                                                            'on_sale' ||
-                                                            (product.status ===
-                                                                'available' &&
-                                                                product.stock_on_hand >
-                                                                    0)) && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    setSelling(
-                                                                        product.id,
-                                                                    )
-                                                                }
-                                                                className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 text-sm font-black text-red-700 transition hover:bg-red-100"
-                                                            >
-                                                                <Flame
-                                                                    size={15}
-                                                                />
-                                                                {product.status ===
-                                                                'on_sale'
-                                                                    ? 'Change sale'
-                                                                    : 'Put on Sale'}
-                                                            </button>
-                                                        )}
-                                                        {product.status ===
-                                                            'on_sale' && (
-                                                            <EndSaleButton
-                                                                productId={
-                                                                    product.id
-                                                                }
-                                                                productName={
-                                                                    product.name
-                                                                }
-                                                            />
-                                                        )}
-                                                        <Link
-                                                            href={ProductController.edit(
-                                                                product.id,
-                                                            )}
-                                                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                                                        >
-                                                            <Pencil size={15} />
-                                                            Edit
-                                                        </Link>
-                                                    </div>
+                                                            )
+                                                        }
+                                                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                                    >
+                                                        <Eye size={15} />
+                                                        View Details
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -603,6 +543,21 @@ export default function ProductsIndex({
                     )}
                 </Panel>
             </div>
+
+            <ProductDetailsDialog
+                product={viewing}
+                // Another product's details (from before) count as loading.
+                details={
+                    details === null || details?.id === viewingId
+                        ? details
+                        : undefined
+                }
+                onClose={() => setViewingId(null)}
+                onPutOnSale={(productId) => {
+                    setViewingId(null);
+                    setSelling(productId);
+                }}
+            />
 
             <PutOnSaleDialog
                 productId={selling}

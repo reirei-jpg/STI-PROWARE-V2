@@ -353,6 +353,27 @@ test('the list can be searched by name and filtered by status', function () {
         );
 });
 
+test('a product\'s View Details shows each size with its stock, held pieces and price, only when asked', function () {
+    $product = Product::factory()->create(['name' => 'BSIT Polo', 'status' => ProductStatus::Available, 'price_centavos' => 48000, 'low_stock_alert_at' => 5]);
+    ProductVariant::factory()->for($product)->create(['combination' => 'Size: S', 'choices' => [['option' => 'Size', 'choice' => 'S']], 'stock_on_hand' => 6, 'held_pieces' => 2, 'position' => 1]);
+    ProductVariant::factory()->for($product)->create(['combination' => 'Size: M', 'choices' => [['option' => 'Size', 'choice' => 'M']], 'stock_on_hand' => 9, 'price_centavos' => 50000, 'position' => 2]);
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->get(route('products.index', ['details' => $product->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('details')
+            ->reloadOnly('details', fn (Assert $reload) => $reload
+                ->where('details.name', 'BSIT Polo')
+                ->where('details.low_stock_alert_at', 5)
+                ->has('details.variants', 2)
+                ->where('details.variants.0.label', 'S')
+                ->where('details.variants.0.held_pieces', 2)
+                ->where('details.variants.0.free_to_sell', 4)
+                ->where('details.variants.0.price_centavos', 48000)
+                ->where('details.variants.1.price_centavos', 50000)
+                ->where('details.variants.1.sale_price_centavos', null)));
+});
+
 test('packs are saved, and a variant can say Head Office sends it by a pack', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('products.store'), productForm([

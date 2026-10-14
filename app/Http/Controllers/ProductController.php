@@ -117,7 +117,48 @@ class ProductController extends Controller
                 ->distinct()
                 ->count('item_code'),
             'itemsToSplitCount' => LinkedItems::waitingToSplit()->count(),
+            'details' => Inertia::optional(fn (): ?array => $request->filled('details') ? $this->details($request->integer('details')) : null),
         ]);
+    }
+
+    /**
+     * One product for its View Details popup: its status, sale end, the
+     * low-stock number, and each size or color with its stock, what is held
+     * for open orders, what is free to sell, and its price.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function details(int $productId): ?array
+    {
+        $product = Product::query()
+            ->with(['variants' => fn ($variants) => $variants->orderBy('position')->orderBy('id')])
+            ->find($productId);
+
+        if ($product === null) {
+            return null;
+        }
+
+        $onSale = $product->status === ProductStatus::OnSale;
+
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'status' => $product->status->value,
+            'status_label' => $product->status->label(),
+            'sale_ends_at' => $onSale ? $product->sale_ends_at?->toIso8601String() : null,
+            'low_stock_alert_at' => $product->low_stock_alert_at,
+            'watched_for_low_stock' => LowStockAlerts::isSold($product),
+            'updated_at' => $product->updated_at?->toIso8601String(),
+            'variants' => $product->variants->map(fn (ProductVariant $variant): array => [
+                'id' => $variant->id,
+                'label' => $variant->choices === [] ? null : $variant->label(),
+                'stock_on_hand' => $variant->stock_on_hand,
+                'held_pieces' => $variant->held_pieces,
+                'free_to_sell' => $variant->freeToSell(),
+                'price_centavos' => $variant->price_centavos ?? $product->price_centavos,
+                'sale_price_centavos' => $onSale ? ($variant->sale_price_centavos ?? $product->sale_price_centavos) : null,
+            ])->values()->all(),
+        ];
     }
 
     /**
