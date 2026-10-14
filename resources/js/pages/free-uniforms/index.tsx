@@ -1,7 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
-    CalendarDays,
     Download,
     Eye,
     Gift,
@@ -124,13 +123,25 @@ export default function FreeUniformsIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Free Uniforms (Promo)"
-                    description={`Students who enroll together in a group of at least ${summary.group_size} each get one uniform set for free: a blouse or polo, and pants. The pieces leave stock as Free (promo), never as a sale.`}
+                    description={`Students who enroll together (${summary.group_size} or more) each get one free set: a top and pants.`}
                     actions={
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 lg:flex-nowrap">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    sets.length === 0
+                                        ? setManagingSets(true)
+                                        : setRecording(true)
+                                }
+                                className={`${primaryButtonClasses} whitespace-nowrap`}
+                            >
+                                <Plus size={18} />
+                                Record a group
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setManagingSets(true)}
-                                className={secondaryButtonClasses}
+                                className={`${secondaryButtonClasses} whitespace-nowrap`}
                             >
                                 <Shirt size={17} />
                                 Uniform sets
@@ -143,49 +154,22 @@ export default function FreeUniformsIndex({
                                             : {},
                                     }).url
                                 }
-                                className={secondaryButtonClasses}
+                                className={`${secondaryButtonClasses} whitespace-nowrap`}
                             >
                                 <Download size={17} />
                                 Download for Excel
                             </a>
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    sets.length === 0
-                                        ? setManagingSets(true)
-                                        : setRecording(true)
-                                }
-                                className={primaryButtonClasses}
-                            >
-                                <Plus size={18} />
-                                Record a group
-                            </button>
                         </div>
                     }
                 />
 
-                <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <SummaryCard
-                        icon={CalendarDays}
-                        tone="blue"
-                        label="This month"
-                        value={summary.this_month}
-                        detail={
-                            summary.this_month === 1
-                                ? 'student given a set'
-                                : 'students given a set'
-                        }
-                    />
+                <section className="grid gap-4 sm:grid-cols-3">
                     <SummaryCard
                         icon={Gift}
                         tone="green"
-                        label="All students"
+                        label="Free sets given"
                         value={summary.students}
-                        detail={
-                            summary.students === 1
-                                ? 'free set given'
-                                : 'free sets given'
-                        }
+                        detail={`${summary.this_month.toLocaleString('en-PH')} this month`}
                     />
                     <SummaryCard
                         icon={Users}

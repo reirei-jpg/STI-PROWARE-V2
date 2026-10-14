@@ -68,10 +68,11 @@ export default function FreeUniformGroupDialog({
                                         {formatDateOrdered(details.enrolled_on)}
                                     </DialogTitle>
                                     <DialogDescription className="text-sm text-slate-500">
-                                        {details.students.length} students ·
+                                        {setsSummary(details.students)} ·
                                         recorded by {details.recorded_by} ·{' '}
                                         {formatDateTime(details.recorded_at)}
                                     </DialogDescription>
+                                    <GroupStatus students={details.students} />
                                 </div>
                             </div>
                             <DialogClose className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
@@ -91,7 +92,9 @@ export default function FreeUniformGroupDialog({
                                     <thead className="bg-slate-50">
                                         <tr>
                                             <TableHeading>Student</TableHeading>
-                                            <TableHeading>Set</TableHeading>
+                                            {mixedSets(details.students) && (
+                                                <TableHeading>Set</TableHeading>
+                                            )}
                                             <TableHeading>Top</TableHeading>
                                             <TableHeading>Pants</TableHeading>
                                         </tr>
@@ -102,11 +105,20 @@ export default function FreeUniformGroupDialog({
                                                 key={student.id}
                                                 groupId={details.id}
                                                 student={student}
+                                                showSet={mixedSets(
+                                                    details.students,
+                                                )}
                                             />
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+
+                        <div className="flex justify-end border-t border-slate-100 bg-slate-50/60 px-6 py-3">
+                            <DialogClose className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
+                                Close
+                            </DialogClose>
                         </div>
                     </>
                 )}
@@ -115,12 +127,54 @@ export default function FreeUniformGroupDialog({
     );
 }
 
+/** "BSIT set × 5", or "BSIT × 3 · BSHM × 2" when the group has several sets. */
+function setsSummary(students: Student[]): string {
+    const counts = new Map<string, number>();
+
+    for (const student of students) {
+        counts.set(student.set_name, (counts.get(student.set_name) ?? 0) + 1);
+    }
+
+    if (counts.size === 1) {
+        const [[name, count]] = [...counts];
+
+        return `${name} set × ${count}`;
+    }
+
+    return [...counts].map(([name, count]) => `${name} × ${count}`).join(' · ');
+}
+
+function mixedSets(students: Student[]): boolean {
+    return new Set(students.map((student) => student.set_name)).size > 1;
+}
+
+/** All given, or how many students still wait for a piece. */
+function GroupStatus({ students }: { students: Student[] }) {
+    const waiting = students.filter(
+        (student) => !student.top.given || !student.pants.given,
+    ).length;
+
+    return waiting === 0 ? (
+        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-200">
+            <CheckCircle2 size={13} />
+            All given
+        </span>
+    ) : (
+        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-800 ring-1 ring-amber-200">
+            <Hourglass size={13} />
+            {waiting} {waiting === 1 ? 'student' : 'students'} still to give
+        </span>
+    );
+}
+
 function StudentRow({
     groupId,
     student,
+    showSet,
 }: {
     groupId: number;
     student: Student;
+    showSet: boolean;
 }) {
     const owed = !student.top.given || !student.pants.given;
 
@@ -135,9 +189,11 @@ function StudentRow({
                             ` · ${student.course_section}`}
                     </p>
                 </td>
-                <td className="px-5 py-4 font-bold text-slate-700">
-                    1 {student.set_name} set
-                </td>
+                {showSet && (
+                    <td className="px-5 py-4 font-bold text-slate-700">
+                        {student.set_name}
+                    </td>
+                )}
                 <td className="px-5 py-4">
                     <PieceStatus piece={student.top} />
                 </td>
@@ -147,7 +203,7 @@ function StudentRow({
             </tr>
             {owed && (
                 <tr className="bg-amber-50/50">
-                    <td colSpan={4} className="px-5 pb-4">
+                    <td colSpan={showSet ? 4 : 3} className="px-5 pb-4">
                         <GiveRest groupId={groupId} student={student} />
                     </td>
                 </tr>
@@ -156,8 +212,21 @@ function StudentRow({
     );
 }
 
-/** "Polo M" with Given, or Still to give. */
+/** "Polo M ✓" when given; "Polo M" with Still to give when not. */
 function PieceStatus({ piece }: { piece: FreeUniformPiece }) {
+    if (piece.given) {
+        return (
+            <p className="inline-flex items-center gap-1.5 font-bold text-slate-800">
+                {piece.name} {piece.size}
+                <CheckCircle2
+                    size={15}
+                    className="text-emerald-600"
+                    aria-label="Given"
+                />
+            </p>
+        );
+    }
+
     return (
         <div>
             <p className="font-bold text-slate-800">
@@ -165,16 +234,11 @@ function PieceStatus({ piece }: { piece: FreeUniformPiece }) {
             </p>
             <p
                 className={cn(
-                    'mt-0.5 inline-flex items-center gap-1 text-xs font-black',
-                    piece.given ? 'text-emerald-700' : 'text-amber-700',
+                    'mt-0.5 inline-flex items-center gap-1 text-xs font-black text-amber-700',
                 )}
             >
-                {piece.given ? (
-                    <CheckCircle2 size={13} />
-                ) : (
-                    <Hourglass size={13} />
-                )}
-                {piece.given ? 'Given' : 'Still to give'}
+                <Hourglass size={13} />
+                Still to give
             </p>
         </div>
     );

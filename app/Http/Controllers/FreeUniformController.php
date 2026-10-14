@@ -9,6 +9,7 @@ use App\Http\Requests\GiveRestOfFreeUniformRequest;
 use App\Http\Requests\RecordFreeUniformGroupRequest;
 use App\Models\FreeUniformStudent;
 use App\Services\FreeUniforms\FreeUniformScreens;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -99,7 +100,7 @@ class FreeUniformController extends Controller
             foreach ($rows as $row) {
                 fputcsv($file, [
                     $row['group_id'],
-                    $row['enrolled_on'],
+                    CarbonImmutable::parse($row['enrolled_on'])->format('M j, Y'),
                     $row['name'],
                     $row['enrollment_form_number'],
                     $row['course_section'] ?? '',

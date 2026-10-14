@@ -293,7 +293,7 @@ test('the list downloads as a CSV for Excel', function () {
     $csv = $this->get(route('free-uniforms.export'))->assertOk()->streamedContent();
 
     expect($csv)->toContain('"Group #","Date Enrolled",Student,"Enrollment Form #","Course / Section",Set,Top,"Top Given",Pants,"Pants Given","Recorded By"')
-        ->toContain('2026-10-09,"Student 1",2026-01,"BSIT 1A",BSIT,"Polo M",Given,"Pants 30",Given,"Carlo Mendoza"');
+        ->toContain('"Oct 9, 2026","Student 1",2026-01,"BSIT 1A",BSIT,"Polo M",Given,"Pants 30",Given,"Carlo Mendoza"');
 });
 
 test('only the Specialist records free uniforms', function () {
