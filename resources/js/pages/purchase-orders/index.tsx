@@ -401,7 +401,7 @@ export default function PurchaseOrdersIndex({
                         </div>
                     ) : (
                         <>
-                            <TableScroll>
+                            <TableScroll stickyActions>
                                 <table className="w-full min-w-220">
                                     <thead className="bg-slate-50">
                                         <tr>

@@ -69,19 +69,25 @@ export function TableHeading({
  * The box around a long list's table: it fits the screen and scrolls inside,
  * so the column headings stay at the top and the sideways scrollbar is
  * always in view, without scrolling down to the end of the list first.
+ * With stickyActions, the last column (the row's buttons) stays pinned on
+ * the right and its buttons keep to one line, so they are always seen.
  */
 export function TableScroll({
     children,
     className,
+    stickyActions = false,
 }: {
     children: ReactNode;
     className?: string;
+    stickyActions?: boolean;
 }) {
     return (
         <div
             className={cn(
                 'max-h-[70vh] overflow-auto overscroll-x-contain',
                 '[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-slate-50 [&_thead_th]:shadow-[inset_0_-1px_0_var(--color-slate-200)]',
+                stickyActions &&
+                    '[&_tbody_td:last-child]:bg-white [&_tbody_td:last-child]:shadow-[inset_1px_0_0_var(--color-slate-100)] [&_td:last-child_a]:whitespace-nowrap [&_td:last-child_button]:whitespace-nowrap [&_thead_th:last-child]:z-20 [&_tr>*:last-child]:sticky [&_tr>*:last-child]:right-0',
                 className,
             )}
         >

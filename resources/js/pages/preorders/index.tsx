@@ -241,7 +241,7 @@ export default function PreordersIndex({
                         </div>
                     ) : (
                         <>
-                            <TableScroll>
+                            <TableScroll stickyActions>
                                 <table className="w-full min-w-225">
                                     <thead className="bg-slate-50">
                                         <tr>

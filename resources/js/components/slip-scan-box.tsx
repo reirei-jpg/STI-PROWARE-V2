@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Camera, QrCode, Search } from 'lucide-react';
+import { Camera, FileText, QrCode, Search } from 'lucide-react';
 import { useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CameraScanDialog from '@/components/camera-scan-dialog';
@@ -66,8 +66,9 @@ export default function SlipScanBox({
                 <button
                     type="submit"
                     disabled={code.trim() === ''}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-5 text-sm font-black text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:opacity-70"
                 >
+                    <FileText size={17} />
                     Open slip
                 </button>
                 <button

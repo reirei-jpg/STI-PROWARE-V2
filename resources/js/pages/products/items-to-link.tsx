@@ -212,7 +212,7 @@ export default function ItemsToLink({
                         </div>
                     ) : (
                         <>
-                            <TableScroll>
+                            <TableScroll stickyActions>
                                 <table className="w-full min-w-250">
                                     <thead className="bg-slate-50">
                                         <tr>
