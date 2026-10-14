@@ -162,13 +162,13 @@ export default function SchoolAdminOverview({
                             >
                                 {cards.completed_short === 0
                                     ? 'all fully delivered'
-                                    : `incl. ${cards.completed_short} closed short`}
+                                    : `incl. ${cards.completed_short} with some missing`}
                             </OverviewCard>
                         </section>
 
                         <ActivityPanel
                             title="Recent purchase orders"
-                            description="Uploaded by the Specialist, and orders closed short, newest first. Open one to see its items and Delivery History."
+                            description="Uploaded by the Specialist, and orders where the rest won't arrive, newest first. Open one to see its items and Delivery History."
                             empty="No purchase order uploaded yet."
                             events={overview.purchase_order_activity}
                             seeAllLabel="All purchase orders"

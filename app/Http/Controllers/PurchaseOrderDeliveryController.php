@@ -40,7 +40,7 @@ class PurchaseOrderDeliveryController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Order #{$purchaseOrder->order_number} was closed as Completed (short).",
+            'message' => "Order #{$purchaseOrder->order_number} is now Completed (some missing).",
         ]);
 
         return back();

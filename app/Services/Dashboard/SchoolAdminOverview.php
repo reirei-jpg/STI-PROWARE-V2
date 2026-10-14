@@ -113,7 +113,7 @@ final class SchoolAdminOverview
                 at: $order->closed_at,
                 by: $order->closer?->name,
                 purchaseOrderId: $order->id,
-                title: 'Closed short'.self::number($order->order_number),
+                title: 'Completed (some missing)'.self::number($order->order_number),
                 detail: '"'.$order->closed_reason.'" · '.$order->percentReceived().'% received',
             ));
 

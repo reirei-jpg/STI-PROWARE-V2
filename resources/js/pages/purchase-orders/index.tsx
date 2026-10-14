@@ -49,7 +49,7 @@ const statusChips: { value: DeliveryStatus | null; label: string }[] = [
     { value: 'awaiting', label: 'Awaiting Delivery' },
     { value: 'partially_received', label: 'Partially Received' },
     { value: 'completed', label: 'Completed' },
-    { value: 'completed_short', label: 'Completed (short)' },
+    { value: 'completed_short', label: 'Completed (some missing)' },
 ];
 
 const sortOptions: { value: PurchaseOrderSort; label: string }[] = [

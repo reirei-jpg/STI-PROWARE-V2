@@ -168,7 +168,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-amber-800">
-                    Closed short
+                    Completed (some missing)
                     {data.order_number ? `: Order #${data.order_number}` : ''}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">

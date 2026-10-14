@@ -136,7 +136,7 @@ export default function PurchaseOrderDetailsDialog({
                                     className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
                                 >
                                     <Ban size={16} />
-                                    Close order (short)
+                                    Rest won&apos;t arrive
                                 </button>
                             </>
                         )}
@@ -229,7 +229,7 @@ export default function PurchaseOrderDetailsDialog({
                                 {details.closed_reason && (
                                     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                                         <p className="font-black">
-                                            Closed as Completed (short)
+                                            Completed (some missing)
                                             {details.closed_by &&
                                                 ` by ${details.closed_by}`}
                                             {details.closed_at &&
@@ -411,8 +411,8 @@ function StockTarget({ item }: { item: PurchaseOrderItemDetails }) {
 }
 
 /**
- * Closing an order short, with the reason, when Head Office says the rest
- * will not be delivered.
+ * Marking that the rest of an order will not arrive (Completed, some
+ * missing), with the reason, when Head Office says so.
  */
 function CloseShortForm({
     details,
@@ -430,15 +430,17 @@ function CloseShortForm({
             {({ processing, errors }) => (
                 <>
                     <p className="text-sm font-black text-red-800">
-                        Close this order even though{' '}
                         {(
                             details.quantity_ordered_total -
                             details.quantity_received_total
                         ).toLocaleString('en-PH')}{' '}
-                        (as ordered on the eStore) have not arrived?
+                        (as ordered on the eStore) have not arrived. Will the
+                        rest not come?
                     </p>
                     <p className="mt-0.5 text-sm text-red-700">
-                        It will show as Completed (short) with your reason.
+                        Use this when Head Office says the rest will not be
+                        delivered. The order becomes Completed (some missing),
+                        with your reason.
                     </p>
                     <label className="mt-3 grid gap-1.5">
                         <span className="text-sm font-black text-slate-700">
@@ -473,7 +475,7 @@ function CloseShortForm({
                                     className="animate-spin"
                                 />
                             )}
-                            Close order
+                            Yes, rest won&apos;t arrive
                         </button>
                     </div>
                 </>

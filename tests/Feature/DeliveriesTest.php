@@ -183,7 +183,7 @@ test('an order can be closed short with a reason', function () {
     $this->post(route('deliveries.store'), [
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-04'), 'quantity_received' => 1]],
-    ])->assertSessionHasErrors(['items.0.quantity_received' => 'Order #30650 is already Completed (short).']);
+    ])->assertSessionHasErrors(['items.0.quantity_received' => 'Order #30650 is already Completed (some missing).']);
 });
 
 test('the list puts orders still waiting first, the oldest at the top, and can be filtered by delivery status', function () {

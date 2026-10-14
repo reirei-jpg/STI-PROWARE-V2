@@ -25,7 +25,7 @@ enum DeliveryStatus: string
             self::Awaiting => 'Awaiting Delivery',
             self::PartiallyReceived => 'Partially Received',
             self::Completed => 'Completed',
-            self::CompletedShort => 'Completed (short)',
+            self::CompletedShort => 'Completed (some missing)',
         };
     }
 

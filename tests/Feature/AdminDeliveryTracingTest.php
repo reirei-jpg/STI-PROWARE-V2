@@ -104,7 +104,7 @@ test('the school admin dashboard traces uploads, deliveries and short closes', f
                 'recorded_by' => ['Carlo Mendoza'],
             ])
             ->where('overview.purchase_order_activity.0.kind', 'closed_short')
-            ->where('overview.purchase_order_activity.0.title', 'Closed short · Order #30722')
+            ->where('overview.purchase_order_activity.0.title', 'Completed (some missing) · Order #30722')
             ->where('overview.purchase_order_activity.0.by', 'Carlo Mendoza')
             ->where('overview.purchase_order_activity.1.kind', 'upload')
             ->has('overview.purchase_order_activity', 4)
