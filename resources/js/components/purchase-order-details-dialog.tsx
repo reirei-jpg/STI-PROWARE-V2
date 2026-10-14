@@ -1,5 +1,14 @@
 import { Form, Link, useHttp, usePage } from '@inertiajs/react';
-import { Ban, ClipboardList, LoaderCircle, Truck, X } from 'lucide-react';
+import {
+    Ban,
+    CircleAlert,
+    ClipboardList,
+    History,
+    LoaderCircle,
+    Package,
+    Truck,
+    X,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
@@ -17,14 +26,19 @@ import {
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatConversion, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
-import type { OrderDeliveryRecord, PurchaseOrderDetails } from '@/types';
+import type {
+    OrderDeliveryRecord,
+    PurchaseOrderDetails,
+    PurchaseOrderItemDetails,
+} from '@/types';
+
+type Tab = 'items' | 'deliveries';
 
 /**
- * The pop-up window with every detail of one purchase order: the header
- * from the eStore document, who uploaded it, and all ordered items.
- * The details are loaded when the window opens.
- *
- * Every section uses the same side padding (px-8) so the edges line up.
+ * The pop-up window with one purchase order, as a back-office record: the
+ * order number with its category and the Specialist's actions on top, one
+ * row of key facts, then the ordered items and the delivery history in two
+ * tabs. The details are loaded when the window opens.
  */
 export default function PurchaseOrderDetailsDialog({
     purchaseOrderId,
@@ -38,6 +52,8 @@ export default function PurchaseOrderDetailsDialog({
     const http = useHttp<Record<string, never>, PurchaseOrderDetails>({});
     const [details, setDetails] = useState<PurchaseOrderDetails | null>(null);
     const [failed, setFailed] = useState(false);
+    const [tab, setTab] = useState<Tab>('items');
+    const [closing, setClosing] = useState(false);
 
     useEffect(() => {
         if (purchaseOrderId === null) {
@@ -46,6 +62,8 @@ export default function PurchaseOrderDetailsDialog({
 
         setDetails(null);
         setFailed(false);
+        setTab('items');
+        setClosing(false);
 
         void http
             .get(PurchaseOrderController.show(purchaseOrderId).url, {
@@ -66,481 +84,486 @@ export default function PurchaseOrderDetailsDialog({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [purchaseOrderId]);
 
+    const isOpen =
+        details !== null &&
+        (details.delivery_status === 'awaiting' ||
+            details.delivery_status === 'partially_received');
+
     return (
         <Dialog
             open={purchaseOrderId !== null}
             onOpenChange={(open) => !open && onClose()}
         >
-            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-6xl [&>button:last-child]:hidden">
-                <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-8 py-6">
-                    <div>
-                        <p className="text-sm font-black tracking-wide text-blue-600 uppercase">
+            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-5xl [&>button:last-child]:hidden">
+                <header className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                        <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
                             eStore Purchase Order
                         </p>
-                        <DialogTitle className="mt-1 text-2xl font-black text-slate-900">
-                            {details
-                                ? details.order_number
-                                    ? `Order #${details.order_number}`
-                                    : `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
-                                : 'Purchase Order Details'}
-                        </DialogTitle>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <DialogTitle className="text-xl font-black text-slate-900">
+                                {details
+                                    ? details.order_number
+                                        ? `Order #${details.order_number}`
+                                        : `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
+                                    : 'Purchase Order Details'}
+                            </DialogTitle>
+                            {details?.category && (
+                                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">
+                                    {details.category}
+                                </span>
+                            )}
+                        </div>
                         <DialogDescription className="sr-only">
                             Every detail of this purchase order
                         </DialogDescription>
                     </div>
 
-                    <DialogClose className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
-                        <X size={22} />
-                        <span className="sr-only">Close</span>
-                    </DialogClose>
-                </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                        {isSpecialist && isOpen && (
+                            <>
+                                <Link
+                                    href={DeliveryController.create()}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+                                >
+                                    <Truck size={16} />
+                                    Record Delivery
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => setClosing((open) => !open)}
+                                    aria-expanded={closing}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                >
+                                    <Ban size={16} />
+                                    Close order (short)
+                                </button>
+                            </>
+                        )}
+                        <DialogClose className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                            <X size={20} />
+                            <span className="sr-only">Close</span>
+                        </DialogClose>
+                    </div>
+                </header>
 
                 <div className="overflow-y-auto">
                     {failed ? (
-                        <div className="px-8 py-20 text-center">
+                        <div className="px-6 py-16 text-center">
                             <ClipboardList
-                                size={48}
+                                size={44}
                                 className="mx-auto text-slate-300"
                             />
-                            <p className="mt-4 text-lg font-black text-slate-800">
+                            <p className="mt-4 font-black text-slate-800">
                                 The details could not be loaded
                             </p>
-                            <p className="mt-2 text-base text-slate-500">
+                            <p className="mt-1 text-sm text-slate-500">
                                 Close this window and try again.
                             </p>
                         </div>
                     ) : !details ? (
-                        <div className="flex items-center justify-center gap-3 px-8 py-20 text-base font-semibold text-slate-500">
+                        <div className="flex items-center justify-center gap-3 px-6 py-16 text-sm font-semibold text-slate-500">
                             <LoaderCircle
-                                size={22}
+                                size={20}
                                 className="animate-spin text-blue-600"
                             />
                             Loading details...
                         </div>
                     ) : (
                         <>
-                            <dl className="grid auto-rows-fr gap-5 px-8 py-6 sm:grid-cols-2 lg:grid-cols-3">
-                                <Detail label="School">
-                                    {details.school ?? '—'}
-                                </Detail>
-                                <Detail label="Ordered by">
-                                    {details.ordered_by ?? '—'}
-                                </Detail>
-                                <Detail label="Date Ordered">
+                            <dl className="grid grid-cols-2 divide-slate-100 border-b border-slate-200 bg-slate-50/60 lg:grid-cols-4 lg:divide-x">
+                                <Fact label="Date Ordered">
                                     {formatDateOrdered(
                                         details.date_ordered,
                                         details.time_ordered,
                                     )}
-                                </Detail>
-                                <Detail label="Category">
-                                    {details.category ?? '—'}
-                                </Detail>
-                                <Detail label="Total Amount (Ordered)">
+                                </Fact>
+                                <Fact label="Total Amount">
                                     {formatPeso(details.total_amount_centavos)}
-                                </Detail>
-                                <Detail
-                                    label="Uploaded By"
+                                </Fact>
+                                <Fact
+                                    label="Uploaded by"
                                     note={formatDateTime(details.uploaded_at)}
                                 >
                                     {details.uploaded_by}
-                                </Detail>
+                                </Fact>
+                                <Fact label="Delivery">
+                                    <DeliveryProgress
+                                        progress={details}
+                                        className="w-full max-w-56"
+                                    />
+                                </Fact>
+                                {details.school && (
+                                    <Fact label="School">{details.school}</Fact>
+                                )}
+                                {details.ordered_by && (
+                                    <Fact label="Ordered by">
+                                        {details.ordered_by}
+                                    </Fact>
+                                )}
                             </dl>
 
-                            <DeliverySummary
-                                details={details}
-                                isSpecialist={isSpecialist}
-                            />
+                            <div className="space-y-3 px-6 pt-5">
+                                {isOpen && (
+                                    <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+                                        <CircleAlert
+                                            size={16}
+                                            className="mt-0.5 shrink-0"
+                                        />
+                                        <span>
+                                            <b>
+                                                Not complete yet · ordered{' '}
+                                                {details.days_since_ordered}{' '}
+                                                {details.days_since_ordered ===
+                                                1
+                                                    ? 'day'
+                                                    : 'days'}{' '}
+                                                ago.
+                                            </b>{' '}
+                                            Head Office gives no delivery date;
+                                            ask them if it takes too long.
+                                        </span>
+                                    </p>
+                                )}
 
-                            <div className="overflow-x-auto border-t border-slate-100">
-                                <table className="w-full min-w-225">
-                                    <thead className="bg-slate-50">
-                                        <tr>
-                                            <Heading>#</Heading>
-                                            <Heading>Item Code</Heading>
-                                            <Heading>Description</Heading>
-                                            <Heading right>
-                                                Stock on Hand (School)
-                                            </Heading>
-                                            <Heading right>QTY Ordered</Heading>
-                                            <Heading right>Received</Heading>
-                                            <Heading right>Remaining</Heading>
-                                            <Heading right>Unit Price</Heading>
-                                            <Heading right>Amount</Heading>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {details.items.map((item) => (
-                                            <tr
-                                                key={item.row_number}
-                                                className="border-t border-slate-100 text-base"
-                                            >
-                                                <Cell className="text-slate-500">
-                                                    {item.row_number}
-                                                </Cell>
-                                                <Cell className="font-mono font-black text-blue-700">
-                                                    {item.item_code}
-                                                </Cell>
-                                                <Cell className="font-semibold text-slate-900">
-                                                    {item.description}
-                                                    <span className="mt-1 block text-xs font-medium">
-                                                        {item.stock_target ? (
-                                                            <span className="text-emerald-700">
-                                                                Head Office
-                                                                sends it{' '}
-                                                                {item
-                                                                    .stock_target
-                                                                    .pieces_per_unit >
-                                                                1
-                                                                    ? `by the ${item.stock_target.unit_name} (${item.stock_target.pieces_per_unit.toLocaleString('en-PH')} pcs each)`
-                                                                    : 'by the piece'}{' '}
-                                                                · stock of{' '}
-                                                                {
-                                                                    item
-                                                                        .stock_target
-                                                                        .product_name
-                                                                }
-                                                                {item
-                                                                    .stock_target
-                                                                    .has_options &&
-                                                                    ` (${item.stock_target.variant_label})`}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-amber-700">
-                                                                Not linked to a
-                                                                product · as
-                                                                ordered on the
-                                                                eStore
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </Cell>
-                                                <Cell
-                                                    right
-                                                    className="text-slate-700"
-                                                >
-                                                    {item.stock_on_hand ?? '—'}
-                                                </Cell>
-                                                <Cell
-                                                    right
-                                                    className="font-black text-slate-800"
-                                                >
-                                                    <Quantity
-                                                        value={
-                                                            item.quantity_ordered
-                                                        }
-                                                        unitName={
-                                                            item.stock_target
-                                                                ?.unit_name
-                                                        }
-                                                    />
-                                                </Cell>
-                                                <Cell
-                                                    right
-                                                    className="font-black text-emerald-700"
-                                                >
-                                                    <Quantity
-                                                        value={
-                                                            item.quantity_received
-                                                        }
-                                                        unitName={
-                                                            item.stock_target
-                                                                ?.unit_name
-                                                        }
-                                                    />
-                                                </Cell>
-                                                <Cell
-                                                    right
-                                                    className={cn(
-                                                        'font-black',
-                                                        item.quantity_remaining >
-                                                            0
-                                                            ? 'text-amber-700'
-                                                            : 'text-slate-400',
-                                                    )}
-                                                >
-                                                    <Quantity
-                                                        value={
-                                                            item.quantity_remaining
-                                                        }
-                                                        unitName={
-                                                            item.stock_target
-                                                                ?.unit_name
-                                                        }
-                                                    />
-                                                </Cell>
-                                                <Cell
-                                                    right
-                                                    className="text-slate-700"
-                                                >
-                                                    {formatPeso(
-                                                        item.unit_price_centavos,
-                                                    )}
-                                                </Cell>
-                                                <Cell
-                                                    right
-                                                    className="font-black text-slate-900"
-                                                >
-                                                    {formatPeso(
-                                                        item.amount_centavos,
-                                                    )}
-                                                </Cell>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                {details.closed_reason && (
+                                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                                        <p className="font-black">
+                                            Closed as Completed (short)
+                                            {details.closed_by &&
+                                                ` by ${details.closed_by}`}
+                                            {details.closed_at &&
+                                                ` on ${formatDateTime(details.closed_at)}`}
+                                        </p>
+                                        <p className="mt-0.5">
+                                            Reason: {details.closed_reason}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {closing && (
+                                    <CloseShortForm
+                                        details={details}
+                                        onCancel={() => setClosing(false)}
+                                    />
+                                )}
                             </div>
 
-                            <DeliveryHistory deliveries={details.deliveries} />
+                            <div className="px-6 pt-5">
+                                <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                                    <TabButton
+                                        active={tab === 'items'}
+                                        icon={<Package size={16} />}
+                                        count={details.items.length}
+                                        onClick={() => setTab('items')}
+                                    >
+                                        Items
+                                    </TabButton>
+                                    <TabButton
+                                        active={tab === 'deliveries'}
+                                        icon={<History size={16} />}
+                                        count={details.deliveries.length}
+                                        onClick={() => setTab('deliveries')}
+                                    >
+                                        Delivery History
+                                    </TabButton>
+                                </div>
+                            </div>
+
+                            <div className="px-6 pt-4 pb-6">
+                                {tab === 'items' ? (
+                                    <ItemsTable details={details} />
+                                ) : (
+                                    <DeliveryHistory
+                                        deliveries={details.deliveries}
+                                    />
+                                )}
+                            </div>
                         </>
                     )}
                 </div>
 
-                <div className="flex justify-end border-t border-slate-100 px-8 py-5">
-                    <DialogClose className="rounded-xl border border-slate-200 bg-white px-6 py-3 text-base font-black text-slate-700 transition hover:bg-slate-50">
+                <footer className="flex justify-end border-t border-slate-200 bg-slate-50/60 px-6 py-3">
+                    <DialogClose className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
                         Close
                     </DialogClose>
-                </div>
+                </footer>
             </DialogContent>
         </Dialog>
     );
 }
 
 /**
- * How far the order's delivery has come, how long ago it was ordered while
- * it is not complete, why it was closed short (if it was), and the
- * Specialist's delivery actions.
+ * The ordered items as a compact table: the item (code, description and
+ * which product's stock it goes into), the quantities, the prices, and the
+ * total at the bottom.
  */
-function DeliverySummary({
-    details,
-    isSpecialist,
-}: {
-    details: PurchaseOrderDetails;
-    isSpecialist: boolean;
-}) {
-    const [closing, setClosing] = useState(false);
-    const isOpen =
-        details.delivery_status === 'awaiting' ||
-        details.delivery_status === 'partially_received';
-
+function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
     return (
-        <section className="border-t border-slate-100 px-8 py-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex flex-col gap-5 sm:flex-row sm:gap-10">
-                    <DeliveryProgress progress={details} className="w-64" />
-
-                    {isOpen && (
-                        <div>
-                            <p className="text-sm font-bold tracking-wide text-slate-400 uppercase">
-                                Not complete yet
-                            </p>
-                            <p className="mt-1 text-lg font-black text-slate-900">
-                                Ordered {details.days_since_ordered}{' '}
-                                {details.days_since_ordered === 1
-                                    ? 'day'
-                                    : 'days'}{' '}
-                                ago
-                            </p>
-                            <p className="mt-0.5 text-sm text-slate-500">
-                                Head Office gives no delivery date. Ask them if
-                                it is taking too long.
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                {isSpecialist && isOpen && (
-                    <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={DeliveryController.create()}
-                            className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700"
-                        >
-                            <Truck size={16} />
-                            Record Delivery
-                        </Link>
-                        <button
-                            type="button"
-                            onClick={() => setClosing((open) => !open)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
-                        >
-                            <Ban size={16} />
-                            Close order (short)
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {details.closed_reason && (
-                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
-                    <p className="font-black">
-                        Closed as Completed (short)
-                        {details.closed_by && ` by ${details.closed_by}`}
-                        {details.closed_at &&
-                            ` on ${formatDateTime(details.closed_at)}`}
-                    </p>
-                    <p className="mt-1">Reason: {details.closed_reason}</p>
-                </div>
-            )}
-
-            {closing && (
-                <Form
-                    {...PurchaseOrderDeliveryController.close.form(details.id)}
-                    options={{ preserveScroll: true }}
-                    className="mt-5 rounded-2xl border border-red-200 bg-red-50/60 p-5"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <p className="font-black text-red-800">
-                                Close this order even though{' '}
-                                {(
-                                    details.quantity_ordered_total -
-                                    details.quantity_received_total
-                                ).toLocaleString('en-PH')}{' '}
-                                (as ordered on the eStore) have not arrived?
-                            </p>
-                            <p className="mt-1 text-sm text-red-700">
-                                Use this when Head Office says the rest will not
-                                be delivered. The order will show as Completed
-                                (short) with your reason.
-                            </p>
-                            <label className="mt-4 grid gap-1.5">
-                                <span className="text-sm font-black text-slate-700">
-                                    Reason
-                                </span>
-                                <textarea
-                                    name="reason"
-                                    required
-                                    rows={3}
-                                    maxLength={500}
-                                    placeholder="e.g. Head Office said the M/L polos are out of stock and will not be delivered."
-                                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full min-w-200 text-sm">
+                <thead className="bg-slate-50">
+                    <tr>
+                        <Heading>Item</Heading>
+                        <Heading right>Ordered</Heading>
+                        <Heading right>Received</Heading>
+                        <Heading right>Remaining</Heading>
+                        <Heading right>Unit Price</Heading>
+                        <Heading right>Amount</Heading>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                    {details.items.map((item) => (
+                        <tr key={item.row_number} className="align-top">
+                            <td className="px-4 py-3">
+                                <p className="font-mono text-xs font-black text-blue-700">
+                                    {item.item_code}
+                                </p>
+                                <p className="font-semibold text-slate-900">
+                                    {item.description}
+                                </p>
+                                <StockTarget item={item} />
+                            </td>
+                            <NumberCell className="font-black text-slate-800">
+                                <Quantity
+                                    value={item.quantity_ordered}
+                                    unitName={item.stock_target?.unit_name}
                                 />
-                                <InputError message={errors.reason} />
-                            </label>
-                            <div className="mt-4 flex justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setClosing(false)}
-                                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60"
-                                >
-                                    {processing && (
-                                        <LoaderCircle
-                                            size={16}
-                                            className="animate-spin"
-                                        />
-                                    )}
-                                    Close order
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            )}
-        </section>
+                            </NumberCell>
+                            <NumberCell className="font-black text-emerald-700">
+                                <Quantity
+                                    value={item.quantity_received}
+                                    unitName={item.stock_target?.unit_name}
+                                />
+                            </NumberCell>
+                            <NumberCell
+                                className={cn(
+                                    'font-black',
+                                    item.quantity_remaining > 0
+                                        ? 'text-amber-700'
+                                        : 'text-slate-400',
+                                )}
+                            >
+                                <Quantity
+                                    value={item.quantity_remaining}
+                                    unitName={item.stock_target?.unit_name}
+                                />
+                            </NumberCell>
+                            <NumberCell className="text-slate-600">
+                                {formatPeso(item.unit_price_centavos)}
+                            </NumberCell>
+                            <NumberCell className="font-black text-slate-900">
+                                {formatPeso(item.amount_centavos)}
+                            </NumberCell>
+                        </tr>
+                    ))}
+                </tbody>
+                <tfoot className="border-t border-slate-200 bg-slate-50">
+                    <tr>
+                        <td
+                            colSpan={5}
+                            className="px-4 py-3 text-right text-xs font-black tracking-wide text-slate-500 uppercase"
+                        >
+                            Total Amount
+                        </td>
+                        <td className="px-4 py-3 text-right font-black whitespace-nowrap text-slate-900">
+                            {formatPeso(details.total_amount_centavos)}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     );
 }
 
 /**
- * Every delivery that brought items of this order, newest first.
+ * One short line under an item: which product's stock it goes into and how
+ * Head Office sends it, or that it is not linked to a product yet. The
+ * school's stock on hand from the eStore order is added when above 0.
+ */
+function StockTarget({ item }: { item: PurchaseOrderItemDetails }) {
+    const target = item.stock_target;
+    const schoolStock =
+        item.stock_on_hand !== null && item.stock_on_hand > 0
+            ? ` · school stock on the order: ${item.stock_on_hand}`
+            : '';
+
+    if (!target) {
+        return (
+            <p className="mt-0.5 text-xs font-semibold text-amber-700">
+                Not linked to a product yet{schoolStock}
+            </p>
+        );
+    }
+
+    const sentAs =
+        target.pieces_per_unit > 1
+            ? `by the ${target.unit_name} (${target.pieces_per_unit.toLocaleString('en-PH')} pcs)`
+            : 'by the piece';
+
+    return (
+        <p className="mt-0.5 text-xs font-semibold text-emerald-700">
+            → {target.product_name}
+            {target.has_options && ` (${target.variant_label})`} · {sentAs}
+            <span className="font-medium text-slate-500">{schoolStock}</span>
+        </p>
+    );
+}
+
+/**
+ * Closing an order short, with the reason, when Head Office says the rest
+ * will not be delivered.
+ */
+function CloseShortForm({
+    details,
+    onCancel,
+}: {
+    details: PurchaseOrderDetails;
+    onCancel: () => void;
+}) {
+    return (
+        <Form
+            {...PurchaseOrderDeliveryController.close.form(details.id)}
+            options={{ preserveScroll: true }}
+            className="rounded-xl border border-red-200 bg-red-50/60 p-4"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <p className="text-sm font-black text-red-800">
+                        Close this order even though{' '}
+                        {(
+                            details.quantity_ordered_total -
+                            details.quantity_received_total
+                        ).toLocaleString('en-PH')}{' '}
+                        (as ordered on the eStore) have not arrived?
+                    </p>
+                    <p className="mt-0.5 text-sm text-red-700">
+                        It will show as Completed (short) with your reason.
+                    </p>
+                    <label className="mt-3 grid gap-1.5">
+                        <span className="text-sm font-black text-slate-700">
+                            Reason
+                        </span>
+                        <textarea
+                            name="reason"
+                            required
+                            rows={2}
+                            maxLength={500}
+                            placeholder="e.g. Head Office said the M/L polos are out of stock and will not be delivered."
+                            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                        />
+                        <InputError message={errors.reason} />
+                    </label>
+                    <div className="mt-3 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60"
+                        >
+                            {processing && (
+                                <LoaderCircle
+                                    size={16}
+                                    className="animate-spin"
+                                />
+                            )}
+                            Close order
+                        </button>
+                    </div>
+                </>
+            )}
+        </Form>
+    );
+}
+
+/**
+ * Every delivery that brought items of this order, newest first, as a
+ * compact list.
  */
 function DeliveryHistory({
     deliveries,
 }: {
     deliveries: OrderDeliveryRecord[];
 }) {
-    return (
-        <section className="border-t border-slate-100 px-8 py-6">
-            <h3 className="text-lg font-black text-slate-900">
-                Delivery History
-            </h3>
+    if (deliveries.length === 0) {
+        return (
+            <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
+                Nothing has arrived for this order yet.
+            </p>
+        );
+    }
 
-            {deliveries.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-500">
-                    Nothing has arrived for this order yet.
-                </p>
-            ) : (
-                <ol className="mt-4 space-y-3">
-                    {deliveries.map((delivery) => (
-                        <li
-                            key={delivery.id}
-                            className="rounded-2xl border border-slate-200 p-4"
-                        >
-                            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <p className="font-black text-slate-900">
-                                    Received{' '}
-                                    {formatDateOrdered(delivery.received_on)}
-                                </p>
-                                <p className="text-sm text-slate-500">
-                                    {[
-                                        delivery.sales_invoice_number &&
-                                            `SI # ${delivery.sales_invoice_number}`,
-                                        delivery.delivery_receipt_number &&
-                                            `DR # ${delivery.delivery_receipt_number}`,
-                                        `Recorded by ${delivery.recorded_by}`,
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </p>
-                            </div>
-                            <ul className="mt-2 space-y-2 text-sm text-slate-700">
-                                {delivery.items.map((item) => (
-                                    <li key={item.item_code}>
-                                        <span className="font-mono font-bold text-blue-700">
-                                            {item.item_code}
-                                        </span>{' '}
-                                        {item.description}
-                                        {item.added_to_stock.length > 0 ? (
-                                            item.added_to_stock.map((added) => (
-                                                <span
-                                                    key={added.product_name}
-                                                    className="mt-0.5 block text-emerald-700"
-                                                >
-                                                    Received{' '}
-                                                    <span className="font-black">
-                                                        {formatConversion(
-                                                            added.units_received,
-                                                            added.unit_name,
-                                                            added.pieces_per_unit,
-                                                        )}
-                                                    </span>{' '}
-                                                    added to the stock of{' '}
-                                                    {added.product_name}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <span className="mt-0.5 block text-amber-700">
-                                                Received{' '}
-                                                <span className="font-black">
-                                                    {item.quantity_received.toLocaleString(
-                                                        'en-PH',
-                                                    )}
-                                                </span>{' '}
-                                                (as ordered on the eStore) · not
-                                                in stock yet: not linked to a
-                                                product
-                                            </span>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        </li>
-                    ))}
-                </ol>
-            )}
-        </section>
+    return (
+        <ol className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200">
+            {deliveries.map((delivery) => (
+                <li key={delivery.id} className="px-4 py-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-sm font-black text-slate-900">
+                            Received {formatDateOrdered(delivery.received_on)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                            {[
+                                delivery.sales_invoice_number &&
+                                    `SI # ${delivery.sales_invoice_number}`,
+                                delivery.delivery_receipt_number &&
+                                    `DR # ${delivery.delivery_receipt_number}`,
+                                `Recorded by ${delivery.recorded_by}`,
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </p>
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
+                        {delivery.items.map((item) => (
+                            <li key={item.item_code}>
+                                <span className="font-mono text-xs font-bold text-blue-700">
+                                    {item.item_code}
+                                </span>{' '}
+                                {item.description}
+                                {item.added_to_stock.length > 0 ? (
+                                    item.added_to_stock.map((added) => (
+                                        <span
+                                            key={added.product_name}
+                                            className="block text-xs text-emerald-700"
+                                        >
+                                            +
+                                            <b>
+                                                {formatConversion(
+                                                    added.units_received,
+                                                    added.unit_name,
+                                                    added.pieces_per_unit,
+                                                )}
+                                            </b>{' '}
+                                            to the stock of {added.product_name}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="block text-xs text-amber-700">
+                                        {item.quantity_received.toLocaleString(
+                                            'en-PH',
+                                        )}{' '}
+                                        received (as ordered on the eStore) ·
+                                        not in stock yet: not linked to a
+                                        product
+                                    </span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </li>
+            ))}
+        </ol>
     );
 }
 
-/**
- * One of the four equal boxes at the top of the window.
- */
-function Detail({
+/** One fact in the row under the header. */
+function Fact({
     label,
     note,
     children,
@@ -550,19 +573,53 @@ function Detail({
     children: ReactNode;
 }) {
     return (
-        <div className="flex flex-col rounded-2xl bg-slate-50 p-5">
-            <dt className="text-sm font-bold tracking-wide text-slate-400 uppercase">
+        <div className="px-6 py-4">
+            <dt className="text-xs font-black tracking-wide text-slate-400 uppercase">
                 {label}
             </dt>
-            <dd className="mt-2 text-lg font-black text-slate-900">
+            <dd className="mt-1 text-sm font-black text-slate-900">
                 {children}
             </dd>
-            {note && (
-                <dd className="mt-1 text-sm font-medium text-slate-500">
-                    {note}
-                </dd>
-            )}
+            {note && <dd className="mt-0.5 text-xs text-slate-500">{note}</dd>}
         </div>
+    );
+}
+
+function TabButton({
+    active,
+    icon,
+    count,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    icon: ReactNode;
+    count: number;
+    onClick: () => void;
+    children: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition',
+                active
+                    ? 'bg-[#0D6EFD] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-white',
+            )}
+        >
+            {icon}
+            {children}
+            <span
+                className={cn(
+                    'rounded-full px-2 py-0.5 text-xs',
+                    active ? 'bg-white/25' : 'bg-white text-slate-600',
+                )}
+            >
+                {count}
+            </span>
+        </button>
     );
 }
 
@@ -593,7 +650,7 @@ function Heading({
     return (
         <th
             className={cn(
-                'px-8 py-4 text-sm font-black tracking-wide whitespace-nowrap text-slate-400 uppercase',
+                'px-4 py-2.5 text-xs font-black tracking-wide whitespace-nowrap text-slate-500 uppercase',
                 right ? 'text-right' : 'text-left',
             )}
         >
@@ -602,17 +659,20 @@ function Heading({
     );
 }
 
-function Cell({
-    right = false,
+function NumberCell({
     className,
     children,
 }: {
-    right?: boolean;
     className?: string;
     children: ReactNode;
 }) {
     return (
-        <td className={cn('px-8 py-5', right && 'text-right', className)}>
+        <td
+            className={cn(
+                'px-4 py-3 text-right whitespace-nowrap tabular-nums',
+                className,
+            )}
+        >
             {children}
         </td>
     );
