@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
+use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\EstorePo\ItemCode;
@@ -208,6 +210,7 @@ class SaveProductRequest extends FormRequest
                 $this->validateItemCodes($validator);
                 $this->validateSellingPricesCoverCost($validator);
                 $this->validateVariantsWithStockAreKept($validator);
+                $this->validateVariantsWithPreordersAreKept($validator);
             },
         ];
     }
@@ -324,6 +327,44 @@ class SaveProductRequest extends FormRequest
             $validator->errors()->add('options', $variant->choices === []
                 ? 'This product already has stock without options, so options cannot be added to it.'
                 : "\"{$variant->label()}\" already has stock, so it cannot be removed or renamed. Put its choice back.");
+        }
+    }
+
+    /**
+     * A variant that students preordered (waiting or arrived) cannot
+     * disappear: removing or renaming its choice would delete their
+     * preorders with it. Cancelled preorders do not count.
+     */
+    private function validateVariantsWithPreordersAreKept(Validator $validator): void
+    {
+        $product = $this->route('product');
+
+        if (! $product instanceof Product) {
+            return;
+        }
+
+        $kept = array_column(ProductVariants::combinations($this->options()), 'combination');
+        $lost = $product->variants()->whereNotIn('combination', $kept)->get()->keyBy('id');
+
+        if ($lost->isEmpty()) {
+            return;
+        }
+
+        $studentsByVariant = Preorder::query()
+            ->whereIn('product_variant_id', $lost->keys())
+            ->whereIn('status', [PreorderStatus::Active, PreorderStatus::Arrived])
+            ->groupBy('product_variant_id')
+            ->selectRaw('product_variant_id, count(distinct user_id) as students')
+            ->pluck('students', 'product_variant_id');
+
+        foreach ($studentsByVariant as $variantId => $students) {
+            $variant = $lost->get($variantId);
+            $count = (int) $students;
+            $who = $count === 1 ? '1 student' : "{$count} students";
+
+            $validator->errors()->add('options', $variant === null || $variant->choices === []
+                ? 'This product already has preorders without options, so options cannot be added to it.'
+                : "\"{$variant->label()}\" has preorders from {$who}, so it cannot be removed or renamed. Put its choice back.");
         }
     }
 

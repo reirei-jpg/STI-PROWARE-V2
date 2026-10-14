@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
+use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductPhoto;
@@ -456,6 +458,31 @@ test('a variant that has stock cannot disappear from the product', function (arr
         'This product already has stock without options, so options cannot be added to it.',
     ],
 ]);
+
+test('a size students preordered cannot be removed or renamed, so their preorders are kept', function () {
+    $product = Product::factory()->create(['name' => '42nd Anniversary Shirt', 'status' => ProductStatus::Preorder, 'preorders_close_on' => now()->addWeek()->toDateString()]);
+    $large = ProductVariant::factory()->for($product)->create(['combination' => ProductVariants::key([['option' => 'Size', 'choice' => 'M/L']]), 'choices' => [['option' => 'Size', 'choice' => 'M/L']]]);
+    $cancelledOnly = ProductVariant::factory()->for($product)->create(['combination' => ProductVariants::key([['option' => 'Size', 'choice' => 'XL']]), 'choices' => [['option' => 'Size', 'choice' => 'XL']]]);
+    Preorder::factory()->forVariant($large)->count(3)->create();
+    Preorder::factory()->forVariant($cancelledOnly)->create(['status' => PreorderStatus::Cancelled]);
+    $this->actingAs(User::factory()->specialist()->create());
+    $form = fn (array $choices) => productForm([
+        'status' => 'preorder',
+        'preorders_close_on' => now()->addWeek()->toDateString(),
+        'options' => [['name' => 'Size', 'choices' => $choices]],
+        'variants' => array_map(fn (string $choice): array => ['combination' => "Size: {$choice}", 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => ''], $choices),
+    ]);
+
+    // Renaming M/L would delete the 3 preorders on it: refused.
+    $this->put(route('products.update', $product), $form(['Medium/Large', 'XL']))
+        ->assertSessionHasErrors(['options' => '"M/L" has preorders from 3 students, so it cannot be removed or renamed. Put its choice back.']);
+    expect(Preorder::query()->where('product_variant_id', $large->id)->count())->toBe(3);
+
+    // Adding a size, or removing one with only cancelled preorders, is fine.
+    $this->put(route('products.update', $product), $form(['M/L', '2XL']))->assertSessionHasNoErrors();
+    expect(Preorder::query()->where('product_variant_id', $large->id)->count())->toBe(3)
+        ->and($product->variants()->pluck('combination')->all())->toEqualCanonicalizing(['Size: M/L', 'Size: 2XL']);
+});
 
 test('the edit form gets the packs, how Head Office sends each item, and the stock', function () {
     $product = Product::factory()->create(['sold_by_piece' => false, 'price_centavos' => null]);
