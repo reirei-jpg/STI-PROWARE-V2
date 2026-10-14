@@ -126,11 +126,10 @@ export default function PurchaseOrdersIndex({
         openPurchaseOrderId,
     );
     const [search, setSearch] = useState(filters.search ?? '');
-    // Category, Sort and Date Ordered are tucked away; open when one is used.
+    // Category and Sort are tucked away; they open when one is used.
     const moreFiltersInUse = [
         filters.category,
         filters.sort !== 'oldest_waiting',
-        filters.date_from || filters.date_to,
     ].filter(Boolean).length;
     const [showMore, setShowMore] = useState(moreFiltersInUse > 0);
     const firstRender = useRef(true);
@@ -309,6 +308,20 @@ export default function PurchaseOrdersIndex({
                         ))}
                     </div>
 
+                    <DateRangeFilter
+                        label="Date Ordered"
+                        dateFrom={filters.date_from}
+                        dateTo={filters.date_to}
+                        serverError={errors.date_from ?? errors.date_to}
+                        onChange={(dateFrom, dateTo) =>
+                            showList({
+                                ...filters,
+                                date_from: dateFrom,
+                                date_to: dateTo,
+                            })
+                        }
+                    />
+
                     {showMore && (
                         <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -366,20 +379,6 @@ export default function PurchaseOrdersIndex({
                                     </select>
                                 </label>
                             </div>
-
-                            <DateRangeFilter
-                                label="Date Ordered"
-                                dateFrom={filters.date_from}
-                                dateTo={filters.date_to}
-                                serverError={errors.date_from ?? errors.date_to}
-                                onChange={(dateFrom, dateTo) =>
-                                    showList({
-                                        ...filters,
-                                        date_from: dateFrom,
-                                        date_to: dateTo,
-                                    })
-                                }
-                            />
                         </div>
                     )}
                 </section>
