@@ -85,13 +85,14 @@ function StorefrontTopBar() {
                 {isStudent ? (
                     <Link
                         href={CartController.index()}
-                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                        className="relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
                         aria-label="Cart"
                         title="Cart"
                     >
-                        <ShoppingCart size={20} />
+                        <ShoppingCart size={18} />
+                        <span className="hidden sm:inline">Cart</span>
                         {cartCount !== null && cartCount > 0 && (
-                            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white">
+                            <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white ring-2 ring-white">
                                 {cartCount > 99 ? '99+' : cartCount}
                             </span>
                         )}
@@ -100,10 +101,11 @@ function StorefrontTopBar() {
                     <button
                         type="button"
                         onClick={auth.user ? undefined : openSignIn}
-                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                        className="relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
                         aria-label="Cart"
                     >
-                        <ShoppingCart size={20} />
+                        <ShoppingCart size={18} />
+                        <span className="hidden sm:inline">Cart</span>
                     </button>
                 )}
 

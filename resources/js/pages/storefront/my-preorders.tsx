@@ -340,14 +340,14 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                         {preorder.can_cancel &&
                             (confirming ? (
                                 <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2">
-                                    <span className="text-xs font-black text-slate-800">
+                                    <span className="text-sm font-black text-slate-800">
                                         Cancel this preorder?
                                     </span>
                                     <div className="flex gap-2">
                                         <button
                                             type="button"
                                             onClick={() => setConfirming(false)}
-                                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50"
+                                            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-black text-slate-700 hover:bg-slate-50"
                                         >
                                             Keep it
                                         </button>
@@ -355,7 +355,7 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                             type="button"
                                             onClick={cancel}
                                             disabled={cancelling}
-                                            className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white hover:bg-red-700 disabled:opacity-60"
+                                            className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-black text-white hover:bg-red-700 disabled:opacity-60"
                                         >
                                             {cancelling && (
                                                 <LoaderCircle
@@ -371,7 +371,7 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                 <button
                                     type="button"
                                     onClick={() => setConfirming(true)}
-                                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-50"
+                                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 shadow-sm transition hover:bg-red-100"
                                 >
                                     <XCircle size={16} />
                                     Cancel preorder

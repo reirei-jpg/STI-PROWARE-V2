@@ -460,7 +460,7 @@ function CartLineRow({ line }: { line: CartLine }) {
                     type="button"
                     onClick={remove}
                     disabled={busy}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:opacity-40"
                     aria-label={`Remove ${line.product_name}`}
                     title="Remove"
                 >

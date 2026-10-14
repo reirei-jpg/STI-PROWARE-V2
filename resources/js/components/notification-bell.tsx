@@ -33,7 +33,7 @@ export default function NotificationBell() {
                 <button
                     type="button"
                     title="Notifications"
-                    className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition outline-none hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300"
+                    className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm transition outline-none hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300"
                     data-test="notification-bell"
                 >
                     <Bell size={20} />
