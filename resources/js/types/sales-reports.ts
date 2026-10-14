@@ -11,6 +11,8 @@ export type SalesSummary = {
     price_centavos: number;
     /** What those items cost on the eStore orders (those with a Cost). */
     cost_centavos: number;
+    /** What students paid for the sales that have a Cost (Profit = this − Cost). */
+    costed_price_centavos: number;
     profit_centavos: number;
     orders: number;
     pieces: number;

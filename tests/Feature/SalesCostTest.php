@@ -147,6 +147,7 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         ->where('summary.spent_centavos', 200000)
         ->where('summary.purchase_orders', 1)
         ->where('summary.price_centavos', 2 * 40000 + 3 * 35000)
+        ->where('summary.costed_price_centavos', 2 * 40000 + 3 * 35000)
         ->where('summary.cost_centavos', 5 * 20000)
         ->where('summary.profit_centavos', 185000 - 100000)
         ->where('summary.below_cost_lines', 0)
@@ -279,7 +280,9 @@ test('stock from before deliveries were recorded waits for its price, then its s
         ->assertInertia(fn (Assert $page) => $page
             ->where('sold.data.0.cost_each_centavos', null)
             ->where('sold.data.0.missing_cost_lines', 1)
-            ->where('summary.missing_cost_lines', 1));
+            ->where('summary.missing_cost_lines', 1)
+            // Profit is worked out only from sales that have a Cost.
+            ->where('summary.costed_price_centavos', 0));
 
     $this->post(route('sales-reports.price', $variant), ['unit_cost' => ''])
         ->assertSessionHasErrors(['unit_cost' => 'Enter the Cost per piece, e.g. 250 or 18.50.']);

@@ -33,7 +33,7 @@ final class SalesReport
     /**
      * The numbers at the top.
      *
-     * @return array{spent_centavos: int, purchase_orders: int, price_centavos: int, cost_centavos: int, profit_centavos: int, orders: int, pieces: int, missing_cost_lines: int, below_cost_lines: int, below_cost_loss_centavos: int, free_pieces: int, free_cost_centavos: int, free_price_centavos: int}
+     * @return array{spent_centavos: int, purchase_orders: int, price_centavos: int, cost_centavos: int, costed_price_centavos: int, profit_centavos: int, orders: int, pieces: int, missing_cost_lines: int, below_cost_lines: int, below_cost_loss_centavos: int, free_pieces: int, free_cost_centavos: int, free_price_centavos: int}
      */
     public static function summary(CarbonImmutable $from, CarbonImmutable $to): array
     {
@@ -56,6 +56,8 @@ final class SalesReport
             'purchase_orders' => self::purchaseOrders($from, $to)->count(),
             'price_centavos' => (int) ($sold->price ?? 0),
             'cost_centavos' => (int) ($sold->cost ?? 0),
+            // The Price of the sales that have a Cost: what Profit is worked out from.
+            'costed_price_centavos' => (int) ($sold->costed_price ?? 0),
             'profit_centavos' => (int) ($sold->costed_price ?? 0) - (int) ($sold->cost ?? 0),
             'orders' => (int) ($sold->orders ?? 0),
             'pieces' => (int) ($sold->pieces ?? 0),

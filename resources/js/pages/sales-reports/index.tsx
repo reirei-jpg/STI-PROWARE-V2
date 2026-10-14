@@ -223,7 +223,7 @@ export default function SalesReportsIndex({
                         tone="blue"
                         label="Spent on eStore orders"
                         value={formatPeso(summary.spent_centavos)}
-                        detail={`${summary.purchase_orders} ${summary.purchase_orders === 1 ? 'order' : 'orders'} uploaded`}
+                        detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} · by Date Ordered`}
                         onClick={() => show({ tab: 'spent' })}
                     />
                     <Card
@@ -235,10 +235,10 @@ export default function SalesReportsIndex({
                         tone={summary.profit_centavos < 0 ? 'red' : 'green'}
                         label="Profit"
                         value={formatPeso(summary.profit_centavos)}
-                        detail={`Price ${formatPeso(summary.price_centavos)} − Cost ${formatPeso(summary.cost_centavos)}`}
+                        detail={`Price ${formatPeso(summary.costed_price_centavos)} − Cost ${formatPeso(summary.cost_centavos)}`}
                         note={
                             summary.missing_cost_lines > 0
-                                ? `${summary.missing_cost_lines} ${summary.missing_cost_lines === 1 ? 'sale has' : 'sales have'} no Cost yet (not counted)`
+                                ? `${summary.missing_cost_lines} ${summary.missing_cost_lines === 1 ? 'sale' : 'sales'} with no Cost yet (${formatPeso(summary.price_centavos - summary.costed_price_centavos)}) not counted`
                                 : undefined
                         }
                         onClick={() => show({ tab: 'sold' })}
@@ -248,9 +248,9 @@ export default function SalesReportsIndex({
                         <Card
                             icon={Tag}
                             tone="red"
-                            label="Sold below cost"
+                            label="Lost on sales below cost"
                             value={formatPeso(summary.below_cost_loss_centavos)}
-                            detail={`lost on ${summary.below_cost_lines} ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} (Selling Price lower than the Cost)`}
+                            detail={`${summary.below_cost_lines} old ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} · selling below Cost is now blocked`}
                             onClick={() => show({ tab: 'sold' })}
                         />
                     )}
@@ -259,7 +259,7 @@ export default function SalesReportsIndex({
                         tone="amber"
                         label="Given free"
                         value={formatPeso(summary.free_cost_centavos)}
-                        detail={`${formatUnits(summary.free_pieces, 'Piece')} · worth ${formatPeso(summary.free_price_centavos)} at Price`}
+                        detail={`${formatUnits(summary.free_pieces, 'Piece')} at Cost · ${formatPeso(summary.free_price_centavos)} at Price`}
                         onClick={() => show({ tab: 'free' })}
                     />
                 </section>
