@@ -1,11 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Boxes,
+    ChevronDown,
     ClipboardList,
     Eye,
     FileScan,
     Search,
     SearchX,
+    SlidersHorizontal,
     Wallet,
     X,
 } from 'lucide-react';
@@ -71,24 +73,25 @@ function filterQuery(filters: PurchaseOrderFilters): Record<string, string> {
     return query;
 }
 
-function describeScope(filters: PurchaseOrderFilters): string {
+/** A short line under the cards when filters are on; null when they are not. */
+function describeScope(filters: PurchaseOrderFilters): string | null {
     if (filters.search || filters.category || filters.status) {
-        return 'Orders matching your search and filters';
+        return 'Matching your filters';
     }
 
     if (filters.date_from && filters.date_to) {
-        return `Orders dated ${formatDateOrdered(filters.date_from)} to ${formatDateOrdered(filters.date_to)}`;
+        return `${formatDateOrdered(filters.date_from)} to ${formatDateOrdered(filters.date_to)}`;
     }
 
     if (filters.date_from) {
-        return `Orders dated ${formatDateOrdered(filters.date_from)} onwards`;
+        return `From ${formatDateOrdered(filters.date_from)}`;
     }
 
     if (filters.date_to) {
-        return `Orders dated up to ${formatDateOrdered(filters.date_to)}`;
+        return `Up to ${formatDateOrdered(filters.date_to)}`;
     }
 
-    return 'Across all uploaded purchase orders';
+    return null;
 }
 
 export default function PurchaseOrdersIndex({
@@ -123,6 +126,13 @@ export default function PurchaseOrdersIndex({
         openPurchaseOrderId,
     );
     const [search, setSearch] = useState(filters.search ?? '');
+    // Category, Sort and Date Ordered are tucked away; open when one is used.
+    const moreFiltersInUse = [
+        filters.category,
+        filters.sort !== 'oldest_waiting',
+        filters.date_from || filters.date_to,
+    ].filter(Boolean).length;
+    const [showMore, setShowMore] = useState(moreFiltersInUse > 0);
     const firstRender = useRef(true);
 
     const showList = (next: PurchaseOrderFilters) => {
@@ -183,7 +193,7 @@ export default function PurchaseOrdersIndex({
             <div className="space-y-7">
                 <PageHeader
                     title="Purchase Orders"
-                    description="Orders placed in the eStore, approved by the School Admin, and uploaded to PROWARE."
+                    description="eStore orders approved by the School Admin and uploaded to PROWARE."
                     actions={
                         isSpecialist && (
                             <Link
@@ -197,9 +207,32 @@ export default function PurchaseOrdersIndex({
                     }
                 />
 
-                <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-xs">
+                <section className="grid gap-4 md:grid-cols-3">
+                    <SummaryCard
+                        label="Orders Uploaded"
+                        value={String(summary.orders_count)}
+                        description={summaryScope ?? 'From the eStore emails'}
+                        icon={ClipboardList}
+                    />
+                    <SummaryCard
+                        label="Total QTY Ordered"
+                        value={summary.total_qty_ordered.toLocaleString(
+                            'en-PH',
+                        )}
+                        description={summaryScope ?? 'Pieces ordered'}
+                        icon={Boxes}
+                    />
+                    <SummaryCard
+                        label="Total Amount (Ordered)"
+                        value={formatPeso(summary.total_amount_centavos)}
+                        description={summaryScope ?? 'At Head Office cost'}
+                        icon={Wallet}
+                    />
+                </section>
+
+                <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:max-w-xs">
                             <Search size={18} className="shrink-0" />
                             <input
                                 type="search"
@@ -215,138 +248,145 @@ export default function PurchaseOrdersIndex({
                             />
                         </label>
 
-                        {categories.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-bold text-slate-500">
-                                    Category:
-                                </span>
-                                {[null, ...categories].map((category) => (
-                                    <button
-                                        key={category ?? 'all'}
-                                        type="button"
-                                        onClick={() =>
-                                            showList({ ...filters, category })
-                                        }
-                                        className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                            filters.category === category
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                    >
-                                        {category ?? 'All'}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                            {isFiltered && (
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    <X size={15} />
+                                    Clear filters
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowMore((shown) => !shown)}
+                                aria-expanded={showMore}
+                                className={`inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-black shadow-sm transition ${
+                                    showMore
+                                        ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                }`}
+                            >
+                                <SlidersHorizontal size={16} />
+                                More filters
+                                {moreFiltersInUse > 0 && (
+                                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
+                                        {moreFiltersInUse}
+                                    </span>
+                                )}
+                                <ChevronDown
+                                    size={16}
+                                    className={`transition ${showMore ? 'rotate-180' : ''}`}
+                                />
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-bold text-slate-500">
-                                Delivery:
-                            </span>
-                            {statusChips.map((chip) => (
-                                <button
-                                    key={chip.label}
-                                    type="button"
-                                    onClick={() =>
-                                        showList({
-                                            ...filters,
-                                            status: chip.value,
-                                        })
-                                    }
-                                    className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                        filters.status === chip.value
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }`}
-                                >
-                                    {chip.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        <label className="flex items-center gap-2 text-sm font-bold text-slate-500">
-                            Sort:
-                            <select
-                                value={filters.sort}
-                                onChange={(event) =>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-slate-500">
+                            Delivery:
+                        </span>
+                        {statusChips.map((chip) => (
+                            <button
+                                key={chip.label}
+                                type="button"
+                                onClick={() =>
                                     showList({
                                         ...filters,
-                                        sort: event.target
-                                            .value as PurchaseOrderSort,
+                                        status: chip.value,
                                     })
                                 }
-                                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                                className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                    filters.status === chip.value
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
                             >
-                                {sortOptions.map((option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                                {chip.label}
+                            </button>
+                        ))}
                     </div>
 
-                    <DateRangeFilter
-                        label="Date Ordered"
-                        dateFrom={filters.date_from}
-                        dateTo={filters.date_to}
-                        serverError={errors.date_from ?? errors.date_to}
-                        onChange={(dateFrom, dateTo) =>
-                            showList({
-                                ...filters,
-                                date_from: dateFrom,
-                                date_to: dateTo,
-                            })
-                        }
-                    />
+                    {showMore && (
+                        <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                {categories.length > 0 && (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-sm font-bold text-slate-500">
+                                            Category:
+                                        </span>
+                                        {[null, ...categories].map(
+                                            (category) => (
+                                                <button
+                                                    key={category ?? 'all'}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        showList({
+                                                            ...filters,
+                                                            category,
+                                                        })
+                                                    }
+                                                    className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                                        filters.category ===
+                                                        category
+                                                            ? 'bg-blue-600 text-white'
+                                                            : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                                                    }`}
+                                                >
+                                                    {category ?? 'All'}
+                                                </button>
+                                            ),
+                                        )}
+                                    </div>
+                                )}
 
-                    {isFiltered && (
-                        <button
-                            type="button"
-                            onClick={clearFilters}
-                            className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                            <X size={15} />
-                            Clear search and all filters
-                        </button>
+                                <label className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                                    Sort:
+                                    <select
+                                        value={filters.sort}
+                                        onChange={(event) =>
+                                            showList({
+                                                ...filters,
+                                                sort: event.target
+                                                    .value as PurchaseOrderSort,
+                                            })
+                                        }
+                                        className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                                    >
+                                        {sortOptions.map((option) => (
+                                            <option
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+
+                            <DateRangeFilter
+                                label="Date Ordered"
+                                dateFrom={filters.date_from}
+                                dateTo={filters.date_to}
+                                serverError={errors.date_from ?? errors.date_to}
+                                onChange={(dateFrom, dateTo) =>
+                                    showList({
+                                        ...filters,
+                                        date_from: dateFrom,
+                                        date_to: dateTo,
+                                    })
+                                }
+                            />
+                        </div>
                     )}
-                </section>
-
-                <section className="grid gap-4 md:grid-cols-3">
-                    <SummaryCard
-                        label="Orders Uploaded"
-                        value={String(summary.orders_count)}
-                        description={
-                            isFiltered
-                                ? summaryScope
-                                : 'eStore purchase orders uploaded to PROWARE'
-                        }
-                        icon={ClipboardList}
-                    />
-                    <SummaryCard
-                        label="Total QTY Ordered"
-                        value={summary.total_qty_ordered.toLocaleString(
-                            'en-PH',
-                        )}
-                        description={summaryScope}
-                        icon={Boxes}
-                    />
-                    <SummaryCard
-                        label="Total Amount (Ordered)"
-                        value={formatPeso(summary.total_amount_centavos)}
-                        description={`${summaryScope}, at Head Office cost`}
-                        icon={Wallet}
-                    />
                 </section>
 
                 <Panel
                     title="Uploaded Purchase Orders"
-                    description={`${sortOptions.find((option) => option.value === filters.sort)?.label ?? ''}. Open View Details to see every item, what has arrived, and the delivery history.`}
+                    description={`${sortOptions.find((option) => option.value === filters.sort)?.label ?? ''}. Open View Details for its items and deliveries.`}
                 >
                     {purchaseOrders.data.length === 0 && isFiltered ? (
                         <div className="px-6 py-16 text-center">
