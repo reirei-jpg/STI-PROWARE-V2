@@ -60,6 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('purchase-orders/scan', [PurchaseOrderScanController::class, 'create'])->name('purchase-orders.scan');
         Route::post('purchase-orders/scan', [PurchaseOrderScanController::class, 'store'])->name('purchase-orders.scan.store');
         Route::delete('purchase-orders/scan', [PurchaseOrderScanController::class, 'destroy'])->name('purchase-orders.scan.destroy');
+        Route::get('purchase-orders/{purchaseOrder}/waiting-items', [PurchaseOrderDeliveryController::class, 'waiting'])->whereNumber('purchaseOrder')->name('purchase-orders.waiting-items');
         Route::post('purchase-orders/{purchaseOrder}/close', [PurchaseOrderDeliveryController::class, 'close'])->name('purchase-orders.close');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');

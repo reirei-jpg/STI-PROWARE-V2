@@ -1,4 +1,4 @@
-import { Form, Link, useHttp, usePage } from '@inertiajs/react';
+import { Form, useHttp, usePage } from '@inertiajs/react';
 import {
     Ban,
     CircleAlert,
@@ -11,11 +11,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/PurchaseOrderDeliveryController';
 import DeliveryProgress from '@/components/delivery-progress';
 import InputError from '@/components/input-error';
+import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import {
     Dialog,
     DialogClose,
@@ -54,16 +54,24 @@ export default function PurchaseOrderDetailsDialog({
     const [failed, setFailed] = useState(false);
     const [tab, setTab] = useState<Tab>('items');
     const [closing, setClosing] = useState(false);
+    const [recording, setRecording] = useState(false);
+    // Bumped after a delivery is saved, to load the order's new numbers.
+    const [reloads, setReloads] = useState(0);
 
     useEffect(() => {
         if (purchaseOrderId === null) {
             return;
         }
 
-        setDetails(null);
+        // Another order starts fresh; a reload after saving a delivery keeps
+        // the window as it is.
+        if (details?.id !== purchaseOrderId) {
+            setDetails(null);
+            setTab('items');
+            setClosing(false);
+        }
+
         setFailed(false);
-        setTab('items');
-        setClosing(false);
 
         void http
             .get(PurchaseOrderController.show(purchaseOrderId).url, {
@@ -80,9 +88,10 @@ export default function PurchaseOrderDetailsDialog({
                 },
             })
             .catch(() => setFailed(true));
-        // Load once per opened order; `http` changes on every render.
+        // Load once per opened order (and after a delivery is saved);
+        // `http` changes on every render.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [purchaseOrderId]);
+    }, [purchaseOrderId, reloads]);
 
     const isOpen =
         details !== null &&
@@ -90,206 +99,226 @@ export default function PurchaseOrderDetailsDialog({
             details.delivery_status === 'partially_received');
 
     return (
-        <Dialog
-            open={purchaseOrderId !== null}
-            onOpenChange={(open) => !open && onClose()}
-        >
-            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-5xl [&>button:last-child]:hidden">
-                <header className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                        <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
-                            eStore Purchase Order
-                        </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <DialogTitle className="text-xl font-black text-slate-900">
-                                {details
-                                    ? details.order_number
-                                        ? `Order #${details.order_number}`
-                                        : `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
-                                    : 'Purchase Order Details'}
-                            </DialogTitle>
-                            {details?.category && (
-                                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">
-                                    {details.category}
-                                </span>
-                            )}
+        <>
+            <RecordDeliveryDialog
+                purchaseOrderId={recording ? purchaseOrderId : null}
+                onClose={() => setRecording(false)}
+                onSaved={() => {
+                    setRecording(false);
+                    setReloads((count) => count + 1);
+                }}
+            />
+            <Dialog
+                open={purchaseOrderId !== null}
+                onOpenChange={(open) => !open && onClose()}
+            >
+                <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-5xl [&>button:last-child]:hidden">
+                    <header className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
+                                eStore Purchase Order
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                                <DialogTitle className="text-xl font-black text-slate-900">
+                                    {details
+                                        ? details.order_number
+                                            ? `Order #${details.order_number}`
+                                            : `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
+                                        : 'Purchase Order Details'}
+                                </DialogTitle>
+                                {details?.category && (
+                                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">
+                                        {details.category}
+                                    </span>
+                                )}
+                            </div>
+                            <DialogDescription className="sr-only">
+                                Every detail of this purchase order
+                            </DialogDescription>
                         </div>
-                        <DialogDescription className="sr-only">
-                            Every detail of this purchase order
-                        </DialogDescription>
-                    </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
-                        {isSpecialist && isOpen && (
+                        <div className="flex shrink-0 items-center gap-2">
+                            {isSpecialist && isOpen && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRecording(true)}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+                                    >
+                                        <Truck size={16} />
+                                        Record Delivery
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setClosing((open) => !open)
+                                        }
+                                        aria-expanded={closing}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                    >
+                                        <Ban size={16} />
+                                        Rest won&apos;t arrive
+                                    </button>
+                                </>
+                            )}
+                            <DialogClose className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                                <X size={20} />
+                                <span className="sr-only">Close</span>
+                            </DialogClose>
+                        </div>
+                    </header>
+
+                    <div className="overflow-y-auto">
+                        {failed ? (
+                            <div className="px-6 py-16 text-center">
+                                <ClipboardList
+                                    size={44}
+                                    className="mx-auto text-slate-300"
+                                />
+                                <p className="mt-4 font-black text-slate-800">
+                                    The details could not be loaded
+                                </p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Close this window and try again.
+                                </p>
+                            </div>
+                        ) : !details ? (
+                            <div className="flex items-center justify-center gap-3 px-6 py-16 text-sm font-semibold text-slate-500">
+                                <LoaderCircle
+                                    size={20}
+                                    className="animate-spin text-blue-600"
+                                />
+                                Loading details...
+                            </div>
+                        ) : (
                             <>
-                                <Link
-                                    href={DeliveryController.create()}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
-                                >
-                                    <Truck size={16} />
-                                    Record Delivery
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => setClosing((open) => !open)}
-                                    aria-expanded={closing}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
-                                >
-                                    <Ban size={16} />
-                                    Rest won&apos;t arrive
-                                </button>
+                                <dl className="grid grid-cols-2 divide-slate-100 border-b border-slate-200 bg-slate-50/60 lg:grid-cols-4 lg:divide-x">
+                                    <Fact label="Date Ordered">
+                                        {formatDateOrdered(
+                                            details.date_ordered,
+                                            details.time_ordered,
+                                        )}
+                                    </Fact>
+                                    <Fact label="Total Amount">
+                                        {formatPeso(
+                                            details.total_amount_centavos,
+                                        )}
+                                    </Fact>
+                                    <Fact
+                                        label="Uploaded by"
+                                        note={formatDateTime(
+                                            details.uploaded_at,
+                                        )}
+                                    >
+                                        {details.uploaded_by}
+                                    </Fact>
+                                    <Fact label="Delivery">
+                                        <DeliveryProgress
+                                            progress={details}
+                                            className="w-full max-w-56"
+                                        />
+                                    </Fact>
+                                    {details.school && (
+                                        <Fact label="School">
+                                            {details.school}
+                                        </Fact>
+                                    )}
+                                    {details.ordered_by && (
+                                        <Fact label="Ordered by">
+                                            {details.ordered_by}
+                                        </Fact>
+                                    )}
+                                </dl>
+
+                                <div className="space-y-3 px-6 pt-5">
+                                    {isOpen && (
+                                        <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+                                            <CircleAlert
+                                                size={16}
+                                                className="mt-0.5 shrink-0"
+                                            />
+                                            <span>
+                                                <b>
+                                                    Not complete yet · ordered{' '}
+                                                    {details.days_since_ordered}{' '}
+                                                    {details.days_since_ordered ===
+                                                    1
+                                                        ? 'day'
+                                                        : 'days'}{' '}
+                                                    ago.
+                                                </b>{' '}
+                                                Head Office gives no delivery
+                                                date; ask them if it takes too
+                                                long.
+                                            </span>
+                                        </p>
+                                    )}
+
+                                    {details.closed_reason && (
+                                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                                            <p className="font-black">
+                                                Completed (some missing)
+                                                {details.closed_by &&
+                                                    ` by ${details.closed_by}`}
+                                                {details.closed_at &&
+                                                    ` on ${formatDateTime(details.closed_at)}`}
+                                            </p>
+                                            <p className="mt-0.5">
+                                                Reason: {details.closed_reason}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {closing && (
+                                        <CloseShortForm
+                                            details={details}
+                                            onCancel={() => setClosing(false)}
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="px-6 pt-5">
+                                    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                                        <TabButton
+                                            active={tab === 'items'}
+                                            icon={<Package size={16} />}
+                                            count={details.items.length}
+                                            onClick={() => setTab('items')}
+                                        >
+                                            Items
+                                        </TabButton>
+                                        <TabButton
+                                            active={tab === 'deliveries'}
+                                            icon={<History size={16} />}
+                                            count={details.deliveries.length}
+                                            onClick={() => setTab('deliveries')}
+                                        >
+                                            Delivery History
+                                        </TabButton>
+                                    </div>
+                                </div>
+
+                                <div className="px-6 pt-4 pb-6">
+                                    {tab === 'items' ? (
+                                        <ItemsTable details={details} />
+                                    ) : (
+                                        <DeliveryHistory
+                                            deliveries={details.deliveries}
+                                        />
+                                    )}
+                                </div>
                             </>
                         )}
-                        <DialogClose className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
-                            <X size={20} />
-                            <span className="sr-only">Close</span>
-                        </DialogClose>
                     </div>
-                </header>
 
-                <div className="overflow-y-auto">
-                    {failed ? (
-                        <div className="px-6 py-16 text-center">
-                            <ClipboardList
-                                size={44}
-                                className="mx-auto text-slate-300"
-                            />
-                            <p className="mt-4 font-black text-slate-800">
-                                The details could not be loaded
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">
-                                Close this window and try again.
-                            </p>
-                        </div>
-                    ) : !details ? (
-                        <div className="flex items-center justify-center gap-3 px-6 py-16 text-sm font-semibold text-slate-500">
-                            <LoaderCircle
-                                size={20}
-                                className="animate-spin text-blue-600"
-                            />
-                            Loading details...
-                        </div>
-                    ) : (
-                        <>
-                            <dl className="grid grid-cols-2 divide-slate-100 border-b border-slate-200 bg-slate-50/60 lg:grid-cols-4 lg:divide-x">
-                                <Fact label="Date Ordered">
-                                    {formatDateOrdered(
-                                        details.date_ordered,
-                                        details.time_ordered,
-                                    )}
-                                </Fact>
-                                <Fact label="Total Amount">
-                                    {formatPeso(details.total_amount_centavos)}
-                                </Fact>
-                                <Fact
-                                    label="Uploaded by"
-                                    note={formatDateTime(details.uploaded_at)}
-                                >
-                                    {details.uploaded_by}
-                                </Fact>
-                                <Fact label="Delivery">
-                                    <DeliveryProgress
-                                        progress={details}
-                                        className="w-full max-w-56"
-                                    />
-                                </Fact>
-                                {details.school && (
-                                    <Fact label="School">{details.school}</Fact>
-                                )}
-                                {details.ordered_by && (
-                                    <Fact label="Ordered by">
-                                        {details.ordered_by}
-                                    </Fact>
-                                )}
-                            </dl>
-
-                            <div className="space-y-3 px-6 pt-5">
-                                {isOpen && (
-                                    <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
-                                        <CircleAlert
-                                            size={16}
-                                            className="mt-0.5 shrink-0"
-                                        />
-                                        <span>
-                                            <b>
-                                                Not complete yet · ordered{' '}
-                                                {details.days_since_ordered}{' '}
-                                                {details.days_since_ordered ===
-                                                1
-                                                    ? 'day'
-                                                    : 'days'}{' '}
-                                                ago.
-                                            </b>{' '}
-                                            Head Office gives no delivery date;
-                                            ask them if it takes too long.
-                                        </span>
-                                    </p>
-                                )}
-
-                                {details.closed_reason && (
-                                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                                        <p className="font-black">
-                                            Completed (some missing)
-                                            {details.closed_by &&
-                                                ` by ${details.closed_by}`}
-                                            {details.closed_at &&
-                                                ` on ${formatDateTime(details.closed_at)}`}
-                                        </p>
-                                        <p className="mt-0.5">
-                                            Reason: {details.closed_reason}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {closing && (
-                                    <CloseShortForm
-                                        details={details}
-                                        onCancel={() => setClosing(false)}
-                                    />
-                                )}
-                            </div>
-
-                            <div className="px-6 pt-5">
-                                <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                                    <TabButton
-                                        active={tab === 'items'}
-                                        icon={<Package size={16} />}
-                                        count={details.items.length}
-                                        onClick={() => setTab('items')}
-                                    >
-                                        Items
-                                    </TabButton>
-                                    <TabButton
-                                        active={tab === 'deliveries'}
-                                        icon={<History size={16} />}
-                                        count={details.deliveries.length}
-                                        onClick={() => setTab('deliveries')}
-                                    >
-                                        Delivery History
-                                    </TabButton>
-                                </div>
-                            </div>
-
-                            <div className="px-6 pt-4 pb-6">
-                                {tab === 'items' ? (
-                                    <ItemsTable details={details} />
-                                ) : (
-                                    <DeliveryHistory
-                                        deliveries={details.deliveries}
-                                    />
-                                )}
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                <footer className="flex justify-end border-t border-slate-200 bg-slate-50/60 px-6 py-3">
-                    <DialogClose className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
-                        Close
-                    </DialogClose>
-                </footer>
-            </DialogContent>
-        </Dialog>
+                    <footer className="flex justify-end border-t border-slate-200 bg-slate-50/60 px-6 py-3">
+                        <DialogClose className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
+                            Close
+                        </DialogClose>
+                    </footer>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 

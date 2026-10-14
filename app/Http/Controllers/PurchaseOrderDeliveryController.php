@@ -7,17 +7,34 @@ use App\Http\Requests\ClosePurchaseOrderRequest;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Notifications\PurchaseOrderClosedShort;
+use App\Services\Deliveries\DeliveryScreens;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
- * The Specialist's delivery action on a single order: closing an order that
- * will never be fully delivered.
+ * The Specialist's delivery actions on a single order: what is still to
+ * arrive (for the Record Delivery popup on that order), and closing an
+ * order that will never be fully delivered.
  */
 class PurchaseOrderDeliveryController extends Controller
 {
+    /**
+     * This order's items still waiting to arrive, for the Record Delivery
+     * popup opened from the order, so only its items are listed.
+     */
+    public function waiting(PurchaseOrder $purchaseOrder): JsonResponse
+    {
+        return response()->json([
+            'order_number' => $purchaseOrder->order_number,
+            'is_open' => $purchaseOrder->delivery_status->isOpen(),
+            'groups' => DeliveryScreens::waiting($purchaseOrder->id),
+            'today' => now()->toDateString(),
+        ]);
+    }
+
     /**
      * Close an order short, with the reason, when Head Office will not
      * deliver the rest. The School Admin is told.

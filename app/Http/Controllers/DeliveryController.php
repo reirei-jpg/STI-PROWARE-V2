@@ -64,6 +64,7 @@ class DeliveryController extends Controller
 
         Inertia::flash('toast', DeliveryScreens::recordedMessage($delivery));
 
-        return to_route('deliveries.index');
+        // Recorded from a purchase order's popup: stay on that page.
+        return $request->boolean('stay_on_page') ? back() : to_route('deliveries.index');
     }
 }

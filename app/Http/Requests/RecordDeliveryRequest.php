@@ -29,6 +29,7 @@ class RecordDeliveryRequest extends FormRequest
             'sales_invoice_number' => ['nullable', 'string', 'max:40'],
             'delivery_receipt_number' => ['nullable', 'string', 'max:40'],
             'note' => ['nullable', 'string', 'max:500'],
+            'stay_on_page' => ['sometimes', 'boolean'],
             'items' => ['required', 'array'],
             'items.*.purchase_order_item_id' => ['required', 'integer', 'distinct', 'exists:purchase_order_items,id'],
             'items.*.quantity_received' => ['nullable', 'integer', 'min:0', 'max:1000000'],

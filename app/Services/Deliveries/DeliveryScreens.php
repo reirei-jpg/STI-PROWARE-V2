@@ -219,17 +219,19 @@ final class DeliveryScreens
 
     /**
      * Every ordered item still waiting to arrive, grouped by item code,
-     * oldest order first within each code, with where it goes into stock.
+     * oldest order first within each code, with where it goes into stock;
+     * only one purchase order's items when it is given.
      *
      * @return list<array{item_code: string, description: string, stock_target: array<string, mixed>|null, rows: list<array{purchase_order_item_id: int, order_number: string|null, date_ordered: string, quantity_ordered: int, quantity_received: int, quantity_remaining: int}>}>
      */
-    public static function waiting(): array
+    public static function waiting(?int $purchaseOrderId = null): array
     {
         $waiting = PurchaseOrderItem::query()
             ->select('purchase_order_items.*')
             ->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
             ->whereIn('purchase_orders.delivery_status', [DeliveryStatus::Awaiting, DeliveryStatus::PartiallyReceived])
             ->whereColumn('purchase_order_items.quantity_delivered', '<', 'purchase_order_items.quantity_ordered')
+            ->when($purchaseOrderId, fn (Builder $query, int $id) => $query->where('purchase_order_items.purchase_order_id', $id))
             ->orderBy('purchase_order_items.item_code')
             ->orderBy('purchase_orders.date_ordered')
             ->orderBy('purchase_orders.id')

@@ -1,49 +1,28 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     ArrowLeft,
-    Boxes,
     LoaderCircle,
     PackageCheck,
     Save,
     Search,
-    Unlink,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
-import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
-import { wholeNumberInput } from '@/lib/number-input';
+import {
+    Quantity,
+    SplitCounts,
+    StockTargetNote,
+    deliveryInputClasses as inputClasses,
+} from '@/components/record-delivery-parts';
+import { useRecordDelivery, wholeNumber } from '@/hooks/use-record-delivery';
 import { formatDateOrdered } from '@/lib/format';
 import { formatConversion, formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
-import type { WaitingItemGroup, WaitingItemRow } from '@/types';
-
-const inputClasses =
-    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
-
-type DeliveryForm = {
-    received_on: string;
-    sales_invoice_number: string;
-    delivery_receipt_number: string;
-    note: string;
-    quantities: Record<number, string>;
-};
-
-/**
- * "" → 0, "12" → 12, anything that is not a whole number → null.
- */
-function wholeNumber(value: string | undefined): number | null {
-    const trimmed = (value ?? '').trim();
-
-    if (trimmed === '') {
-        return 0;
-    }
-
-    return /^\d+$/.test(trimmed) ? Number(trimmed) : null;
-}
+import type { WaitingItemGroup } from '@/types';
 
 export default function RecordDelivery({
     groups,
@@ -52,138 +31,28 @@ export default function RecordDelivery({
     groups: WaitingItemGroup[];
     today: string;
 }) {
-    const form = useForm<DeliveryForm>({
-        received_on: today,
-        sales_invoice_number: '',
-        delivery_receipt_number: '',
-        note: '',
-        quantities: {},
-    });
-    const { data, setData, processing } = form;
-    const errors = form.errors as Record<string, string | undefined>;
+    const {
+        data,
+        setData,
+        errors,
+        processing,
+        splitGroups,
+        rowErrors,
+        rowProblem,
+        totalReceived,
+        countedPieces,
+        splitProblem,
+        hasProblems,
+        piecesIntoStock,
+        notLinkedReceived,
+        groupTotals,
+        setGroupTotal,
+        setRowQuantity,
+        splitCounts,
+        setSplitCount,
+        submit,
+    } = useRecordDelivery(groups, today);
     const [search, setSearch] = useState('');
-    const [groupTotals, setGroupTotals] = useState<Record<string, string>>({});
-    // Pieces counted per variant, for codes shared by several variants.
-    const [splitCounts, setSplitCounts] = useState<
-        Record<string, Record<number, string>>
-    >({});
-
-    const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
-    const splitGroups = useMemo(
-        () =>
-            groups.filter(
-                (group) => (group.stock_target?.split_into.length ?? 0) > 1,
-            ),
-        [groups],
-    );
-
-    // Server errors point at a row by its position in the list sent.
-    const rowErrors = useMemo(() => {
-        const byItem: Record<number, string | undefined> = {};
-
-        rows.forEach((row, index) => {
-            byItem[row.purchase_order_item_id] =
-                errors[`items.${index}.quantity_received`];
-        });
-
-        return byItem;
-    }, [rows, errors]);
-
-    const rowProblem = (row: WaitingItemRow): string | null => {
-        const quantity = wholeNumber(
-            data.quantities[row.purchase_order_item_id],
-        );
-
-        if (quantity === null) {
-            return 'Enter a whole number.';
-        }
-
-        if (quantity > row.quantity_remaining) {
-            return `Only ${row.quantity_remaining.toLocaleString('en-PH')} left to receive for this order.`;
-        }
-
-        return null;
-    };
-
-    const totalReceived = rows.reduce(
-        (sum, row) =>
-            sum +
-            (wholeNumber(data.quantities[row.purchase_order_item_id]) ?? 0),
-        0,
-    );
-    // What saving adds to stock, in pieces, and how many typed items are
-    // not linked to a product (recorded, but not added to stock).
-    const groupReceivedNow = (group: WaitingItemGroup) =>
-        group.rows.reduce(
-            (sum, row) =>
-                sum +
-                (wholeNumber(data.quantities[row.purchase_order_item_id]) ?? 0),
-            0,
-        );
-
-    /** Pieces counted per variant of a shared code; null if one is not a number. */
-    const countedPieces = (group: WaitingItemGroup): number | null => {
-        let total = 0;
-
-        for (const variant of group.stock_target?.split_into ?? []) {
-            const pieces = wholeNumber(
-                splitCounts[group.item_code]?.[variant.id],
-            );
-
-            if (pieces === null) {
-                return null;
-            }
-
-            total += pieces;
-        }
-
-        return total;
-    };
-
-    /** Why a shared code's counts do not fit what the orders receive. */
-    const splitProblem = (group: WaitingItemGroup): string | null => {
-        const target = group.stock_target;
-        const counted = countedPieces(group);
-
-        if (target === null || counted === null) {
-            return counted === null ? 'Enter whole numbers.' : null;
-        }
-
-        const remaining = group.rows.reduce(
-            (sum, row) => sum + row.quantity_remaining,
-            0,
-        );
-        const arriving = groupReceivedNow(group) * target.pieces_per_unit;
-
-        if (counted % target.pieces_per_unit !== 0) {
-            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but Head Office sends this by the ${target.unit_name} of ${target.pieces_per_unit} pcs, so the total must be a multiple of ${target.pieces_per_unit}.`;
-        }
-
-        if (counted / target.pieces_per_unit > remaining) {
-            return `Only ${formatUnits(remaining * target.pieces_per_unit, 'Piece')} left to receive for this item.`;
-        }
-
-        if (counted !== arriving) {
-            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but the orders below receive ${formatUnits(arriving, 'Piece')}. Make them match.`;
-        }
-
-        return null;
-    };
-
-    const hasProblems =
-        rows.some((row) => rowProblem(row) !== null) ||
-        splitGroups.some((group) => splitProblem(group) !== null);
-    const piecesIntoStock = groups.reduce(
-        (sum, group) =>
-            sum +
-            (group.stock_target
-                ? groupReceivedNow(group) * group.stock_target.pieces_per_unit
-                : 0),
-        0,
-    );
-    const notLinkedReceived = groups.filter(
-        (group) => group.stock_target === null && groupReceivedNow(group) > 0,
-    ).length;
 
     const visibleGroups = groups.filter((group) => {
         const term = search.trim().toLowerCase().replace(/^#/, '');
@@ -197,108 +66,6 @@ export default function RecordDelivery({
             )
         );
     });
-
-    // Never more than what is left to receive for that order.
-    const setRowQuantity = (row: WaitingItemRow, value: string) =>
-        setData('quantities', {
-            ...data.quantities,
-            [row.purchase_order_item_id]: wholeNumberInput(
-                value,
-                row.quantity_remaining,
-            ),
-        });
-
-    /**
-     * Share one counted total for an item code across its orders, oldest
-     * order first. A total larger than what is left is not shared out; the
-     * message explains why instead.
-     */
-    const setGroupTotal = (group: WaitingItemGroup, value: string) => {
-        // Never more than what is left of this item on its orders.
-        const total = wholeNumberInput(value, remainingOf(group));
-        setGroupTotals({ ...groupTotals, [group.item_code]: total });
-        shareOut(group, wholeNumber(total));
-    };
-
-    /** What is left to receive of an item code, on all its orders. */
-    const remainingOf = (group: WaitingItemGroup) =>
-        group.rows.reduce((sum, row) => sum + row.quantity_remaining, 0);
-
-    const shareOut = (group: WaitingItemGroup, total: number | null) => {
-        if (total === null || total > remainingOf(group)) {
-            return;
-        }
-
-        let left = total;
-        const quantities = { ...data.quantities };
-
-        for (const row of group.rows) {
-            const share = Math.min(left, row.quantity_remaining);
-            quantities[row.purchase_order_item_id] =
-                share > 0 ? String(share) : '';
-            left -= share;
-        }
-
-        setData('quantities', quantities);
-    };
-
-    /**
-     * A shared code is counted per variant (e.g. 5 Black, 3 Red); the total
-     * fills the orders, oldest first, in Head Office's unit.
-     */
-    const setSplitCount = (
-        group: WaitingItemGroup,
-        variantId: number,
-        value: string,
-    ) => {
-        const target = group.stock_target;
-        const others = Object.entries(splitCounts[group.item_code] ?? {})
-            .filter(([id]) => Number(id) !== variantId)
-            .reduce((sum, [, count]) => sum + (wholeNumber(count) ?? 0), 0);
-        // All sizes together never more than the pieces left to receive.
-        const mostPieces =
-            remainingOf(group) * (target?.pieces_per_unit ?? 1) - others;
-        const counts = {
-            ...splitCounts[group.item_code],
-            [variantId]: wholeNumberInput(value, Math.max(0, mostPieces)),
-        };
-        setSplitCounts({ ...splitCounts, [group.item_code]: counts });
-
-        const pieces = Object.values(counts).reduce(
-            (sum, count) => sum + (wholeNumber(count) ?? 0),
-            0,
-        );
-
-        if (target && pieces % target.pieces_per_unit === 0) {
-            shareOut(group, pieces / target.pieces_per_unit);
-        }
-    };
-
-    const submit = () => {
-        form.transform((current) => ({
-            received_on: current.received_on,
-            sales_invoice_number: current.sales_invoice_number,
-            delivery_receipt_number: current.delivery_receipt_number,
-            note: current.note,
-            items: rows.map((row) => ({
-                purchase_order_item_id: row.purchase_order_item_id,
-                quantity_received:
-                    current.quantities[row.purchase_order_item_id] ?? '',
-            })),
-            splits: splitGroups.map((group) => ({
-                item_code: group.item_code,
-                pieces: (group.stock_target?.split_into ?? []).map(
-                    (variant) => ({
-                        product_variant_id: variant.id,
-                        pieces:
-                            splitCounts[group.item_code]?.[variant.id] ?? '',
-                    }),
-                ),
-            })),
-        }));
-
-        form.post(DeliveryController.store().url, { preserveScroll: true });
-    };
 
     return (
         <>
@@ -781,146 +548,5 @@ export default function RecordDelivery({
                 )}
             </form>
         </>
-    );
-}
-
-/**
- * How Head Office sends this item (by the piece or by a pack, and how many
- * pieces are in one) and the product it goes into, or a warning that it is
- * not linked to a product yet, so it will not be added to stock and its
- * numbers are as ordered on the eStore.
- */
-function StockTargetNote({ group }: { group: WaitingItemGroup }) {
-    const target = group.stock_target;
-
-    if (target === null) {
-        return (
-            <div className="flex flex-col gap-2 border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
-                <span className="inline-flex items-center gap-2">
-                    <Unlink size={16} className="shrink-0" />
-                    Not linked to a product yet, so it will not be added to
-                    stock, and PROWARE does not know if Head Office counts it by
-                    the piece or by the pack. The numbers below are as ordered
-                    on the eStore.
-                </span>
-                <Link
-                    href={ItemLinkController.index({
-                        query: { search: group.item_code },
-                    })}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-2 text-sm font-black text-white transition hover:bg-amber-700"
-                >
-                    Link it now
-                </Link>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex flex-col gap-1 border-b border-emerald-100 bg-emerald-50 px-6 py-3 text-sm text-emerald-900 sm:flex-row sm:items-center sm:gap-6">
-            <span className="inline-flex items-center gap-2">
-                <Boxes size={16} className="shrink-0" />
-                Head Office sends this{' '}
-                <span className="rounded-lg bg-white px-2 py-0.5 font-black text-emerald-800 shadow-sm">
-                    {target.pieces_per_unit > 1
-                        ? `by the ${target.unit_name} (${target.pieces_per_unit.toLocaleString('en-PH')} pcs each)`
-                        : 'by the piece'}
-                </span>
-            </span>
-            <span>
-                Goes into stock:{' '}
-                <span className="font-black">
-                    {target.product_name}
-                    {target.split_into.length > 1
-                        ? ' — count how many of each arrived below'
-                        : target.has_options && ` (${target.variant_label})`}
-                </span>
-            </span>
-        </div>
-    );
-}
-
-/**
- * For a code shared by several variants (e.g. every color): a box per
- * variant for the pieces counted. The total fills the orders below.
- */
-function SplitCounts({
-    group,
-    counts,
-    onChange,
-    problem,
-}: {
-    group: WaitingItemGroup;
-    counts: Record<number, string>;
-    onChange: (variantId: number, value: string) => void;
-    problem: string | null;
-}) {
-    const target = group.stock_target;
-
-    if (target === null) {
-        return null;
-    }
-
-    return (
-        <div className="border-b border-slate-100 px-6 py-4">
-            <p className="text-sm font-black text-slate-700">
-                How many of each did you receive? (pcs)
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                {target.split_into.map((variant) => (
-                    <label
-                        key={variant.id}
-                        className="grid gap-1 rounded-xl border border-slate-200 bg-slate-50/60 p-3"
-                    >
-                        <span className="truncate text-sm font-black text-slate-800">
-                            {variant.label}
-                        </span>
-                        <span className="flex items-center gap-2">
-                            <input
-                                value={counts[variant.id] ?? ''}
-                                onChange={(event) =>
-                                    onChange(variant.id, event.target.value)
-                                }
-                                inputMode="numeric"
-                                placeholder="0"
-                                className={cn(inputClasses, 'text-right')}
-                                aria-label={`Pieces of ${variant.label} received`}
-                            />
-                            <span className="text-sm font-bold text-slate-500">
-                                pcs
-                            </span>
-                        </span>
-                        <span className="text-[11px] text-slate-500">
-                            In stock now:{' '}
-                            {formatUnits(variant.stock_on_hand, 'Piece')}
-                        </span>
-                    </label>
-                ))}
-            </div>
-            <InputError className="mt-2" message={problem ?? undefined} />
-        </div>
-    );
-}
-
-/**
- * A number with its unit beside it, e.g. "10 Packs" or "5 pcs". For an
- * item not linked to a product the unit is not known, so only the number
- * is shown (the note above the table says it is as ordered on the eStore).
- */
-function Quantity({
-    value,
-    target,
-}: {
-    value: number;
-    target: WaitingItemGroup['stock_target'];
-}) {
-    return (
-        <span className="inline-flex items-baseline justify-end gap-1">
-            {value.toLocaleString('en-PH')}
-            {target && (
-                <span className="text-xs font-bold text-slate-500">
-                    {unitWord(value, target.unit_name)}
-                </span>
-            )}
-        </span>
     );
 }

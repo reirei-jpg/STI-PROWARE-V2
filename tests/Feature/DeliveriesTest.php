@@ -121,6 +121,43 @@ test('the record delivery form lists waiting items by item code, oldest order fi
         );
 });
 
+test('the record delivery popup of an order lists only that order\'s waiting items', function () {
+    $order = orderWith(['UTMP02-03' => 10, 'UTMS02-03' => 5], ['order_number' => '30722']);
+    orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
+    $order->items()->where('item_code', 'UTMS02-03')->update(['quantity_delivered' => 5]);
+    $order->refreshDeliveryProgress();
+
+    $this->actingAs($this->specialist)
+        ->getJson(route('purchase-orders.waiting-items', $order))
+        ->assertOk()
+        ->assertJsonPath('order_number', '30722')
+        ->assertJsonPath('is_open', true)
+        ->assertJsonCount(1, 'groups')
+        ->assertJsonPath('groups.0.item_code', 'UTMP02-03')
+        ->assertJsonCount(1, 'groups.0.rows')
+        ->assertJsonPath('groups.0.rows.0.order_number', '30722');
+
+    $this->actingAs(User::factory()->schoolAdmin()->create())
+        ->getJson(route('purchase-orders.waiting-items', $order))
+        ->assertForbidden();
+});
+
+test('a delivery recorded from an order\'s popup stays on the page it came from', function () {
+    $order = orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
+
+    $this->actingAs($this->specialist)
+        ->from(route('purchase-orders.index'))
+        ->post(route('deliveries.store'), [
+            'received_on' => now()->toDateString(),
+            'stay_on_page' => true,
+            'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 10]],
+        ])
+        ->assertRedirect(route('purchase-orders.index'))
+        ->assertSessionHasNoErrors();
+
+    expect($order->refresh()->delivery_status)->toBe(DeliveryStatus::Completed);
+});
+
 test('an order not complete after the follow-up days is shown to follow up with Head Office', function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-29 09:00', 'Asia/Manila'));
     $due = orderWith(['UTMP02-03' => 10], ['order_number' => '30722', 'date_ordered' => '2026-09-29']);
