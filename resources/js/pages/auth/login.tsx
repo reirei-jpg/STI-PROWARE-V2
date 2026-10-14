@@ -8,7 +8,6 @@ import {
     ShowPasswordButton,
     authLinkClasses,
 } from '@/components/auth-field';
-import PasskeyVerify from '@/components/passkey-verify';
 import { MicrosoftLogo } from '@/components/sign-in-prompt';
 import { home, register } from '@/routes';
 import { store } from '@/routes/login';
@@ -31,8 +30,6 @@ export default function Login({ status, canResetPassword }: Props) {
     return (
         <>
             <Head title="PROWARE Login" />
-
-            <PasskeyVerify />
 
             {status && <AuthStatus>{status}</AuthStatus>}
 
