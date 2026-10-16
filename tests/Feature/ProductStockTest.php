@@ -310,12 +310,12 @@ test('typing the code on a variant in the product form adds the deliveries that 
 
     $this->post(route('products.store'), draftProductWithCode('prcu01 – 01'))
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Chibi Keychain saved. It is a Draft, so students cannot see it yet. 20 pieces from deliveries already received were added to stock.');
+        ->assertInertiaFlash('toast.message', 'Chibi Keychain has been saved as a draft. It is not visible to students. 20 pieces from earlier deliveries have been added to stock.');
 
     $product = Product::sole();
 
     $this->put(route('products.update', $product), draftProductWithCode('PRCU01-01'))
-        ->assertInertiaFlash('toast.message', 'Chibi Keychain saved. It is a Draft, so students cannot see it yet.');
+        ->assertInertiaFlash('toast.message', 'Chibi Keychain has been saved as a draft. It is not visible to students.');
 
     expect($product->variants()->sole()->stock_on_hand)->toBe(20)
         ->and(StockMovement::count())->toBe(1);

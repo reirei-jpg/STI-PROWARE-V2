@@ -587,30 +587,30 @@ export default function ProductForm({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data]);
 
-    // What pressing Save will do, e.g. "STI Aqua Flask · 3 variants (Pink /
-    // 32 oz not available) · Available, so students can see it".
+    // What pressing Save will save, e.g. "STI Aqua Flask · 3 variants (Pink /
+    // 32 oz unavailable) · Available: visible to students".
     const unavailableLabels = combinations
         .filter((combination) => data.unavailable.includes(combination.key))
         .map((combination) => combination.label);
-    const willSave = [
+    const summary = [
         data.name.trim() || 'This product',
         hasVariants
             ? `${availableCombinations.length} ${availableCombinations.length === 1 ? 'variant' : 'variants'}${
                   unavailableLabels.length === 0
                       ? ''
                       : unavailableLabels.length <= 3
-                        ? ` (${unavailableLabels.join(', ')} not available)`
-                        : ` (${unavailableLabels.length} not available)`
+                        ? ` (${unavailableLabels.join(', ')} unavailable)`
+                        : ` (${unavailableLabels.length} unavailable)`
               }`
             : null,
         {
-            draft: 'Draft, so students cannot see it yet',
+            draft: 'Draft: not visible to students',
             preorder:
                 data.preorders_close_on === ''
-                    ? 'Preorder: choose the close date'
-                    : `Preorder, students can preorder it until ${new Date(`${data.preorders_close_on}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
-            available: 'Available, so students can see it',
-            on_sale: 'On Sale on the storefront',
+                    ? 'Preorder: choose the closing date'
+                    : `Preorder: open until ${new Date(`${data.preorders_close_on}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+            available: 'Available: visible to students',
+            on_sale: 'On Sale: visible to students',
         }[data.status],
     ]
         .filter(Boolean)
@@ -1424,7 +1424,7 @@ export default function ProductForm({
                                                         title={
                                                             hasStock &&
                                                             available
-                                                                ? 'It has stock, so it must stay available.'
+                                                                ? 'Cannot be marked unavailable because it has stock.'
                                                                 : undefined
                                                         }
                                                     >
@@ -1469,8 +1469,8 @@ export default function ProductForm({
                                                 </span>
                                                 {!available && (
                                                     <span className="mt-0.5 block text-xs font-semibold text-slate-500">
-                                                        Does not exist · not
-                                                        shown to students
+                                                        Unavailable · hidden
+                                                        from students
                                                     </span>
                                                 )}
                                             </td>
@@ -1661,8 +1661,9 @@ export default function ProductForm({
                         className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm text-red-900"
                     >
                         <p className="font-black">
-                            Not saved. Fix {problems.length}{' '}
-                            {problems.length === 1 ? 'thing' : 'things'}:
+                            {problems.length === 1
+                                ? 'Please correct the following field before saving:'
+                                : `Please correct the following ${problems.length} fields before saving:`}
                         </p>
                         <ul className="mt-3 space-y-2">
                             {problems.map((problem) => (
@@ -1681,7 +1682,7 @@ export default function ProductForm({
                                         onClick={() => jumpTo(problem.section)}
                                         className="shrink-0 self-start rounded-xl border border-red-300 bg-white px-3 py-1.5 text-sm font-black text-red-700 transition hover:bg-red-50 sm:self-auto"
                                     >
-                                        Show me
+                                        Go to field
                                     </button>
                                 </li>
                             ))}
@@ -1690,10 +1691,8 @@ export default function ProductForm({
                 )}
 
                 <p className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-600 shadow-sm">
-                    <span className="font-black text-slate-800">
-                        Will save:
-                    </span>{' '}
-                    {willSave}
+                    <span className="font-black text-slate-800">Summary:</span>{' '}
+                    {summary}
                 </p>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

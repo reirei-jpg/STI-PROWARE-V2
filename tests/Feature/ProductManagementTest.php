@@ -471,7 +471,7 @@ test('a combination that does not exist is not saved, and can be made available 
     // Pink does not come in 32 oz.
     $this->post(route('products.store'), $aquaFlask(['Color: Pink | Capacity: 32 oz']))
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'STI Aqua Flask saved with 3 variants. Students can see it and add it to their cart.');
+        ->assertInertiaFlash('toast.message', 'STI Aqua Flask has been saved with 3 variants. It is now visible to students.');
     $product = Product::query()->where('name', 'STI Aqua Flask')->sole();
 
     expect($product->variants()->orderBy('position')->pluck('combination')->all())->toBe([
@@ -486,13 +486,13 @@ test('a combination that does not exist is not saved, and can be made available 
 
     // Every combination unticked is refused.
     $this->put(route('products.update', $product), $aquaFlask(['Color: Black | Capacity: 22 oz', 'Color: Black | Capacity: 32 oz', 'Color: Pink | Capacity: 22 oz', 'Color: Pink | Capacity: 32 oz']))
-        ->assertSessionHasErrors(['options' => 'Keep at least one size or color available.'])
-        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Product not saved. Fix the box marked in red.']);
+        ->assertSessionHasErrors(['options' => 'At least one variant must be available.'])
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'The product was not saved. Please correct the highlighted field.']);
 
     // A combination with stock must stay available.
     $product->variants()->where('combination', 'Color: Black | Capacity: 22 oz')->update(['stock_on_hand' => 5]);
     $this->put(route('products.update', $product), $aquaFlask(['Color: Black | Capacity: 22 oz']))
-        ->assertSessionHasErrors(['options' => '"Black / 22 oz" already has stock, so it must stay available.']);
+        ->assertSessionHasErrors(['options' => '"Black / 22 oz" cannot be marked unavailable because it has stock.']);
     expect($product->variants()->count())->toBe(4);
 });
 
@@ -514,6 +514,10 @@ test('a size students preordered cannot be removed or renamed, so their preorder
     $this->put(route('products.update', $product), $form(['Medium/Large', 'XL']))
         ->assertSessionHasErrors(['options' => '"M/L" has preorders from 3 students, so it cannot be removed or renamed. Put its choice back.']);
     expect(Preorder::query()->where('product_variant_id', $large->id)->count())->toBe(3);
+
+    // Marking M/L unavailable would delete them too: refused.
+    $this->put(route('products.update', $product), [...$form(['M/L', 'XL']), 'unavailable' => ['Size: M/L']])
+        ->assertSessionHasErrors(['options' => '"M/L" cannot be marked unavailable because 3 students have preordered it.']);
 
     // Adding a size, or removing one with only cancelled preorders, is fine.
     $this->put(route('products.update', $product), $form(['M/L', '2XL']))->assertSessionHasNoErrors();

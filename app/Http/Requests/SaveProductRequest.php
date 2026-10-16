@@ -165,8 +165,8 @@ class SaveProductRequest extends FormRequest
     }
 
     /**
-     * "Product not saved." in a popup, so it is clear nothing was saved even
-     * when the boxes with a problem are further up the page.
+     * "The product was not saved." in a popup, so it is clear nothing was
+     * saved even when the fields with a problem are further up the page.
      */
     protected function failedValidation(ValidatorContract $validator): void
     {
@@ -174,7 +174,7 @@ class SaveProductRequest extends FormRequest
 
         Inertia::flash('toast', [
             'type' => 'error',
-            'message' => 'Product not saved. Fix the '.($problems === 1 ? 'box' : "{$problems} boxes").' marked in red.',
+            'message' => 'The product was not saved. Please correct the '.($problems === 1 ? 'highlighted field' : "{$problems} highlighted fields").'.',
         ]);
 
         parent::failedValidation($validator);
@@ -224,7 +224,7 @@ class SaveProductRequest extends FormRequest
                 if (count(ProductVariants::combinations($this->options())) > self::MAX_VARIANTS) {
                     $validator->errors()->add('options', 'These options make more than '.self::MAX_VARIANTS.' variants. Use fewer choices.');
                 } elseif ($this->availableCombinations() === []) {
-                    $validator->errors()->add('options', 'Keep at least one size or color available.');
+                    $validator->errors()->add('options', 'At least one variant must be available.');
                 }
 
                 $this->validateUniqueName($validator);
@@ -350,7 +350,7 @@ class SaveProductRequest extends FormRequest
         foreach ($lost as $variant) {
             $validator->errors()->add('options', match (true) {
                 $variant->choices === [] => 'This product already has stock without options, so options cannot be added to it.',
-                in_array($variant->combination, $all, true) => "\"{$variant->label()}\" already has stock, so it must stay available.",
+                in_array($variant->combination, $all, true) => "\"{$variant->label()}\" cannot be marked unavailable because it has stock.",
                 default => "\"{$variant->label()}\" already has stock, so it cannot be removed or renamed. Put its choice back.",
             });
         }
@@ -391,7 +391,7 @@ class SaveProductRequest extends FormRequest
 
             $validator->errors()->add('options', match (true) {
                 $variant === null || $variant->choices === [] => 'This product already has preorders without options, so options cannot be added to it.',
-                in_array($variant->combination, $all, true) => "\"{$variant->label()}\" has preorders from {$who}, so it must stay available.",
+                in_array($variant->combination, $all, true) => "\"{$variant->label()}\" cannot be marked unavailable because {$who} ".($count === 1 ? 'has' : 'have').' preordered it.',
                 default => "\"{$variant->label()}\" has preorders from {$who}, so it cannot be removed or renamed. Put its choice back.",
             });
         }

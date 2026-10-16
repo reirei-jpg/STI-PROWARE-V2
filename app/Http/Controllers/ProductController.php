@@ -247,25 +247,27 @@ class ProductController extends Controller
     }
 
     /**
-     * What was saved and where students see it, e.g. "STI Aqua Flask saved
-     * with 3 variants. Students can see it and add it to their cart.", and
-     * how many pieces of earlier deliveries went into stock when an eStore
-     * Item Code was linked.
+     * What was saved and whether students see it, e.g. "STI Aqua Flask has
+     * been saved with 3 variants. It is now visible to students.", and how
+     * many pieces of earlier deliveries went into stock when an eStore Item
+     * Code was linked.
      */
     private function flashSaved(Product $product, int $piecesAdded): void
     {
         $variants = $product->variants()->count();
 
-        $message = "{$product->name} saved".($variants > 1 ? " with {$variants} variants" : '').'. '
+        $message = "{$product->name} has been saved"
+            .($product->status === ProductStatus::Draft ? ' as a draft' : '')
+            .($variants > 1 ? " with {$variants} variants" : '').'. '
             .match ($product->status) {
-                ProductStatus::Draft => 'It is a Draft, so students cannot see it yet.',
-                ProductStatus::Preorder => 'Students can preorder it until '.$product->preorders_close_on?->format('M j, Y').'.',
-                ProductStatus::Available => 'Students can see it and add it to their cart.',
-                ProductStatus::OnSale => 'It is On Sale on the storefront.',
+                ProductStatus::Draft => 'It is not visible to students.',
+                ProductStatus::Preorder => 'It is open for preorders until '.$product->preorders_close_on?->format('M j, Y').'.',
+                ProductStatus::Available => 'It is now visible to students.',
+                ProductStatus::OnSale => 'It is currently on sale.',
             };
 
         if ($piecesAdded > 0) {
-            $message .= ' '.number_format($piecesAdded).($piecesAdded === 1 ? ' piece' : ' pieces').' from deliveries already received were added to stock.';
+            $message .= ' '.number_format($piecesAdded).($piecesAdded === 1 ? ' piece' : ' pieces').' from earlier deliveries '.($piecesAdded === 1 ? 'has' : 'have').' been added to stock.';
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
