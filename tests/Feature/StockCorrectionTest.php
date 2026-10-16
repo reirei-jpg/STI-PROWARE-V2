@@ -99,13 +99,13 @@ test('the correct stock form explains what is wrong', function (array $payload, 
 })->with([
     'no reason' => [['actual_count' => '5'], 'reason', 'Choose why the stock is being corrected.'],
     'damaged without how many' => [['reason' => 'damaged'], 'pieces_to_remove', 'Enter how many pieces to take out of stock.'],
-    'taking out nothing' => [['reason' => 'damaged', 'pieces_to_remove' => '0'], 'pieces_to_remove', 'Take out at least 1 piece.'],
+    'taking out nothing' => [['reason' => 'damaged', 'pieces_to_remove' => '0'], 'pieces_to_remove', 'The number of pieces must be at least 1.'],
     'taking out more than in stock' => [['reason' => 'lost', 'pieces_to_remove' => '11'], 'pieces_to_remove', 'Only 10 pcs are in stock.'],
     'recount without a count' => [['reason' => 'recount'], 'actual_count', 'Enter how many pieces are actually on the shelf.'],
     'a count below zero' => [['reason' => 'recount', 'actual_count' => '-1'], 'actual_count', 'The count cannot be below 0.'],
     'the same count as now' => [['reason' => 'recount', 'actual_count' => '10'], 'actual_count', 'The stock is already 10 pcs, so nothing would change.'],
-    'other without a note' => [['reason' => 'other', 'actual_count' => '4', 'note' => ' '], 'note', 'Write what happened, since the reason is Other.'],
-    'other with a one-letter note' => [['reason' => 'other', 'actual_count' => '4', 'note' => 'x'], 'note', 'Write a little more about what happened (at least 5 characters).'],
+    'other without a note' => [['reason' => 'other', 'actual_count' => '4', 'note' => ' '], 'note', 'Describe what happened, since the reason is Other.'],
+    'other with a one-letter note' => [['reason' => 'other', 'actual_count' => '4', 'note' => 'x'], 'note', 'Write at least 5 characters.'],
 ]);
 
 test('a variant of another product cannot be corrected from this product', function () {

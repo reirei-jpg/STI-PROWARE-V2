@@ -155,7 +155,7 @@ test('ending a sale now brings back the normal price', function () {
     $this->post(route('products.sale.store', $product), ['sale_price' => '50', 'pack_sale_prices' => [$box->id => '700'], 'days' => '7']);
 
     $this->delete(route('products.sale.destroy', $product))
-        ->assertInertiaFlash('toast.message', 'The sale of Lanyard ended. It is back to its normal price.');
+        ->assertInertiaFlash('toast.message', 'The sale of Lanyard has ended. It is back to its normal price.');
 
     expect($product->refresh())
         ->status->toBe(ProductStatus::Available)

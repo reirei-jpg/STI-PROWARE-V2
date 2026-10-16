@@ -85,7 +85,7 @@ test('a group of 5 who enrolled together each get one set, which leaves stock as
     $this->actingAs($this->specialist)
         ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-09', 'note' => 'Barkada of five', 'students' => $students])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'The group of 5 students has been recorded. 10 pieces given.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'The group of 5 students has been recorded. 10 pieces have been given.']);
 
     $group = FreeUniformGroup::sole();
 
@@ -111,7 +111,7 @@ test('a piece out of stock is still to give, and is given when it arrives, in an
 
     $this->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5)])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'The group of 5 students has been recorded. 9 pieces given. Still to give (out of stock): Student 5: Polo M. Give them from the group\'s details when they arrive.']);
+        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'The group of 5 students has been recorded. 9 pieces have been given. Still to give (out of stock): Student 5: Polo M. Give them from the group\'s details when they arrive.']);
 
     $owed = FreeUniformStudent::query()->stillOwed()->sole();
     expect($owed->name)->toBe('Student 5')
@@ -123,7 +123,7 @@ test('a piece out of stock is still to give, and is given when it arrives, in an
     uniformSize($set->polo_product_id, 'S')->forceFill(['stock_on_hand' => 3])->save();
     $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => uniformSize($set->polo_product_id, 'S')->id])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => '1 piece given to Student 5.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => '1 piece has been given to Student 5.']);
 
     expect($owed->refresh()->isStillOwed())->toBeFalse()
         ->and($owed->topVariant->label())->toBe('S')

@@ -73,14 +73,14 @@ class CorrectStockRequest extends FormRequest
             'reason.enum' => 'Choose one of the reasons. Free uniforms are recorded on the Free Uniforms page.',
             'pieces_to_remove.required' => 'Enter how many pieces to take out of stock.',
             'pieces_to_remove.integer' => 'Enter a whole number of pieces.',
-            'pieces_to_remove.min' => 'Take out at least 1 piece.',
+            'pieces_to_remove.min' => 'The number of pieces must be at least 1.',
             'actual_count.required' => 'Enter how many pieces are actually on the shelf.',
             'actual_count.integer' => 'Enter a whole number of pieces.',
             'actual_count.min' => 'The count cannot be below 0.',
-            'note.required' => 'Write what happened, since the reason is Other.',
-            'note.min' => 'Write a little more about what happened (at least 5 characters).',
+            'note.required' => 'Describe what happened, since the reason is Other.',
+            'note.min' => 'Write at least 5 characters.',
             'unit_cost.numeric' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
-            'unit_cost.min' => 'Enter the eStore price per piece, e.g. 250 or 18.50.',
+            'unit_cost.min' => 'The eStore price per piece must be more than ₱0.',
             'unit_cost.max' => 'The eStore price per piece cannot be more than ₱100,000.00.',
         ];
     }

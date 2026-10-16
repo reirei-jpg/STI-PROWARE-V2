@@ -120,6 +120,6 @@ class FreeUniformController extends Controller
     /** "1 piece given" or "10 pieces given". */
     private static function givenWords(int $pieces): string
     {
-        return $pieces === 1 ? '1 piece given' : "{$pieces} pieces given";
+        return $pieces === 1 ? '1 piece has been given' : "{$pieces} pieces have been given";
     }
 }

@@ -110,7 +110,7 @@ class ProductSaleController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "The sale of {$product->name} ended. It is back to its normal price.",
+            'message' => "The sale of {$product->name} has ended. It is back to its normal price.",
         ]);
 
         return back();
