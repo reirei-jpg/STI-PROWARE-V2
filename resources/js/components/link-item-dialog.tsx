@@ -512,8 +512,7 @@ function LinkItemForm({
             <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
                 {data.product_variant_ids.length === 0 && (
                     <p className="mr-auto text-xs font-semibold text-slate-500">
-                        Please choose the product and at least one variant to
-                        link.
+                        Choose the product and at least one variant to link.
                     </p>
                 )}
                 <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">

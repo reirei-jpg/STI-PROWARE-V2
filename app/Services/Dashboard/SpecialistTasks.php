@@ -113,7 +113,7 @@ final class SpecialistTasks
                 .($row['variant_label'] === null ? '' : " ({$row['variant_label']})")
                 .' but cost ₱'.number_format($row['cost_centavos'] / 100, 2).' per piece'
                 .($row['order_number'] === null ? '' : " on Order #{$row['order_number']}")
-                .'. Every sale loses money. Please update the Selling Price set by Head Office.',
+                .'. Every sale loses money. Update the Selling Price set by Head Office.',
             label: 'Edit price',
             url: route('products.edit', $row['product_id']),
         ), array_slice($products, 0, self::SHOWN_PER_KIND));

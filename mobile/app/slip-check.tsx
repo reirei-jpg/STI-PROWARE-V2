@@ -54,7 +54,7 @@ export default function SlipCheckScreen() {
                 setNotFound(true);
             } else {
                 setLoadError(
-                    caught instanceof ApiError ? caught.message : 'The slip could not be loaded. Please try again.',
+                    caught instanceof ApiError ? caught.message : 'The slip could not be loaded. Try again.',
                 );
             }
         }
@@ -86,7 +86,7 @@ export default function SlipCheckScreen() {
 
             return true;
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'It could not be done. Please try again.');
+            setError(caught instanceof ApiError ? caught.message : 'It could not be done. Try again.');
 
             return false;
         } finally {

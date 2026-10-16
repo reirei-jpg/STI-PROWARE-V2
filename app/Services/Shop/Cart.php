@@ -105,7 +105,7 @@ final class Cart
         // Only when the stock itself has more than the most one student may
         // order; otherwise the student is told how many are left.
         if ($quantity > self::MAX_QUANTITY && intdiv(max(0, $variant->freeToSell() - $inOtherLines), $piecesPerUnit) >= self::MAX_QUANTITY) {
-            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.']);
+            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', contact the PROWARE office.']);
         }
 
         $message = match (true) {

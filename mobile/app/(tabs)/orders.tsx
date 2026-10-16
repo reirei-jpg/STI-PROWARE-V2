@@ -296,7 +296,7 @@ function PreorderRow({
                         setError(
                             caught instanceof ApiError
                                 ? caught.message
-                                : 'The preorder could not be cancelled. Please try again.',
+                                : 'The preorder could not be cancelled. Try again.',
                         );
                     } finally {
                         setCancelling(false);

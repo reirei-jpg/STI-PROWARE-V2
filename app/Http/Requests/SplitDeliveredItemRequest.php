@@ -38,7 +38,7 @@ class SplitDeliveredItemRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'pieces.*.pieces.integer' => 'Please enter whole numbers.',
+            'pieces.*.pieces.integer' => 'Enter whole numbers.',
             'pieces.*.pieces.min' => 'A count cannot be negative.',
         ];
     }
@@ -64,7 +64,7 @@ class SplitDeliveredItemRequest extends FormRequest
                 }
 
                 if (array_diff(array_keys($this->piecesByVariant()), $variants->modelKeys()) !== []) {
-                    $validator->errors()->add('pieces', 'The choices changed. Please reload the page and count again.');
+                    $validator->errors()->add('pieces', 'The choices changed. Reload the page and count again.');
 
                     return;
                 }
@@ -76,7 +76,7 @@ class SplitDeliveredItemRequest extends FormRequest
                 $counted = array_sum($this->piecesByVariant());
 
                 if ($counted !== $waiting) {
-                    $validator->errors()->add('pieces', 'Your counts add up to '.Units::count($counted, 'Piece').', but '.Units::count($waiting, 'Piece').' arrived. Please make them match.');
+                    $validator->errors()->add('pieces', 'Your counts add up to '.Units::count($counted, 'Piece').', but '.Units::count($waiting, 'Piece').' arrived. Make them match.');
                 }
             },
         ];

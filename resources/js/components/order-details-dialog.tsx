@@ -216,8 +216,8 @@ export default function OrderDetailsDialog({
                                     </button>
                                     {!paid && (
                                         <p className="text-xs font-semibold text-emerald-900/70">
-                                            Please tick the box above once the
-                                            student has paid.
+                                            Tick the box above once the student
+                                            has paid.
                                         </p>
                                     )}
                                 </section>

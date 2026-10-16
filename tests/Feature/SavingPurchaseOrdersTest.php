@@ -116,7 +116,7 @@ test('an order with problems marked must fix cannot be saved', function () {
     )]);
 
     $this->post(route('purchase-orders.store'), ['warnings_checked' => 'on'])
-        ->assertSessionHasErrors(['save' => 'This order cannot be saved because some essential details could not be read. Please check the problems marked "Must fix".']);
+        ->assertSessionHasErrors(['save' => 'This order cannot be saved because some essential details could not be read. Check the problems marked "Must fix".']);
 
     expect(PurchaseOrder::count())->toBe(0);
 });
@@ -127,7 +127,7 @@ test('an order with warnings needs the warnings to be confirmed first', function
     $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload(total: '500')]);
 
     $this->post(route('purchase-orders.store'))
-        ->assertSessionHasErrors(['warnings_checked' => 'Please confirm that you have checked the warnings above.']);
+        ->assertSessionHasErrors(['warnings_checked' => 'Confirm that you have checked the warnings above.']);
 
     expect(PurchaseOrder::count())->toBe(0);
 
@@ -140,7 +140,7 @@ test('an order with warnings needs the warnings to be confirmed first', function
 test('saving without a scanned file explains what to do', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.store'))
-        ->assertSessionHasErrors(['save' => 'There is no scanned file to save. Please scan the purchase order again.']);
+        ->assertSessionHasErrors(['save' => 'There is no scanned file to save. Scan the purchase order again.']);
 });
 
 test('a school admin cannot save purchase orders', function () {

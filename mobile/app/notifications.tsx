@@ -47,7 +47,7 @@ function describe(data: StudentNotificationData): {
         case 'order_cancelled':
             return {
                 title: `Order ${data.order_number} was cancelled`,
-                body: data.reason ?? 'Please ask the PROWARE office.',
+                body: data.reason ?? 'Ask the PROWARE office.',
                 titleClass: 'text-red-700',
                 stripe: '#f87171',
             };

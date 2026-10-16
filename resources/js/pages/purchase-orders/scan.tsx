@@ -215,7 +215,7 @@ export default function ScanPurchaseOrder({
                             <Notice
                                 tone="amber"
                                 icon={CircleAlert}
-                                title={`Please check ${scan.warnings.length} ${scan.warnings.length === 1 ? 'thing' : 'things'}`}
+                                title={`Check ${scan.warnings.length} ${scan.warnings.length === 1 ? 'thing' : 'things'}`}
                             >
                                 <ul className="mt-1 space-y-1.5">
                                     {scan.warnings.map((warning, index) => (

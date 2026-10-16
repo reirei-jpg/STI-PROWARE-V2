@@ -85,7 +85,7 @@ test('pasting the order details email scans it and keeps it privately', function
 test('pasted text without an order is refused with an explanation', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.scan.store'), ['email_text' => "Your request has been approved (Order #: 30720).\nYou may now create an Internal Request via ORACLE."])
-        ->assertSessionHasErrors(['email_text' => 'PROWARE could not find the item table. Please paste the whole order details email from the eStore, or upload a saved copy of it.']);
+        ->assertSessionHasErrors(['email_text' => 'PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.']);
 
     expect(Storage::disk('local')->allFiles())->toBe([]);
 });
@@ -162,8 +162,8 @@ test('the email must be pasted or a file chosen', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.scan.store'))
         ->assertSessionHasErrors([
-            'email_text' => 'Please paste the order details email from the eStore.',
-            'document' => 'Please choose the order file to scan.',
+            'email_text' => 'Paste the order details email from the eStore.',
+            'document' => 'Choose the order file to scan.',
         ]);
 });
 
@@ -176,7 +176,7 @@ test('files over 5 MB are refused', function () {
 test('a file the scanner cannot read is refused with an explanation and not kept', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.scan.store'), ['document' => UploadedFile::fake()->createWithContent('po.png', "\x89PNG\r\n\x1a\n\0\0\0")])
-        ->assertSessionHasErrors(['document' => 'PROWARE cannot read this file type. Please paste the order details email instead, or upload it as a Word (.docx) or text file.']);
+        ->assertSessionHasErrors(['document' => 'PROWARE cannot read this file type. Paste the order details email instead, or upload it as a Word (.docx) or text file.']);
 
     expect(Storage::disk('local')->allFiles())->toBe([]);
 });

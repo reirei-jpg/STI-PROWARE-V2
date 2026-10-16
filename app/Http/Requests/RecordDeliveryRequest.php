@@ -47,13 +47,13 @@ class RecordDeliveryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'received_on.required' => 'Please choose the date the delivery arrived.',
-            'received_on.date_format' => 'Please choose a valid date.',
+            'received_on.required' => 'Choose the date the delivery arrived.',
+            'received_on.date_format' => 'Choose a valid date.',
             'received_on.before_or_equal' => 'The date received cannot be in the future.',
             'items.required' => 'There are no items waiting for delivery.',
-            'items.*.quantity_received.integer' => 'Please enter a whole number.',
+            'items.*.quantity_received.integer' => 'Enter a whole number.',
             'items.*.quantity_received.min' => 'The quantity cannot be negative.',
-            'splits.*.pieces.*.pieces.integer' => 'Please enter whole numbers.',
+            'splits.*.pieces.*.pieces.integer' => 'Enter whole numbers.',
             'splits.*.pieces.*.pieces.min' => 'A count cannot be negative.',
         ];
     }
@@ -72,7 +72,7 @@ class RecordDeliveryRequest extends FormRequest
                 $received = $this->receivedQuantities();
 
                 if ($received === []) {
-                    $validator->errors()->add('items', 'Please enter how many arrived for at least one item.');
+                    $validator->errors()->add('items', 'Enter how many arrived for at least one item.');
 
                     return;
                 }
@@ -142,15 +142,15 @@ class RecordDeliveryRequest extends FormRequest
             $countedPieces = array_sum($counted);
 
             if (array_diff(array_keys($counted), $variants->modelKeys()) !== []) {
-                $validator->errors()->add($key, "The choices for {$code} changed. Please reload the page and count again.");
+                $validator->errors()->add($key, "The choices for {$code} changed. Reload the page and count again.");
             } elseif ($arriving === 0 && $countedPieces === 0) {
                 continue;
             } elseif ($arriving > 0 && $countedPieces === 0) {
-                $validator->errors()->add($key, "{$code} is shared by several variants. Please enter how many of each arrived.");
+                $validator->errors()->add($key, "{$code} is shared by several variants. Enter how many of each arrived.");
             } elseif ($countedPieces % $piecesPerUnit !== 0) {
                 $validator->errors()->add($key, 'Your counts add up to '.Units::count($countedPieces, 'Piece').", but Head Office sends this by the {$unitName} of {$piecesPerUnit} pcs, so the total must be a multiple of {$piecesPerUnit}.");
             } elseif ($countedPieces !== $arriving) {
-                $validator->errors()->add($key, 'Your counts add up to '.Units::count($countedPieces, 'Piece').', but the orders below receive '.Units::count($arriving, 'Piece').'. Please make them match.');
+                $validator->errors()->add($key, 'Your counts add up to '.Units::count($countedPieces, 'Piece').', but the orders below receive '.Units::count($arriving, 'Piece').'. Make them match.');
             }
         }
     }

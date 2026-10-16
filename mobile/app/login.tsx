@@ -49,7 +49,7 @@ export default function Login() {
             setError(
                 caught instanceof ApiError
                     ? caught.message
-                    : 'Something went wrong. Please try again.',
+                    : 'Something went wrong. Try again.',
             );
             setProcessing(false);
         }

@@ -235,7 +235,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Order {data.order_number} was cancelled
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    {data.reason ?? 'Please ask the PROWARE office.'}
+                    {data.reason ?? 'Ask the PROWARE office.'}
                 </span>
             </>
         );

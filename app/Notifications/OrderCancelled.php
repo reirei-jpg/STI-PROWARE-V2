@@ -44,7 +44,7 @@ class OrderCancelled extends Notification implements PushesToPhones
     {
         return [
             'title' => "Order {$this->order->number} was cancelled",
-            'body' => $this->order->cancel_reason ?? 'Please ask the PROWARE office.',
+            'body' => $this->order->cancel_reason ?? 'Ask the PROWARE office.',
             'data' => ['kind' => 'order_cancelled', 'order_id' => $this->order->id],
         ];
     }

@@ -31,7 +31,7 @@ const styles: Record<
         heading: 'text-red-700',
     },
     warning: {
-        title: 'Please Check',
+        title: 'Attention',
         icon: TriangleAlert,
         border: 'border-amber-200',
         badge: 'bg-amber-100 text-amber-600',

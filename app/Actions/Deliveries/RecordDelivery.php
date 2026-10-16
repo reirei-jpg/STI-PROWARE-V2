@@ -66,7 +66,7 @@ class RecordDelivery
 
                 if ($item === null || ! $item->purchaseOrder->delivery_status->isOpen() || $quantity > $item->quantityRemaining()) {
                     throw ValidationException::withMessages([
-                        'items' => 'Some quantities changed while you were typing. Please check them again.',
+                        'items' => 'Some quantities changed while you were typing. Check them again.',
                     ]);
                 }
             }

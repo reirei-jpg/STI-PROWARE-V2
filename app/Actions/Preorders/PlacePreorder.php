@@ -29,12 +29,12 @@ class PlacePreorder
     }
 
     /**
-     * "Preordered 2 × 42nd Anniversary Shirt (S/M). You can see it in My Preorders."
+     * "Your preorder of 2 × 42nd Anniversary Shirt (S/M) has been placed. It is listed in My Preorders."
      */
     public static function message(Preorder $preorder, Product $product): string
     {
         $variant = $preorder->variant;
 
-        return "Preordered {$preorder->quantity} × {$product->name}".($variant->choices === [] ? '' : " ({$variant->label()})").'. You can see it in My Preorders.';
+        return "Your preorder of {$preorder->quantity} × {$product->name}".($variant->choices === [] ? '' : " ({$variant->label()})").' has been placed. It is listed in My Preorders.';
     }
 }

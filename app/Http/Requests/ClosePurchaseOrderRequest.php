@@ -27,8 +27,8 @@ class ClosePurchaseOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'reason.required' => 'Please describe why this order is being closed.',
-            'reason.min' => 'Please write at least 5 characters.',
+            'reason.required' => 'Describe why this order is being closed.',
+            'reason.min' => 'Write at least 5 characters.',
             'reason.max' => 'The reason may not be longer than 500 characters.',
         ];
     }

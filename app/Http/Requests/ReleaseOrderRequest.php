@@ -27,7 +27,7 @@ class ReleaseOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'paid.accepted' => 'Please confirm that the student has paid before releasing the items.',
+            'paid.accepted' => 'Confirm that the student has paid before releasing the items.',
         ];
     }
 }

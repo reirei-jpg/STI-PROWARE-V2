@@ -39,7 +39,7 @@ class CorrectStock
 
             if ($change === 0 || $balance < 0) {
                 throw ValidationException::withMessages([
-                    $reason->removesPieces() ? 'pieces_to_remove' : 'actual_count' => 'The stock changed while you were typing. Please check it again.',
+                    $reason->removesPieces() ? 'pieces_to_remove' : 'actual_count' => 'The stock changed while you were typing. Check it again.',
                 ]);
             }
 

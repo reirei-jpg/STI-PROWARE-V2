@@ -98,9 +98,9 @@ test('the counts per color must add up to what is received', function (Closure $
     expect(StockMovement::count())->toBe(0)
         ->and($order->items()->sole()->quantity_delivered)->toBe(0);
 })->with([
-    'not counted' => [fn (Collection $colors) => [], 'PRUM01-01 is shared by several variants. Please enter how many of each arrived.'],
-    'too few' => [fn (Collection $colors) => [$colors[0]->id => 4, $colors[1]->id => 4], 'Your counts add up to 8 pcs, but the orders below receive 10 pcs. Please make them match.'],
-    'another product\'s variant' => [fn (Collection $colors) => [ProductVariant::factory()->create()->id => 10], 'The choices for PRUM01-01 changed. Please reload the page and count again.'],
+    'not counted' => [fn (Collection $colors) => [], 'PRUM01-01 is shared by several variants. Enter how many of each arrived.'],
+    'too few' => [fn (Collection $colors) => [$colors[0]->id => 4, $colors[1]->id => 4], 'Your counts add up to 8 pcs, but the orders below receive 10 pcs. Make them match.'],
+    'another product\'s variant' => [fn (Collection $colors) => [ProductVariant::factory()->create()->id => 10], 'The choices for PRUM01-01 changed. Reload the page and count again.'],
 ]);
 
 test('a shared code sent by the pack is counted in pieces that make whole packs', function () {
@@ -154,7 +154,7 @@ test('linking a code to the colors that share it, then splitting what already ar
     ]);
 
     $split([$black->id => 2, $red->id => 2])
-        ->assertSessionHasErrors(['pieces' => 'Your counts add up to 4 pcs, but 12 pcs arrived. Please make them match.']);
+        ->assertSessionHasErrors(['pieces' => 'Your counts add up to 4 pcs, but 12 pcs arrived. Make them match.']);
 
     $split([$black->id => 4, $red->id => 3, $navy->id => 5])
         ->assertSessionHasNoErrors()
@@ -178,7 +178,7 @@ test('only some sizes can share a code, and only ones without a code of their ow
     $link([$black->id, $red->id])
         ->assertSessionHasErrors(['product_variant_ids' => 'Red already has its own eStore Item Code PRUM01-02. Untick it.']);
     $link([$black->id, ProductVariant::factory()->create()->id])
-        ->assertSessionHasErrors(['product_variant_ids' => 'Please choose variants of one product only.']);
+        ->assertSessionHasErrors(['product_variant_ids' => 'Choose variants of one product only.']);
 
     $link([$black->id, $navy->id])->assertSessionHasNoErrors();
 

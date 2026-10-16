@@ -77,7 +77,7 @@ export default function PreorderSheet({
             setError(
                 caught instanceof ApiError
                     ? caught.message
-                    : 'The preorder could not be placed. Please try again.',
+                    : 'The preorder could not be placed. Try again.',
             );
         } finally {
             setSaving(false);

@@ -1662,8 +1662,8 @@ export default function ProductForm({
                     >
                         <p className="font-black">
                             {problems.length === 1
-                                ? 'Please correct the following field before saving:'
-                                : `Please correct the following ${problems.length} fields before saving:`}
+                                ? 'Correct the following field before saving:'
+                                : `Correct the following ${problems.length} fields before saving:`}
                         </p>
                         <ul className="mt-3 space-y-2">
                             {problems.map((problem) => (

@@ -97,7 +97,7 @@ test('an item not linked to a product is recorded but not added to stock', funct
         ->post(route('deliveries.store'), deliveryOf($order, 'SSIF001-001', 1000))
         ->assertRedirect(route('deliveries.index'))
         ->assertInertiaFlash('toast.type', 'warning')
-        ->assertInertiaFlash('toast.message', 'The delivery has been recorded. Not added to stock yet, because it is not linked to a product: SSIF001-001 (1,000 as ordered on the eStore). Please link it in Products › Items to Link.');
+        ->assertInertiaFlash('toast.message', 'The delivery has been recorded. Not added to stock yet, because it is not linked to a product: SSIF001-001 (1,000 as ordered on the eStore). Link it in Products › Items to Link.');
 
     expect(StockMovement::count())->toBe(0)
         ->and($order->items()->sole()->quantity_delivered)->toBe(1000);
@@ -119,7 +119,7 @@ test('the message after saving lists what went into stock and what did not', fun
             ],
         ])
         ->assertInertiaFlash('toast.type', 'warning')
-        ->assertInertiaFlash('toast.message', 'The delivery has been recorded. Added to stock: TM Polo (S/M) — 3 pcs. Not added to stock yet, because they are not linked to a product: SSIF001-001 (1,000 as ordered on the eStore); SSRF001-001 (500 as ordered on the eStore). Please link them in Products › Items to Link.');
+        ->assertInertiaFlash('toast.message', 'The delivery has been recorded. Added to stock: TM Polo (S/M) — 3 pcs. Not added to stock yet, because they are not linked to a product: SSIF001-001 (1,000 as ordered on the eStore); SSRF001-001 (500 as ordered on the eStore). Link them in Products › Items to Link.');
 });
 
 test('the deliveries list shows the pieces each delivery added to stock', function () {
@@ -252,7 +252,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
 })->with([
     'no variant chosen' => [
         fn () => ['item_code' => orderWith(['UTMP02-03' => 10])->items()->value('item_code'), 'sent_by' => 'piece'],
-        'product_variant_ids', 'Please choose the product and the variant (or variants) this item is.',
+        'product_variant_ids', 'Choose the product and the variant (or variants) this item is.',
     ],
     'a code no uploaded order has' => [
         fn () => ['item_code' => 'XX01-01', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'piece'],
@@ -273,7 +273,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
 
             return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create(['estore_item_code' => 'UTMP02-04'])->id], 'sent_by' => 'piece'];
         },
-        'product_variant_ids', 'This variant already has the eStore Item Code UTMP02-04. Please choose another variant.',
+        'product_variant_ids', 'This variant already has the eStore Item Code UTMP02-04. Choose another variant.',
     ],
     'a pack of another product' => [
         function () {
@@ -281,7 +281,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
 
             return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'pack', 'pack_id' => ProductPack::factory()->create()->id];
         },
-        'pack_id', 'Please choose one of this product\'s packs.',
+        'pack_id', 'Choose one of this product\'s packs.',
     ],
     'a new pack named piece' => [
         function () {
@@ -289,7 +289,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
 
             return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'new_pack', 'new_pack_name' => 'pcs', 'new_pack_pieces' => '10'];
         },
-        'new_pack_name', 'Stock is already counted by the piece. Please name the pack something else, e.g. Pack or Box.',
+        'new_pack_name', 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.',
     ],
     'a new pack of one piece' => [
         function () {

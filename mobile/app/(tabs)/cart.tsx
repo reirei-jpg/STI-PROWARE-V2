@@ -83,7 +83,7 @@ export default function CartScreen() {
             setError(
                 caught instanceof ApiError
                     ? caught.message
-                    : 'The order could not be placed. Please try again.',
+                    : 'The order could not be placed. Try again.',
             );
             // The cart may have changed (for example, an item sold out).
             refresh().catch(() => undefined);
@@ -387,7 +387,7 @@ function CartLineRow({
 
                         onChanged(result.cart);
                     } catch {
-                        setError('It could not be removed. Please try again.');
+                        setError('It could not be removed. Try again.');
                         setBusy(false);
                     }
                 },

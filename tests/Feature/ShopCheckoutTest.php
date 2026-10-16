@@ -114,7 +114,7 @@ test('more than 99 asks to talk to the office only when there is that much stock
     $this->actingAs($this->student);
 
     $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '100'])
-        ->assertSessionHasErrors(['quantity' => 'For more than 99, please talk to the PROWARE office.']);
+        ->assertSessionHasErrors(['quantity' => 'For more than 99, contact the PROWARE office.']);
     $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '99'])->assertSessionHasNoErrors();
 });
 
@@ -328,7 +328,7 @@ test('once the order is ready the student can no longer cancel it', function () 
     $order->forceFill(['status' => OrderStatus::Ready])->save();
 
     $this->post(route('my-orders.cancel', $order), ['reason' => 'ordered_by_mistake'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 is already prepared, so it can no longer be cancelled here. Please talk to the PROWARE office.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 is already prepared, so it can no longer be cancelled here. Talk to the PROWARE office.');
 
     expect($order->refresh()->status)->toBe(OrderStatus::Ready);
 });
@@ -356,7 +356,7 @@ test('the specialist marks an order ready, then releases it once paid, and the i
         ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2);
 
     $this->post(route('orders.release', $order))
-        ->assertSessionHasErrors(['paid' => 'Please confirm that the student has paid before releasing the items.']);
+        ->assertSessionHasErrors(['paid' => 'Confirm that the student has paid before releasing the items.']);
     expect($order->refresh()->status)->toBe(OrderStatus::Ready);
 
     $this->post(route('orders.release', $order), ['paid' => true])
@@ -425,13 +425,13 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.cancel', $order), ['reason' => ''])
-        ->assertSessionHasErrors(['reason' => 'Please select a reason for cancelling. The student will see it.']);
+        ->assertSessionHasErrors(['reason' => 'Select a reason for cancelling. The student will see it.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'other'])
-        ->assertSessionHasErrors(['note' => 'Please describe the reason for cancelling. The student will see it.']);
+        ->assertSessionHasErrors(['note' => 'Describe the reason for cancelling. The student will see it.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'x'])
-        ->assertSessionHasErrors(['note' => 'Please write at least 5 characters.']);
+        ->assertSessionHasErrors(['note' => 'Write at least 5 characters.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'wrong_size_or_color'])
-        ->assertSessionHasErrors(['reason' => 'Please select one of the reasons shown.']);
+        ->assertSessionHasErrors(['reason' => 'Select one of the reasons shown.']);
 
     $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'The ballpens were damaged.'])
         ->assertInertiaFlash('toast.message', 'Order PW-0001 has been cancelled, and its items have been returned to stock. Juan Dela Cruz has been notified.');

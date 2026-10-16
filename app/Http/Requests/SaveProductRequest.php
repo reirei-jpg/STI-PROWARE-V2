@@ -174,7 +174,7 @@ class SaveProductRequest extends FormRequest
 
         Inertia::flash('toast', [
             'type' => 'error',
-            'message' => 'The product was not saved. Please correct the '.($problems === 1 ? 'highlighted field' : "{$problems} highlighted fields").'.',
+            'message' => 'The product was not saved. Correct the '.($problems === 1 ? 'highlighted field' : "{$problems} highlighted fields").'.',
         ]);
 
         parent::failedValidation($validator);
@@ -273,7 +273,7 @@ class SaveProductRequest extends FormRequest
             $name = mb_strtolower($pack['name']);
 
             if (in_array($name, ['piece', 'pieces', 'pc', 'pcs'], true)) {
-                $validator->errors()->add("packs.{$index}.name", 'Stock is already counted by the piece. Please name the pack something else, e.g. Pack or Box.');
+                $validator->errors()->add("packs.{$index}.name", 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.');
             } elseif (isset($namesSeen[$name])) {
                 $validator->errors()->add("packs.{$index}.name", 'Two packs have the same name.');
             }

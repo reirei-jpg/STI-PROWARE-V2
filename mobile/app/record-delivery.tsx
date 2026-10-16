@@ -228,7 +228,7 @@ export default function RecordDeliveryScreen() {
                 }),
             );
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'The delivery could not be recorded. Please try again.');
+            setError(caught instanceof ApiError ? caught.message : 'The delivery could not be recorded. Try again.');
         } finally {
             setSaving(false);
         }

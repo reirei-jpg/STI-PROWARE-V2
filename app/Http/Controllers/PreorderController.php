@@ -208,7 +208,7 @@ class PreorderController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Preorders for {$product->name} now close on {$closeOn->format('M j, Y')}.",
+            'message' => "Preorders for {$product->name} will now close on {$closeOn->format('M j, Y')}.",
         ]);
 
         return back();

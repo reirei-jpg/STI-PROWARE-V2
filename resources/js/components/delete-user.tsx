@@ -30,7 +30,7 @@ export default function DeleteUser() {
                 <div className="relative space-y-0.5 text-red-600 dark:text-red-100">
                     <p className="font-medium">Warning</p>
                     <p className="text-sm">
-                        Please proceed with caution, this cannot be undone.
+                        Proceed with caution, this cannot be undone.
                     </p>
                 </div>
 
@@ -49,8 +49,8 @@ export default function DeleteUser() {
                         </DialogTitle>
                         <DialogDescription>
                             Once your account is deleted, all of its resources
-                            and data will also be permanently deleted. Please
-                            enter your password to confirm you would like to
+                            and data will also be permanently deleted. Enter
+                            your password to confirm you would like to
                             permanently delete your account.
                         </DialogDescription>
 

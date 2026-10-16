@@ -98,7 +98,7 @@ export default function AddToCartSheet({
             setError(
                 caught instanceof ApiError
                     ? caught.message
-                    : 'It could not be added. Please try again.',
+                    : 'It could not be added. Try again.',
             );
         } finally {
             setSaving(false);

@@ -58,8 +58,8 @@ export async function apiRequest<T>(
 
         throw new ApiError(
             seconds > 0
-                ? `Too many login attempts. Please try again in ${seconds} seconds.`
-                : 'Too many login attempts. Please try again in a minute.',
+                ? `Too many login attempts. Try again in ${seconds} seconds.`
+                : 'Too many login attempts. Try again in a minute.',
             429,
         );
     }
@@ -70,7 +70,7 @@ export async function apiRequest<T>(
         : undefined;
 
     throw new ApiError(
-        fieldMessage ?? error.message ?? 'Something went wrong. Please try again.',
+        fieldMessage ?? error.message ?? 'Something went wrong. Try again.',
         response.status,
     );
 }

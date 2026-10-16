@@ -126,7 +126,7 @@ class PurchaseOrderController extends Controller
         $pending = $pendingScans->get($request->session());
 
         if ($pending === null) {
-            throw ValidationException::withMessages(['save' => 'There is no scanned file to save. Please scan the purchase order again.']);
+            throw ValidationException::withMessages(['save' => 'There is no scanned file to save. Scan the purchase order again.']);
         }
 
         try {
@@ -138,11 +138,11 @@ class PurchaseOrderController extends Controller
         }
 
         if ($scan->hasBlockingProblems()) {
-            throw ValidationException::withMessages(['save' => 'This order cannot be saved because some essential details could not be read. Please check the problems marked "Must fix".']);
+            throw ValidationException::withMessages(['save' => 'This order cannot be saved because some essential details could not be read. Check the problems marked "Must fix".']);
         }
 
         if ($scan->warnings !== [] && ! $request->boolean('warnings_checked')) {
-            throw ValidationException::withMessages(['warnings_checked' => 'Please confirm that you have checked the warnings above.']);
+            throw ValidationException::withMessages(['warnings_checked' => 'Confirm that you have checked the warnings above.']);
         }
 
         $this->ensureNotAlreadyUploaded($scan);

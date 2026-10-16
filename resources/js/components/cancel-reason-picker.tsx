@@ -94,7 +94,7 @@ export default function CancelReasonPicker({
                             )}
                         >
                             {written < MIN_NOTE
-                                ? `Please write at least ${MIN_NOTE} characters (${written} of ${MIN_NOTE}).`
+                                ? `Write at least ${MIN_NOTE} characters (${written} of ${MIN_NOTE}).`
                                 : `${note.length} of 200 characters`}
                         </span>
                     )}

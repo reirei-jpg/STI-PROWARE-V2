@@ -26,7 +26,7 @@ class AuthController extends Controller
         }
 
         if (! $user->isStudent() && ! $user->isSpecialist()) {
-            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students and the PROWARE Specialist. Please use the website.']);
+            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students and the PROWARE Specialist. Use the website.']);
         }
 
         if (! $user->hasVerifiedEmail()) {

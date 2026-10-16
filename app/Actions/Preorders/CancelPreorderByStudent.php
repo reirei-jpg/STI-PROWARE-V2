@@ -17,11 +17,11 @@ use Illuminate\Validation\ValidationException;
 class CancelPreorderByStudent
 {
     /**
-     * "Your preorder for STI Hoodie was cancelled." (website and phone app).
+     * "Your preorder for STI Hoodie has been cancelled." (website and phone app).
      */
     public static function message(Preorder $preorder): string
     {
-        return "Your preorder for {$preorder->product->name} was cancelled.";
+        return "Your preorder for {$preorder->product->name} has been cancelled.";
     }
 
     /**
@@ -33,7 +33,7 @@ class CancelPreorderByStudent
             return null;
         }
 
-        return "Preorders for {$preorder->product->name} are closed, so this preorder can no longer be cancelled here. Please ask the PROWARE office.";
+        return "Preorders for {$preorder->product->name} are closed, so this preorder can no longer be cancelled here. Ask the PROWARE office.";
     }
 
     /**

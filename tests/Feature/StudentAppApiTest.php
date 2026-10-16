@@ -63,7 +63,7 @@ test('signing in on the app explains what is wrong', function (Closure $makeUser
         ->assertJsonValidationErrors(['email' => $message]);
 })->with([
     'wrong password' => [fn () => User::query()->where('email', 'delacruz.123456@sti.edu.ph')->sole(), 'wrong', 'These credentials do not match our records.'],
-    'school admin account' => [fn () => User::factory()->schoolAdmin()->create(['password' => 'Demo@2026!']), 'Demo@2026!', 'The PROWARE app is for students and the PROWARE Specialist. Please use the website.'],
+    'school admin account' => [fn () => User::factory()->schoolAdmin()->create(['password' => 'Demo@2026!']), 'Demo@2026!', 'The PROWARE app is for students and the PROWARE Specialist. Use the website.'],
     'email not verified' => [fn () => User::factory()->student()->unverified()->create(['password' => 'Demo@2026!']), 'Demo@2026!', 'Verify your email on the PROWARE website first, then sign in here.'],
 ]);
 
@@ -191,7 +191,7 @@ test('the app refuses to cancel a prepared order or another student\'s order', f
 
     $this->postJson(route('api.v1.orders.cancel', $ready), ['reason' => 'no_longer_needed'])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['order' => "Order {$ready->number} is already prepared, so it can no longer be cancelled here. Please talk to the PROWARE office."]);
+        ->assertJsonValidationErrors(['order' => "Order {$ready->number} is already prepared, so it can no longer be cancelled here. Talk to the PROWARE office."]);
     $this->postJson(route('api.v1.orders.cancel', $theirs))->assertNotFound();
     $this->getJson(route('api.v1.orders.show', $theirs))->assertNotFound();
 });
@@ -203,7 +203,7 @@ test('preordering and cancelling a preorder on the app', function () {
 
     $preorder = $this->postJson(route('api.v1.preorders.store', $shirt), ['product_variant_id' => $variant->id, 'quantity' => 2])
         ->assertCreated()
-        ->assertJsonPath('message', 'Preordered 2 × Anniversary Shirt. You can see it in My Preorders.')
+        ->assertJsonPath('message', 'Your preorder of 2 × Anniversary Shirt has been placed. It is listed in My Preorders.')
         ->json('preorder');
 
     $this->getJson(route('api.v1.preorders.index'))->assertJsonPath('data.0.quantity', 2);
@@ -215,7 +215,7 @@ test('preordering and cancelling a preorder on the app', function () {
     $shirt->update(['preorders_close_on' => '2026-10-03']);
     $closed = Preorder::factory()->for($this->student, 'student')->for($shirt)->for($variant, 'variant')->create();
     $this->deleteJson(route('api.v1.preorders.destroy', $closed))
-        ->assertJsonValidationErrors(['preorder' => 'Preorders for Anniversary Shirt are closed, so this preorder can no longer be cancelled here. Please ask the PROWARE office.']);
+        ->assertJsonValidationErrors(['preorder' => 'Preorders for Anniversary Shirt are closed, so this preorder can no longer be cancelled here. Ask the PROWARE office.']);
 });
 
 test('the app gets exactly the storefront the website shows', function () {

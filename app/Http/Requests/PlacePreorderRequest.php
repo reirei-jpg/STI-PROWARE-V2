@@ -45,8 +45,8 @@ class PlacePreorderRequest extends FormRequest
             'product_variant_id.exists' => 'Choose one of this item\'s sizes or colors.',
             'quantity.required' => 'Enter how many you want.',
             'quantity.integer' => 'Enter a whole number.',
-            'quantity.min' => 'Preorder at least 1.',
-            'quantity.max' => 'For more than '.number_format(self::MAX_QUANTITY).', please talk to the PROWARE office.',
+            'quantity.min' => 'The quantity must be at least 1.',
+            'quantity.max' => 'For more than '.number_format(self::MAX_QUANTITY).', contact the PROWARE office.',
         ];
     }
 

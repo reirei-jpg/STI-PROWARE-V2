@@ -77,7 +77,7 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
         );
 
         if (quantity === null) {
-            return 'Please enter a whole number.';
+            return 'Enter a whole number.';
         }
 
         if (quantity > row.quantity_remaining) {
@@ -124,7 +124,7 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
         const counted = countedPieces(group);
 
         if (target === null || counted === null) {
-            return counted === null ? 'Please enter whole numbers.' : null;
+            return counted === null ? 'Enter whole numbers.' : null;
         }
 
         const arriving = groupReceivedNow(group) * target.pieces_per_unit;
@@ -138,7 +138,7 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
         }
 
         if (counted !== arriving) {
-            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but the orders below receive ${formatUnits(arriving, 'Piece')}. Please make them match.`;
+            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but the orders below receive ${formatUnits(arriving, 'Piece')}. Make them match.`;
         }
 
         return null;
@@ -147,7 +147,7 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
     // The date is checked as it is typed: a day that has not come yet is refused.
     const dateProblem =
         data.received_on === ''
-            ? 'Please choose the date the delivery arrived.'
+            ? 'Choose the date the delivery arrived.'
             : data.received_on > today
               ? 'The date received cannot be in the future.'
               : null;

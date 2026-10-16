@@ -209,7 +209,7 @@ test('a price set before a dearer eStore order arrived is flagged on Products an
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('tasks.now.0.kind', 'below_cost')
         ->where('tasks.now.0.title', 'Selling below cost: STI Jacket')
-        ->where('tasks.now.0.detail', 'Sells at ₱400.00 but cost ₱500.00 per piece on Order #30801. Every sale loses money. Please update the Selling Price set by Head Office.')
+        ->where('tasks.now.0.detail', 'Sells at ₱400.00 but cost ₱500.00 per piece on Order #30801. Every sale loses money. Update the Selling Price set by Head Office.')
         ->where('tasks.now.0.action.url', route('products.edit', $variant->product_id)));
 
     // Head Office's new Selling Price covers the Cost: the warning goes.

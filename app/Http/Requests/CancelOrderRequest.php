@@ -31,10 +31,10 @@ class CancelOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'reason.required' => 'Please select a reason for cancelling. The student will see it.',
-            'reason.in' => 'Please select one of the reasons shown.',
-            'note.required' => 'Please describe the reason for cancelling. The student will see it.',
-            'note.min' => 'Please write at least 5 characters.',
+            'reason.required' => 'Select a reason for cancelling. The student will see it.',
+            'reason.in' => 'Select one of the reasons shown.',
+            'note.required' => 'Describe the reason for cancelling. The student will see it.',
+            'note.min' => 'Write at least 5 characters.',
             'note.max' => 'The reason may not be longer than 200 characters.',
         ];
     }

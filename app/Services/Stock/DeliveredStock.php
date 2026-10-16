@@ -130,7 +130,7 @@ final class DeliveredStock
             $arrived = (int) $items->sum('quantity_received') * $piecesPerUnit;
 
             if ($items->isEmpty() || array_sum($piecesByVariant) !== $arrived) {
-                throw ValidationException::withMessages(['pieces' => 'What is waiting changed while you were typing. Please check it again.']);
+                throw ValidationException::withMessages(['pieces' => 'What is waiting changed while you were typing. Check it again.']);
             }
 
             return $this->add($items, $recordedBy, self::allocate($items, $piecesByVariant, $piecesPerUnit));

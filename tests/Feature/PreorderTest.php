@@ -36,7 +36,7 @@ test('a student can preorder a size, and preordering it again changes how many',
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '2'])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Preordered 2 × 42nd Anniversary Shirt (S/M). You can see it in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of 2 × 42nd Anniversary Shirt (S/M) has been placed. It is listed in My Preorders.');
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '3']);
 
@@ -59,8 +59,8 @@ test('the preorder form explains what is wrong', function (Closure $payload, str
 })->with([
     'no size chosen' => [fn (ProductVariant $small) => ['quantity' => '1'], 'product_variant_id', 'Choose the size or color you want.'],
     'a size of another product' => [fn (ProductVariant $small) => ['product_variant_id' => ProductVariant::factory()->create()->id, 'quantity' => '1'], 'product_variant_id', 'Choose one of this item\'s sizes or colors.'],
-    'none' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '0'], 'quantity', 'Preorder at least 1.'],
-    'more than 99' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '100'], 'quantity', 'For more than 99, please talk to the PROWARE office.'],
+    'none' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '0'], 'quantity', 'The quantity must be at least 1.'],
+    'more than 99' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '100'], 'quantity', 'For more than 99, contact the PROWARE office.'],
 ]);
 
 test('preorders are taken until the end of the close date', function (string $closesOn, bool $open) {
@@ -130,7 +130,7 @@ test('a student can cancel a preorder while preorders are open, but not after', 
 
     $this->travelTo(CarbonImmutable::parse('2026-10-20 20:00', 'Asia/Manila'));
     $this->delete(route('my-preorders.destroy', $preorder))
-        ->assertInertiaFlash('toast.message', 'Your preorder for 42nd Anniversary Shirt was cancelled.');
+        ->assertInertiaFlash('toast.message', 'Your preorder for 42nd Anniversary Shirt has been cancelled.');
 
     expect($preorder->refresh())
         ->status->toBe(PreorderStatus::Cancelled)
@@ -305,7 +305,7 @@ test('the specialist can move the close date to take more preorders', function (
 
     $this->patch(route('preorders.close-date', $product), ['preorders_close_on' => '2026-10-25'])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Preorders for 42nd Anniversary Shirt now close on Oct 25, 2026.');
+        ->assertInertiaFlash('toast.message', 'Preorders for 42nd Anniversary Shirt will now close on Oct 25, 2026.');
 
     expect($product->refresh()->preorders_close_on->toDateString())->toBe('2026-10-25')
         ->and($product->acceptsPreorders())->toBeTrue();

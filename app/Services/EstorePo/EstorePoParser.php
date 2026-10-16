@@ -34,7 +34,7 @@ class EstorePoParser
 {
     private const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-    private const UNSUPPORTED_FILE_MESSAGE = 'PROWARE cannot read this file type. Please paste the order details email instead, or upload it as a Word (.docx) or text file.';
+    private const UNSUPPORTED_FILE_MESSAGE = 'PROWARE cannot read this file type. Paste the order details email instead, or upload it as a Word (.docx) or text file.';
 
     /** A line above these looks wrong and cannot be saved. */
     public const MAX_UNIT_PRICE_CENTAVOS = 100000 * 100;
@@ -235,7 +235,7 @@ class EstorePoParser
         }
 
         if ($layout === null || $tableStart === null) {
-            throw new UnreadablePurchaseOrderException('PROWARE could not find the item table. Please paste the whole order details email from the eStore, or upload a saved copy of it.');
+            throw new UnreadablePurchaseOrderException('PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.');
         }
 
         $warnings = [];
@@ -473,13 +473,13 @@ class EstorePoParser
         }
 
         if ($quantityOrdered !== null && $quantityOrdered > self::MAX_QUANTITY) {
-            $warn('Quantity ordered ('.number_format($quantityOrdered).') looks wrong: it is more than '.number_format(self::MAX_QUANTITY).'. Please check the eStore email.', blocking: true);
+            $warn('Quantity ordered ('.number_format($quantityOrdered).') looks wrong: it is more than '.number_format(self::MAX_QUANTITY).'. Check the eStore email.', blocking: true);
         }
 
         if ($unitPriceCentavos === null) {
             $warn('Unit price is missing or not a valid amount.', blocking: true);
         } elseif ($unitPriceCentavos > self::MAX_UNIT_PRICE_CENTAVOS) {
-            $warn('Unit price ('.$this->formatMoney($unitPriceCentavos).') looks wrong: it is more than '.$this->formatMoney(self::MAX_UNIT_PRICE_CENTAVOS).'. Please check the eStore email.', blocking: true);
+            $warn('Unit price ('.$this->formatMoney($unitPriceCentavos).') looks wrong: it is more than '.$this->formatMoney(self::MAX_UNIT_PRICE_CENTAVOS).'. Check the eStore email.', blocking: true);
         }
 
         if ($amountCentavos === null) {
