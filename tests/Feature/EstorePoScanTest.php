@@ -85,7 +85,7 @@ test('pasting the order details email scans it and keeps it privately', function
 test('pasted text without an order is refused with an explanation', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.scan.store'), ['email_text' => "Your request has been approved (Order #: 30720).\nYou may now create an Internal Request via ORACLE."])
-        ->assertSessionHasErrors(['email_text' => 'PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.']);
+        ->assertSessionHasErrors(['email_text' => 'PROWARE could not find the item table. Please paste the whole order details email from the eStore, or upload a saved copy of it.']);
 
     expect(Storage::disk('local')->allFiles())->toBe([]);
 });
@@ -118,6 +118,32 @@ test('the scan page warns when the order was already uploaded', function () {
         );
 });
 
+test('the scan page points out items still waiting on another order, and saving is still allowed', function () {
+    $this->actingAs(User::factory()->specialist()->create());
+
+    // Order #30722: 3,000 forms, 1,000 arrived so far.
+    $this->post(route('purchase-orders.scan.store'), ['email_text' => estoreOrderEmail()]);
+    $this->post(route('purchase-orders.store'))
+        ->assertInertiaFlash('toast.message', 'Order #30722 has been saved and is now waiting to arrive.');
+    PurchaseOrder::sole()->items()->update(['quantity_delivered' => 1000]);
+
+    // The same form ordered again before the rest came.
+    $this->post(route('purchase-orders.scan.store'), ['email_text' => estoreOrderEmail(orderNumber: '30951')]);
+
+    $this->get(route('purchase-orders.scan'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('duplicate', null)
+            ->where('alreadyWaiting', [[
+                'item_code' => 'SSIF001-001',
+                'description' => 'Student Information form',
+                'order_number' => '30722',
+                'remaining' => 2000,
+            ]]));
+
+    $this->post(route('purchase-orders.store'))->assertSessionHasNoErrors();
+    expect(PurchaseOrder::count())->toBe(2);
+});
+
 test('discarding a scan deletes the kept file', function () {
     $this->actingAs(User::factory()->specialist()->create());
 
@@ -136,8 +162,8 @@ test('the email must be pasted or a file chosen', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.scan.store'))
         ->assertSessionHasErrors([
-            'email_text' => 'Paste the order details email from the eStore.',
-            'document' => 'Choose the order file to scan.',
+            'email_text' => 'Please paste the order details email from the eStore.',
+            'document' => 'Please choose the order file to scan.',
         ]);
 });
 
@@ -150,7 +176,7 @@ test('files over 5 MB are refused', function () {
 test('a file the scanner cannot read is refused with an explanation and not kept', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.scan.store'), ['document' => UploadedFile::fake()->createWithContent('po.png', "\x89PNG\r\n\x1a\n\0\0\0")])
-        ->assertSessionHasErrors(['document' => 'PROWARE can\'t read this file type yet. Paste the order details email instead, or upload it as a Word (.docx) or text file.']);
+        ->assertSessionHasErrors(['document' => 'PROWARE cannot read this file type. Please paste the order details email instead, or upload it as a Word (.docx) or text file.']);
 
     expect(Storage::disk('local')->allFiles())->toBe([]);
 });

@@ -31,9 +31,9 @@ class ScanEstorePoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email_text.required_without' => 'Paste the order details email from the eStore.',
-            'email_text.max' => 'That is too much text. Paste only the order details email.',
-            'document.required_without' => 'Choose the order file to scan.',
+            'email_text.required_without' => 'Please paste the order details email from the eStore.',
+            'email_text.max' => 'The text is too long. Please paste only the order details email.',
+            'document.required_without' => 'Please choose the order file to scan.',
             'document.file' => 'The file did not upload properly. Please try again.',
             'document.uploaded' => 'The file did not upload properly. Please try again.',
             'document.max' => 'The file is too large. Order files must be 5 MB or smaller.',

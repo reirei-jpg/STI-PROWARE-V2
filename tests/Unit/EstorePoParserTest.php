@@ -149,9 +149,9 @@ test('an unrealistic price or quantity, or an endless number, looks wrong and bl
 
     expect($scan->hasBlockingProblems())->toBeTrue()
         ->and(array_map(warningText(...), array_values(array_filter($scan->warnings, fn (array $warning): bool => $warning['blocking']))))->toBe([
-            'Row 1: Unit price (₱100,000.01) looks wrong: it is more than ₱100,000.00. Check the eStore email.',
-            'Row 2: Quantity ordered (100,001) looks wrong: it is more than 100,000. Check the eStore email.',
-            'Row 3: Unit price (₱999,999,999,999.99) looks wrong: it is more than ₱100,000.00. Check the eStore email.',
+            'Row 1: Unit price (₱100,000.01) looks wrong: it is more than ₱100,000.00. Please check the eStore email.',
+            'Row 2: Quantity ordered (100,001) looks wrong: it is more than 100,000. Please check the eStore email.',
+            'Row 3: Unit price (₱999,999,999,999.99) looks wrong: it is more than ₱100,000.00. Please check the eStore email.',
         ]);
 });
 
@@ -295,8 +295,8 @@ test('it refuses a file it cannot scan', function (string $contents, string $mes
         ->toThrow(UnreadablePurchaseOrderException::class, $message);
 })->with([
     'empty file' => ['', 'The uploaded file is empty or could not be opened.'],
-    'binary file' => ["\x89PNG\r\n\x1a\n\0\0\0", 'PROWARE can\'t read this file type yet. Paste the order details email instead, or upload it as a Word (.docx) or text file.'],
-    'text without an item table' => ["Hello,\nPlease see the attached order.", 'PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.'],
+    'binary file' => ["\x89PNG\r\n\x1a\n\0\0\0", 'PROWARE cannot read this file type. Please paste the order details email instead, or upload it as a Word (.docx) or text file.'],
+    'text without an item table' => ["Hello,\nPlease see the attached order.", 'PROWARE could not find the item table. Please paste the whole order details email from the eStore, or upload a saved copy of it.'],
     'item table with no rows' => ["Category: PROWARE\n".ESTORE_TABLE_HEADER, 'The item table in this file has no items.'],
 ]);
 
@@ -308,5 +308,5 @@ test('it refuses a zip file that is not a Word document', function () {
     $zip->close();
 
     expect(fn () => (new EstorePoParser)->parseFile($path))
-        ->toThrow(UnreadablePurchaseOrderException::class, 'PROWARE can\'t read this file type yet.');
+        ->toThrow(UnreadablePurchaseOrderException::class, 'PROWARE cannot read this file type.');
 });

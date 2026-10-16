@@ -57,7 +57,7 @@ class PurchaseOrderDeliveryController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Order #{$purchaseOrder->order_number} is now Completed (some missing).",
+            'message' => "Order #{$purchaseOrder->order_number} has been marked as Completed (some missing).",
         ]);
 
         return back();

@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DeliveryStatus;
 use App\Http\Requests\ScanEstorePoRequest;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Services\EstorePo\EstorePoParser;
 use App\Services\EstorePo\PendingPurchaseOrderScan;
+use App\Services\EstorePo\ScannedPurchaseOrder;
+use App\Services\EstorePo\ScannedPurchaseOrderItem;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,7 +52,45 @@ class PurchaseOrderScanController extends Controller
                 'uploaded_at' => $duplicate->created_at?->toIso8601String(),
                 'uploaded_by' => $duplicate->uploader->name,
             ],
+            'alreadyWaiting' => $scan === null || $duplicate !== null ? [] : $this->alreadyWaiting($scan),
         ]);
+    }
+
+    /**
+     * Items of the scanned order still waiting to arrive on another order,
+     * e.g. ordered again before the first order came. Ordering more can be
+     * on purpose, so it is only pointed out.
+     *
+     * @return list<array{item_code: string, description: string, order_number: string|null, remaining: int}>
+     */
+    private function alreadyWaiting(ScannedPurchaseOrder $scan): array
+    {
+        $codes = array_values(array_unique(array_filter(array_map(
+            fn (ScannedPurchaseOrderItem $item): ?string => $item->itemCode,
+            $scan->items,
+        ))));
+
+        if ($codes === []) {
+            return [];
+        }
+
+        return array_values(PurchaseOrderItem::query()
+            ->select('purchase_order_items.*')
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
+            ->whereIn('purchase_orders.delivery_status', [DeliveryStatus::Awaiting, DeliveryStatus::PartiallyReceived])
+            ->whereColumn('purchase_order_items.quantity_delivered', '<', 'purchase_order_items.quantity_ordered')
+            ->whereIn('purchase_order_items.item_code', $codes)
+            ->orderBy('purchase_orders.date_ordered')
+            ->orderBy('purchase_order_items.id')
+            ->with('purchaseOrder')
+            ->get()
+            ->map(fn (PurchaseOrderItem $item): array => [
+                'item_code' => $item->item_code,
+                'description' => $item->description,
+                'order_number' => $item->purchaseOrder->order_number,
+                'remaining' => $item->quantityRemaining(),
+            ])
+            ->all());
     }
 
     /**

@@ -216,7 +216,7 @@ test('an order can be closed short with a reason', function () {
     $this->actingAs($this->specialist);
 
     $this->post(route('purchase-orders.close', $order), ['reason' => ''])
-        ->assertSessionHasErrors(['reason' => 'Write why this order is being closed.']);
+        ->assertSessionHasErrors(['reason' => 'Please describe why this order is being closed.']);
 
     $this->post(route('purchase-orders.close', $order), ['reason' => 'Head Office said the M/L polos are out of stock.'])
         ->assertSessionHasNoErrors();

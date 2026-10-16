@@ -138,11 +138,11 @@ class PurchaseOrderController extends Controller
         }
 
         if ($scan->hasBlockingProblems()) {
-            throw ValidationException::withMessages(['save' => 'This order can\'t be saved because some essential details could not be read. Check the problems marked "Must fix".']);
+            throw ValidationException::withMessages(['save' => 'This order cannot be saved because some essential details could not be read. Please check the problems marked "Must fix".']);
         }
 
         if ($scan->warnings !== [] && ! $request->boolean('warnings_checked')) {
-            throw ValidationException::withMessages(['warnings_checked' => 'Tick the box to confirm you checked the warnings above.']);
+            throw ValidationException::withMessages(['warnings_checked' => 'Please confirm that you have checked the warnings above.']);
         }
 
         $this->ensureNotAlreadyUploaded($scan);
@@ -194,7 +194,7 @@ class PurchaseOrderController extends Controller
             new PurchaseOrderUploaded($purchaseOrder),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Purchase order saved.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Order #{$purchaseOrder->order_number} has been saved and is now waiting to arrive."]);
 
         return to_route('purchase-orders.index');
     }

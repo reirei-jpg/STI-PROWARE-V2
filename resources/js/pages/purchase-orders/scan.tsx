@@ -27,14 +27,24 @@ const primaryButtonClasses =
 const secondaryButtonClasses =
     'inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60';
 
+/** An item of the scanned order still waiting to arrive on another order. */
+type AlreadyWaiting = {
+    item_code: string;
+    description: string;
+    order_number: string | null;
+    remaining: number;
+};
+
 export default function ScanPurchaseOrder({
     scan,
     fileName,
     duplicate,
+    alreadyWaiting = [],
 }: {
     scan: ScannedPurchaseOrder | null;
     fileName: string | null;
     duplicate: DuplicateUpload | null;
+    alreadyWaiting?: AlreadyWaiting[];
 }) {
     const rowsWithWarnings = new Set(
         scan?.warnings.map((warning) => warning.row) ?? [],
@@ -226,6 +236,41 @@ export default function ScanPurchaseOrder({
                                         </li>
                                     ))}
                                 </ul>
+                            </Notice>
+                        )}
+
+                        {alreadyWaiting.length > 0 && (
+                            <Notice
+                                tone="amber"
+                                icon={CircleAlert}
+                                title={
+                                    alreadyWaiting.length === 1
+                                        ? 'Already waiting on another order'
+                                        : 'Already waiting on other orders'
+                                }
+                            >
+                                <ul className="mt-1 space-y-1.5">
+                                    {alreadyWaiting.map((item) => (
+                                        <li
+                                            key={`${item.item_code}-${item.order_number}`}
+                                        >
+                                            <span className="font-mono font-black">
+                                                {item.item_code}
+                                            </span>{' '}
+                                            {item.description} is already
+                                            waiting on Order #
+                                            {item.order_number ?? '—'} (
+                                            {item.remaining.toLocaleString(
+                                                'en-PH',
+                                            )}{' '}
+                                            not arrived yet).
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-2">
+                                    You can still save this order if you are
+                                    ordering more on purpose.
+                                </p>
                             </Notice>
                         )}
 
