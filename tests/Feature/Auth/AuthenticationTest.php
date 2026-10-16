@@ -60,7 +60,18 @@ class AuthenticationTest extends TestCase
         $this->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'wrong-password',
-        ]);
+        ])->assertSessionHasErrors(['email' => 'These credentials do not match our records. Please try again.']);
+
+        $this->assertGuest();
+    }
+
+    public function test_empty_login_boxes_say_what_to_enter()
+    {
+        $this->post(route('login.store'), ['email' => '', 'password' => ''])
+            ->assertSessionHasErrors([
+                'email' => 'Enter your email address.',
+                'password' => 'Enter your password.',
+            ]);
 
         $this->assertGuest();
     }
@@ -82,11 +93,19 @@ class AuthenticationTest extends TestCase
 
         RateLimiter::increment(md5('login'.implode('|', [$user->email, '127.0.0.1'])), amount: 5);
 
-        $response = $this->post(route('login.store'), [
+        // A message on the login form with how long to wait, not a bare
+        // "429 Too Many Requests" page.
+        $response = $this->from(route('login'))->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
 
-        $response->assertTooManyRequests();
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHasErrors('email');
+        $this->assertMatchesRegularExpression(
+            '/^Too many login attempts\. Please try again in \d+ seconds\.$/',
+            session('errors')->first('email'),
+        );
+        $this->assertGuest();
     }
 }

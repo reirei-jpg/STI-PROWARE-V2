@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\AppLoginRequest;
 use App\Models\User;
+use App\Providers\FortifyServiceProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,7 +23,7 @@ class AuthController extends Controller
         $user = User::query()->where('email', $request->string('email')->lower()->value())->first();
 
         if ($user === null || ! Hash::check($request->string('password')->value(), $user->password)) {
-            throw ValidationException::withMessages(['email' => 'These credentials do not match our records.']);
+            throw ValidationException::withMessages(['email' => FortifyServiceProvider::FAILED_LOGIN]);
         }
 
         if (! $user->isStudent() && ! $user->isSpecialist()) {
