@@ -226,6 +226,8 @@ export type StudentNotification = {
 export type SpecialistTask = {
     key: string;
     kind: string;
+    /** On an "And N more" line, the N tasks it stands for. */
+    hidden: number;
     title: string;
     detail: string;
     action: { label: string; url: string; method: string };

@@ -88,7 +88,32 @@ test('a long list shows the first five and how many more', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->has('tasks.now', 6)
             ->where('tasks.now.5.title', 'And 2 more orders to prepare')
+            ->where('tasks.now.5.hidden', 2)
             ->where('tasks.now.5.action.url', route('orders.index'))
+            ->where('tasks.now.0.hidden', 0)
+        );
+});
+
+test('preorders closing this week show the preordered products first, and how many more', function () {
+    foreach (['Notebook' => 0, 'Tote Bag' => 0, 'Jersey' => 0, 'Lanyard' => 0, 'Pin Set' => 0, 'Mug' => 4, 'Cap' => 1] as $name => $pieces) {
+        $product = Product::factory()->create(['name' => $name, 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-05']);
+
+        if ($pieces > 0) {
+            Preorder::factory()->for($product)->for(ProductVariant::factory()->for($product), 'variant')->create(['quantity' => $pieces, 'status' => PreorderStatus::Active]);
+        }
+    }
+
+    $this->actingAs($this->specialist)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('tasks.week', 6)
+            ->where('tasks.week.0.title', 'Preorders for Mug close Mon, Oct 5')
+            ->where('tasks.week.0.detail', '4 pcs preordered so far. Order them in the eStore after it closes.')
+            ->where('tasks.week.1.title', 'Preorders for Cap close Mon, Oct 5')
+            ->where('tasks.week.2.detail', 'No preorders yet. Change the close date if you need more time.')
+            ->where('tasks.week.5.title', 'And 2 more preorder products closing this week')
+            ->where('tasks.week.5.hidden', 2)
+            ->where('tasks.week.5.action.url', route('preorders.index', ['stage' => 'open']))
         );
 });
 

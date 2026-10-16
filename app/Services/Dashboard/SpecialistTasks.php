@@ -85,7 +85,7 @@ final class SpecialistTasks
             ))
             ->all();
 
-        return [...$tasks, ...self::more($total, 'more orders to prepare', route('orders.index'), ['screen' => 'orders'])];
+        return [...$tasks, ...self::more($total, 'more order to prepare', 'more orders to prepare', route('orders.index'), ['screen' => 'orders'])];
     }
 
     /**
@@ -151,7 +151,7 @@ final class SpecialistTasks
             );
         }
 
-        return [...$tasks, ...self::more($total, 'more products low on stock', route('products.index', ['stock' => 'low']), ['screen' => 'stock'])];
+        return [...$tasks, ...self::more($total, 'more product low on stock', 'more products low on stock', route('products.index', ['stock' => 'low']), ['screen' => 'stock'])];
     }
 
     /**
@@ -238,7 +238,7 @@ final class SpecialistTasks
             ))
             ->all();
 
-        return [...$tasks, ...self::more($total, "more orders not complete after {$days} days", route('deliveries.index', ['show' => 'follow_up']))];
+        return [...$tasks, ...self::more($total, "more order not complete after {$days} days", "more orders not complete after {$days} days", route('deliveries.index', ['show' => 'follow_up']))];
     }
 
     /**
@@ -290,25 +290,47 @@ final class SpecialistTasks
     /**
      * @return list<array<string, mixed>>
      */
+    /**
+     * Preorder products closing within a week: those students preordered
+     * first (the most pieces first), then the closing soonest.
+     *
+     * @return list<array<string, mixed>>
+     */
     private function preordersClosing(): array
     {
-        return array_values(Product::query()
+        $closing = fn () => Product::query()
             ->where('status', ProductStatus::Preorder)
             ->whereDate('preorders_close_on', '>=', now()->toDateString())
-            ->whereDate('preorders_close_on', '<=', now()->addDays(7)->toDateString())
+            ->whereDate('preorders_close_on', '<=', now()->addDays(7)->toDateString());
+        $total = $closing()->count();
+
+        $tasks = $closing()
             ->withSum(['preorders as pieces_preordered' => fn (Builder $preorders) => $preorders->where('status', PreorderStatus::Active)], 'quantity')
-            ->orderBy('preorders_close_on')
-            ->limit(self::SHOWN_PER_KIND)
             ->get()
-            ->map(fn (Product $product): array => self::task(
-                key: "preorders-{$product->id}",
-                kind: 'preorders',
-                title: "Preorders for {$product->name} close ".($product->preorders_close_on?->isToday() ? 'today' : $product->preorders_close_on?->format('D, M j')),
-                detail: Units::count((int) $product->getAttribute('pieces_preordered'), 'Piece').' preordered so far. Order them in the eStore after it closes.',
-                label: 'See preorders',
-                url: route('preorders.show', $product),
-            ))
-            ->all());
+            ->sortBy([
+                fn (Product $a, Product $b): int => (int) $b->getAttribute('pieces_preordered') <=> (int) $a->getAttribute('pieces_preordered'),
+                fn (Product $a, Product $b): int => $a->preorders_close_on <=> $b->preorders_close_on,
+                fn (Product $a, Product $b): int => $a->name <=> $b->name,
+            ])
+            ->take(self::SHOWN_PER_KIND)
+            ->map(function (Product $product): array {
+                $pieces = (int) $product->getAttribute('pieces_preordered');
+
+                return self::task(
+                    key: "preorders-{$product->id}",
+                    kind: 'preorders',
+                    title: "Preorders for {$product->name} close ".($product->preorders_close_on?->isToday() ? 'today' : $product->preorders_close_on?->format('D, M j')),
+                    detail: $pieces > 0
+                        ? Units::count($pieces, 'Piece').' preordered so far. Order them in the eStore after it closes.'
+                        : 'No preorders yet. Change the close date if you need more time.',
+                    label: 'See preorders',
+                    url: route('preorders.show', $product),
+                );
+            })
+            ->values()
+            ->all();
+
+        return [...$tasks, ...self::more($total, 'more preorder product closing this week', 'more preorder products closing this week', route('preorders.index', ['stage' => 'open']))];
     }
 
     /**
@@ -338,13 +360,15 @@ final class SpecialistTasks
      * product's stock, or the list); null means it is done on the website.
      *
      * @param  array{screen: string, id?: int}|null  $target
-     * @return array{key: string, kind: string, title: string, detail: string, action: array{label: string, url: string, method: string}, target: array{screen: string, id?: int}|null}
+     * @return array{key: string, kind: string, hidden: int, title: string, detail: string, action: array{label: string, url: string, method: string}, target: array{screen: string, id?: int}|null}
      */
-    private static function task(string $key, string $kind, string $title, string $detail, string $label, string $url, string $method = 'get', ?array $target = null): array
+    private static function task(string $key, string $kind, string $title, string $detail, string $label, string $url, string $method = 'get', ?array $target = null, int $hidden = 0): array
     {
         return [
             'key' => $key,
             'kind' => $kind,
+            // On an "And N more" line, the N tasks it stands for.
+            'hidden' => $hidden,
             'title' => $title,
             'detail' => $detail,
             'action' => ['label' => $label, 'url' => $url, 'method' => $method],
@@ -353,23 +377,25 @@ final class SpecialistTasks
     }
 
     /**
-     * "And 3 more …" when a list is longer than what is shown.
+     * "And 3 more …" (or "And 1 more …") when a list is longer than what is shown.
      *
      * @param  array{screen: string, id?: int}|null  $target
      * @return list<array<string, mixed>>
      */
-    private static function more(int $total, string $what, string $url, ?array $target = null): array
+    private static function more(int $total, string $one, string $many, string $url, ?array $target = null): array
     {
         $left = $total - self::SHOWN_PER_KIND;
+        $what = $left === 1 ? $one : $many;
 
         return $left <= 0 ? [] : [self::task(
-            key: 'more-'.md5($what),
+            key: 'more-'.md5($many),
             kind: 'more',
             title: "And {$left} {$what}",
             detail: '',
             label: 'See all',
             url: $url,
             target: $target,
+            hidden: $left,
         )];
     }
 }

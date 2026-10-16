@@ -46,6 +46,8 @@ type Task = {
         | 'preorders'
         | 'slow_moving'
         | 'more';
+    /** On an "And N more" line, the N tasks it stands for. */
+    hidden: number;
     title: string;
     detail: string;
     action: { label: string; url: string; method: 'get' | 'post' };
@@ -249,7 +251,11 @@ const groups: Group[] = [
 
 /** Tasks in a group, not counting the "and N more" link. */
 function countTasks(tasks: Task[]): number {
-    return tasks.filter((task) => task.kind !== 'more').length;
+    // An "And N more" line counts as the N tasks it stands for.
+    return tasks.reduce(
+        (sum, task) => sum + (task.kind === 'more' ? task.hidden : 1),
+        0,
+    );
 }
 
 /**

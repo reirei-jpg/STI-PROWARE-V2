@@ -84,9 +84,9 @@ function open(target: NonNullable<SpecialistTask['target']>): void {
     }
 }
 
-/** Tasks in a group, not counting the "and N more" line. */
+/** Tasks in a group; an "and N more" line counts as the N tasks it stands for. */
 function countTasks(tasks: SpecialistTask[]): number {
-    return tasks.filter((task) => task.kind !== 'more').length;
+    return tasks.reduce((sum, task) => sum + (task.kind === 'more' ? (task.hidden ?? 0) : 1), 0);
 }
 
 /**
