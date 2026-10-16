@@ -6,7 +6,9 @@ use App\Actions\Deliveries\RecordDelivery;
 use App\Http\Requests\FilterDeliveriesRequest;
 use App\Http\Requests\RecordDeliveryRequest;
 use App\Services\Deliveries\DeliveryScreens;
+use App\Services\Deliveries\FollowUp;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -42,14 +44,19 @@ class DeliveryController extends Controller
     }
 
     /**
-     * The Record Delivery form: every item still waiting, grouped by item
-     * code, oldest order first within each code.
+     * Record Delivery starts with "Which order arrived?": the purchase
+     * orders still waiting, the oldest first, searchable by Order #. Each
+     * opens the Record Delivery popup with only that order's items.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        $search = $request->validate(['search' => ['nullable', 'string', 'max:40']])['search'] ?? null;
+        $search = is_string($search) && trim($search) !== '' ? trim($search) : null;
+
         return Inertia::render('deliveries/create', [
-            'groups' => DeliveryScreens::waiting(),
-            'today' => now()->toDateString(),
+            'orders' => DeliveryScreens::waitingOrders($search),
+            'search' => $search,
+            'followUpDays' => FollowUp::days(),
         ]);
     }
 

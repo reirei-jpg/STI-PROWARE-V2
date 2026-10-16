@@ -61,14 +61,13 @@ test('a delivery of a code every color shares goes into each color as counted', 
     $newer = orderWith(['PRUM01-01' => 10], ['date_ordered' => '2026-09-28']);
     $this->actingAs($this->specialist);
 
-    $this->get(route('deliveries.create'))->assertInertia(fn (Assert $page) => $page
-        ->where('groups.0.stock_target.variant_label', 'split by Color when received')
-        ->where('groups.0.stock_target.split_into', [
+    $this->getJson(route('purchase-orders.waiting-items', $older))
+        ->assertJsonPath('groups.0.stock_target.variant_label', 'split by Color when received')
+        ->assertJsonPath('groups.0.stock_target.split_into', [
             ['id' => $black->id, 'label' => 'Black', 'stock_on_hand' => 0],
             ['id' => $red->id, 'label' => 'Red', 'stock_on_hand' => 0],
             ['id' => $navy->id, 'label' => 'Navy Blue', 'stock_on_hand' => 0],
-        ])
-    );
+        ]);
 
     $this->post(route('deliveries.store'), splitDelivery(
         [itemOf($older, 'PRUM01-01') => 10, itemOf($newer, 'PRUM01-01') => 2],
@@ -168,7 +167,7 @@ test('linking a code to the colors that share it, then splitting what already ar
 test('only some sizes can share a code, and only ones without a code of their own', function () {
     [$black, $red, $navy] = umbrellaColors(code: null)->all();
     $red->update(['estore_item_code' => 'PRUM01-02']);
-    orderWith(['PRUM01-01' => 5]);
+    $order = orderWith(['PRUM01-01' => 5]);
     $link = fn (array $ids) => $this->post(route('item-links.store'), [
         'item_code' => 'PRUM01-01',
         'product_variant_ids' => $ids,
@@ -186,7 +185,7 @@ test('only some sizes can share a code, and only ones without a code of their ow
     expect([$black->refresh()->estore_item_code, $red->refresh()->estore_item_code, $navy->refresh()->estore_item_code])
         ->toBe(['PRUM01-01', 'PRUM01-02', 'PRUM01-01']);
 
-    $splitInto = $this->get(route('deliveries.create'))->inertiaProps('groups.0.stock_target.split_into');
+    $splitInto = $this->getJson(route('purchase-orders.waiting-items', $order))->json('groups.0.stock_target.split_into');
 
     expect(array_column($splitInto, 'label'))->toBe(['Black', 'Navy Blue']);
 });

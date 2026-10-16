@@ -152,7 +152,7 @@ test('the app shows the same items waiting for delivery and recorded deliveries 
     $specialist = User::factory()->specialist()->create();
     app(RecordDelivery::class)->handle($specialist, ['received_on' => '2026-10-04', 'sales_invoice_number' => 'SI-1001'], [itemOf($order, 'PRUM01-01') => 3]);
 
-    $websiteWaiting = $this->actingAs($specialist)->get(route('deliveries.create'))->inertiaProps('groups');
+    $websiteWaiting = $this->actingAs($specialist)->getJson(route('purchase-orders.waiting-items', $order))->json('groups');
     $websiteRecorded = $this->get(route('deliveries.index'))->inertiaProps('deliveries.data');
     Sanctum::actingAs($specialist);
 

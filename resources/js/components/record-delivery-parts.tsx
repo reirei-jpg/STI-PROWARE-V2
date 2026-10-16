@@ -1,69 +1,11 @@
-import { Link } from '@inertiajs/react';
-import { Boxes, Unlink } from 'lucide-react';
-import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import InputError from '@/components/input-error';
 import { formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { WaitingItemGroup } from '@/types';
 
-/** The look of a number or text box on the Record Delivery page and popup. */
+/** The look of a number or text box in the Record Delivery popup. */
 export const deliveryInputClasses =
     'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
-
-/**
- * How Head Office sends this item (by the piece or by a pack, and how many
- * pieces are in one) and the product it goes into, or a warning that it is
- * not linked to a product yet, so it will not be added to stock and its
- * numbers are as ordered on the eStore.
- */
-export function StockTargetNote({ group }: { group: WaitingItemGroup }) {
-    const target = group.stock_target;
-
-    if (target === null) {
-        return (
-            <div className="flex flex-col gap-2 border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
-                <span className="inline-flex items-center gap-2">
-                    <Unlink size={16} className="shrink-0" />
-                    Not linked to a product yet, so it will not be added to
-                    stock, and PROWARE does not know if Head Office counts it by
-                    the piece or by the pack. The numbers below are as ordered
-                    on the eStore.
-                </span>
-                <Link
-                    href={ItemLinkController.index({
-                        query: { search: group.item_code },
-                    })}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-2 text-sm font-black text-white transition hover:bg-amber-700"
-                >
-                    Link it now
-                </Link>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex flex-col gap-1 border-b border-emerald-100 bg-emerald-50 px-6 py-3 text-sm text-emerald-900 sm:flex-row sm:items-center sm:gap-6">
-            <span className="inline-flex items-center gap-2">
-                <Boxes size={16} className="shrink-0" />
-                Head Office sends this{' '}
-                <span className="rounded-lg bg-white px-2 py-0.5 font-black text-emerald-800 shadow-sm">
-                    {target.pieces_per_unit > 1
-                        ? `by the ${target.unit_name} (${target.pieces_per_unit.toLocaleString('en-PH')} pcs each)`
-                        : 'by the piece'}
-                </span>
-            </span>
-            <span>
-                Goes into stock:{' '}
-                <span className="font-black">
-                    {target.product_name}
-                    {target.split_into.length > 1
-                        ? ' — count how many of each arrived below'
-                        : target.has_options && ` (${target.variant_label})`}
-                </span>
-            </span>
-        </div>
-    );
-}
 
 /**
  * For a code shared by several variants (e.g. every color): a box per

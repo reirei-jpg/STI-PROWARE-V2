@@ -2,6 +2,7 @@
 
 use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
+use App\Models\PurchaseOrder;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -97,7 +98,7 @@ test('a delivery with nothing received is refused', function () {
         ->assertSessionHasErrors(['items' => 'Enter how many arrived for at least one item.']);
 });
 
-test('the record delivery form lists waiting items by item code, oldest order first', function () {
+test('record delivery lists the orders still waiting, oldest first, and each popup its items by code', function () {
     orderWith(['UTMP02-03' => 10, 'UTMS02-03' => 5], ['order_number' => '30722', 'date_ordered' => '2026-09-29']);
     orderWith(['UTMP02-03' => 10], ['order_number' => '30650', 'date_ordered' => '2026-09-17']);
     $closed = orderWith(['UTMCL02-03' => 5], ['order_number' => '30600']);
@@ -112,13 +113,21 @@ test('the record delivery form lists waiting items by item code, oldest order fi
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('deliveries/create')
-            ->has('groups', 2)
-            ->where('groups.0.item_code', 'UTMP02-03')
-            ->where('groups.0.rows.0.order_number', '30650')
-            ->where('groups.0.rows.1.order_number', '30722')
-            ->where('groups.0.rows.1.quantity_remaining', 10)
-            ->where('groups.1.item_code', 'UTMS02-03')
+            ->has('orders.data', 2)
+            ->where('orders.data.0.order_number', '30650')
+            ->where('orders.data.1.order_number', '30722')
+            ->where('orders.data.1.quantity_remaining', 15)
         );
+
+    $this->get(route('deliveries.create', ['search' => '30722']))->assertInertia(fn (Assert $page) => $page
+        ->has('orders.data', 1)
+        ->where('search', '30722'));
+
+    $newer = PurchaseOrder::query()->where('order_number', '30722')->sole();
+    $this->getJson(route('purchase-orders.waiting-items', $newer))
+        ->assertJsonPath('groups.0.item_code', 'UTMP02-03')
+        ->assertJsonPath('groups.0.rows.0.quantity_remaining', 10)
+        ->assertJsonPath('groups.1.item_code', 'UTMS02-03');
 });
 
 test('the record delivery popup of an order lists only that order\'s waiting items', function () {

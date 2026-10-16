@@ -7,6 +7,7 @@ use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
 use App\Models\User;
+use Illuminate\Testing\Fluent\AssertableJson;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -387,11 +388,11 @@ test('the record delivery form shows where each item goes in stock', function ()
     $product = Product::factory()->create(['name' => 'Lanyard']);
     $pack = ProductPack::factory()->for($product)->create(['name' => 'Pack', 'pieces' => 50]);
     ProductVariant::factory()->for($product)->create(['estore_item_code' => 'PRLY01-01', 'estore_pack_id' => $pack->id]);
-    orderWith(['PRLY01-01' => 5, 'SSIF001-001' => 100]);
+    $order = orderWith(['PRLY01-01' => 5, 'SSIF001-001' => 100]);
 
     $this->actingAs($this->specialist)
-        ->get(route('deliveries.create'))
-        ->assertInertia(fn (Assert $page) => $page
+        ->getJson(route('purchase-orders.waiting-items', $order))
+        ->assertJson(fn (AssertableJson $json) => $json
             ->where('groups.0.item_code', 'PRLY01-01')
             ->where('groups.0.stock_target', [
                 'product_name' => 'Lanyard',
@@ -403,6 +404,7 @@ test('the record delivery form shows where each item goes in stock', function ()
             ])
             ->where('groups.1.item_code', 'SSIF001-001')
             ->where('groups.1.stock_target', null)
+            ->etc()
         );
 });
 

@@ -42,7 +42,6 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
     });
     const { data, setData } = form;
     const errors = form.errors as Record<string, string | undefined>;
-    const [groupTotals, setGroupTotals] = useState<Record<string, string>>({});
     // Pieces counted per variant, for codes shared by several variants.
     const [splitCounts, setSplitCounts] = useState<
         Record<string, Record<number, string>>
@@ -192,16 +191,6 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
     };
 
     /**
-     * Share one counted total for an item code across its orders, oldest
-     * order first, never more than what is left of it.
-     */
-    const setGroupTotal = (group: WaitingItemGroup, value: string) => {
-        const total = wholeNumberInput(value, remainingOf(group));
-        setGroupTotals({ ...groupTotals, [group.item_code]: total });
-        shareOut(group, wholeNumber(total));
-    };
-
-    /**
      * A shared code is counted per variant (e.g. 5 Black, 3 Red); the total
      * fills the orders, oldest first, in Head Office's unit.
      */
@@ -288,8 +277,6 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
         hasProblems,
         piecesIntoStock,
         notLinkedReceived,
-        groupTotals,
-        setGroupTotal,
         setRowQuantity,
         splitCounts,
         setSplitCount,

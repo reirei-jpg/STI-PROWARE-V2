@@ -21,6 +21,7 @@ import DeliveryProgress from '@/components/delivery-progress';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -90,6 +91,7 @@ export default function DeliveriesIndex({
     const canRecord = auth.user.role === 'specialist';
     const [search, setSearch] = useState(filters.search ?? '');
     const [viewingId, setViewingId] = useState<number | null>(null);
+    const [recordingId, setRecordingId] = useState<number | null>(null);
     const firstRender = useRef(true);
     const showingWaiting = waitingLists.includes(filters.show);
     const isFiltered = Boolean(
@@ -320,10 +322,17 @@ export default function DeliveriesIndex({
                             orders={waitingOrders}
                             followUpDays={summary.follow_up_days}
                             canRecord={canRecord}
+                            onRecord={setRecordingId}
                         />
                     )}
                 </Panel>
             </div>
+
+            <RecordDeliveryDialog
+                purchaseOrderId={recordingId}
+                onClose={() => setRecordingId(null)}
+                onSaved={() => setRecordingId(null)}
+            />
 
             <DeliveryDetailsDialog
                 open={viewingId !== null}
@@ -619,10 +628,12 @@ function WaitingTable({
     orders,
     followUpDays,
     canRecord,
+    onRecord,
 }: {
     orders: Paginated<WaitingOrderRow>;
     followUpDays: number;
     canRecord: boolean;
+    onRecord: (purchaseOrderId: number) => void;
 }) {
     if (orders.data.length === 0) {
         return (
@@ -701,13 +712,16 @@ function WaitingTable({
                                 <td className="px-5 py-4 text-right">
                                     <div className="flex flex-wrap justify-end gap-2">
                                         {canRecord && (
-                                            <Link
-                                                href={DeliveryController.create()}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    onRecord(order.id)
+                                                }
                                                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-3.5 text-sm font-black whitespace-nowrap text-white transition hover:bg-blue-700"
                                             >
                                                 <Truck size={15} />
                                                 Record Delivery
-                                            </Link>
+                                            </button>
                                         )}
                                         <Link
                                             href={PurchaseOrderController.index(
