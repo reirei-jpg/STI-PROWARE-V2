@@ -469,7 +469,9 @@ test('a combination that does not exist is not saved, and can be made available 
     ]);
 
     // Pink does not come in 32 oz.
-    $this->post(route('products.store'), $aquaFlask(['Color: Pink | Capacity: 32 oz']))->assertSessionHasNoErrors();
+    $this->post(route('products.store'), $aquaFlask(['Color: Pink | Capacity: 32 oz']))
+        ->assertSessionHasNoErrors()
+        ->assertInertiaFlash('toast.message', 'STI Aqua Flask saved with 3 variants. Students can see it and add it to their cart.');
     $product = Product::query()->where('name', 'STI Aqua Flask')->sole();
 
     expect($product->variants()->orderBy('position')->pluck('combination')->all())->toBe([
@@ -484,7 +486,8 @@ test('a combination that does not exist is not saved, and can be made available 
 
     // Every combination unticked is refused.
     $this->put(route('products.update', $product), $aquaFlask(['Color: Black | Capacity: 22 oz', 'Color: Black | Capacity: 32 oz', 'Color: Pink | Capacity: 22 oz', 'Color: Pink | Capacity: 32 oz']))
-        ->assertSessionHasErrors(['options' => 'Keep at least one size or color available.']);
+        ->assertSessionHasErrors(['options' => 'Keep at least one size or color available.'])
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Product not saved. Fix the box marked in red.']);
 
     // A combination with stock must stay available.
     $product->variants()->where('combination', 'Color: Black | Capacity: 22 oz')->update(['stock_on_hand' => 5]);

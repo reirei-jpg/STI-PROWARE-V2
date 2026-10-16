@@ -96,7 +96,48 @@ const statuses: { value: ProductStatus; label: string; description: string }[] =
     ];
 
 const inputClasses =
-    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 aria-invalid:border-red-400 aria-invalid:ring-2 aria-invalid:ring-red-100';
+
+/** The form's sections, top to bottom, to jump to a box with a problem. */
+const SECTIONS = [
+    'product-photos',
+    'product-details',
+    'product-packs',
+    'product-options',
+    'product-variants',
+    'product-status',
+] as const;
+
+type Section = (typeof SECTIONS)[number];
+
+/**
+ * Whether a server message (e.g. "packs.0.pieces") is about a part of the
+ * form, so it can go away once that part is changed.
+ */
+function errorBelongsTo(key: string, field: keyof ProductFormData): boolean {
+    const [top, , part] = key.split('.');
+
+    switch (field) {
+        case 'variant_inputs':
+            return top === 'variants' && part === 'price';
+        case 'shared_item_code':
+            return top === 'variants' && part === 'estore_item_code';
+        case 'shared_pack_key':
+            return top === 'variants' && part === 'estore_pack_key';
+        case 'options':
+            return top === 'options' || top === 'variants';
+        case 'unavailable':
+            return top === 'options';
+        case 'sold_by_piece':
+            return ['sold_by_piece', 'price', 'packs'].includes(top);
+        case 'packs':
+            return top === 'packs' || top === 'sold_by_piece';
+        case 'status':
+            return ['status', 'photos', 'preorders_close_on'].includes(top);
+        default:
+            return top === field;
+    }
+}
 
 export default function ProductForm({
     product,
@@ -283,7 +324,13 @@ export default function ProductForm({
             product
                 ? ProductController.update(product.id).url
                 : ProductController.store().url,
-            { forceFormData: true, preserveScroll: true },
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onError: () => {
+                    jumpToFirstProblem.current = true;
+                },
+            },
         );
     };
 
@@ -421,6 +468,154 @@ export default function ProductForm({
         .map((_, index) => errors[`photos.${index}.file`])
         .find(Boolean);
 
+    /** Where on the form a refused box is, in words, e.g. "Pack: pieces in one". */
+    const problemPlace = (key: string): { place: string; section: Section } => {
+        const [field, index, part] = key.split('.');
+        const number = Number(index);
+
+        switch (field) {
+            case 'photos':
+                return {
+                    place:
+                        index === undefined ? 'Photos' : `Photo ${number + 1}`,
+                    section: 'product-photos',
+                };
+            case 'name':
+                return { place: 'Product name', section: 'product-details' };
+            case 'price':
+                return {
+                    place: 'Selling Price per piece',
+                    section: 'product-packs',
+                };
+            case 'sold_by_piece':
+                return {
+                    place: 'Students can buy it',
+                    section: 'product-packs',
+                };
+            case 'low_stock_alert_at':
+                return {
+                    place: 'Notify me when stock falls to',
+                    section: 'product-packs',
+                };
+            case 'packs': {
+                const packName =
+                    data.packs[number]?.name.trim() || `Pack ${number + 1}`;
+                const box =
+                    { name: 'name', pieces: 'pieces in one', price: 'price' }[
+                        part
+                    ] ?? '';
+
+                return {
+                    place:
+                        index === undefined ? 'Packs' : `${packName}: ${box}`,
+                    section: 'product-packs',
+                };
+            }
+            case 'options':
+                return { place: 'Options', section: 'product-options' };
+            case 'variants':
+                return {
+                    place:
+                        part === 'estore_item_code'
+                            ? 'eStore Item Code'
+                            : part === 'estore_pack_key'
+                              ? 'Head Office sends it by'
+                              : part === 'price'
+                                ? `Price for ${availableCombinations[number]?.label ?? 'a variant'}`
+                                : 'Variants',
+                    section: 'product-variants',
+                };
+            case 'unavailable':
+                return { place: 'Variants', section: 'product-variants' };
+            case 'preorders_close_on':
+                return {
+                    place: 'Preorders close on',
+                    section: 'product-status',
+                };
+            default:
+                return { place: 'Where it shows', section: 'product-status' };
+        }
+    };
+
+    // The boxes the server refused, top of the page first, each told once
+    // (one eStore Item Code error comes back for every variant).
+    const problems = Object.entries(errors)
+        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        .map(([key, message]) => ({ key, message, ...problemPlace(key) }))
+        .filter(
+            (problem, index, all) =>
+                all.findIndex(
+                    (other) =>
+                        other.place === problem.place &&
+                        other.message === problem.message,
+                ) === index,
+        )
+        .sort(
+            (a, b) => SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section),
+        );
+
+    const jumpTo = (section: Section) =>
+        document
+            .getElementById(section)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // When saving is refused, go up to the first box with a problem.
+    const jumpToFirstProblem = useRef(false);
+    useEffect(() => {
+        if (jumpToFirstProblem.current && problems.length > 0) {
+            jumpToFirstProblem.current = false;
+            jumpTo(problems[0].section);
+        }
+    });
+
+    // A box's red message goes away once that box is changed.
+    const dataBefore = useRef(data);
+    useEffect(() => {
+        const before = dataBefore.current;
+        dataBefore.current = data;
+        const changed = (Object.keys(data) as (keyof ProductFormData)[]).filter(
+            (field) => data[field] !== before[field],
+        );
+        const fixed = Object.keys(form.errors).filter((key) =>
+            changed.some((field) => errorBelongsTo(key, field)),
+        );
+
+        if (fixed.length > 0) {
+            form.clearErrors(...(fixed as Parameters<typeof form.clearErrors>));
+        }
+        // Only a change to the form clears messages, not new ones arriving.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data]);
+
+    // What pressing Save will do, e.g. "STI Aqua Flask · 3 variants (Pink /
+    // 32 oz not available) · Available, so students can see it".
+    const unavailableLabels = combinations
+        .filter((combination) => data.unavailable.includes(combination.key))
+        .map((combination) => combination.label);
+    const willSave = [
+        data.name.trim() || 'This product',
+        hasVariants
+            ? `${availableCombinations.length} ${availableCombinations.length === 1 ? 'variant' : 'variants'}${
+                  unavailableLabels.length === 0
+                      ? ''
+                      : unavailableLabels.length <= 3
+                        ? ` (${unavailableLabels.join(', ')} not available)`
+                        : ` (${unavailableLabels.length} not available)`
+              }`
+            : null,
+        {
+            draft: 'Draft, so students cannot see it yet',
+            preorder:
+                data.preorders_close_on === ''
+                    ? 'Preorder: choose the close date'
+                    : `Preorder, students can preorder it until ${new Date(`${data.preorders_close_on}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+            available: 'Available, so students can see it',
+            on_sale: 'On Sale on the storefront',
+        }[data.status],
+    ]
+        .filter(Boolean)
+        .join(' · ');
+
     return (
         <>
             <Head title={product ? 'Edit Product' : 'Add Product'} />
@@ -485,6 +680,8 @@ export default function ProductForm({
                 )}
 
                 <Panel
+                    id="product-photos"
+                    className="scroll-mt-24"
                     title="Photos"
                     description={`Up to ${MAX_PHOTOS} photos, e.g. the front, back and side of a shirt. The first photo is the main one shown on the storefront. JPG, PNG or WEBP, up to 5 MB each.`}
                 >
@@ -617,7 +814,11 @@ export default function ProductForm({
                     </div>
                 </Panel>
 
-                <Panel title="Details">
+                <Panel
+                    id="product-details"
+                    className="scroll-mt-24"
+                    title="Details"
+                >
                     <div className="grid gap-5 p-6 md:grid-cols-2">
                         <Field label="Product name" error={errors.name}>
                             <input
@@ -627,6 +828,7 @@ export default function ProductForm({
                                 }
                                 maxLength={120}
                                 placeholder="e.g. 42nd Anniversary Shirt"
+                                aria-invalid={Boolean(errors.name)}
                                 className={inputClasses}
                             />
                         </Field>
@@ -634,6 +836,8 @@ export default function ProductForm({
                 </Panel>
 
                 <Panel
+                    id="product-packs"
+                    className="scroll-mt-24"
                     title="Pieces and Packs"
                     description="Stock is always counted in pieces. Add a pack when Head Office sends this item in packs, or when students can buy a whole pack, e.g. Pack = 50 pieces. The Selling Price is the price Head Office set; it cannot be below the Cost (what PROWARE paid on the eStore order)."
                 >
@@ -690,6 +894,7 @@ export default function ProductForm({
                                                     : 'Not sold by the piece'
                                             }
                                             disabled={!data.sold_by_piece}
+                                            invalid={Boolean(errors.price)}
                                             label={
                                                 hasVariants
                                                     ? 'Default Selling Price per piece'
@@ -744,6 +949,11 @@ export default function ProductForm({
                                                     list="pack-names"
                                                     maxLength={30}
                                                     placeholder="e.g. Pack"
+                                                    aria-invalid={Boolean(
+                                                        errors[
+                                                            `packs.${index}.name`
+                                                        ],
+                                                    )}
                                                     className={cn(
                                                         inputClasses,
                                                         'w-40',
@@ -777,6 +987,11 @@ export default function ProductForm({
                                                         }
                                                         inputMode="numeric"
                                                         placeholder="50"
+                                                        aria-invalid={Boolean(
+                                                            errors[
+                                                                `packs.${index}.pieces`
+                                                            ],
+                                                        )}
                                                         className={cn(
                                                             inputClasses,
                                                             'w-28 text-right',
@@ -826,6 +1041,11 @@ export default function ProductForm({
                                                     disabled={
                                                         !pack.sold_to_students
                                                     }
+                                                    invalid={Boolean(
+                                                        errors[
+                                                            `packs.${index}.price`
+                                                        ],
+                                                    )}
                                                     label={`Selling Price of one ${pack.name || 'pack'}`}
                                                 />
                                                 {costPerPiece !== null &&
@@ -922,6 +1142,9 @@ export default function ProductForm({
                                     }
                                     inputMode="numeric"
                                     placeholder="5"
+                                    aria-invalid={Boolean(
+                                        errors.low_stock_alert_at,
+                                    )}
                                     className={cn(
                                         inputClasses,
                                         'w-24 text-right',
@@ -944,6 +1167,8 @@ export default function ProductForm({
                 </Panel>
 
                 <Panel
+                    id="product-options"
+                    className="scroll-mt-24"
                     title="Options"
                     description={`Optional, up to ${MAX_OPTIONS}. Click an option to choose its choices; click another to switch. Size, Program, Color and Capacity have ready-made choices.`}
                 >
@@ -1072,6 +1297,8 @@ export default function ProductForm({
                 </Panel>
 
                 <Panel
+                    id="product-variants"
+                    className="scroll-mt-24"
                     title="Variants"
                     description={`Every combination of the options (sizes, colors, departments). Untick a combination that does not exist (e.g. a color that does not come in 32 oz); students will not see it. They are the same eStore item, so they all use the product's one eStore Item Code. Give a variant its own Selling Price when it costs more or less (e.g. a bigger size); leave it empty to use the default${data.sold_by_piece && data.price ? ` (₱${data.price})` : ''}.`}
                 >
@@ -1100,6 +1327,7 @@ export default function ProductForm({
                                     }
                                     maxLength={40}
                                     placeholder="e.g. PRUM01-01"
+                                    aria-invalid={Boolean(sharedCodeError)}
                                     className={cn(
                                         inputClasses,
                                         'font-mono uppercase',
@@ -1119,6 +1347,7 @@ export default function ProductForm({
                                             event.target.value,
                                         )
                                     }
+                                    aria-invalid={Boolean(sharedPackError)}
                                     className={inputClasses}
                                 >
                                     <option value="">Piece</option>
@@ -1269,6 +1498,14 @@ export default function ProductForm({
                                                         !data.sold_by_piece ||
                                                         !available
                                                     }
+                                                    invalid={
+                                                        index !== -1 &&
+                                                        Boolean(
+                                                            errors[
+                                                                `variants.${index}.price`
+                                                            ],
+                                                        )
+                                                    }
                                                     label={`Price for ${combination.label}`}
                                                 />
                                                 <InputError
@@ -1310,6 +1547,8 @@ export default function ProductForm({
                 </Panel>
 
                 <Panel
+                    id="product-status"
+                    className="scroll-mt-24"
                     title="Where it shows"
                     description="Choose how students see this product on the storefront. To put it on sale, use Put on Sale on the Products list."
                 >
@@ -1401,10 +1640,11 @@ export default function ProductForm({
                                                 event.target.value,
                                             )
                                         }
-                                        className={cn(
-                                            inputClasses,
-                                            closeDateInPast && 'border-red-300',
-                                        )}
+                                        aria-invalid={
+                                            closeDateInPast ||
+                                            Boolean(errors.preorders_close_on)
+                                        }
+                                        className={inputClasses}
                                     />
                                 </Field>
                             </div>
@@ -1414,6 +1654,47 @@ export default function ProductForm({
                         <InputError message={errors.status} />
                     </div>
                 </Panel>
+
+                {problems.length > 0 && (
+                    <section
+                        role="alert"
+                        className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm text-red-900"
+                    >
+                        <p className="font-black">
+                            Not saved. Fix {problems.length}{' '}
+                            {problems.length === 1 ? 'thing' : 'things'}:
+                        </p>
+                        <ul className="mt-3 space-y-2">
+                            {problems.map((problem) => (
+                                <li
+                                    key={problem.key}
+                                    className="flex flex-col gap-2 rounded-2xl border border-red-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <span>
+                                        <span className="font-black">
+                                            {problem.place}:
+                                        </span>{' '}
+                                        {problem.message}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => jumpTo(problem.section)}
+                                        className="shrink-0 self-start rounded-xl border border-red-300 bg-white px-3 py-1.5 text-sm font-black text-red-700 transition hover:bg-red-50 sm:self-auto"
+                                    >
+                                        Show me
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+
+                <p className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-600 shadow-sm">
+                    <span className="font-black text-slate-800">
+                        Will save:
+                    </span>{' '}
+                    {willSave}
+                </p>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <Link
@@ -1496,12 +1777,15 @@ function PesoInput({
     placeholder,
     label,
     disabled,
+    invalid = false,
 }: {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
     label?: string;
     disabled?: boolean;
+    /** Outlined in red: saving was refused because of this price. */
+    invalid?: boolean;
 }) {
     return (
         <span className="relative block">
@@ -1515,6 +1799,7 @@ function PesoInput({
                 inputMode="decimal"
                 placeholder={placeholder}
                 aria-label={label}
+                aria-invalid={invalid && !disabled}
                 disabled={disabled}
                 className={cn(
                     inputClasses,

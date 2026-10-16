@@ -5,12 +5,14 @@ import { cn } from '@/lib/utils';
  * A white rounded card with an optional title bar (from V1).
  */
 export default function Panel({
+    id,
     title,
     description,
     actions,
     className,
     children,
 }: {
+    id?: string;
     title?: string;
     description?: ReactNode;
     actions?: ReactNode;
@@ -19,6 +21,7 @@ export default function Panel({
 }) {
     return (
         <section
+            id={id}
             className={cn(
                 'overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm',
                 className,

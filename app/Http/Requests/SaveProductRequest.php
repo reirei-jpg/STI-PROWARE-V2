@@ -11,10 +11,12 @@ use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductVariants;
 use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Inertia\Inertia;
 
 /**
  * The Add / Edit Product form.
@@ -160,6 +162,22 @@ class SaveProductRequest extends FormRequest
             'options.*.choices.*.required' => 'A choice cannot be blank.',
             'variants.*.price.decimal' => 'Enter variant prices in pesos, e.g. 450.',
         ];
+    }
+
+    /**
+     * "Product not saved." in a popup, so it is clear nothing was saved even
+     * when the boxes with a problem are further up the page.
+     */
+    protected function failedValidation(ValidatorContract $validator): void
+    {
+        $problems = count(array_unique($validator->errors()->all()));
+
+        Inertia::flash('toast', [
+            'type' => 'error',
+            'message' => 'Product not saved. Fix the '.($problems === 1 ? 'box' : "{$problems} boxes").' marked in red.',
+        ]);
+
+        parent::failedValidation($validator);
     }
 
     /**

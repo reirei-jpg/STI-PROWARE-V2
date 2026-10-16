@@ -187,7 +187,8 @@ class ProductController extends Controller
 
     public function store(SaveProductRequest $request, SaveProduct $saveProduct): RedirectResponse
     {
-        $this->flashSaved($saveProduct->handle(new Product, $request));
+        $product = new Product;
+        $this->flashSaved($product, $saveProduct->handle($product, $request));
 
         return to_route('products.index');
     }
@@ -240,23 +241,34 @@ class ProductController extends Controller
 
     public function update(SaveProductRequest $request, Product $product, SaveProduct $saveProduct): RedirectResponse
     {
-        $this->flashSaved($saveProduct->handle($product, $request));
+        $this->flashSaved($product, $saveProduct->handle($product, $request));
 
         return to_route('products.index');
     }
 
     /**
-     * "Product saved.", and how many pieces of earlier deliveries went into
-     * stock when an eStore Item Code was linked.
+     * What was saved and where students see it, e.g. "STI Aqua Flask saved
+     * with 3 variants. Students can see it and add it to their cart.", and
+     * how many pieces of earlier deliveries went into stock when an eStore
+     * Item Code was linked.
      */
-    private function flashSaved(int $piecesAdded): void
+    private function flashSaved(Product $product, int $piecesAdded): void
     {
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => $piecesAdded > 0
-                ? 'Product saved. '.number_format($piecesAdded).($piecesAdded === 1 ? ' piece' : ' pieces').' from deliveries already received were added to stock.'
-                : 'Product saved.',
-        ]);
+        $variants = $product->variants()->count();
+
+        $message = "{$product->name} saved".($variants > 1 ? " with {$variants} variants" : '').'. '
+            .match ($product->status) {
+                ProductStatus::Draft => 'It is a Draft, so students cannot see it yet.',
+                ProductStatus::Preorder => 'Students can preorder it until '.$product->preorders_close_on?->format('M j, Y').'.',
+                ProductStatus::Available => 'Students can see it and add it to their cart.',
+                ProductStatus::OnSale => 'It is On Sale on the storefront.',
+            };
+
+        if ($piecesAdded > 0) {
+            $message .= ' '.number_format($piecesAdded).($piecesAdded === 1 ? ' piece' : ' pieces').' from deliveries already received were added to stock.';
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
     }
 
     /**
