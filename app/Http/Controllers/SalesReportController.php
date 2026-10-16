@@ -83,7 +83,7 @@ class SalesReportController extends Controller
 
     /**
      * Set the Cost per piece of stock that came in without one; its sales
-     * are worked out again.
+     * are recalculated.
      */
     public function setPrice(Request $request, ProductVariant $variant): RedirectResponse
     {
@@ -93,7 +93,7 @@ class SalesReportController extends Controller
                 'unit_cost.max' => 'The Cost per piece cannot be more than ₱100,000.00.',
                 'unit_cost.required' => 'Enter the Cost per piece, e.g. 250 or 18.50.',
                 'unit_cost.numeric' => 'Enter the Cost per piece, e.g. 250 or 18.50.',
-                'unit_cost.min' => 'Enter the Cost per piece, e.g. 250 or 18.50.',
+                'unit_cost.min' => 'The Cost per piece must be more than ₱0.',
             ],
         )['unit_cost'] * 100);
 
@@ -101,7 +101,7 @@ class SalesReportController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Cost of {$variant->displayName()} set to ₱".number_format($centavos / 100, 2).' per piece. Its sales were worked out again.',
+            'message' => "The cost of {$variant->displayName()} has been set to ₱".number_format($centavos / 100, 2).' per piece, and its sales have been recalculated.',
         ]);
 
         return back();

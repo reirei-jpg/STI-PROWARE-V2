@@ -34,6 +34,16 @@ enum OrderStatus: string
     }
 
     /**
+     * How the Specialist's screens name it: a just-placed order is "New"
+     * (to prepare), as on the Student Orders tab and the dashboard card.
+     * Students keep "Placed".
+     */
+    public function staffLabel(): string
+    {
+        return $this === self::Placed ? 'New' : $this->label();
+    }
+
+    /**
      * Still waiting to be released, so its items are held.
      */
     public function isOpen(): bool

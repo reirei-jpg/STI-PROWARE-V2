@@ -326,8 +326,10 @@ test('stock from before deliveries were recorded waits for its price, then its s
 
     $this->post(route('sales-reports.price', $variant), ['unit_cost' => ''])
         ->assertSessionHasErrors(['unit_cost' => 'Enter the Cost per piece, e.g. 250 or 18.50.']);
+    $this->post(route('sales-reports.price', $variant), ['unit_cost' => '0'])
+        ->assertSessionHasErrors(['unit_cost' => 'The Cost per piece must be more than ₱0.']);
     $this->post(route('sales-reports.price', $variant), ['unit_cost' => '180'])
-        ->assertInertiaFlash('toast.message', 'Cost of STI Jacket set to ₱180.00 per piece. Its sales were worked out again.');
+        ->assertInertiaFlash('toast.message', 'The cost of STI Jacket has been set to ₱180.00 per piece, and its sales have been recalculated.');
 
     expect($order->items->sole()->refresh()->cost_centavos)->toBe(3 * 18000)
         ->and($variant->refresh()->uncosted_pieces)->toBe(0);

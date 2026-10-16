@@ -479,8 +479,14 @@ test('the orders page shows new orders by default and finds by order number or s
         ->where('filters.show', 'placed')
         ->where('counts', ['placed' => 1, 'ready' => 1, 'picked_up' => 0, 'cancelled' => 0])
         ->where('orders.data.0.number', 'PW-0001')
+        // "New" like the tab; the student's own pages keep "Placed".
+        ->where('orders.data.0.status_label', 'New')
         ->has('orders.data', 1)
     );
+
+    $this->actingAs($this->student)->get(route('my-orders.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('orders.data.0.status_label', 'Placed'));
+    $this->actingAs($this->specialist);
 
     $this->get(route('orders.index', ['show' => 'all', 'search' => 'PW-0002']))
         ->assertInertia(fn (Assert $page) => $page->has('orders.data', 1)->where('orders.data.0.status', 'ready'));

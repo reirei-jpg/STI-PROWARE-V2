@@ -78,6 +78,7 @@ final class SpecialistOrders
     {
         return [
             ...OrderRow::of($order),
+            'status_label' => $order->status->staffLabel(),
             'handled_by' => $order->handler?->name,
             'can_undo_release' => HandleOrderBySpecialist::canUndoRelease($order),
         ];
@@ -117,7 +118,7 @@ final class SpecialistOrders
                 ->whereKeyNot($order->id)
                 ->orderBy('id')
                 ->get()
-                ->map(fn (Order $other): array => ['id' => $other->id, 'number' => $other->number, 'status_label' => $other->status->label()])
+                ->map(fn (Order $other): array => ['id' => $other->id, 'number' => $other->number, 'status_label' => $other->status->staffLabel()])
                 ->all()),
         ];
     }

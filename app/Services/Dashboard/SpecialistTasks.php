@@ -290,7 +290,7 @@ final class SpecialistTasks
                 key: "last-day-{$order->id}",
                 kind: 'last_day',
                 title: "Last day to pick up {$order->number} · {$order->student->name}",
-                detail: '₱'.number_format($order->total_centavos / 100, 2).' · '.$order->status->label().'. It cancels itself tonight if not picked up.',
+                detail: '₱'.number_format($order->total_centavos / 100, 2).' · '.$order->status->staffLabel().'. It cancels itself tonight if not picked up.',
                 label: 'Open order',
                 url: route('orders.index', ['show' => 'all', 'search' => $order->number]),
                 target: ['screen' => 'order', 'id' => $order->id],
