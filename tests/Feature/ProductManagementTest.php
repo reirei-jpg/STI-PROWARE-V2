@@ -459,6 +459,40 @@ test('a variant that has stock cannot disappear from the product', function (arr
     ],
 ]);
 
+test('a combination that does not exist is not saved, and can be made available later', function () {
+    $this->actingAs(User::factory()->specialist()->create());
+    $aquaFlask = fn (array $unavailable) => productForm([
+        'name' => 'STI Aqua Flask',
+        'options' => [['name' => 'Color', 'choices' => ['Black', 'Pink']], ['name' => 'Capacity', 'choices' => ['22 oz', '32 oz']]],
+        'unavailable' => $unavailable,
+        'variants' => [],
+    ]);
+
+    // Pink does not come in 32 oz.
+    $this->post(route('products.store'), $aquaFlask(['Color: Pink | Capacity: 32 oz']))->assertSessionHasNoErrors();
+    $product = Product::query()->where('name', 'STI Aqua Flask')->sole();
+
+    expect($product->variants()->orderBy('position')->pluck('combination')->all())->toBe([
+        'Color: Black | Capacity: 22 oz',
+        'Color: Black | Capacity: 32 oz',
+        'Color: Pink | Capacity: 22 oz',
+    ]);
+
+    // Head Office starts sending Pink in 32 oz: tick it again.
+    $this->put(route('products.update', $product), $aquaFlask([]))->assertSessionHasNoErrors();
+    expect($product->variants()->count())->toBe(4);
+
+    // Every combination unticked is refused.
+    $this->put(route('products.update', $product), $aquaFlask(['Color: Black | Capacity: 22 oz', 'Color: Black | Capacity: 32 oz', 'Color: Pink | Capacity: 22 oz', 'Color: Pink | Capacity: 32 oz']))
+        ->assertSessionHasErrors(['options' => 'Keep at least one size or color available.']);
+
+    // A combination with stock must stay available.
+    $product->variants()->where('combination', 'Color: Black | Capacity: 22 oz')->update(['stock_on_hand' => 5]);
+    $this->put(route('products.update', $product), $aquaFlask(['Color: Black | Capacity: 22 oz']))
+        ->assertSessionHasErrors(['options' => '"Black / 22 oz" already has stock, so it must stay available.']);
+    expect($product->variants()->count())->toBe(4);
+});
+
 test('a size students preordered cannot be removed or renamed, so their preorders are kept', function () {
     $product = Product::factory()->create(['name' => '42nd Anniversary Shirt', 'status' => ProductStatus::Preorder, 'preorders_close_on' => now()->addWeek()->toDateString()]);
     $large = ProductVariant::factory()->for($product)->create(['combination' => ProductVariants::key([['option' => 'Size', 'choice' => 'M/L']]), 'choices' => [['option' => 'Size', 'choice' => 'M/L']]]);

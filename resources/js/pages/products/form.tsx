@@ -63,6 +63,8 @@ type ProductFormData = {
     /** The product's one eStore Item Code, used by every variant. */
     shared_item_code: string;
     shared_pack_key: string;
+    /** Combinations that do not exist (e.g. Pink in 32 oz): not saved, not shown to students. */
+    unavailable: string[];
 };
 
 const emptyVariantInput: VariantInput = {
@@ -143,6 +145,17 @@ export default function ProductForm({
         shared_item_code:
             savedCodedVariant?.estore_item_code ?? fromItem?.item_code ?? '',
         shared_pack_key: savedCodedVariant?.estore_pack_key ?? '',
+        // A saved product's combinations without a variant were marked as not available.
+        unavailable: product
+            ? variantCombinations(product.options)
+                  .map((combination) => combination.key)
+                  .filter(
+                      (key) =>
+                          !product.variants.some(
+                              (variant) => variant.combination === key,
+                          ),
+                  )
+            : [],
     });
 
     const { data, setData, processing } = form;
@@ -152,6 +165,17 @@ export default function ProductForm({
             (option) => option.name.trim() !== '' && option.choices.length > 0,
         ),
     );
+    // The combinations that exist and are saved as variants.
+    const availableCombinations = combinations.filter(
+        (combination) => !data.unavailable.includes(combination.key),
+    );
+    const setAvailable = (key: string, available: boolean) =>
+        setData(
+            'unavailable',
+            available
+                ? data.unavailable.filter((current) => current !== key)
+                : [...data.unavailable, key],
+        );
     const stockByCombination = Object.fromEntries(
         (product?.variants ?? []).map((variant) => [
             variant.combination,
@@ -165,7 +189,7 @@ export default function ProductForm({
     const hasVariants = combinations.length > 1;
     const everyVariantPriced =
         hasVariants &&
-        combinations.every(
+        availableCombinations.every(
             (combination) => variantInput(combination.key).price.trim() !== '',
         );
     /**
@@ -237,7 +261,10 @@ export default function ProductForm({
                 price: pack.sold_to_students ? pack.price : '',
             })),
             options: current.options,
-            variants: combinations.map((combination) => {
+            unavailable: combinations
+                .map((combination) => combination.key)
+                .filter((key) => current.unavailable.includes(key)),
+            variants: availableCombinations.map((combination) => {
                 const input =
                     current.variant_inputs[combination.key] ??
                     emptyVariantInput;
@@ -1046,7 +1073,7 @@ export default function ProductForm({
 
                 <Panel
                     title="Variants"
-                    description={`Every combination of the options (sizes, colors, departments). They are the same eStore item, so they all use the product's one eStore Item Code. Give a variant its own Selling Price when it costs more or less (e.g. a bigger size); leave it empty to use the default${data.sold_by_piece && data.price ? ` (₱${data.price})` : ''}.`}
+                    description={`Every combination of the options (sizes, colors, departments). Untick a combination that does not exist (e.g. a color that does not come in 32 oz); students will not see it. They are the same eStore item, so they all use the product's one eStore Item Code. Give a variant its own Selling Price when it costs more or less (e.g. a bigger size); leave it empty to use the default${data.sold_by_piece && data.price ? ` (₱${data.price})` : ''}.`}
                 >
                     {fromItemCodeMissing && fromItem && (
                         <p className="border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800">
@@ -1104,9 +1131,10 @@ export default function ProductForm({
                                 <InputError message={sharedPackError} />
                             </label>
                         </div>
-                        {combinations.length > 1 && (
+                        {availableCombinations.length > 1 && (
                             <p className="text-xs leading-5 text-slate-500">
-                                All {combinations.length} variants use this code
+                                All {availableCombinations.length} variants use
+                                this code
                                 {data.shared_item_code.trim() !== '' &&
                                     ` (${data.shared_item_code.trim().toUpperCase()})`}
                                 . When it arrives, you enter how many of each
@@ -1118,6 +1146,9 @@ export default function ProductForm({
                         <table className="w-full min-w-175">
                             <thead className="bg-slate-50">
                                 <tr>
+                                    {hasVariants && (
+                                        <TableHeading>Available</TableHeading>
+                                    )}
                                     <TableHeading>Variant</TableHeading>
                                     <TableHeading>
                                         Own Selling Price per piece (optional)
@@ -1130,66 +1161,149 @@ export default function ProductForm({
                                 </tr>
                             </thead>
                             <tbody>
-                                {combinations.map((combination, index) => (
-                                    <tr
-                                        key={combination.key}
-                                        className="border-t border-slate-100 align-top"
-                                    >
-                                        <td className="px-5 py-4 font-black text-slate-900">
-                                            {combination.label}
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <PesoInput
-                                                value={
-                                                    variantInput(
-                                                        combination.key,
-                                                    ).price
-                                                }
-                                                onChange={(value) =>
-                                                    updateVariant(
-                                                        combination.key,
-                                                        'price',
-                                                        value,
-                                                    )
-                                                }
-                                                placeholder={
-                                                    data.sold_by_piece
-                                                        ? data.price ||
-                                                          'Price per piece'
-                                                        : 'Not sold by the piece'
-                                                }
-                                                disabled={!data.sold_by_piece}
-                                                label={`Price for ${combination.label}`}
-                                            />
-                                            <InputError
-                                                className="mt-1"
-                                                message={
-                                                    errors[
-                                                        `variants.${index}.price`
-                                                    ]
-                                                }
-                                            />
-                                        </td>
-                                        {product && (
-                                            <td className="px-5 py-4 text-right">
-                                                <p className="flex h-11 items-center justify-end gap-1">
-                                                    <span className="font-black text-slate-900">
-                                                        {(
-                                                            stockByCombination[
-                                                                combination.key
-                                                            ] ?? 0
-                                                        ).toLocaleString(
-                                                            'en-PH',
+                                {combinations.map((combination) => {
+                                    const available =
+                                        !data.unavailable.includes(
+                                            combination.key,
+                                        );
+                                    const index =
+                                        availableCombinations.indexOf(
+                                            combination,
+                                        );
+                                    const hasStock =
+                                        (stockByCombination[combination.key] ??
+                                            0) > 0;
+
+                                    return (
+                                        <tr
+                                            key={combination.key}
+                                            className={cn(
+                                                'border-t border-slate-100 align-top',
+                                                !available && 'bg-slate-50/80',
+                                            )}
+                                        >
+                                            {hasVariants && (
+                                                <td className="px-5 py-4">
+                                                    <label
+                                                        className={cn(
+                                                            'flex h-11 items-center gap-2 text-sm font-bold',
+                                                            hasStock &&
+                                                                available
+                                                                ? 'cursor-not-allowed text-slate-400'
+                                                                : 'cursor-pointer text-slate-700',
                                                         )}
+                                                        title={
+                                                            hasStock &&
+                                                            available
+                                                                ? 'It has stock, so it must stay available.'
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={available}
+                                                            disabled={
+                                                                hasStock &&
+                                                                available
+                                                            }
+                                                            onChange={(event) =>
+                                                                setAvailable(
+                                                                    combination.key,
+                                                                    event.target
+                                                                        .checked,
+                                                                )
+                                                            }
+                                                            className="h-5 w-5 accent-[#0D6EFD]"
+                                                            aria-label={`${combination.label} is available`}
+                                                        />
+                                                        {available
+                                                            ? 'Yes'
+                                                            : 'No'}
+                                                    </label>
+                                                </td>
+                                            )}
+                                            <td
+                                                className={cn(
+                                                    'px-5 py-4 font-black',
+                                                    available
+                                                        ? 'text-slate-900'
+                                                        : 'text-slate-400',
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        !available &&
+                                                            'line-through',
+                                                    )}
+                                                >
+                                                    {combination.label}
+                                                </span>
+                                                {!available && (
+                                                    <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                                                        Does not exist · not
+                                                        shown to students
                                                     </span>
-                                                    <span className="text-xs text-slate-500">
-                                                        pcs
-                                                    </span>
-                                                </p>
+                                                )}
                                             </td>
-                                        )}
-                                    </tr>
-                                ))}
+                                            <td className="px-5 py-4">
+                                                <PesoInput
+                                                    value={
+                                                        variantInput(
+                                                            combination.key,
+                                                        ).price
+                                                    }
+                                                    onChange={(value) =>
+                                                        updateVariant(
+                                                            combination.key,
+                                                            'price',
+                                                            value,
+                                                        )
+                                                    }
+                                                    placeholder={
+                                                        data.sold_by_piece
+                                                            ? data.price ||
+                                                              'Price per piece'
+                                                            : 'Not sold by the piece'
+                                                    }
+                                                    disabled={
+                                                        !data.sold_by_piece ||
+                                                        !available
+                                                    }
+                                                    label={`Price for ${combination.label}`}
+                                                />
+                                                <InputError
+                                                    className="mt-1"
+                                                    message={
+                                                        index === -1
+                                                            ? undefined
+                                                            : errors[
+                                                                  `variants.${index}.price`
+                                                              ]
+                                                    }
+                                                />
+                                            </td>
+                                            {product && (
+                                                <td className="px-5 py-4 text-right">
+                                                    <p className="flex h-11 items-center justify-end gap-1">
+                                                        <span className="font-black text-slate-900">
+                                                            {(
+                                                                stockByCombination[
+                                                                    combination
+                                                                        .key
+                                                                ] ?? 0
+                                                            ).toLocaleString(
+                                                                'en-PH',
+                                                            )}
+                                                        </span>
+                                                        <span className="text-xs text-slate-500">
+                                                            pcs
+                                                        </span>
+                                                    </p>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

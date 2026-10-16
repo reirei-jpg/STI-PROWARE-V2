@@ -11,7 +11,6 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\PreorderArrived;
 use App\Services\EstorePo\ItemCode;
-use App\Services\Products\ProductVariants;
 use App\Services\Stock\DeliveredStock;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Http\UploadedFile;
@@ -210,7 +209,8 @@ class SaveProduct
         $existingByKey = $product->variants()->get()->keyBy('combination');
         $keptIds = [];
 
-        foreach (ProductVariants::combinations($options) as $position => $combination) {
+        // Only the combinations that exist (not those marked as not available).
+        foreach ($request->availableCombinations() as $position => $combination) {
             $input = $submittedByKey[$combination['combination']] ?? [];
             $price = $soldByPiece ? ($input['price'] ?? null) : null;
             $packKey = $input['estore_pack_key'] ?? null;

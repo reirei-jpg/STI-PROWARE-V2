@@ -114,6 +114,9 @@ class SaveProductRequest extends FormRequest
             'options.*.choices.*' => ['required', 'string', 'max:40'],
 
             'variants' => ['nullable', 'array'],
+            // Combinations of the options that do not exist (e.g. Pink in 32 oz).
+            'unavailable' => ['nullable', 'array'],
+            'unavailable.*' => ['string', 'max:500'],
             'variants.*.combination' => ['present', 'nullable', 'string'],
             'variants.*.estore_item_code' => ['nullable', 'string', 'max:40'],
             'variants.*.estore_pack_key' => ['nullable', 'string', 'max:40'],
@@ -202,6 +205,8 @@ class SaveProductRequest extends FormRequest
 
                 if (count(ProductVariants::combinations($this->options())) > self::MAX_VARIANTS) {
                     $validator->errors()->add('options', 'These options make more than '.self::MAX_VARIANTS.' variants. Use fewer choices.');
+                } elseif ($this->availableCombinations() === []) {
+                    $validator->errors()->add('options', 'Keep at least one size or color available.');
                 }
 
                 $this->validateUniqueName($validator);
@@ -316,7 +321,8 @@ class SaveProductRequest extends FormRequest
             return;
         }
 
-        $kept = array_column(ProductVariants::combinations($this->options()), 'combination');
+        $kept = array_column($this->availableCombinations(), 'combination');
+        $all = array_column(ProductVariants::combinations($this->options()), 'combination');
 
         $lost = $product->variants()
             ->whereNotIn('combination', $kept)
@@ -324,9 +330,11 @@ class SaveProductRequest extends FormRequest
             ->get();
 
         foreach ($lost as $variant) {
-            $validator->errors()->add('options', $variant->choices === []
-                ? 'This product already has stock without options, so options cannot be added to it.'
-                : "\"{$variant->label()}\" already has stock, so it cannot be removed or renamed. Put its choice back.");
+            $validator->errors()->add('options', match (true) {
+                $variant->choices === [] => 'This product already has stock without options, so options cannot be added to it.',
+                in_array($variant->combination, $all, true) => "\"{$variant->label()}\" already has stock, so it must stay available.",
+                default => "\"{$variant->label()}\" already has stock, so it cannot be removed or renamed. Put its choice back.",
+            });
         }
     }
 
@@ -343,7 +351,8 @@ class SaveProductRequest extends FormRequest
             return;
         }
 
-        $kept = array_column(ProductVariants::combinations($this->options()), 'combination');
+        $kept = array_column($this->availableCombinations(), 'combination');
+        $all = array_column(ProductVariants::combinations($this->options()), 'combination');
         $lost = $product->variants()->whereNotIn('combination', $kept)->get()->keyBy('id');
 
         if ($lost->isEmpty()) {
@@ -362,10 +371,37 @@ class SaveProductRequest extends FormRequest
             $count = (int) $students;
             $who = $count === 1 ? '1 student' : "{$count} students";
 
-            $validator->errors()->add('options', $variant === null || $variant->choices === []
-                ? 'This product already has preorders without options, so options cannot be added to it.'
-                : "\"{$variant->label()}\" has preorders from {$who}, so it cannot be removed or renamed. Put its choice back.");
+            $validator->errors()->add('options', match (true) {
+                $variant === null || $variant->choices === [] => 'This product already has preorders without options, so options cannot be added to it.',
+                in_array($variant->combination, $all, true) => "\"{$variant->label()}\" has preorders from {$who}, so it must stay available.",
+                default => "\"{$variant->label()}\" has preorders from {$who}, so it cannot be removed or renamed. Put its choice back.",
+            });
         }
+    }
+
+    /**
+     * The combinations of the options that exist and are saved as variants:
+     * every combination except those marked as not available (e.g. a color
+     * that does not come in 32 oz). A product without options has its one.
+     *
+     * @return list<array{combination: string, choices: list<array{option: string, choice: string}>}>
+     */
+    public function availableCombinations(): array
+    {
+        $combinations = ProductVariants::combinations($this->options());
+
+        if ($this->options() === []) {
+            return $combinations;
+        }
+
+        /** @var array<int, mixed> $unavailable */
+        $unavailable = (array) $this->input('unavailable', []);
+        $notMade = array_filter($unavailable, 'is_string');
+
+        return array_values(array_filter(
+            $combinations,
+            fn (array $combination): bool => ! in_array($combination['combination'], $notMade, true),
+        ));
     }
 
     /**
