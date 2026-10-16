@@ -112,7 +112,7 @@ test('a specialist can add a product with photos, options and variants', functio
         ]);
 
     foreach ($product->photos as $photo) {
-        Storage::disk('public')->assertExists($photo->path);
+        disk('public')->assertExists($photo->path);
     }
 });
 
@@ -273,8 +273,8 @@ test('editing keeps, removes, adds and reorders photos', function () {
         ->and($photos->last()->id)->toBe($front->id)
         ->and(ProductPhoto::find($back->id))->toBeNull();
 
-    Storage::disk('public')->assertMissing($back->path);
-    Storage::disk('public')->assertExists($front->path);
+    disk('public')->assertMissing($back->path);
+    disk('public')->assertExists($front->path);
 });
 
 test('editing options keeps the variants that still exist and gives new ones the product code', function () {

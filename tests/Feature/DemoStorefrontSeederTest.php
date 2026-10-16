@@ -27,5 +27,5 @@ test('the demo products fill coming soon and on sale, and running it again adds 
         ->and($existing->refresh()->price_centavos)->toBe(9900)
         ->and(Product::query()->where('name', 'STI Ballpen')->sole()->variants()->sole()->stock_on_hand)->toBe(120);
 
-    Storage::disk('public')->assertExists('products/demo-sti-ballpen.png');
+    disk('public')->assertExists('products/demo-sti-ballpen.png');
 });

@@ -43,7 +43,7 @@ test('a specialist can save the scanned order', function () {
             'amount_centavos' => 42000,
         ]);
 
-    Storage::disk('local')->assertExists($purchaseOrder->document_path);
+    disk('local')->assertExists($purchaseOrder->document_path);
     expect(Storage::disk('local')->allFiles('purchase-orders/pending'))->toBe([]);
 
     $this->get(route('purchase-orders.scan'))

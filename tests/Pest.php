@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\PurchaseOrder;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /*
@@ -45,6 +47,19 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+/**
+ * A disk with its test checks (assertExists, assertMissing). Storage::disk()
+ * only promises the plain Filesystem contract, so editors would call those
+ * checks undefined.
+ */
+function disk(string $name): FilesystemAdapter
+{
+    $disk = Storage::disk($name);
+    assert($disk instanceof FilesystemAdapter);
+
+    return $disk;
+}
 
 /**
  * An order with the given item codes and quantities ordered.
