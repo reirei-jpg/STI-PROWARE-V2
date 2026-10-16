@@ -12,13 +12,14 @@ use App\Models\PurchaseOrder;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-03 10:00', 'Asia/Manila'));
     $this->specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
 });
 
-test('an empty to-do list is all clear', function () {
+test('an empty to-do list is all clear, with empty order cards', function () {
     $this->actingAs($this->specialist)
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
@@ -27,10 +28,12 @@ test('an empty to-do list is all clear', function () {
             ->where('tasks.today', [])
             ->where('tasks.week', [])
             ->missing('tasks.cash')
+            ->where('orderCards.new', ['count' => 0, 'orders' => []])
+            ->where('orderCards.released_today', ['count' => 0, 'orders' => []])
         );
 });
 
-test('the to-do list puts each task in its group, most urgent first', function () {
+test('the to-do list puts each task in its group, and the order cards show the student orders', function () {
     $student = User::factory()->student()->create(['name' => 'Juan Dela Cruz']);
     $order = Order::factory()->for($student, 'student')->create(['total_centavos' => 27000, 'pick_up_by' => '2026-10-06 23:59:59']);
     Order::factory()->for($student, 'student')->create(['status' => OrderStatus::Ready, 'total_centavos' => 30000, 'pick_up_by' => '2026-10-03 23:59:59']);
@@ -48,16 +51,40 @@ test('the to-do list puts each task in its group, most urgent first', function (
     $this->actingAs($this->specialist)
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('tasks.now.0.title', "Prepare {$order->number} · Juan Dela Cruz")
-            ->where('tasks.now.0.detail', '0 items · ₱270.00 · pick up by Oct 6')
-            ->where('tasks.now.0.action', ['label' => 'Ready for pickup', 'url' => route('orders.ready', $order), 'method' => 'post'])
-            ->where('tasks.now.1.title', 'Low stock: STI Lanyard')
+            // The student orders are in the order cards, not in the tasks.
+            ->where('tasks.now.0.title', 'Low stock: STI Lanyard')
+            ->has('tasks.now', 1)
             ->where('tasks.today.0.title', 'Not complete after 30 days: Order #30801')
             ->where('tasks.today.0.detail', 'Ordered Aug 20 (44 days ago) · 0% received. Ask Head Office about the rest.')
-            ->where('tasks.today.1.title', fn (string $title) => str_starts_with($title, 'Last day to pick up'))
+            ->has('tasks.today', 1)
             ->where('tasks.week.0.title', 'Preorders for Anniversary Shirt close Mon, Oct 5')
             ->where('tasks.week.0.detail', '3 pcs preordered so far. Order them in the eStore after it closes.')
+            ->where('orderCards.new.count', 1)
+            ->where('orderCards.new.orders.0.number', $order->number)
+            ->where('orderCards.new.orders.0.student_name', 'Juan Dela Cruz')
+            ->where('orderCards.ready.count', 1)
+            ->where('orderCards.last_day.count', 1)
+            ->where('orderCards.last_day.orders.0.status', 'ready')
+            ->where('orderCards.released_today.count', 1)
         );
+
+    // The phone's To-do has no order cards, so it keeps the orders as tasks.
+    Sanctum::actingAs($this->specialist);
+    $this->getJson(route('api.v1.specialist.tasks'))
+        ->assertJsonPath('now.0.title', "Prepare {$order->number} · Juan Dela Cruz")
+        ->assertJsonPath('now.0.detail', '0 items · ₱270.00 · pick up by Oct 6')
+        ->assertJsonPath('now.0.action', ['label' => 'Ready for pickup', 'url' => route('orders.ready', $order), 'method' => 'post'])
+        ->assertJsonPath('today.1.title', fn (string $title) => str_starts_with($title, 'Last day to pick up'));
+});
+
+test('an order card lists the first orders and counts them all', function () {
+    Order::factory()->count(10)->create();
+
+    $this->actingAs($this->specialist)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('orderCards.new.count', 10)
+            ->has('orderCards.new.orders', 8));
 });
 
 test('low stock is one row per product, naming its variants', function () {
@@ -82,16 +109,14 @@ test('low stock is one row per product, naming its variants', function () {
 
 test('a long list shows the first five and how many more', function () {
     Order::factory()->count(7)->create();
+    Sanctum::actingAs($this->specialist);
 
-    $this->actingAs($this->specialist)
-        ->get(route('dashboard'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('tasks.now', 6)
-            ->where('tasks.now.5.title', 'And 2 more orders to prepare')
-            ->where('tasks.now.5.hidden', 2)
-            ->where('tasks.now.5.action.url', route('orders.index'))
-            ->where('tasks.now.0.hidden', 0)
-        );
+    $this->getJson(route('api.v1.specialist.tasks'))
+        ->assertJsonCount(6, 'now')
+        ->assertJsonPath('now.5.title', 'And 2 more orders to prepare')
+        ->assertJsonPath('now.5.hidden', 2)
+        ->assertJsonPath('now.5.action.url', route('orders.index'))
+        ->assertJsonPath('now.0.hidden', 0);
 });
 
 test('preorders closing this week show the preordered products first, and how many more', function () {

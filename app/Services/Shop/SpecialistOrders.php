@@ -109,6 +109,38 @@ final class SpecialistOrders
         ];
     }
 
+    /** Orders shown in a dashboard card's popup; the rest are on Student Orders. */
+    public const SHOWN_ON_DASHBOARD = 8;
+
+    /**
+     * The order cards on the Specialist's dashboard, each with how many
+     * orders it has and the first ones for its popup: new orders to
+     * prepare and orders ready for pickup (nearest pick-up date first),
+     * orders on their last pickup day, and orders released today.
+     *
+     * @return array<'new'|'ready'|'last_day'|'released_today', array{count: int, orders: list<array<string, mixed>>}>
+     */
+    public static function dashboardCards(): array
+    {
+        $today = now()->toDateString();
+        $groups = [
+            'new' => fn () => Order::query()->where('status', OrderStatus::Placed)->orderBy('pick_up_by')->orderBy('id'),
+            'ready' => fn () => Order::query()->where('status', OrderStatus::Ready)->orderBy('pick_up_by')->orderBy('id'),
+            'last_day' => fn () => Order::query()->open()->whereDate('pick_up_by', $today)->orderBy('id'),
+            'released_today' => fn () => Order::query()->where('status', OrderStatus::PickedUp)->whereDate('picked_up_at', $today)->latest('picked_up_at')->latest('id'),
+        ];
+
+        return array_map(fn (callable $orders): array => [
+            'count' => $orders()->count(),
+            'orders' => array_values($orders()
+                ->with(['items', 'student', 'handler'])
+                ->limit(self::SHOWN_ON_DASHBOARD)
+                ->get()
+                ->map(self::row(...))
+                ->all()),
+        ], $groups);
+    }
+
     /**
      * How many orders there are of each status, for the tabs.
      *

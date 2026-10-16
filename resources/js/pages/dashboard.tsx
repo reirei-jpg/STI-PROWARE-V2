@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage, usePoll } from '@inertiajs/react';
 import {
     ArrowRight,
     Boxes,
@@ -19,6 +19,8 @@ import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
+import OrderCards from '@/components/order-cards';
+import type { OrderCardsData } from '@/components/order-cards';
 import PageHeader from '@/components/page-header';
 import SchoolAdminOverview from '@/components/school-admin-overview';
 import type { SchoolAdminOverviewData } from '@/components/school-admin-overview';
@@ -89,14 +91,25 @@ const taskIconClasses: Partial<Record<Task['kind'], string>> = {
 export default function Dashboard({
     tasks,
     overview,
+    orderCards,
 }: {
     tasks: SpecialistTasks | null;
     overview: SchoolAdminOverviewData | null;
+    /** The Specialist's student order cards; null for the School Admin. */
+    orderCards: OrderCardsData | null;
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const firstName = auth.user.name.split(' ')[0];
     // Which group's tasks are open in the popup.
     const [openGroup, setOpenGroup] = useState<GroupKey | null>(null);
+
+    // The Specialist's dashboard checks every 30 seconds for new orders,
+    // tasks and notices (the bell), without reloading the page.
+    usePoll(
+        30000,
+        { only: ['orderCards', 'tasks', 'notifications'] },
+        { autoStart: tasks !== null },
+    );
 
     if (tasks === null) {
         return overview === null ? null : (
@@ -172,6 +185,8 @@ export default function Dashboard({
                         />
                     </Link>
                 </section>
+
+                {orderCards && <OrderCards data={orderCards} />}
 
                 <section className="space-y-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">

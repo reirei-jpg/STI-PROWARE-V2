@@ -35,20 +35,24 @@ final class SpecialistTasks
     public const SLOW_MOVING_DAYS = 18;
 
     /**
+     * Every task. The website's dashboard leaves out the student orders
+     * (withOrders: false) because its order cards show them; the phone's
+     * To-do keeps them.
+     *
      * @return array{now: list<array<string, mixed>>, today: list<array<string, mixed>>, week: list<array<string, mixed>>}
      */
-    public function all(): array
+    public function all(bool $withOrders = true): array
     {
         return [
             'now' => [
-                ...$this->ordersToPrepare(),
+                ...($withOrders ? $this->ordersToPrepare() : []),
                 ...$this->lowStock(),
                 ...$this->waitingToSplit(),
                 ...$this->arrivedNotLinked(),
             ],
             'today' => [
                 ...$this->ordersToFollowUp(),
-                ...$this->lastPickupDay(),
+                ...($withOrders ? $this->lastPickupDay() : []),
                 ...$this->salesEnding(),
             ],
             'week' => [
