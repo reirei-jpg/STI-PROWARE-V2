@@ -43,7 +43,7 @@ class SaveUniformSetRequest extends FormRequest
     {
         return [
             'name.required' => 'Enter the course, e.g. BSIT.',
-            'name.max' => 'Keep the name to 60 characters or less.',
+            'name.max' => 'The name may not be longer than 60 characters.',
             'name.unique' => 'There is already a :input set.',
             'blouse_product_id.exists' => 'Choose one of the products.',
             'polo_product_id.exists' => 'Choose one of the products.',

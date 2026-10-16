@@ -49,7 +49,7 @@ class FreeUniformController extends Controller
         );
 
         $students = count($request->students());
-        $message = "Group of {$students} recorded. ".self::givenWords($result['given']).'.';
+        $message = "The group of {$students} students has been recorded. ".self::givenWords($result['given']).'.';
 
         if ($result['still_to_give'] !== []) {
             $message .= ' Still to give (out of stock): '.implode('; ', $result['still_to_give']).'. Give them from the group\'s details when they arrive.';

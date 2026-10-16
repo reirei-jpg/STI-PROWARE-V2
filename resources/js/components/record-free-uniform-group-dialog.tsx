@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { Gift, LoaderCircle, Plus, Trash2, X } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
 import InputError from '@/components/input-error';
@@ -37,7 +37,18 @@ type GroupForm = {
 };
 
 const inputClasses =
-    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
+    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 aria-invalid:border-red-400 aria-invalid:ring-2 aria-invalid:ring-red-100';
+
+/** A student card's boxes, as named in the list of problems. */
+const STUDENT_FIELDS: Record<string, string> = {
+    name: 'Name',
+    enrollment_form_number: 'Enrollment Form #',
+    course_section: 'Course / Section',
+    uniform_set_id: 'Set',
+    top_kind: 'Top',
+    top_variant_id: 'Top size',
+    pants_variant_id: 'Pants size',
+};
 
 /**
  * The Record a group pop-up: the date the students enrolled together, then
@@ -111,25 +122,91 @@ function GroupForm({
     const { data, setData, processing } = form;
     const errors = form.errors as Record<string, string | undefined>;
 
-    const updateStudent = (key: number, changes: Partial<StudentInput>) =>
+    /** Clears these server messages, e.g. once their box is changed. */
+    const clear = (keys: string[]) =>
+        form.clearErrors(...(keys as Parameters<typeof form.clearErrors>));
+
+    const updateStudent = (key: number, changes: Partial<StudentInput>) => {
+        const index = data.students.findIndex((student) => student.key === key);
+        clear(
+            Object.keys(changes).map((field) => `students.${index}.${field}`),
+        );
         setData(
             'students',
             data.students.map((student) =>
                 student.key === key ? { ...student, ...changes } : student,
             ),
         );
+    };
 
-    const addStudent = () =>
+    const addStudent = () => {
+        clear(['students']);
         setData('students', [
             ...data.students,
             emptyStudent(nextKey.current++, data.students.at(-1)),
         ]);
+    };
 
-    const removeStudent = (key: number) =>
+    // The cards below move up, so their messages no longer fit: all go.
+    const removeStudent = (key: number) => {
+        clear(
+            Object.keys(form.errors).filter((field) =>
+                field.startsWith('students'),
+            ),
+        );
         setData(
             'students',
             data.students.filter((student) => student.key !== key),
         );
+    };
+
+    // The boxes the server refused, top of the popup first.
+    const problems = Object.entries(errors)
+        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        .map(([key, message]) => {
+            const [field, index, part] = key.split('.');
+
+            if (field === 'students' && index !== undefined) {
+                return {
+                    key,
+                    message,
+                    order: Number(index) + 1,
+                    place: `Student ${Number(index) + 1} · ${STUDENT_FIELDS[part] ?? part}`,
+                    anchor: `free-uniform-student-${index}`,
+                };
+            }
+
+            return field === 'students'
+                ? {
+                      key,
+                      message,
+                      order: Infinity,
+                      place: 'Students',
+                      anchor: 'free-uniform-students',
+                  }
+                : {
+                      key,
+                      message,
+                      order: 0,
+                      place: field === 'note' ? 'Note' : 'Date enrolled',
+                      anchor: 'free-uniform-details',
+                  };
+        })
+        .sort((a, b) => a.order - b.order);
+
+    const jumpTo = (anchor: string) =>
+        document
+            .getElementById(anchor)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // When saving is refused, go to the first card with a problem.
+    const jumpToFirstProblem = useRef(false);
+    useEffect(() => {
+        if (jumpToFirstProblem.current && problems.length > 0) {
+            jumpToFirstProblem.current = false;
+            jumpTo(problems[0].anchor);
+        }
+    });
 
     // Pieces taken by the students above each one, to tell which sizes
     // will be still to give.
@@ -162,6 +239,9 @@ function GroupForm({
                 form.post(FreeUniformController.store().url, {
                     preserveScroll: true,
                     onSuccess: onClose,
+                    onError: () => {
+                        jumpToFirstProblem.current = true;
+                    },
                 });
             }}
             className="flex min-h-0 flex-col"
@@ -188,7 +268,10 @@ function GroupForm({
             </div>
 
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/60 px-6 py-5">
-                <div className="grid gap-4 sm:grid-cols-[14rem_1fr]">
+                <div
+                    id="free-uniform-details"
+                    className="grid scroll-mt-4 gap-4 sm:grid-cols-[14rem_1fr]"
+                >
                     <label className="grid gap-1.5">
                         <span className="text-sm font-black text-slate-700">
                             Date enrolled
@@ -197,9 +280,11 @@ function GroupForm({
                             type="date"
                             value={data.enrolled_on}
                             max={today}
-                            onChange={(event) =>
-                                setData('enrolled_on', event.target.value)
-                            }
+                            onChange={(event) => {
+                                clear(['enrolled_on']);
+                                setData('enrolled_on', event.target.value);
+                            }}
+                            aria-invalid={Boolean(errors.enrolled_on)}
                             className={inputClasses}
                         />
                         <InputError message={errors.enrolled_on} />
@@ -210,9 +295,11 @@ function GroupForm({
                         </span>
                         <input
                             value={data.note}
-                            onChange={(event) =>
-                                setData('note', event.target.value)
-                            }
+                            onChange={(event) => {
+                                clear(['note']);
+                                setData('note', event.target.value);
+                            }}
+                            aria-invalid={Boolean(errors.note)}
                             maxLength={200}
                             placeholder="e.g. Friends from Ormoc National High School"
                             className={inputClasses}
@@ -239,6 +326,7 @@ function GroupForm({
                 ))}
 
                 <button
+                    id="free-uniform-students"
                     type="button"
                     onClick={addStudent}
                     className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm transition hover:bg-blue-50"
@@ -248,6 +336,41 @@ function GroupForm({
                 </button>
                 <InputError message={errors.students} />
             </div>
+
+            {problems.length > 0 && (
+                <div
+                    role="alert"
+                    className="max-h-44 overflow-y-auto border-t border-red-200 bg-red-50 px-6 py-3 text-sm text-red-900"
+                >
+                    <p className="font-black">
+                        {problems.length === 1
+                            ? 'Correct the following field before saving:'
+                            : `Correct the following ${problems.length} fields before saving:`}
+                    </p>
+                    <ul className="mt-2 space-y-1.5">
+                        {problems.map((problem) => (
+                            <li
+                                key={problem.key}
+                                className="flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-white px-3 py-2"
+                            >
+                                <span>
+                                    <span className="font-black">
+                                        {problem.place}:
+                                    </span>{' '}
+                                    {problem.message}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => jumpTo(problem.anchor)}
+                                    className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-black text-red-700 transition hover:bg-red-50"
+                                >
+                                    Go to field
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p
@@ -316,7 +439,10 @@ function StudentCard({
     const error = (field: string) => errors[`students.${index}.${field}`];
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section
+            id={`free-uniform-student-${index}`}
+            className="scroll-mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+        >
             <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-sm font-black text-slate-900">
                     Student {number}
@@ -342,6 +468,7 @@ function StudentCard({
                         }
                         maxLength={120}
                         placeholder="e.g. Juan Dela Cruz"
+                        aria-invalid={Boolean(error('name'))}
                         className={inputClasses}
                     />
                 </Field>
@@ -358,6 +485,7 @@ function StudentCard({
                         }
                         maxLength={40}
                         placeholder="e.g. 2026-01234"
+                        aria-invalid={Boolean(error('enrollment_form_number'))}
                         className={inputClasses}
                     />
                 </Field>
@@ -372,6 +500,7 @@ function StudentCard({
                         }
                         maxLength={60}
                         placeholder="e.g. BSIT 1A"
+                        aria-invalid={Boolean(error('course_section'))}
                         className={inputClasses}
                     />
                 </Field>
@@ -389,6 +518,7 @@ function StudentCard({
                                 pants_variant_id: '',
                             })
                         }
+                        aria-invalid={Boolean(error('uniform_set_id'))}
                         className={inputClasses}
                     >
                         <option value="">Choose…</option>
@@ -487,6 +617,7 @@ function SizeField({
                 value={value}
                 disabled={piece === null}
                 onChange={(event) => onChange(event.target.value)}
+                aria-invalid={Boolean(error)}
                 className={cn(inputClasses, 'disabled:bg-slate-50')}
             >
                 <option value="">

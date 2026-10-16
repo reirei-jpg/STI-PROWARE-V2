@@ -85,7 +85,7 @@ test('a group of 5 who enrolled together each get one set, which leaves stock as
     $this->actingAs($this->specialist)
         ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-09', 'note' => 'Barkada of five', 'students' => $students])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Group of 5 recorded. 10 pieces given.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'The group of 5 students has been recorded. 10 pieces given.']);
 
     $group = FreeUniformGroup::sole();
 
@@ -111,7 +111,7 @@ test('a piece out of stock is still to give, and is given when it arrives, in an
 
     $this->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5)])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'Group of 5 recorded. 9 pieces given. Still to give (out of stock): Student 5: Polo M. Give them from the group\'s details when they arrive.']);
+        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'The group of 5 students has been recorded. 9 pieces given. Still to give (out of stock): Student 5: Polo M. Give them from the group\'s details when they arrive.']);
 
     $owed = FreeUniformStudent::query()->stillOwed()->sole();
     expect($owed->name)->toBe('Student 5')
@@ -191,7 +191,8 @@ test('one free set per Enrollment Form #', function () {
 
     $this->actingAs($this->specialist)
         ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => $students])
-        ->assertSessionHasErrors(['students.2.enrollment_form_number' => 'Enrollment Form # 2026-03 already got a free set.']);
+        ->assertSessionHasErrors(['students.2.enrollment_form_number' => 'Enrollment Form # 2026-03 already got a free set.'])
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'The group was not saved. Correct the highlighted field.']);
 });
 
 test('a set without a polo cannot give a polo', function () {

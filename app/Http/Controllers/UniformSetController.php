@@ -18,7 +18,7 @@ class UniformSetController extends Controller
     {
         $set = UniformSet::query()->create($request->values());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "The {$set->name} set was added."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "The {$set->name} set has been added."]);
 
         return back();
     }
@@ -27,7 +27,7 @@ class UniformSetController extends Controller
     {
         $uniformSet->update($request->values());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "The {$uniformSet->name} set was saved."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "The {$uniformSet->name} set has been saved."]);
 
         return back();
     }

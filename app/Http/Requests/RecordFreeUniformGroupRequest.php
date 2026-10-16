@@ -7,9 +7,11 @@ use App\Models\ProductVariant;
 use App\Models\UniformSet;
 use App\Services\FreeUniforms\PromoRules;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Inertia\Inertia;
 
 /**
  * The Record a group pop-up: the date the students enrolled together, and
@@ -54,6 +56,23 @@ class RecordFreeUniformGroupRequest extends FormRequest
     }
 
     /**
+     * "The group was not saved." in a popup, so it is clear nothing was
+     * saved even when the cards with a problem are out of sight.
+     */
+    protected function failedValidation(ValidatorContract $validator): void
+    {
+        // Every card's field counts, e.g. 5 names missing are 5 fields.
+        $problems = count($validator->errors()->keys());
+
+        Inertia::flash('toast', [
+            'type' => 'error',
+            'message' => 'The group was not saved. Correct the '.($problems === 1 ? 'highlighted field' : "{$problems} highlighted fields").'.',
+        ]);
+
+        parent::failedValidation($validator);
+    }
+
+    /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -84,17 +103,17 @@ class RecordFreeUniformGroupRequest extends FormRequest
             'enrolled_on.required' => 'Enter the date they enrolled.',
             'enrolled_on.date_format' => 'Choose a valid date.',
             'enrolled_on.before_or_equal' => 'The enrollment date cannot be in the future.',
-            'note.max' => 'Keep the note to 200 characters or less.',
+            'note.max' => 'The note may not be longer than 200 characters.',
             'students.required' => $fewest,
             'students.min' => $fewest,
             'students.max' => 'A group can have at most '.self::MAX_STUDENTS.' students. Record a bigger group as two groups.',
             'students.*.name.required' => 'Enter the student\'s name.',
-            'students.*.name.max' => 'Keep the name to 120 characters or less.',
+            'students.*.name.max' => 'The name may not be longer than 120 characters.',
             'students.*.enrollment_form_number.required' => 'Enter the student\'s Enrollment Form #.',
-            'students.*.enrollment_form_number.max' => 'Keep the Enrollment Form # to 40 characters or less.',
+            'students.*.enrollment_form_number.max' => 'The Enrollment Form # may not be longer than 40 characters.',
             'students.*.enrollment_form_number.distinct' => 'This Enrollment Form # is typed twice in this group.',
             'students.*.enrollment_form_number.unique' => 'Enrollment Form # :input already got a free set.',
-            'students.*.course_section.max' => 'Keep the course / section to 60 characters or less.',
+            'students.*.course_section.max' => 'The course / section may not be longer than 60 characters.',
             'students.*.uniform_set_id.required' => 'Choose the uniform set, e.g. BSIT.',
             'students.*.uniform_set_id.exists' => 'Choose one of the uniform sets.',
             'students.*.top_kind.required' => 'Choose Blouse or Polo.',
