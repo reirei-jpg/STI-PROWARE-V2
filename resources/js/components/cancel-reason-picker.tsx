@@ -3,6 +3,9 @@ import InputError from '@/components/input-error';
 import type { CancelReasonOption } from '@/lib/cancel-reasons';
 import { cn } from '@/lib/utils';
 
+/** The fewest characters "Other" needs, as the server checks. */
+const MIN_NOTE = 5;
+
 /**
  * Pick why an order is cancelled, like in online shops: one reason from the
  * list, and a box to write why only for Other.
@@ -24,6 +27,9 @@ export default function CancelReasonPicker({
     errors: { reason?: string; note?: string };
     notePlaceholder: string;
 }) {
+    // Other needs a few words, so the student understands why.
+    const written = note.trim().length;
+
     return (
         <div className="space-y-2">
             <div role="radiogroup" className="space-y-2">
@@ -76,7 +82,22 @@ export default function CancelReasonPicker({
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                         autoFocus
                     />
-                    <InputError message={errors.note} />
+                    {errors.note ? (
+                        <InputError message={errors.note} />
+                    ) : (
+                        <span
+                            className={cn(
+                                'text-xs font-semibold',
+                                written < MIN_NOTE
+                                    ? 'text-amber-700'
+                                    : 'text-slate-400',
+                            )}
+                        >
+                            {written < MIN_NOTE
+                                ? `Please write at least ${MIN_NOTE} characters (${written} of ${MIN_NOTE}).`
+                                : `${note.length} of 200 characters`}
+                        </span>
+                    )}
                 </label>
             )}
         </div>

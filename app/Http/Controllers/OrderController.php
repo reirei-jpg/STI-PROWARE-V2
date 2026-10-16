@@ -30,7 +30,8 @@ class OrderController extends Controller
      * Orders by status (New orders by default), with a search by order
      * number or student name, and the students who cannot order now
      * because their orders kept expiring. How long orders hold their items
-     * is set on the Maintenance page.
+     * is set on the Maintenance page. The open order's popup asks for it
+     * again after each step, so it stays open when the order moves tabs.
      */
     public function index(Request $request): Response
     {
@@ -41,6 +42,7 @@ class OrderController extends Controller
             'filters' => $filters,
             'counts' => SpecialistOrders::counts(),
             'pausedStudents' => OrderRules::pausedStudents(),
+            'viewing' => Inertia::optional(fn (): ?array => SpecialistOrders::one($request->integer('viewing'))),
         ]);
     }
 
@@ -97,7 +99,7 @@ class OrderController extends Controller
 
         OrderRules::liftPause($student);
 
-        return $this->respond(fn (): string => "{$student->name} can order again.");
+        return $this->respond(fn (): string => "{$student->name} can now place orders again.");
     }
 
     /**

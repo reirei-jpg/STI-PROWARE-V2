@@ -18,6 +18,7 @@ import { useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
 import IssuanceSlip from '@/components/issuance-slip';
+import { ConfirmReadyDialog } from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import SlipScanBox from '@/components/slip-scan-box';
@@ -182,13 +183,17 @@ function ReleaseCard({ result }: { result: SlipResult }) {
     const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
     const [cancelling, setCancelling] = useState(false);
+    const [confirmingReady, setConfirmingReady] = useState(false);
     const isOpen = order.status === 'placed' || order.status === 'ready';
 
     const act = (url: string, data: Record<string, boolean> = {}) => {
         setBusy(true);
         router.post(url, data, {
             preserveScroll: true,
-            onSuccess: () => setPaid(false),
+            onSuccess: () => {
+                setPaid(false);
+                setConfirmingReady(false);
+            },
             onFinish: () => setBusy(false),
         });
     };
@@ -301,7 +306,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                     <SmallButton
                         tone="blue"
                         disabled={busy}
-                        onClick={() => act(OrderController.ready(order.id).url)}
+                        onClick={() => setConfirmingReady(true)}
                     >
                         <PackageCheck size={16} />
                         Ready for pickup
@@ -344,6 +349,13 @@ function ReleaseCard({ result }: { result: SlipResult }) {
             <CancelOrderDialog
                 order={cancelling ? order : null}
                 onClose={() => setCancelling(false)}
+            />
+
+            <ConfirmReadyDialog
+                order={confirmingReady ? order : null}
+                busy={busy}
+                onConfirm={() => act(OrderController.ready(order.id).url)}
+                onClose={() => setConfirmingReady(false)}
             />
         </aside>
     );

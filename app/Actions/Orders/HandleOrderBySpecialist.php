@@ -32,12 +32,12 @@ class HandleOrderBySpecialist
      */
     public function ready(Order $order, User $specialist): string
     {
-        $this->refuseUnless($order->status === OrderStatus::Placed, "Order {$order->number} is {$order->status->label()}, so it cannot be marked ready.");
+        $this->refuseUnless($order->status === OrderStatus::Placed, "Order {$order->number} cannot be marked as ready for pickup because its status is {$order->status->label()}.");
 
         $order->forceFill(['status' => OrderStatus::Ready, 'ready_at' => now(), 'handled_by' => $specialist->id])->save();
         $order->student->notify(new OrderReady($order));
 
-        return "Order {$order->number} is ready for pickup. {$order->student->name} was notified.";
+        return "Order {$order->number} has been marked as ready for pickup. {$order->student->name} has been notified.";
     }
 
     /**
@@ -72,7 +72,7 @@ class HandleOrderBySpecialist
             $order->forceFill(['status' => OrderStatus::PickedUp, 'picked_up_at' => now(), 'handled_by' => $specialist->id])->save();
         });
 
-        return "Order {$order->number} released to {$order->student->name} · ₱".number_format($order->total_centavos / 100, 2).' paid.';
+        return "Order {$order->number} has been released to {$order->student->name}. Payment received: ₱".number_format($order->total_centavos / 100, 2).'.';
     }
 
     /**
@@ -83,11 +83,11 @@ class HandleOrderBySpecialist
      */
     public function undoRelease(Order $order, User $specialist): string
     {
-        $this->refuseUnless(self::canUndoRelease($order), "Order {$order->number}'s release can only be undone on the day it was released.");
+        $this->refuseUnless(self::canUndoRelease($order), "The release of Order {$order->number} can only be undone on the day it was released.");
 
         DB::transaction(function () use ($order, $specialist): void {
             $order = Order::query()->with('items')->lockForUpdate()->findOrFail($order->id);
-            $this->refuseUnless(self::canUndoRelease($order), "Order {$order->number}'s release can only be undone on the day it was released.");
+            $this->refuseUnless(self::canUndoRelease($order), "The release of Order {$order->number} can only be undone on the day it was released.");
 
             foreach ($order->items as $item) {
                 $variant = ProductVariant::query()->lockForUpdate()->findOrFail($item->product_variant_id);
@@ -105,7 +105,7 @@ class HandleOrderBySpecialist
             $order->forceFill(['status' => OrderStatus::Ready, 'picked_up_at' => null])->save();
         });
 
-        return "Order {$order->number} is back to Ready for pickup. Its items are back on the shelf, held for it.";
+        return "The release of Order {$order->number} has been undone. The order is ready for pickup again, and its items are reserved for it.";
     }
 
     /**
@@ -116,11 +116,11 @@ class HandleOrderBySpecialist
      */
     public function cancel(Order $order, User $specialist, string $reason): string
     {
-        $this->refuseUnless($order->status->isOpen(), "Order {$order->number} is {$order->status->label()}, so it cannot be cancelled.");
+        $this->refuseUnless($order->status->isOpen(), "Order {$order->number} cannot be cancelled because its status is {$order->status->label()}.");
 
         $this->cancelOrder->handle($order, $specialist, trim($reason));
 
-        return "Order {$order->number} was cancelled and its items are free to sell again. {$order->student->name} was notified.";
+        return "Order {$order->number} has been cancelled, and its items have been returned to stock. {$order->student->name} has been notified.";
     }
 
     public static function canUndoRelease(Order $order): bool
@@ -129,11 +129,11 @@ class HandleOrderBySpecialist
     }
 
     /**
-     * "Order PW-0042 is Released, so it cannot be released."
+     * "Order PW-0042 cannot be released because its status is Released."
      */
     private static function notOpen(Order $order, string $step): string
     {
-        return "Order {$order->number} is {$order->status->label()}, so it cannot be {$step}.";
+        return "Order {$order->number} cannot be {$step} because its status is {$order->status->label()}.";
     }
 
     private function record(ProductVariant $variant, StockMovementType $type, int $pieces, int $balance, OrderItem $item, User $specialist): void

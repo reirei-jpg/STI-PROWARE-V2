@@ -14,7 +14,9 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
-import OrderDetailsDialog from '@/components/order-details-dialog';
+import OrderDetailsDialog, {
+    ConfirmReadyDialog,
+} from '@/components/order-details-dialog';
 import {
     Dialog,
     DialogClose,
@@ -322,6 +324,8 @@ function OrderList({
 }) {
     const Icon = card.icon;
     const [readying, setReadying] = useState<number | null>(null);
+    const [confirmingReady, setConfirmingReady] =
+        useState<SpecialistOrderRow | null>(null);
 
     const markReady = (order: SpecialistOrderRow) => {
         setReadying(order.id);
@@ -331,6 +335,7 @@ function OrderList({
             {
                 preserveScroll: true,
                 preserveState: true,
+                onSuccess: () => setConfirmingReady(null),
                 onFinish: () => setReadying(null),
             },
         );
@@ -409,7 +414,9 @@ function OrderList({
                                         <button
                                             type="button"
                                             disabled={readying !== null}
-                                            onClick={() => markReady(order)}
+                                            onClick={() =>
+                                                setConfirmingReady(order)
+                                            }
                                             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-3.5 text-sm font-black whitespace-nowrap text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
                                         >
                                             {readying === order.id ? (
@@ -468,6 +475,13 @@ function OrderList({
                     Close
                 </DialogClose>
             </div>
+
+            <ConfirmReadyDialog
+                order={confirmingReady}
+                busy={readying !== null}
+                onConfirm={() => confirmingReady && markReady(confirmingReady)}
+                onClose={() => setConfirmingReady(null)}
+            />
         </>
     );
 }

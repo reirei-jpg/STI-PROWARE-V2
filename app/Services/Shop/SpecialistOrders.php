@@ -56,6 +56,19 @@ final class SpecialistOrders
     }
 
     /**
+     * One order as the list shows it, for its View Details popup once it
+     * has moved to another tab (e.g. just released). Null when not found.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function one(int $orderId): ?array
+    {
+        $order = Order::query()->with(['items', 'student', 'handler'])->find($orderId);
+
+        return $order === null ? null : self::row($order);
+    }
+
+    /**
      * An order with who handled it and whether its pickup can be undone.
      * Expects the items, student and handler to be loaded.
      *

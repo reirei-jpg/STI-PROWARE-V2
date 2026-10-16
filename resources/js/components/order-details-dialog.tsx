@@ -14,6 +14,7 @@ import {
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import OrderItems, { OrderStatusBadge } from '@/components/order-items';
 import {
     Dialog,
@@ -38,13 +39,17 @@ export default function OrderDetailsDialog({
     order,
     onClose,
     onCancel,
+    onActed,
 }: {
     order: SpecialistOrderRow | null;
     onClose: () => void;
     onCancel: (order: SpecialistOrderRow) => void;
+    /** After a step worked, e.g. to keep showing the order once it moved tabs. */
+    onActed?: (orderId: number) => void;
 }) {
     const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [confirmingReady, setConfirmingReady] = useState(false);
 
     // A fresh tick for every order and every change of status.
     useEffect(() => {
@@ -52,9 +57,17 @@ export default function OrderDetailsDialog({
     }, [order?.id, order?.status]);
 
     const act = (url: string, data: Record<string, boolean> = {}) => {
+        const orderId = order?.id;
         setBusy(true);
         router.post(url, data, {
             preserveScroll: true,
+            onSuccess: () => {
+                setConfirmingReady(false);
+
+                if (orderId !== undefined) {
+                    onActed?.(orderId);
+                }
+            },
             onFinish: () => setBusy(false),
         });
     };
@@ -201,6 +214,12 @@ export default function OrderDetailsDialog({
                                         )}
                                         Release the items
                                     </button>
+                                    {!paid && (
+                                        <p className="text-xs font-semibold text-emerald-900/70">
+                                            Please tick the box above once the
+                                            student has paid.
+                                        </p>
+                                    )}
                                 </section>
                             )}
                         </div>
@@ -211,12 +230,7 @@ export default function OrderDetailsDialog({
                                     <button
                                         type="button"
                                         disabled={busy}
-                                        onClick={() =>
-                                            act(
-                                                OrderController.ready(order.id)
-                                                    .url,
-                                            )
-                                        }
+                                        onClick={() => setConfirmingReady(true)}
                                         className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
                                     >
                                         <PackageCheck size={16} />
@@ -269,10 +283,48 @@ export default function OrderDetailsDialog({
                                 </button>
                             )}
                         </div>
+
+                        <ConfirmReadyDialog
+                            order={confirmingReady ? order : null}
+                            busy={busy}
+                            onConfirm={() =>
+                                act(OrderController.ready(order.id).url)
+                            }
+                            onClose={() => setConfirmingReady(false)}
+                        />
                     </>
                 )}
             </DialogContent>
         </Dialog>
+    );
+}
+
+/**
+ * "Mark Order PW-0042 as ready for pickup?": the student is notified at
+ * once and it cannot be taken back, so a mis-click asks first.
+ */
+export function ConfirmReadyDialog({
+    order,
+    busy,
+    onConfirm,
+    onClose,
+}: {
+    order: Pick<SpecialistOrderRow, 'number' | 'student_name'> | null;
+    busy: boolean;
+    onConfirm: () => void;
+    onClose: () => void;
+}) {
+    return (
+        <ConfirmDialog
+            open={order !== null}
+            title={`Mark Order ${order?.number ?? ''} as ready for pickup?`}
+            description={`${order?.student_name ?? 'The student'} will be notified to collect and pay for the order. This cannot be undone.`}
+            cancelLabel="Not yet"
+            confirmLabel="Mark as ready"
+            busy={busy}
+            onConfirm={onConfirm}
+            onClose={onClose}
+        />
     );
 }
 

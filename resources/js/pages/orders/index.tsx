@@ -3,6 +3,7 @@ import { Eye, Search, ShoppingBag, Unlock } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
+import ConfirmDialog from '@/components/confirm-dialog';
 import OrderDetailsDialog from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
@@ -53,19 +54,34 @@ export default function OrdersIndex({
     filters,
     counts,
     pausedStudents,
+    viewing: viewingAfterStep = null,
 }: {
     orders: Paginated<SpecialistOrder>;
     filters: { show: Show; search: string | null };
     counts: Record<Exclude<Show, 'all'>, number>;
     pausedStudents: PausedStudent[];
+    /** The open order asked for again after a step, once it left this tab. */
+    viewing?: SpecialistOrder | null;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [cancelling, setCancelling] = useState<SpecialistOrder | null>(null);
     const firstRender = useRef(true);
-    // The open order follows the list, so it updates after each step; once
-    // it moves to another tab (e.g. released), the popup closes.
-    const viewing = orders.data.find((order) => order.id === viewingId) ?? null;
+    // The open order follows the list, so it updates after each step. When
+    // it moves to another tab (e.g. released), it is asked for again, and
+    // the popup stays open on it until closed; meanwhile the last version
+    // seen is kept, so the popup does not blink.
+    const lastSeen = useRef<SpecialistOrder | null>(null);
+    const viewing =
+        viewingId === null
+            ? null
+            : (orders.data.find((order) => order.id === viewingId) ??
+              (viewingAfterStep?.id === viewingId ? viewingAfterStep : null) ??
+              (lastSeen.current?.id === viewingId ? lastSeen.current : null));
+    lastSeen.current = viewing;
+
+    const showOrderAfterStep = (orderId: number) =>
+        router.reload({ only: ['viewing'], data: { viewing: orderId } });
 
     const showList = (show: Show, term: string) =>
         router.get(
@@ -242,6 +258,7 @@ export default function OrdersIndex({
                     setViewingId(null);
                     setCancelling(order);
                 }}
+                onActed={showOrderAfterStep}
             />
 
             <CancelOrderDialog
@@ -382,21 +399,20 @@ function OrderDate({ order }: { order: SpecialistOrder }) {
  * shown, with Lift pause for a mistake or a good reason.
  */
 function PausedStudents({ students }: { students: PausedStudent[] }) {
-    const [lifting, setLifting] = useState<number | null>(null);
+    const [confirming, setConfirming] = useState<PausedStudent | null>(null);
+    const [lifting, setLifting] = useState(false);
 
     const lift = (student: PausedStudent) => {
-        if (
-            window.confirm(
-                `Let ${student.name} order again before ${formatDateOrdered(student.paused_until)}?`,
-            )
-        ) {
-            setLifting(student.id);
-            router.post(
-                OrderController.liftPause(student.id).url,
-                {},
-                { preserveScroll: true, onFinish: () => setLifting(null) },
-            );
-        }
+        setLifting(true);
+        router.post(
+            OrderController.liftPause(student.id).url,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setConfirming(null),
+                onFinish: () => setLifting(false),
+            },
+        );
     };
 
     return (
@@ -424,8 +440,7 @@ function PausedStudents({ students }: { students: PausedStudent[] }) {
                         </div>
                         <button
                             type="button"
-                            disabled={lifting === student.id}
-                            onClick={() => lift(student)}
+                            onClick={() => setConfirming(student)}
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
                         >
                             <Unlock size={16} />
@@ -434,6 +449,17 @@ function PausedStudents({ students }: { students: PausedStudent[] }) {
                     </li>
                 ))}
             </ul>
+
+            <ConfirmDialog
+                open={confirming !== null}
+                title={`Allow ${confirming?.name ?? 'this student'} to order again?`}
+                description={`Ordering is paused until ${confirming ? formatDateOrdered(confirming.paused_until) : ''}. Lifting the pause allows the student to place orders immediately.`}
+                cancelLabel="Keep paused"
+                confirmLabel="Lift pause"
+                busy={lifting}
+                onConfirm={() => confirming && lift(confirming)}
+                onClose={() => setConfirming(null)}
+            />
         </Panel>
     );
 }

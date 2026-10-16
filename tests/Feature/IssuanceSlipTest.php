@@ -171,7 +171,7 @@ test('the Specialist sees students paused for expired orders and can let them or
     );
 
     $this->post(route('students.lift-pause', $this->student))
-        ->assertInertiaFlash('toast.message', 'Juan Dela Cruz can order again.');
+        ->assertInertiaFlash('toast.message', 'Juan Dela Cruz can now place orders again.');
 
     $this->get(route('orders.index'))->assertInertia(fn (Assert $page) => $page->where('pausedStudents', []));
     $this->post(route('students.lift-pause', $this->specialist))->assertNotFound();

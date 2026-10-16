@@ -350,17 +350,17 @@ test('the specialist marks an order ready, then releases it once paid, and the i
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.ready', $order))
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 is ready for pickup. Juan Dela Cruz was notified.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been marked as ready for pickup. Juan Dela Cruz has been notified.');
     expect($order->refresh()->status)->toBe(OrderStatus::Ready)
         ->and($this->student->notifications()->sole()->type)->toBe(OrderReady::class)
         ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2);
 
     $this->post(route('orders.release', $order))
-        ->assertSessionHasErrors(['paid' => 'Confirm that the student has paid before releasing the items.']);
+        ->assertSessionHasErrors(['paid' => 'Please confirm that the student has paid before releasing the items.']);
     expect($order->refresh()->status)->toBe(OrderStatus::Ready);
 
     $this->post(route('orders.release', $order), ['paid' => true])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 released to Juan Dela Cruz · ₱30.00 paid.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been released to Juan Dela Cruz. Payment received: ₱30.00.');
     expect($order->refresh())
         ->status->toBe(OrderStatus::PickedUp)
         ->handled_by->toBe($this->specialist->id)
@@ -373,13 +373,28 @@ test('the specialist marks an order ready, then releases it once paid, and the i
         ->recorded_by->toBe($this->specialist->id);
 });
 
+test('an order released from the New tab stays open in its popup, with its new status', function () {
+    [, $variant] = ballpen(stock: 30);
+    $order = placedOrder($variant, 2);
+    $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
+
+    $this->get(route('orders.index', ['viewing' => $order->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('orders.data', 0)
+            ->missing('viewing')
+            ->reloadOnly('viewing', fn (Assert $reload) => $reload
+                ->where('viewing.number', 'PW-0001')
+                ->where('viewing.status', 'picked_up')
+                ->where('viewing.can_undo_release', true)));
+});
+
 test('a release marked by mistake is undone the same day and the items are held again', function () {
     [, $variant] = ballpen(stock: 30);
     $order = placedOrder($variant, 2);
     $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
 
     $this->post(route('orders.undo-release', $order))
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 is back to Ready for pickup. Its items are back on the shelf, held for it.');
+        ->assertInertiaFlash('toast.message', 'The release of Order PW-0001 has been undone. The order is ready for pickup again, and its items are reserved for it.');
     expect($order->refresh())->status->toBe(OrderStatus::Ready)->picked_up_at->toBeNull()
         ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2)
         ->and(StockMovement::query()->latest('id')->first())->type->toBe(StockMovementType::ReleaseUndone)->quantity->toBe(2);
@@ -387,7 +402,7 @@ test('a release marked by mistake is undone the same day and the items are held 
     $this->post(route('orders.release', $order), ['paid' => true]);
     $this->travel(1)->day();
     $this->post(route('orders.undo-release', $order))
-        ->assertInertiaFlash('toast.message', 'Order PW-0001\'s release can only be undone on the day it was released.');
+        ->assertInertiaFlash('toast.message', 'The release of Order PW-0001 can only be undone on the day it was released.');
     expect($order->refresh()->status)->toBe(OrderStatus::PickedUp)
         ->and($variant->refresh()->stock_on_hand)->toBe(28);
 });
@@ -398,7 +413,7 @@ test('an order cannot be released twice', function () {
     $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
 
     $this->post(route('orders.release', $order), ['paid' => true])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 is Released, so it cannot be released.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 cannot be released because its status is Released.');
 
     expect($variant->refresh()->stock_on_hand)->toBe(28)
         ->and(StockMovement::query()->where('type', StockMovementType::Sale)->count())->toBe(1);
@@ -410,16 +425,16 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.cancel', $order), ['reason' => ''])
-        ->assertSessionHasErrors(['reason' => 'Choose why the order is cancelled. The student will see it.']);
+        ->assertSessionHasErrors(['reason' => 'Please select a reason for cancelling. The student will see it.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'other'])
-        ->assertSessionHasErrors(['note' => 'Write why the order is cancelled. The student will see it.']);
+        ->assertSessionHasErrors(['note' => 'Please describe the reason for cancelling. The student will see it.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'x'])
-        ->assertSessionHasErrors(['note' => 'Write a little more about why the order is cancelled. The student will see it.']);
+        ->assertSessionHasErrors(['note' => 'Please write at least 5 characters.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'wrong_size_or_color'])
-        ->assertSessionHasErrors(['reason' => 'Choose one of the reasons shown.']);
+        ->assertSessionHasErrors(['reason' => 'Please select one of the reasons shown.']);
 
     $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'The ballpens were damaged.'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 was cancelled and its items are free to sell again. Juan Dela Cruz was notified.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been cancelled, and its items have been returned to stock. Juan Dela Cruz has been notified.');
 
     expect($order->refresh())
         ->status->toBe(OrderStatus::Cancelled)
@@ -431,7 +446,7 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
     $released = placedOrder($variant, 1);
     $this->actingAs($this->specialist)->post(route('orders.release', $released), ['paid' => true]);
     $this->post(route('orders.cancel', $released), ['reason' => 'student_asked'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0002 is Released, so it cannot be cancelled.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0002 cannot be cancelled because its status is Released.');
 });
 
 test('orders not released within the hold expire, and their items are free to sell again', function () {
