@@ -194,6 +194,8 @@ export type StudentNotificationData =
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string }
+    // The Specialist lifted the student's ordering pause.
+    | { kind: 'ordering_resumed' }
     // The Specialist's notices.
     | {
           kind: 'order_placed';

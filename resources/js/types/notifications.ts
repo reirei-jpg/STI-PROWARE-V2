@@ -73,6 +73,11 @@ export type PreorderArrivedData = {
     product_name: string;
 };
 
+/** The Specialist lifted the student's ordering pause. */
+export type OrderingResumedData = {
+    kind: 'ordering_resumed';
+};
+
 export type DeliveryRecordedData = {
     kind: 'delivery_recorded';
     delivery_id: number;
@@ -109,6 +114,7 @@ export type StaffNotification = {
         | OrderLastDayData
         | OrderCancelledData
         | PreorderArrivedData
+        | OrderingResumedData
         | DeliveryRecordedData
         | PurchaseOrderClosedShortData;
     read: boolean;

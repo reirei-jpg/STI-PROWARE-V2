@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\OrderingResumed;
 use App\Services\Shop\OrderRules;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -164,6 +165,10 @@ test('the Specialist sees students paused for expired orders and can let them or
     foreach (['2026-10-01', '2026-10-05', '2026-10-08'] as $day) {
         Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Cancelled, 'expired_at' => "{$day} 00:30"]);
     }
+    // The student's cart says why Place Order is locked.
+    CartItem::factory()->for($this->student, 'student')->create();
+    $this->actingAs($this->student)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('order_refusal', 'Ordering is paused until Oct 15, 2026, because 3 of your orders expired without being picked up. Ask the PROWARE office if this is a mistake.'));
     $this->actingAs($this->specialist);
 
     $this->get(route('orders.index'))->assertInertia(fn (Assert $page) => $page
@@ -175,6 +180,13 @@ test('the Specialist sees students paused for expired orders and can let them or
 
     $this->get(route('orders.index'))->assertInertia(fn (Assert $page) => $page->where('pausedStudents', []));
     $this->post(route('students.lift-pause', $this->specialist))->assertNotFound();
+
+    // The student is told, and can order again.
+    expect($this->student->notifications()->sole())
+        ->type->toBe(OrderingResumed::class)
+        ->data->toBe(['kind' => 'ordering_resumed']);
+    $this->actingAs($this->student->refresh())->get(route('cart.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('order_refusal', null));
 });
 
 test('the cart shows the saved section, and why an order would be refused before placing it', function () {

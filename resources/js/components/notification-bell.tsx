@@ -255,6 +255,20 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'ordering_resumed') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    You can order again
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    The PROWARE office lifted your ordering pause. You can place
+                    orders now.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'sale_ending') {
         return (
             <>

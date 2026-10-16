@@ -58,6 +58,13 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        case 'ordering_resumed':
+            return {
+                title: 'You can order again',
+                body: 'The PROWARE office lifted your ordering pause. You can place orders now.',
+                titleClass: 'text-emerald-700',
+                stripe: '#10b981',
+            };
         // The Specialist's notices, in the bell's words.
         case 'order_placed':
             return {

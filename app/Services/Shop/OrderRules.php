@@ -4,6 +4,7 @@ namespace App\Services\Shop;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\OrderingResumed;
 use Carbon\CarbonImmutable;
 
 /**
@@ -117,5 +118,6 @@ final class OrderRules
     public static function liftPause(User $student): void
     {
         $student->forceFill(['ordering_resumed_at' => now()])->save();
+        $student->notify(new OrderingResumed);
     }
 }
