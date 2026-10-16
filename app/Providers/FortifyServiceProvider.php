@@ -77,7 +77,6 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
         Fortify::registerView(fn () => Inertia::render('auth/register'));
 
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
@@ -88,10 +87,6 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureRateLimiting(): void
     {
-        RateLimiter::for('two-factor', function (Request $request) {
-            return Limit::perMinute(5)->by($request->session()->get('login.id'));
-        });
-
         // After 5 tries in a minute: a message on the form with how long to
         // wait, not the bare "429 Too Many Requests" page.
         RateLimiter::for('login', function (Request $request) {
@@ -104,10 +99,12 @@ class FortifyServiceProvider extends ServiceProvider
             );
         });
 
-        RateLimiter::for('passkeys', function (Request $request) {
-            return Limit::perMinute(10)->by(
-                ($request->input('credential.id') ?: $request->session()->getId()).'|'.$request->ip(),
-            );
-        });
+        // Changing a password: 6 tries a minute, then a message on the form
+        // instead of a bare "429 Too Many Requests" page.
+        RateLimiter::for('password-update', fn (Request $request) => Limit::perMinute(6)
+            ->by('password-update|'.$request->user()?->id)
+            ->response(fn (Request $request, array $headers) => back()->withErrors([
+                'current_password' => 'Too many attempts. Try again in '.max(1, (int) ($headers['Retry-After'] ?? 60)).' seconds.',
+            ])));
     }
 }

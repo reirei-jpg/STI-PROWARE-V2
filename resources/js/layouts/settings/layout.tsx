@@ -1,59 +1,50 @@
 import { Link } from '@inertiajs/react';
+import { KeyRound, UserRound } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
 import PageHeader from '@/components/page-header';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { toUrl } from '@/lib/utils';
+import { cn, toUrl } from '@/lib/utils';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
-import type { NavItem } from '@/types';
 
-const settingsNavItems: NavItem[] = [
-    {
-        title: 'Profile',
-        href: edit(),
-        icon: null,
-    },
-    {
-        title: 'Security',
-        href: editSecurity(),
-        icon: null,
-    },
+const settingsTabs = [
+    { title: 'Profile', href: edit(), icon: UserRound },
+    { title: 'Password', href: editSecurity(), icon: KeyRound },
 ];
 
+/**
+ * Account settings for staff: their profile (name) and their password, as
+ * two tabs above one card, like the other PROWARE pages.
+ */
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
 
     return (
-        <div className="space-y-7">
+        <div className="space-y-6">
             <PageHeader
                 title="Settings"
-                description="Manage your profile and account security."
+                description="Your name and your password."
             />
 
-            <div className="flex flex-col gap-6 lg:flex-row">
-                <nav
-                    className="flex gap-2 lg:w-52 lg:flex-col"
-                    aria-label="Settings"
-                >
-                    {settingsNavItems.map((item) => (
-                        <Link
-                            key={toUrl(item.href)}
-                            href={item.href}
-                            className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
-                                isCurrentOrParentUrl(item.href)
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-slate-600 hover:bg-slate-100'
-                            }`}
-                        >
-                            {item.title}
-                        </Link>
-                    ))}
-                </nav>
+            <nav className="flex flex-wrap gap-2" aria-label="Settings">
+                {settingsTabs.map((tab) => (
+                    <Link
+                        key={toUrl(tab.href)}
+                        href={tab.href}
+                        className={cn(
+                            'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition',
+                            isCurrentOrParentUrl(tab.href)
+                                ? 'bg-[#0D6EFD] text-white shadow-sm'
+                                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                        )}
+                    >
+                        <tab.icon size={16} />
+                        {tab.title}
+                    </Link>
+                ))}
+            </nav>
 
-                <section className="flex-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:max-w-3xl">
-                    <div className="max-w-xl space-y-12">{children}</div>
-                </section>
-            </div>
+            <div className="max-w-2xl">{children}</div>
         </div>
     );
 }

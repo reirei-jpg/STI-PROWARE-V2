@@ -2,15 +2,10 @@ import { Form, Head } from '@inertiajs/react';
 import { LockKeyhole } from 'lucide-react';
 import { useState } from 'react';
 import {
-    index as confirmOptions,
-    store as confirmStore,
-} from '@/actions/Laravel/Passkeys/Http/Controllers/PasskeyConfirmationController';
-import {
     AuthField,
     AuthSubmitButton,
     ShowPasswordButton,
 } from '@/components/auth-field';
-import PasskeyVerify from '@/components/passkey-verify';
 import { store } from '@/routes/password/confirm';
 
 /** Type the password again before a sensitive change. */
@@ -20,16 +15,6 @@ export default function ConfirmPassword() {
     return (
         <>
             <Head title="Confirm password" />
-
-            <PasskeyVerify
-                routes={{
-                    options: confirmOptions(),
-                    submit: confirmStore(),
-                }}
-                label="Confirm with passkey"
-                loadingLabel="Confirming..."
-                separator="Or confirm with password"
-            />
 
             <Form
                 {...store.form()}
