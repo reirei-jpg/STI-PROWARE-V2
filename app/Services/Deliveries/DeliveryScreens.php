@@ -291,7 +291,7 @@ final class DeliveryScreens
             ->map(fn (Collection $items, string $itemCode): string => $itemCode.' ('.number_format((int) $items->sum('quantity_received')).' as ordered on the eStore)')
             ->values();
 
-        $message = 'Delivery recorded.';
+        $message = 'The delivery has been recorded.';
 
         if ($addedToStock->isNotEmpty()) {
             $message .= ' Added to stock: '.self::listed($addedToStock->all()).'.';
@@ -299,8 +299,8 @@ final class DeliveryScreens
 
         if ($notLinked->isNotEmpty()) {
             $message .= $notLinked->count() === 1
-                ? ' Not added to stock yet, because it is not linked to a product: '.self::listed($notLinked->all()).'. Link it in Products › Items to Link.'
-                : ' Not added to stock yet, because they are not linked to a product: '.self::listed($notLinked->all()).'. Link them in Products › Items to Link.';
+                ? ' Not added to stock yet, because it is not linked to a product: '.self::listed($notLinked->all()).'. Please link it in Products › Items to Link.'
+                : ' Not added to stock yet, because they are not linked to a product: '.self::listed($notLinked->all()).'. Please link them in Products › Items to Link.';
         }
 
         return ['type' => $notLinked->isNotEmpty() ? 'warning' : 'success', 'message' => $message];

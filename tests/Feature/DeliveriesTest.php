@@ -84,7 +84,7 @@ test('the delivery form explains what is wrong', function (array $payload, strin
         ->assertSessionHasErrors([$field => $message]);
 })->with([
     'a date in the future' => [['received_on' => '2099-01-01'], 'received_on', 'The date received cannot be in the future.'],
-    'no date' => [['received_on' => ''], 'received_on', 'Choose the date the delivery arrived.'],
+    'no date' => [['received_on' => ''], 'received_on', 'Please choose the date the delivery arrived.'],
 ]);
 
 test('a delivery with nothing received is refused', function () {
@@ -95,7 +95,7 @@ test('a delivery with nothing received is refused', function () {
             'received_on' => now()->toDateString(),
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 0]],
         ])
-        ->assertSessionHasErrors(['items' => 'Enter how many arrived for at least one item.']);
+        ->assertSessionHasErrors(['items' => 'Please enter how many arrived for at least one item.']);
 });
 
 test('record delivery lists the orders still waiting, oldest first, and each popup its items by code', function () {

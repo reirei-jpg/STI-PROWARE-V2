@@ -176,7 +176,7 @@ test('the Specialist records a delivery on the app and the stock and order follo
     ])
         ->assertCreated()
         ->assertJsonPath('type', 'success')
-        ->assertJsonPath('message', 'Delivery recorded. Added to stock: STI Umbrella — 6 pcs.');
+        ->assertJsonPath('message', 'The delivery has been recorded. Added to stock: STI Umbrella — 6 pcs.');
 
     expect($umbrella->refresh()->stock_on_hand)->toBe(6)
         ->and($order->refresh()->percentReceived())->toBe(60);

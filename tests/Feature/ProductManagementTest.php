@@ -190,7 +190,7 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
     'pack of one piece' => [['packs' => [packInput(['pieces' => '1'])]], 'packs.0.pieces', 'A pack has at least 2 pieces.'],
     'pack without its number of pieces' => [['packs' => [packInput(['pieces' => ''])]], 'packs.0.pieces', 'Enter how many pieces are in one pack.'],
     'pack sold without a price' => [['packs' => [packInput(['sold_to_students' => '1', 'price' => ''])]], 'packs.0.price', 'Enter the price students pay for one Pack.'],
-    'pack named piece' => [['packs' => [packInput(['name' => 'Pieces'])]], 'packs.0.name', 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.'],
+    'pack named piece' => [['packs' => [packInput(['name' => 'Pieces'])]], 'packs.0.name', 'Stock is already counted by the piece. Please name the pack something else, e.g. Pack or Box.'],
     'two packs with the same name' => [['packs' => [packInput(), packInput(['key' => 'new-2', 'name' => 'pack'])]], 'packs.1.name', 'Two packs have the same name.'],
     'variant sent by a removed pack' => [['variants' => [['combination' => '', 'estore_item_code' => 'PRLY01-01', 'estore_pack_key' => 'new-9', 'price' => '']]], 'variants.0.estore_pack_key', 'That pack was removed. Choose how Head Office sends this item again.'],
     'photo not a picture' => [['photos' => [['file' => UploadedFile::fake()->create('po.pdf', 10, 'application/pdf'), 'label' => '']]], 'photos.0.file', 'Photos must be JPG, PNG or WEBP pictures.'],

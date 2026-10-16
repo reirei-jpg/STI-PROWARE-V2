@@ -171,6 +171,7 @@ function DeliveryForm({
         splitGroups,
         rowErrors,
         rowProblem,
+        dateProblem,
         receivedNowOf,
         totalReceived,
         groupReceivedNow,
@@ -209,13 +210,20 @@ function DeliveryForm({
         >
             <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Field label="Date Received" error={errors.received_on}>
+                    <Field
+                        label="Date Received"
+                        error={dateProblem ?? errors.received_on}
+                    >
                         <input
                             type="date"
                             value={data.received_on}
                             max={today}
                             onChange={(event) =>
                                 setData('received_on', event.target.value)
+                            }
+                            aria-invalid={
+                                dateProblem !== null ||
+                                Boolean(errors.received_on)
                             }
                             className={deliveryInputClasses}
                         />

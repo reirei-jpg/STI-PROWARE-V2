@@ -273,7 +273,7 @@ class SaveProductRequest extends FormRequest
             $name = mb_strtolower($pack['name']);
 
             if (in_array($name, ['piece', 'pieces', 'pc', 'pcs'], true)) {
-                $validator->errors()->add("packs.{$index}.name", 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.');
+                $validator->errors()->add("packs.{$index}.name", 'Stock is already counted by the piece. Please name the pack something else, e.g. Pack or Box.');
             } elseif (isset($namesSeen[$name])) {
                 $validator->errors()->add("packs.{$index}.name", 'Two packs have the same name.');
             }

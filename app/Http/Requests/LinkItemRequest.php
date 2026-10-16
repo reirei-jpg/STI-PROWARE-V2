@@ -41,13 +41,13 @@ class LinkItemRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'product_variant_ids.required' => 'Choose the product and the variant (or variants) this item is.',
-            'product_variant_ids.*.exists' => 'A variant you chose no longer exists. Choose again.',
-            'sent_by.required' => 'Choose how Head Office sends this item.',
-            'pack_id.required_if' => 'Choose the pack Head Office sends it in.',
-            'new_pack_name.required_if' => 'Name the pack, e.g. Pack or Box.',
-            'new_pack_pieces.required_if' => 'Enter how many pieces are in one pack.',
-            'new_pack_pieces.integer' => 'Enter the number of pieces as a whole number.',
+            'product_variant_ids.required' => 'Please choose the product and the variant (or variants) this item is.',
+            'product_variant_ids.*.exists' => 'A variant you chose no longer exists. Please choose again.',
+            'sent_by.required' => 'Please choose how Head Office sends this item.',
+            'pack_id.required_if' => 'Please choose the pack Head Office sends it in.',
+            'new_pack_name.required_if' => 'Please name the pack, e.g. Pack or Box.',
+            'new_pack_pieces.required_if' => 'Please enter how many pieces are in one pack.',
+            'new_pack_pieces.integer' => 'Please enter the number of pieces as a whole number.',
             'new_pack_pieces.min' => 'A pack has at least 2 pieces.',
         ];
     }
@@ -86,7 +86,7 @@ class LinkItemRequest extends FormRequest
                 $variant = $variants->firstOrFail();
 
                 if ($variants->pluck('product_id')->unique()->count() > 1) {
-                    $validator->errors()->add('product_variant_ids', 'Choose variants of one product only.');
+                    $validator->errors()->add('product_variant_ids', 'Please choose variants of one product only.');
 
                     return;
                 }
@@ -95,12 +95,12 @@ class LinkItemRequest extends FormRequest
 
                 if ($withCode !== null) {
                     $validator->errors()->add('product_variant_ids', $variants->count() === 1
-                        ? "This variant already has the eStore Item Code {$withCode->estore_item_code}. Choose another variant."
+                        ? "This variant already has the eStore Item Code {$withCode->estore_item_code}. Please choose another variant."
                         : "{$withCode->label()} already has its own eStore Item Code {$withCode->estore_item_code}. Untick it.");
                 }
 
                 if ($this->input('sent_by') === 'pack' && ! $variant->product->packs()->whereKey((int) $this->input('pack_id'))->exists()) {
-                    $validator->errors()->add('pack_id', 'Choose one of this product\'s packs.');
+                    $validator->errors()->add('pack_id', 'Please choose one of this product\'s packs.');
                 }
 
                 if ($this->input('sent_by') === 'new_pack') {
@@ -144,7 +144,7 @@ class LinkItemRequest extends FormRequest
         $name = mb_strtolower($this->newPackName());
 
         if (in_array($name, ['piece', 'pieces', 'pc', 'pcs'], true)) {
-            $validator->errors()->add('new_pack_name', 'Stock is already counted by the piece. Name the pack something else, e.g. Pack or Box.');
+            $validator->errors()->add('new_pack_name', 'Stock is already counted by the piece. Please name the pack something else, e.g. Pack or Box.');
 
             return;
         }
@@ -152,9 +152,9 @@ class LinkItemRequest extends FormRequest
         $packs = $variant->product->packs()->get();
 
         if ($packs->contains(fn (ProductPack $pack): bool => mb_strtolower($pack->name) === $name)) {
-            $validator->errors()->add('new_pack_name', 'This product already has a pack with that name. Choose it instead.');
+            $validator->errors()->add('new_pack_name', 'This product already has a pack with that name. Please choose it instead.');
         } elseif ($packs->count() >= SaveProductRequest::MAX_PACKS) {
-            $validator->errors()->add('new_pack_name', 'This product already has '.SaveProductRequest::MAX_PACKS.' packs. Choose one of them.');
+            $validator->errors()->add('new_pack_name', 'This product already has '.SaveProductRequest::MAX_PACKS.' packs. Please choose one of them.');
         }
     }
 }
