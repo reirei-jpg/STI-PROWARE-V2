@@ -44,7 +44,7 @@ class ChangeCartQuantityRequest extends FormRequest
         return [
             'quantity.required' => 'Enter how many you want.',
             'quantity.integer' => 'Enter a whole number.',
-            'quantity.min' => 'Keep at least 1, or remove the item.',
+            'quantity.min' => 'The quantity must be at least 1. To take the item out, remove it.',
         ];
     }
 }

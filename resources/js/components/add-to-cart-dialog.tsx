@@ -442,7 +442,16 @@ function PickerForm({
                     )}
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                {hasChoices && variant === undefined && (
+                    <p className="mr-auto text-xs font-semibold text-slate-500">
+                        Choose the{' '}
+                        {details.options
+                            .map((option) => option.name.toLowerCase())
+                            .join(' and ') || 'size or color'}{' '}
+                        first.
+                    </p>
+                )}
                 <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
                     Cancel
                 </DialogClose>

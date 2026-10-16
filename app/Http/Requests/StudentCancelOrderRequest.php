@@ -48,8 +48,8 @@ class StudentCancelOrderRequest extends FormRequest
             'reason.required' => 'Choose why you are cancelling.',
             'reason.in' => 'Choose one of the reasons shown.',
             'note.required' => 'Write why you are cancelling.',
-            'note.min' => 'Write a little more about why you are cancelling.',
-            'note.max' => 'Keep it to 200 characters or less.',
+            'note.min' => 'Write at least 5 characters.',
+            'note.max' => 'The reason may not be longer than 200 characters.',
         ];
     }
 

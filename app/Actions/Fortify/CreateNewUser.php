@@ -44,7 +44,7 @@ class CreateNewUser implements CreatesNewUsers
             'last_name.required' => 'Enter your last name, as in your school email.',
             'student_id.required' => 'Enter your Student ID.',
             'student_id.digits' => 'The Student ID must be exactly 11 digits.',
-            'section.max' => 'Keep the course/section short, e.g. BSIT 1-A.',
+            'section.max' => 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',
             'email.required' => 'Enter your STI school email.',
             'email.email' => 'Enter a valid email address.',
             'email.unique' => 'An account already uses this email. Log in instead.',

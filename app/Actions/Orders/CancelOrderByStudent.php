@@ -17,11 +17,11 @@ class CancelOrderByStudent
     public function __construct(private CancelOrder $cancelOrder) {}
 
     /**
-     * "Order PW-0001 was cancelled." (website and phone app).
+     * "Order PW-0001 has been cancelled." (website and phone app).
      */
     public static function message(Order $order): string
     {
-        return "Order {$order->number} was cancelled.";
+        return "Order {$order->number} has been cancelled.";
     }
 
     /**
@@ -31,8 +31,8 @@ class CancelOrderByStudent
     {
         return match ($order->status) {
             OrderStatus::Placed => null,
-            OrderStatus::Ready => "Order {$order->number} is already prepared, so it can no longer be cancelled here. Talk to the PROWARE office.",
-            default => "Order {$order->number} is already {$order->status->label()}.",
+            OrderStatus::Ready => "Order {$order->number} has already been prepared, so it can no longer be cancelled here. Contact the PROWARE office.",
+            default => "Order {$order->number} cannot be cancelled because its status is {$order->status->label()}.",
         };
     }
 

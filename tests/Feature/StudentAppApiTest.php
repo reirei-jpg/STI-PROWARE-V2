@@ -124,7 +124,7 @@ test('the app\'s cart follows the website\'s rules', function () {
 
     $this->postJson(route('api.v1.cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => 3])
         ->assertCreated()
-        ->assertJsonPath('message', 'Added 3 pcs of STI Ballpen to your cart.')
+        ->assertJsonPath('message', '3 pcs of STI Ballpen have been added to your cart.')
         ->assertJsonPath('cart.lines.0.quantity', 3)
         ->assertJsonPath('cart.total_centavos', 4500)
         ->assertJsonPath('cart.can_place_order', true);
@@ -137,7 +137,7 @@ test('the app\'s cart follows the website\'s rules', function () {
         ->assertJsonPath('cart.can_place_order', false);
     $this->patchJson(route('api.v1.cart.select'), ['cart_item_ids' => [$line->id], 'selected' => true])->assertJsonPath('cart.selected_count', 1);
     $this->patchJson(route('api.v1.cart.update', $line), ['quantity' => 0])
-        ->assertJsonValidationErrors(['quantity' => 'Keep at least 1, or remove the item.']);
+        ->assertJsonValidationErrors(['quantity' => 'The quantity must be at least 1. To take the item out, remove it.']);
     $this->patchJson(route('api.v1.cart.update', $line), ['quantity' => 5])->assertOk()->assertJsonPath('cart.lines.0.quantity', 5);
     $this->deleteJson(route('api.v1.cart.destroy', $line))->assertOk()->assertJsonPath('cart.lines', []);
 
@@ -152,7 +152,7 @@ test('placing (with the section), seeing and cancelling an order on the app', fu
 
     $order = $this->postJson(route('api.v1.orders.store'), ['section' => 'BSHM 2-B'])
         ->assertCreated()
-        ->assertJsonPath('message', 'Order PW-0001 placed. Show its issuance slip at the PROWARE office by Oct 6, 2026, to pay and get your items.')
+        ->assertJsonPath('message', 'Order PW-0001 has been placed. Show its issuance slip at the PROWARE office by Oct 6, 2026 to pay and collect your items.')
         ->assertJsonPath('order.student_section', 'BSHM 2-B')
         ->assertJsonPath('order.can_cancel', true)
         ->json('order');
@@ -191,7 +191,7 @@ test('the app refuses to cancel a prepared order or another student\'s order', f
 
     $this->postJson(route('api.v1.orders.cancel', $ready), ['reason' => 'no_longer_needed'])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['order' => "Order {$ready->number} is already prepared, so it can no longer be cancelled here. Talk to the PROWARE office."]);
+        ->assertJsonValidationErrors(['order' => "Order {$ready->number} has already been prepared, so it can no longer be cancelled here. Contact the PROWARE office."]);
     $this->postJson(route('api.v1.orders.cancel', $theirs))->assertNotFound();
     $this->getJson(route('api.v1.orders.show', $theirs))->assertNotFound();
 });

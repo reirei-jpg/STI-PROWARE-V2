@@ -62,7 +62,7 @@ final class Cart
      */
     public static function addedMessage(ProductVariant $variant, ?ProductPack $pack, int $quantity): string
     {
-        return 'Added '.Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} to your cart.";
+        return Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} ".($quantity === 1 ? 'has' : 'have').' been added to your cart.';
     }
 
     public function changeQuantity(CartItem $line, int $quantity): void

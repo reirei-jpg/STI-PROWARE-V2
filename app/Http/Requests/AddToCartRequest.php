@@ -64,7 +64,7 @@ class AddToCartRequest extends FormRequest
             'product_pack_id.exists' => 'Choose one of the packs shown.',
             'quantity.required' => 'Enter how many you want.',
             'quantity.integer' => 'Enter a whole number.',
-            'quantity.min' => 'Add at least 1.',
+            'quantity.min' => 'The quantity must be at least 1.',
         ];
     }
 

@@ -27,7 +27,7 @@ class PlaceOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'section.max' => 'Keep the course/section short, e.g. BSIT 1-A.',
+            'section.max' => 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',
         ];
     }
 
