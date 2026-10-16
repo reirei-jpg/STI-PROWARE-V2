@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Services\Deliveries\FollowUp;
+use App\Services\Sales\SellingBelowCost;
 use App\Services\Stock\LinkedItems;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,8 +20,9 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 /**
  * The Specialist's to-do list on the dashboard, most urgent first:
  *
- * - Do now: orders to prepare, low stock, deliveries waiting to be split
- *   by variant, and delivered items not linked to a product.
+ * - Do now: orders to prepare, products selling below cost, low stock,
+ *   deliveries waiting to be split by variant, and delivered items not
+ *   linked to a product.
  * - Today: purchase orders not complete after the follow-up days, orders
  *   on their last pickup day, and sales ending today or tomorrow.
  * - This week: preorders closing, slow-moving items.
@@ -46,6 +48,7 @@ final class SpecialistTasks
         return [
             'now' => [
                 ...($withOrders ? $this->ordersToPrepare() : []),
+                ...$this->sellingBelowCost(),
                 ...$this->lowStock(),
                 ...$this->waitingToSplit(),
                 ...$this->arrivedNotLinked(),
@@ -90,6 +93,32 @@ final class SpecialistTasks
             ->all();
 
         return [...$tasks, ...self::more($total, 'more order to prepare', 'more orders to prepare', route('orders.index'), ['screen' => 'orders'])];
+    }
+
+    /**
+     * Products students can buy for less than they cost on the latest
+     * eStore order, e.g. "STI Jacket sells at ₱300.00 but cost ₱750.00".
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sellingBelowCost(): array
+    {
+        $products = SellingBelowCost::products();
+
+        $tasks = array_map(fn (array $row): array => self::task(
+            key: "below-cost-{$row['product_id']}",
+            kind: 'below_cost',
+            title: "Selling below cost: {$row['product_name']}",
+            detail: 'Sells at ₱'.number_format($row['price_centavos'] / 100, 2)
+                .($row['variant_label'] === null ? '' : " ({$row['variant_label']})")
+                .' but cost ₱'.number_format($row['cost_centavos'] / 100, 2).' per piece'
+                .($row['order_number'] === null ? '' : " on Order #{$row['order_number']}")
+                .'. Every sale loses money. Please update the Selling Price set by Head Office.',
+            label: 'Edit price',
+            url: route('products.edit', $row['product_id']),
+        ), array_slice($products, 0, self::SHOWN_PER_KIND));
+
+        return [...$tasks, ...self::more(count($products), 'more product selling below cost', 'more products selling below cost', route('products.index'))];
     }
 
     /**

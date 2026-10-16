@@ -190,10 +190,16 @@ final class SalesReport
      */
     private static function soldGroups(CarbonImmutable $from, CarbonImmutable $to, ?string $search): Builder
     {
+        // Sales from before the normal price was kept have none; they were
+        // sold at their normal price, so they join the same row.
+        $normalPrice = 'coalesce(order_items.normal_unit_price_centavos, order_items.unit_price_centavos)';
+
         return self::soldLines($from, $to)
             ->when($search !== null, fn (Builder $query) => $query->whereLike('order_items.product_name', "%{$search}%"))
-            ->groupBy('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos', 'order_items.normal_unit_price_centavos')
-            ->select('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos', 'order_items.normal_unit_price_centavos')
+            ->groupBy('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos')
+            ->groupByRaw($normalPrice)
+            ->select('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos')
+            ->selectRaw("{$normalPrice} as normal_unit_price_centavos")
             ->selectRaw('max(order_items.product_name) as product_name')
             ->selectRaw('max(order_items.variant_label) as variant_label')
             ->selectRaw('sum(order_items.quantity) as quantity')

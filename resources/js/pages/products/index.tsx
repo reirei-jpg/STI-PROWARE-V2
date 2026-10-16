@@ -486,6 +486,17 @@ export default function ProductsIndex({
                                                     <StudentPrice
                                                         product={product}
                                                     />
+                                                    {product.below_cost && (
+                                                        <p
+                                                            className="mt-1 inline-flex items-center gap-1 rounded-lg bg-red-50 px-2 py-0.5 text-xs font-black whitespace-nowrap text-red-700"
+                                                            title={`Sells at ${formatPeso(product.below_cost.price_centavos)}${product.below_cost.variant_label ? ` (${product.below_cost.variant_label})` : ''} but cost ${formatPeso(product.below_cost.cost_centavos)} per piece${product.below_cost.order_number ? ` on Order #${product.below_cost.order_number}` : ''}.`}
+                                                        >
+                                                            <TriangleAlert
+                                                                size={12}
+                                                            />
+                                                            Selling below cost
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3.5 text-right whitespace-nowrap">
                                                     <span

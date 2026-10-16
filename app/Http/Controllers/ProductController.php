@@ -17,6 +17,7 @@ use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Sales\HeadOfficeCost;
+use App\Services\Sales\SellingBelowCost;
 use App\Services\Stock\LinkedItems;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Database\Eloquent\Builder;
@@ -40,6 +41,8 @@ class ProductController extends Controller
         $status = $request->status();
         $stockFilter = $request->stockFilter();
         $slowDays = $request->slowMovingDays();
+
+        $belowCost = collect(SellingBelowCost::products())->keyBy('product_id');
 
         $movementsOfThisProduct = fn () => StockMovement::query()
             ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
@@ -94,6 +97,8 @@ class ProductController extends Controller
                 'stock_on_hand' => (int) $product->getAttribute('variants_sum_stock_on_hand'),
                 'low_stock_alert_at' => $product->low_stock_alert_at,
                 'low_stock' => LowStockAlerts::isSold($product) && (bool) $product->getAttribute('has_variant_at_alert'),
+                // Sold for less than one piece cost on the latest eStore order.
+                'below_cost' => $belowCost->get($product->id),
                 'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
                 'first_received_at' => $product->getAttribute('first_received_at')?->toIso8601String(),
                 'last_sale_at' => $product->getAttribute('last_sale_at')?->toIso8601String(),

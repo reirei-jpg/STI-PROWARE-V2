@@ -190,6 +190,46 @@ test('an item put on sale below its Cost shows what was lost', function () {
         ->where('sold.data.0.loss_centavos', 10000));
 });
 
+test('a price set before a dearer eStore order arrived is flagged on Products and the dashboard', function () {
+    $variant = costedJacket(); // ₱400 a piece, sent by the Pack of 5
+    $order = receivedJacketOrder(packs: 1, pricePerPack: 250000); // ₱500 a piece
+    $order->update(['order_number' => '30801']);
+    $this->actingAs($this->specialist);
+
+    $this->get(route('products.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('products.data.0.below_cost', [
+            'product_id' => $variant->product_id,
+            'product_name' => 'STI Jacket',
+            'variant_label' => null,
+            'price_centavos' => 40000,
+            'cost_centavos' => 50000,
+            'order_number' => '30801',
+        ]));
+
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('tasks.now.0.kind', 'below_cost')
+        ->where('tasks.now.0.title', 'Selling below cost: STI Jacket')
+        ->where('tasks.now.0.detail', 'Sells at ₱400.00 but cost ₱500.00 per piece on Order #30801. Every sale loses money. Please update the Selling Price set by Head Office.')
+        ->where('tasks.now.0.action.url', route('products.edit', $variant->product_id)));
+
+    // Head Office's new Selling Price covers the Cost: the warning goes.
+    $variant->product->update(['price_centavos' => 55000]);
+
+    $this->get(route('products.index'))->assertInertia(fn (Assert $page) => $page->where('products.data.0.below_cost', null));
+});
+
+test('sales from before the normal price was kept join the same row as the same price', function () {
+    $variant = costedJacket();
+    receivedJacketOrder(packs: 1, pricePerPack: 100000);
+    releasedJackets($variant, 2)->items()->update(['normal_unit_price_centavos' => null]);
+    releasedJackets($variant, 1);
+
+    $this->actingAs($this->specialist)->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
+        ->has('sold.data', 1)
+        ->where('sold.data.0.quantity', 3)
+        ->where('sold.data.0.normal_each_centavos', null));
+});
+
 test('the Selling Price cannot be set below the Cost on the eStore order', function () {
     $variant = costedJacket(); // Head Office sends it by the Pack of 5
     receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200 a piece

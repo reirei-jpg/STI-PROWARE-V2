@@ -25,6 +25,13 @@ export type ProductListItem = {
     low_stock_alert_at: number;
     /** On sale to students with a variant at or below that number. */
     low_stock: boolean;
+    /** Sold for less than one piece cost on the latest eStore order (its variant furthest below). */
+    below_cost: {
+        price_centavos: number;
+        cost_centavos: number;
+        variant_label: string | null;
+        order_number: string | null;
+    } | null;
     /** When the sale ends, for an On Sale product. */
     sale_ends_at: string | null;
     /** When stock first arrived; null if it never did. */

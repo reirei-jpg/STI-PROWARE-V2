@@ -38,6 +38,7 @@ type Task = {
     key: string;
     kind:
         | 'order'
+        | 'below_cost'
         | 'low_stock'
         | 'out_of_stock'
         | 'split'
@@ -63,6 +64,7 @@ type SpecialistTasks = {
 
 const taskIcons: Record<Task['kind'], LucideIcon> = {
     order: PackageCheck,
+    below_cost: TriangleAlert,
     low_stock: TriangleAlert,
     out_of_stock: TriangleAlert,
     split: Boxes,
@@ -77,6 +79,7 @@ const taskIcons: Record<Task['kind'], LucideIcon> = {
 
 const taskIconClasses: Partial<Record<Task['kind'], string>> = {
     order: 'bg-blue-50 text-blue-700',
+    below_cost: 'bg-red-50 text-red-700',
     low_stock: 'bg-amber-50 text-amber-700',
     out_of_stock: 'bg-red-50 text-red-700',
     split: 'bg-emerald-50 text-emerald-700',

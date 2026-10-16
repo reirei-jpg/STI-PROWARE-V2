@@ -41,6 +41,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  */
 const taskLooks: Record<string, { icon: LucideIcon; box: string; color: string }> = {
     order: { icon: PackageCheck, box: 'bg-blue-50', color: '#1d4ed8' },
+    below_cost: { icon: TriangleAlert, box: 'bg-red-50', color: '#b91c1c' },
     low_stock: { icon: TriangleAlert, box: 'bg-amber-50', color: '#b45309' },
     out_of_stock: { icon: TriangleAlert, box: 'bg-red-50', color: '#b91c1c' },
     split: { icon: Boxes, box: 'bg-emerald-50', color: '#047857' },

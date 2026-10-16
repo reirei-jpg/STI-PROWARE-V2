@@ -243,14 +243,14 @@ export default function SalesReportsIndex({
                         }
                         onClick={() => show({ tab: 'sold' })}
                     />
-                    {/* Selling below Cost is no longer allowed; older sales may still show. */}
+                    {/* A price set before a dearer eStore order arrived can still sell below Cost. */}
                     {summary.below_cost_lines > 0 && (
                         <Card
                             icon={Tag}
                             tone="red"
                             label="Lost on sales below cost"
                             value={formatPeso(summary.below_cost_loss_centavos)}
-                            detail={`${summary.below_cost_lines} old ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} · selling below Cost is now blocked`}
+                            detail={`${summary.below_cost_lines} ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} where the Price was lower than the Cost`}
                             onClick={() => show({ tab: 'sold' })}
                         />
                     )}
