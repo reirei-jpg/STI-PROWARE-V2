@@ -45,6 +45,8 @@ test('registration refuses wrong details with plain messages', function (array $
 
     $this->assertGuest();
 })->with([
+    'name with numbers' => [['name' => 'Juan123'], 'name', 'The name may only contain letters, spaces, periods, hyphens and apostrophes.'],
+    'last name with numbers' => [['last_name' => 'Cruz2'], 'last_name', 'The last name may only contain letters, spaces, periods, hyphens and apostrophes.'],
     'Student ID not 11 digits' => [['student_id' => '12345'], 'student_id', 'The Student ID must be exactly 11 digits.'],
     'password without a symbol' => [['password' => 'Demo2026', 'password_confirmation' => 'Demo2026'], 'password', 'Your password must include at least one special character (e.g. ! @ # $).'],
     'passwords do not match' => [['password_confirmation' => 'Other@2026!'], 'password', 'The password confirmation does not match.'],

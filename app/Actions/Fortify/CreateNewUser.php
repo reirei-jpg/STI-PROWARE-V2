@@ -31,8 +31,8 @@ class CreateNewUser implements CreatesNewUsers
         $input['email'] = Str::lower(trim((string) ($input['email'] ?? '')));
 
         $validator = Validator::make($input, [
-            'name' => ['required', 'string', 'max:120'],
-            'last_name' => ['required', 'string', 'max:60'],
+            'name' => ['required', 'string', 'max:120', 'regex:'.User::NAME_PATTERN],
+            'last_name' => ['required', 'string', 'max:60', 'regex:'.User::NAME_PATTERN],
             'student_id' => ['required', 'digits:11'],
             'section' => ['nullable', 'string', 'max:40'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
@@ -41,7 +41,9 @@ class CreateNewUser implements CreatesNewUsers
         ], [
             ...$this->passwordMessages(),
             'name.required' => 'Enter your full name.',
+            'name.regex' => 'The name may only contain letters, spaces, periods, hyphens and apostrophes.',
             'last_name.required' => 'Enter your last name, as in your school email.',
+            'last_name.regex' => 'The last name may only contain letters, spaces, periods, hyphens and apostrophes.',
             'student_id.required' => 'Enter your Student ID.',
             'student_id.digits' => 'The Student ID must be exactly 11 digits.',
             'section.max' => 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',

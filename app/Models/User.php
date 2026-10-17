@@ -41,6 +41,13 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
+     * A person's name: starts with a letter, then only letters (ñ and
+     * accents too), spaces, periods, hyphens and apostrophes, e.g.
+     * "Ma. Cristina O'Neil-Dela Cruz".
+     */
+    public const string NAME_PATTERN = "/^\pL[\pL\s.'-]*$/u";
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

@@ -28,7 +28,7 @@ trait ProfileValidationRules
      */
     protected function nameRules(): array
     {
-        return ['required', 'string', 'max:255'];
+        return ['required', 'string', 'max:255', 'regex:'.User::NAME_PATTERN];
     }
 
     /**

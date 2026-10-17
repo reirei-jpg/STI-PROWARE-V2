@@ -29,6 +29,7 @@ class ProfileUpdateRequest extends FormRequest
         return [
             'name.required' => 'Enter your name.',
             'name.max' => 'The name may not be longer than 255 characters.',
+            'name.regex' => 'The name may only contain letters, spaces, periods, hyphens and apostrophes.',
         ];
     }
 }

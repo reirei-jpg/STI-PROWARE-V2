@@ -50,6 +50,30 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotSame('', $user->refresh()->name);
     }
 
+    public function test_a_name_with_numbers_or_symbols_is_refused()
+    {
+        $user = User::factory()->create(['name' => 'Carlo Mendoza']);
+
+        foreach (['Carlo123', 'Carlo_Mendoza', '-Carlo'] as $name) {
+            $this->actingAs($user)
+                ->patch(route('profile.update'), ['name' => $name])
+                ->assertSessionHasErrors(['name' => 'The name may only contain letters, spaces, periods, hyphens and apostrophes.']);
+        }
+
+        $this->assertSame('Carlo Mendoza', $user->refresh()->name);
+    }
+
+    public function test_a_name_with_n_tilde_periods_hyphens_and_apostrophes_is_accepted()
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->patch(route('profile.update'), ['name' => "Ma. Niña O'Neil-Dela Cruz"])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame("Ma. Niña O'Neil-Dela Cruz", $user->refresh()->name);
+    }
+
     public function test_the_email_cannot_be_changed_here_so_the_account_stays_verified()
     {
         $user = User::factory()->create();
