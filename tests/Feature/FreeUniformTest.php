@@ -5,6 +5,7 @@ use App\Models\FreeUniformGroup;
 use App\Models\FreeUniformStudent;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Setting;
 use App\Models\StockMovement;
 use App\Models\UniformSet;
 use App\Models\User;
@@ -208,13 +209,11 @@ test('the Specialist changes how many students a group needs in Maintenance', fu
     $set = bsitSet();
     $this->actingAs($this->specialist);
 
-    $this->patch(route('maintenance.promo-group-size'), ['group_size' => 11])
-        ->assertSessionHasErrors(['group_size' => 'Choose 2 to 10 students.']);
-    $this->patch(route('maintenance.promo-group-size'), ['group_size' => 3])->assertSessionHasNoErrors();
+    $this->patch(route('maintenance.update'), [Setting::PROMO_GROUP_SIZE => 11])
+        ->assertSessionHasErrors([Setting::PROMO_GROUP_SIZE => 'Choose 2 to 10 students.']);
+    $this->patch(route('maintenance.update'), [Setting::PROMO_GROUP_SIZE => 3])->assertSessionHasNoErrors();
 
-    $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('promoGroupSize.value', 3)
-        ->where('promoGroupSize.changed_by', 'Carlo Mendoza'));
+    expect(maintenanceSetting(Setting::PROMO_GROUP_SIZE))->toMatchArray(['value' => 3, 'changed_by' => 'Carlo Mendoza']);
 
     $this->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 3)])
         ->assertSessionHasNoErrors();

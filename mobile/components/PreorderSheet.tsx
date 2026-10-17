@@ -13,10 +13,6 @@ import { formatDate, unitWord } from '@/lib/format';
 import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
 
-/** As on the website: a reservation, so no stock limit, only this one. */
-/** At most 99 of one item (PlacePreorderRequest::MAX_QUANTITY on the server). */
-const MOST = 99;
-
 /**
  * Preorder, like the website's: which size or color and how many. Nothing
  * is paid; it tells the PROWARE office how many to order.
@@ -53,9 +49,11 @@ export default function PreorderSheet({
     }, [open]);
 
     const variantId = pickedVariant(product.variants, product.options, picked)?.id ?? null;
+    // A reservation, so no stock limit: only the per-item limit set in Maintenance.
+    const most = product.max_per_item;
     const quantity = Number(quantityText) || 0;
     const hasChoices = product.variants.length > 1;
-    const canPlace = !saving && variantId !== null && quantity >= 1 && quantity <= MOST;
+    const canPlace = !saving && variantId !== null && quantity >= 1 && quantity <= most;
 
     const place = async (): Promise<void> => {
         if (!canPlace) {
@@ -147,7 +145,7 @@ export default function PreorderSheet({
                 <QuantityStepper
                     value={quantityText}
                     onChange={setQuantityText}
-                    most={MOST}
+                    most={most}
                     unitText={unitWord(quantity, 'Piece')}
                 />
                 {hasChoices && variantId === null && (

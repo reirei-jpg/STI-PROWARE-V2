@@ -212,3 +212,15 @@ function wordTable(array $rows): string
 
     return '<w:tbl>'.implode('', $rowsXml).'</w:tbl>';
 }
+
+/**
+ * One setting as the Maintenance page shows it (value, who changed it last).
+ *
+ * @return array<string, mixed>
+ */
+function maintenanceSetting(string $key): array
+{
+    $areas = test()->get(route('maintenance.index'))->inertiaProps('areas');
+
+    return collect($areas)->flatMap(fn (array $area): array => $area['settings'])->firstWhere('key', $key);
+}

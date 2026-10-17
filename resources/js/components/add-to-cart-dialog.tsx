@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import OptionRow from '@/components/option-row';
 import { formatPeso } from '@/lib/format';
-import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
+import { wholeNumberInput } from '@/lib/number-input';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
 import { formatUnits, unitWord } from '@/lib/units';
@@ -216,7 +216,7 @@ function PickerForm({
         pack === undefined && (variant?.sale_price_centavos ?? null) !== null;
     const most = variant
         ? Math.min(
-              MAX_PER_ITEM,
+              details.max_per_item,
               Math.floor(variant.stock_pieces / piecesPerUnit),
           )
         : 0;
@@ -395,7 +395,7 @@ function PickerForm({
                                         event.target.value,
                                         variant
                                             ? Math.max(most, 1)
-                                            : MAX_PER_ITEM,
+                                            : details.max_per_item,
                                     ),
                                 )
                             }

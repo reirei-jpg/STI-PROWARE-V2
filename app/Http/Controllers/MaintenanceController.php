@@ -2,111 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Setting;
-use App\Services\Deliveries\FollowUp;
-use App\Services\FreeUniforms\PromoRules;
-use App\Services\Shop\OrderRules;
+use App\Http\Requests\UpdateSettingsRequest;
+use App\Services\Settings\SystemSettings;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The Specialist's Maintenance page: settings that change how PROWARE
- * works without changing its code, each with who changed it last: how many
- * days a new order holds its items before it expires, after how many days
- * a purchase order not complete is to be followed up, and how many students
- * must enroll together to get free uniforms.
+ * The Specialist's Maintenance page: the settings that change how PROWARE
+ * works without changing its code (SystemSettings), grouped by area, each
+ * with who changed it last. They are saved together with one button.
  */
 class MaintenanceController extends Controller
 {
     public function index(): Response
     {
         return Inertia::render('maintenance/index', [
-            'holdDays' => [
-                'value' => OrderRules::holdDays(),
-                'min' => OrderRules::MIN_HOLD_DAYS,
-                'max' => OrderRules::MAX_HOLD_DAYS,
-                ...Setting::lastChange(Setting::ORDER_HOLD_DAYS),
-            ],
-            'followUpDays' => [
-                'value' => FollowUp::days(),
-                'choices' => FollowUp::CHOICES,
-                ...Setting::lastChange(Setting::DELIVERY_FOLLOW_UP_DAYS),
-            ],
-            'promoGroupSize' => [
-                'value' => PromoRules::groupSize(),
-                'min' => PromoRules::MIN_GROUP_SIZE,
-                'max' => PromoRules::MAX_GROUP_SIZE,
-                ...Setting::lastChange(Setting::PROMO_GROUP_SIZE),
-            ],
+            'areas' => SystemSettings::forPage(),
         ]);
     }
 
     /**
-     * How many days new orders hold their items (1 to 3). Orders already
-     * placed keep their pick-up date.
+     * Save the settings that changed. Orders, groups and slips already made
+     * keep what they had.
      */
-    public function updateHoldDays(Request $request): RedirectResponse
+    public function update(UpdateSettingsRequest $request): RedirectResponse
     {
-        $days = (int) $request->validate(
-            ['hold_days' => ['required', 'integer', 'between:'.OrderRules::MIN_HOLD_DAYS.','.OrderRules::MAX_HOLD_DAYS]],
-            ['hold_days.between' => 'Choose 1, 2 or 3 days.', 'hold_days.required' => 'Choose 1, 2 or 3 days.', 'hold_days.integer' => 'Choose 1, 2 or 3 days.'],
-        )['hold_days'];
+        $saved = SystemSettings::save($request->validated(), $request->user());
 
-        Setting::put(Setting::ORDER_HOLD_DAYS, $days, $request->user());
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => 'New orders now hold their items for '.$days.' '.($days === 1 ? 'day' : 'days').'. Orders already placed keep their pick-up date.',
-        ]);
-
-        return back();
-    }
-
-    /**
-     * After how many days from its Date Ordered a purchase order not
-     * complete is shown to follow up with Head Office.
-     */
-    public function updateFollowUpDays(Request $request): RedirectResponse
-    {
-        // "14, 21, 30, 45 or 60"
-        $choices = implode(', ', array_slice(FollowUp::CHOICES, 0, -1)).' or '.FollowUp::CHOICES[array_key_last(FollowUp::CHOICES)];
-        $message = "Choose {$choices} days.";
-        $days = (int) $request->validate(
-            ['follow_up_days' => ['required', 'integer', 'in:'.implode(',', FollowUp::CHOICES)]],
-            ['follow_up_days.in' => $message, 'follow_up_days.required' => $message, 'follow_up_days.integer' => $message],
-        )['follow_up_days'];
-
-        Setting::put(Setting::DELIVERY_FOLLOW_UP_DAYS, $days, $request->user());
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => "Purchase orders not complete after {$days} days are now shown to follow up with Head Office.",
-        ]);
-
-        return back();
-    }
-
-    /**
-     * How many students must enroll together for each to get a free
-     * uniform set. Groups already recorded stay as they are.
-     */
-    public function updatePromoGroupSize(Request $request): RedirectResponse
-    {
-        $min = PromoRules::MIN_GROUP_SIZE;
-        $max = PromoRules::MAX_GROUP_SIZE;
-        $size = (int) $request->validate(
-            ['group_size' => ['required', 'integer', "between:{$min},{$max}"]],
-            ['group_size.between' => "Choose {$min} to {$max} students.", 'group_size.required' => "Choose {$min} to {$max} students.", 'group_size.integer' => "Choose {$min} to {$max} students."],
-        )['group_size'];
-
-        Setting::put(Setting::PROMO_GROUP_SIZE, $size, $request->user());
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => "Groups of at least {$size} students who enroll together now get free uniforms. Groups already recorded stay as they are.",
-        ]);
+        Inertia::flash('toast', $saved === []
+            ? ['type' => 'info', 'message' => 'There were no changes to save.']
+            : ['type' => 'success', 'message' => (count($saved) === 1 ? 'This setting has been saved: ' : 'These settings have been saved: ').implode(', ', $saved).'.']);
 
         return back();
     }

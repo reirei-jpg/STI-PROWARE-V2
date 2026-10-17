@@ -23,9 +23,27 @@ class Setting extends Model
 {
     public const ORDER_HOLD_DAYS = 'order_hold_days';
 
+    public const ORDER_PAUSE_AFTER_EXPIRED = 'order_pause_after_expired';
+
+    public const ORDER_PAUSE_WINDOW_DAYS = 'order_pause_window_days';
+
+    public const ORDER_PAUSE_DAYS = 'order_pause_days';
+
+    public const CART_MAX_PER_ITEM = 'cart_max_per_item';
+
     public const DELIVERY_FOLLOW_UP_DAYS = 'delivery_follow_up_days';
 
+    public const SLOW_MOVING_DAYS = 'slow_moving_days';
+
+    public const DEFAULT_LOW_STOCK_ALERT = 'default_low_stock_alert';
+
     public const PROMO_GROUP_SIZE = 'promo_group_size';
+
+    public const SLIP_SCHOOL_NAME = 'slip_school_name';
+
+    public const SLIP_ADDRESS_LINE_1 = 'slip_address_line_1';
+
+    public const SLIP_ADDRESS_LINE_2 = 'slip_address_line_2';
 
     protected $primaryKey = 'key';
 

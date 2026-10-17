@@ -1,296 +1,231 @@
 import { Head, useForm } from '@inertiajs/react';
-import {
-    CircleAlert,
-    Clock,
-    Gift,
-    History,
-    LoaderCircle,
-    Save,
-} from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
+import { Fragment } from 'react';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
-import Panel from '@/components/panel';
-import type { ReactNode } from 'react';
+import Panel, { TableHeading } from '@/components/panel';
 import { formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-type NumberSetting = {
-    value: number;
-    min: number;
-    max: number;
+type SettingRow = {
+    key: string;
+    label: string;
+    help: string;
+    type: 'choice' | 'text';
+    value: number | string;
+    default: number | string;
+    choices: { value: number; label: string }[];
+    max_length: number | null;
     changed_at: string | null;
     changed_by: string | null;
 };
 
-type ChoiceSetting = {
-    value: number;
-    choices: number[];
-    changed_at: string | null;
-    changed_by: string | null;
-};
+type Area = { area: string; settings: SettingRow[] };
 
 /**
- * The Specialist's Maintenance page: settings that change how PROWARE
- * works, without changing its code. Each shows what it does, its current
- * value, and who changed it last. Changes apply right away, on the
- * website and the phone app.
+ * The Specialist's Maintenance page, as a plain back-office settings table:
+ * each area (Orders, Deliveries, Products & Sales, Free Uniforms, Issuance
+ * Slip) with one row per setting: its name and one line of help, its value,
+ * and who changed it last. Changes are saved together with one button and
+ * apply right away on the website and the phone app.
  */
-export default function Maintenance({
-    holdDays,
-    followUpDays,
-    promoGroupSize,
-}: {
-    holdDays: NumberSetting;
-    followUpDays: ChoiceSetting;
-    promoGroupSize: NumberSetting;
-}) {
+export default function Maintenance({ areas }: { areas: Area[] }) {
+    const settings = areas.flatMap((area) => area.settings);
+    const saved = Object.fromEntries(
+        settings.map((setting) => [setting.key, String(setting.value)]),
+    );
+    const form = useForm<Record<string, string>>(saved);
+    const changed = settings.filter(
+        (setting) => form.data[setting.key] !== saved[setting.key],
+    );
+
+    const save = () =>
+        form.patch(MaintenanceController.update().url, {
+            preserveScroll: true,
+            onSuccess: () => form.setDefaults(),
+        });
+
     return (
         <>
             <Head title="Maintenance" />
 
-            <div className="space-y-6">
+            <form
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    save();
+                }}
+                className="space-y-4 pb-24"
+            >
                 <PageHeader
                     title="Maintenance"
-                    description="Settings that change how PROWARE works. Changes apply right away, on the website and the phone app."
+                    description="System settings. Changes apply right away on the website and the phone app."
                 />
 
-                <Panel
-                    title="Orders"
-                    description="How students' orders are handled."
-                >
-                    <HoldDaysSetting setting={holdDays} />
+                <Panel>
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-190 text-sm">
+                            <thead className="bg-slate-50">
+                                <tr className="border-b border-slate-200">
+                                    <TableHeading>Setting</TableHeading>
+                                    <TableHeading>Value</TableHeading>
+                                    <TableHeading>Last changed</TableHeading>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {areas.map((area) => (
+                                    <Fragment key={area.area}>
+                                        <tr className="border-b border-slate-200 bg-slate-100/70">
+                                            <th
+                                                colSpan={3}
+                                                className="px-5 py-2 text-left text-xs font-black tracking-wide text-slate-600 uppercase"
+                                            >
+                                                {area.area}
+                                            </th>
+                                        </tr>
+                                        {area.settings.map((setting) => (
+                                            <SettingRowView
+                                                key={setting.key}
+                                                setting={setting}
+                                                value={form.data[setting.key]}
+                                                isChanged={
+                                                    form.data[setting.key] !==
+                                                    saved[setting.key]
+                                                }
+                                                error={form.errors[setting.key]}
+                                                onChange={(value) => {
+                                                    form.setData(
+                                                        setting.key,
+                                                        value,
+                                                    );
+                                                    form.clearErrors(
+                                                        setting.key,
+                                                    );
+                                                }}
+                                            />
+                                        ))}
+                                    </Fragment>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </Panel>
 
-                <Panel
-                    title="Deliveries"
-                    description="How purchase orders from Head Office are followed up."
-                >
-                    <FollowUpDaysSetting setting={followUpDays} />
-                </Panel>
-
-                <Panel
-                    title="Free Uniforms"
-                    description="The enrollment promo: free uniform sets for students who enroll together."
-                >
-                    <PromoGroupSizeSetting setting={promoGroupSize} />
-                </Panel>
-            </div>
+                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur md:left-72">
+                    <div className="flex flex-wrap items-center justify-end gap-3 px-6 py-3">
+                        <p className="mr-auto text-sm text-slate-500">
+                            {changed.length === 0
+                                ? 'No unsaved changes.'
+                                : `${changed.length} ${changed.length === 1 ? 'change' : 'changes'} not saved yet.`}
+                        </p>
+                        <button
+                            type="button"
+                            disabled={changed.length === 0 || form.processing}
+                            onClick={() => {
+                                form.setData(saved);
+                                form.clearErrors();
+                            }}
+                            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Undo changes
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={changed.length === 0 || form.processing}
+                            className="inline-flex items-center gap-2 rounded-lg bg-[#0D6EFD] px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {form.processing && (
+                                <LoaderCircle
+                                    size={15}
+                                    className="animate-spin"
+                                />
+                            )}
+                            Save changes
+                        </button>
+                    </div>
+                </div>
+            </form>
         </>
     );
 }
 
-/**
- * How many days a new order holds its items for the student before it
- * expires and the items are free to sell again.
- */
-function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
-    const form = useForm({ hold_days: setting.value });
-    const choices = Array.from(
-        { length: setting.max - setting.min + 1 },
-        (_, index) => setting.min + index,
-    );
-
-    return (
-        <SettingRow
-            icon={<Clock size={19} className="text-amber-600" />}
-            title="Days an order holds its items"
-            explanation="When a student places an order, its items are set aside so no one else can buy them. The student must show the issuance slip and pay within this many days; otherwise the order expires and the items go back on sale."
-            example="Example with 2 days: an order placed on Monday must be picked up by the end of Wednesday. Changing this affects new orders only; orders already placed keep their pick-up date."
-            setting={setting}
-            choices={choices}
-            chosen={form.data.hold_days}
-            onChoose={(days) => form.setData('hold_days', days)}
-            error={form.errors.hold_days}
-            processing={form.processing}
-            onSave={() =>
-                form.patch(MaintenanceController.updateHoldDays().url, {
-                    preserveScroll: true,
-                })
-            }
-        />
-    );
-}
-
-/**
- * After how many days from its Date Ordered a purchase order not complete
- * is shown to follow up with Head Office (Deliveries, dashboards).
- */
-function FollowUpDaysSetting({ setting }: { setting: ChoiceSetting }) {
-    const form = useForm({ follow_up_days: setting.value });
-
-    return (
-        <SettingRow
-            icon={<CircleAlert size={19} className="text-red-600" />}
-            title="Days before a purchase order is followed up"
-            explanation="Head Office gives no delivery date. A purchase order not fully delivered this many days after its Date Ordered is shown as Not complete on the Deliveries page and the dashboards, so you know to ask Head Office about the rest."
-            example="Example with 30 days: an order dated Sep 29 that has not fully arrived shows from Oct 29."
-            setting={setting}
-            choices={setting.choices}
-            chosen={form.data.follow_up_days}
-            onChoose={(days) => form.setData('follow_up_days', days)}
-            error={form.errors.follow_up_days}
-            processing={form.processing}
-            onSave={() =>
-                form.patch(MaintenanceController.updateFollowUpDays().url, {
-                    preserveScroll: true,
-                })
-            }
-        />
-    );
-}
-
-/**
- * How many students must enroll together for each to get a free uniform
- * set (Free Uniforms page).
- */
-function PromoGroupSizeSetting({ setting }: { setting: NumberSetting }) {
-    const form = useForm({ group_size: setting.value });
-    const choices = Array.from(
-        { length: setting.max - setting.min + 1 },
-        (_, index) => setting.min + index,
-    );
-
-    return (
-        <SettingRow
-            icon={<Gift size={19} className="text-emerald-600" />}
-            title="Students needed for free uniforms"
-            explanation="Students who enroll together in a group of at least this many each get one uniform set for free: a blouse or polo, and pants. Record them on the Free Uniforms page."
-            example="Example with 5: five friends who enroll on the same day each get a set. A group of 4 does not. Groups already recorded stay as they are."
-            unit="students"
-            setting={setting}
-            choices={choices}
-            chosen={form.data.group_size}
-            onChoose={(size) => form.setData('group_size', size)}
-            error={form.errors.group_size}
-            processing={form.processing}
-            onSave={() =>
-                form.patch(MaintenanceController.updatePromoGroupSize().url, {
-                    preserveScroll: true,
-                })
-            }
-        />
-    );
-}
-
-/**
- * One setting: what it does with an example and who changed it last, then
- * its choices as buttons and Save.
- */
-function SettingRow({
-    icon,
-    title,
-    explanation,
-    example,
-    unit = 'days',
+function SettingRowView({
     setting,
-    choices,
-    chosen,
-    onChoose,
+    value,
+    isChanged,
     error,
-    processing,
-    onSave,
+    onChange,
 }: {
-    icon: ReactNode;
-    title: string;
-    explanation: string;
-    example: string;
-    /** What the numbers count, e.g. "days" or "students". */
-    unit?: string;
-    setting: {
-        value: number;
-        changed_at: string | null;
-        changed_by: string | null;
-    };
-    choices: number[];
-    chosen: number;
-    onChoose: (days: number) => void;
+    setting: SettingRow;
+    value: string;
+    isChanged: boolean;
     error?: string;
-    processing: boolean;
-    onSave: () => void;
+    onChange: (value: string) => void;
 }) {
-    const changed = chosen !== setting.value;
-    // "1 day", "2 days".
-    const counted = (count: number) =>
-        `${count} ${count === 1 ? unit.replace(/s$/, '') : unit}`;
+    const fieldClasses = cn(
+        'w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100',
+        error ? 'border-red-400' : 'border-slate-300',
+    );
 
     return (
-        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
-            <div>
-                <h3 className="flex items-center gap-2 font-black text-slate-900">
-                    {icon}
-                    {title}
-                </h3>
-                <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600">
-                    {explanation}
-                </p>
-                <p className="mt-2 max-w-xl rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                    {example}
-                </p>
-                <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-                    <History size={14} />
-                    {setting.changed_at
-                        ? `Last changed by ${setting.changed_by ?? 'someone'} on ${formatDateTime(setting.changed_at)}`
-                        : 'Never changed. Using the default.'}
-                </p>
-            </div>
-
-            <form
-                className="space-y-3 self-start rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    onSave();
-                }}
-            >
-                <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
-                    Now:{' '}
-                    <span className="text-slate-900">
-                        {counted(setting.value)}
-                    </span>
-                </p>
-                <div
-                    className="grid gap-2"
-                    style={{
-                        // At most three buttons per row, so "60 days" fits.
-                        gridTemplateColumns: `repeat(${Math.min(choices.length, 3)}, minmax(0, 1fr))`,
-                    }}
+        <tr
+            className={cn(
+                'border-b border-slate-100 align-top last:border-b-0',
+                isChanged && 'bg-amber-50/60',
+            )}
+        >
+            <td className="w-[46%] px-5 py-3">
+                <label
+                    htmlFor={`setting-${setting.key}`}
+                    className="font-bold text-slate-800"
                 >
-                    {choices.map((days) => (
-                        <button
-                            key={days}
-                            type="button"
-                            onClick={() => onChoose(days)}
-                            aria-pressed={chosen === days}
-                            className={cn(
-                                'h-11 rounded-xl text-sm font-black transition',
-                                chosen === days
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
-                            )}
-                        >
-                            {counted(days)}
-                        </button>
-                    ))}
-                </div>
-                <InputError message={error} />
-                <button
-                    type="submit"
-                    disabled={!changed || processing}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    {processing ? (
-                        <LoaderCircle size={16} className="animate-spin" />
-                    ) : (
-                        <Save size={16} />
-                    )}
-                    Save
-                </button>
-                {!changed && (
-                    <p className="text-center text-xs font-semibold text-slate-500">
-                        Choose a different number to save.
-                    </p>
+                    {setting.label}
+                </label>
+                <p className="mt-0.5 text-xs text-slate-500">{setting.help}</p>
+            </td>
+            <td className="w-[30%] px-5 py-3">
+                {setting.type === 'choice' ? (
+                    <select
+                        id={`setting-${setting.key}`}
+                        value={value}
+                        onChange={(event) => onChange(event.target.value)}
+                        aria-invalid={error ? true : undefined}
+                        className={fieldClasses}
+                    >
+                        {setting.choices.map((choice) => (
+                            <option key={choice.value} value={choice.value}>
+                                {choice.label}
+                                {choice.value === setting.default
+                                    ? ' (default)'
+                                    : ''}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    <input
+                        id={`setting-${setting.key}`}
+                        value={value}
+                        maxLength={setting.max_length ?? undefined}
+                        onChange={(event) => onChange(event.target.value)}
+                        aria-invalid={error ? true : undefined}
+                        className={fieldClasses}
+                    />
                 )}
-            </form>
-        </div>
+                <InputError message={error} className="mt-1" />
+            </td>
+            <td className="px-5 py-3 text-xs text-slate-500">
+                {setting.changed_at ? (
+                    <>
+                        <span className="font-semibold text-slate-700">
+                            {setting.changed_by ?? 'Someone'}
+                        </span>
+                        <br />
+                        {formatDateTime(setting.changed_at)}
+                    </>
+                ) : (
+                    'Default, not changed'
+                )}
+            </td>
+        </tr>
     );
 }

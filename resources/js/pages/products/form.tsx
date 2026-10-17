@@ -144,6 +144,7 @@ export default function ProductForm({
     fromItem,
     costs,
     today,
+    defaultLowStockAlert = 5,
 }: {
     product: EditableProduct | null;
     fromItem: ProductFromItem | null;
@@ -151,6 +152,8 @@ export default function ProductForm({
     costs: Record<string, number>;
     /** Today in the school's time zone, "YYYY-MM-DD". */
     today: string;
+    /** The low-stock number a new product starts with (Maintenance). */
+    defaultLowStockAlert?: number;
 }) {
     // A product has one eStore Item Code: its sizes, colors and departments
     // all use it. A saved product shows the code its variants have.
@@ -165,7 +168,8 @@ export default function ProductForm({
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
         preorders_close_on: product?.preorders_close_on ?? '',
-        low_stock_alert_at: product?.low_stock_alert_at ?? '5',
+        low_stock_alert_at:
+            product?.low_stock_alert_at ?? String(defaultLowStockAlert),
         photos:
             product?.photos.map((photo) => ({
                 id: photo.id,

@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Enums\ProductStatus;
+use App\Models\Setting;
+use App\Services\Settings\SystemSettings;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,8 +16,6 @@ use Illuminate\Validation\Rule;
  */
 class FilterProductsRequest extends FormRequest
 {
-    public const DEFAULT_SLOW_MOVING_DAYS = 18;
-
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -55,7 +55,7 @@ class FilterProductsRequest extends FormRequest
 
     public function slowMovingDays(): int
     {
-        return $this->filled('slow_days') ? $this->integer('slow_days') : self::DEFAULT_SLOW_MOVING_DAYS;
+        return $this->filled('slow_days') ? $this->integer('slow_days') : SystemSettings::integer(Setting::SLOW_MOVING_DAYS);
     }
 
     public function search(): ?string

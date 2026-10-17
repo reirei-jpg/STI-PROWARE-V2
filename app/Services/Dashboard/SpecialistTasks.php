@@ -8,8 +8,10 @@ use App\Models\DeliveryItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
+use App\Models\Setting;
 use App\Services\Deliveries\FollowUp;
 use App\Services\Sales\SellingBelowCost;
+use App\Services\Settings\SystemSettings;
 use App\Services\Stock\LinkedItems;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,8 +32,6 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 final class SpecialistTasks
 {
     public const SHOWN_PER_KIND = 5;
-
-    public const SLOW_MOVING_DAYS = 18;
 
     /**
      * Every task. Student orders are not tasks: the website dashboard and
@@ -311,7 +311,7 @@ final class SpecialistTasks
      */
     private function slowMoving(): array
     {
-        $count = Product::query()->slowMoving(self::SLOW_MOVING_DAYS)->count();
+        $count = Product::query()->slowMoving(SystemSettings::integer(Setting::SLOW_MOVING_DAYS))->count();
 
         return $count === 0 ? [] : [self::task(
             key: 'slow-moving',
@@ -325,7 +325,7 @@ final class SpecialistTasks
 
     private function days(): string
     {
-        return self::SLOW_MOVING_DAYS.' days';
+        return SystemSettings::integer(Setting::SLOW_MOVING_DAYS).' days';
     }
 
     /**

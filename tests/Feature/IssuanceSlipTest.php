@@ -132,35 +132,48 @@ test('only the Specialist can look up and print slips', function () {
 
 test('the Specialist sets how many days new orders hold their items on the Maintenance page', function () {
     $this->actingAs($this->specialist)->get(route('maintenance.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('maintenance/index')
-            ->where('holdDays.value', 2)
-            ->where('holdDays.changed_by', null));
+        ->assertInertia(fn (Assert $page) => $page->component('maintenance/index'));
+    expect(maintenanceSetting(Setting::ORDER_HOLD_DAYS))->toMatchArray(['value' => 2, 'changed_by' => null]);
 
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 4])
-        ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 'two'])
-        ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
+    $this->patch(route('maintenance.update'), [Setting::ORDER_HOLD_DAYS => 4])
+        ->assertSessionHasErrors([Setting::ORDER_HOLD_DAYS => 'Choose 1, 2 or 3 days.'])
+        ->assertInertiaFlash('toast.message', 'The settings were not saved. Correct the highlighted setting.');
+    $this->patch(route('maintenance.update'), [Setting::ORDER_HOLD_DAYS => 'two'])
+        ->assertSessionHasErrors([Setting::ORDER_HOLD_DAYS => 'Choose 1, 2 or 3 days.']);
 
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 3])
-        ->assertInertiaFlash('toast.message', 'New orders now hold their items for 3 days. Orders already placed keep their pick-up date.');
+    $this->patch(route('maintenance.update'), [Setting::ORDER_HOLD_DAYS => 3])
+        ->assertInertiaFlash('toast.message', 'This setting has been saved: Days an order holds its items.');
 
-    expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 0))->toBe(3)
-        ->and(OrderRules::holdUntil()->toDateString())->toBe('2026-10-12');
-
-    $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('holdDays.value', 3)
-        ->where('holdDays.changed_by', $this->specialist->name)
-        ->where('holdDays.changed_at', now()->toIso8601String()));
+    expect(OrderRules::holdUntil()->toDateString())->toBe('2026-10-12')
+        ->and(maintenanceSetting(Setting::ORDER_HOLD_DAYS))
+        ->toMatchArray(['value' => 3, 'changed_by' => $this->specialist->name, 'changed_at' => now()->toIso8601String()]);
 });
 
 test('only the Specialist can open and change Maintenance', function () {
     foreach ([$this->student, User::factory()->schoolAdmin()->create()] as $user) {
         $this->actingAs($user)->get(route('maintenance.index'))->assertForbidden();
-        $this->patch(route('maintenance.hold-days'), ['hold_days' => 1])->assertForbidden();
+        $this->patch(route('maintenance.update'), [Setting::ORDER_HOLD_DAYS => 1])->assertForbidden();
     }
 
-    expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 2))->toBe(2);
+    expect(OrderRules::holdDays())->toBe(2);
+});
+
+test('the school name and address printed on the slip come from Maintenance', function () {
+    $order = juansHoodieOrder();
+    $this->actingAs($this->specialist);
+
+    $this->patch(route('maintenance.update'), [Setting::SLIP_SCHOOL_NAME => ''])
+        ->assertSessionHasErrors([Setting::SLIP_SCHOOL_NAME => 'Enter the school name.']);
+    $this->patch(route('maintenance.update'), [
+        Setting::SLIP_SCHOOL_NAME => 'STI COLLEGE-ORMOC, INC. (Main)',
+        Setting::SLIP_ADDRESS_LINE_1 => 'Real Street, Ormoc City',
+        Setting::SLIP_ADDRESS_LINE_2 => '',
+    ])->assertInertiaFlash('toast.message', 'These settings have been saved: School name, First address line, Second address line.');
+
+    // An empty second line is left out of the slip.
+    $this->actingAs($this->student)->get(route('my-orders.slip', $order))->assertInertia(fn (Assert $page) => $page
+        ->where('slip.school', 'STI COLLEGE-ORMOC, INC. (Main)')
+        ->where('slip.address_lines', ['Real Street, Ormoc City']));
 });
 
 test('the Specialist sees students paused for expired orders and can let them order again', function () {

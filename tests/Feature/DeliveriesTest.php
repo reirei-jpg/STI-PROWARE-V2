@@ -3,6 +3,7 @@
 use App\Enums\DeliveryStatus;
 use App\Models\Delivery;
 use App\Models\PurchaseOrder;
+use App\Models\Setting;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -194,20 +195,18 @@ test('the Specialist chooses after how many days orders are followed up', functi
     orderWith(['UTMP02-03' => 10], ['order_number' => '30722', 'date_ordered' => '2026-09-29']);
     $this->actingAs($this->specialist);
 
-    $this->patch(route('maintenance.follow-up-days'), ['follow_up_days' => 10])
-        ->assertSessionHasErrors(['follow_up_days' => 'Choose 14, 21, 30, 45 or 60 days.']);
+    $this->patch(route('maintenance.update'), [Setting::DELIVERY_FOLLOW_UP_DAYS => 10])
+        ->assertSessionHasErrors([Setting::DELIVERY_FOLLOW_UP_DAYS => 'Choose 14, 21, 30, 45 or 60 days.']);
 
-    $this->patch(route('maintenance.follow-up-days'), ['follow_up_days' => 14])->assertSessionHasNoErrors();
+    $this->patch(route('maintenance.update'), [Setting::DELIVERY_FOLLOW_UP_DAYS => 14])->assertSessionHasNoErrors();
 
-    $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('followUpDays.value', 14)
-        ->where('followUpDays.changed_by', 'Carlo Mendoza'));
+    expect(maintenanceSetting(Setting::DELIVERY_FOLLOW_UP_DAYS))->toMatchArray(['value' => 14, 'changed_by' => 'Carlo Mendoza']);
     $this->get(route('deliveries.index'))->assertInertia(fn (Assert $page) => $page
         ->where('summary.follow_up', 1)
         ->where('summary.follow_up_days', 14));
 
     $this->actingAs(User::factory()->schoolAdmin()->create())
-        ->patch(route('maintenance.follow-up-days'), ['follow_up_days' => 30])
+        ->patch(route('maintenance.update'), [Setting::DELIVERY_FOLLOW_UP_DAYS => 30])
         ->assertForbidden();
 });
 

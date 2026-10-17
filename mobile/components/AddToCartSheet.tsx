@@ -64,8 +64,8 @@ export default function AddToCartSheet({
     const unitPrice = pack ? pack.price_centavos : (variant?.buy_price_centavos ?? null);
     const pieceOnSale = pack === undefined && (variant?.sale_price_centavos ?? null) !== null;
     const priceIsSale = pieceOnSale || (pack !== undefined && product.status === 'on_sale');
-    // At most 99 of one item (Cart::MAX_QUANTITY on the server).
-    const most = variant ? Math.min(99, Math.floor(variant.stock_pieces / piecesPerUnit)) : 0;
+    // At most the per-item limit set in Maintenance (Cart::maxQuantity on the server).
+    const most = variant ? Math.min(product.max_per_item, Math.floor(variant.stock_pieces / piecesPerUnit)) : 0;
     const quantity = Number(quantityText) || 0;
     const hasChoices = product.variants.length > 1;
     const unitChoices = (soldByPiece ? 1 : 0) + product.buy_packs.length;

@@ -14,10 +14,12 @@ use App\Models\ProductPack;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
+use App\Models\Setting;
 use App\Models\StockMovement;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Sales\HeadOfficeCost;
 use App\Services\Sales\SellingBelowCost;
+use App\Services\Settings\SystemSettings;
 use App\Services\Stock\LinkedItems;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Database\Eloquent\Builder;
@@ -115,6 +117,8 @@ class ProductController extends Controller
                 'stock' => $stockFilter,
                 'slow_days' => $slowDays,
             ],
+            // The Specialist's setting, used when no other number of days is chosen.
+            'defaultSlowDays' => SystemSettings::integer(Setting::SLOW_MOVING_DAYS),
             'lowStockCount' => Product::query()->lowOnStock()->count(),
             'slowMovingCount' => Product::query()->slowMoving($slowDays)->count(),
             'itemsToLinkCount' => PurchaseOrderItem::query()
@@ -187,6 +191,8 @@ class ProductController extends Controller
             // What PROWARE paid per eStore unit, shown beside the Selling Price.
             'costs' => $orderedItem === null ? [] : HeadOfficeCost::latestUnitPrices([$orderedItem->item_code]),
             'today' => now()->toDateString(),
+            // The low-stock number a new product starts with (the Specialist's setting).
+            'defaultLowStockAlert' => SystemSettings::integer(Setting::DEFAULT_LOW_STOCK_ALERT),
         ]);
     }
 

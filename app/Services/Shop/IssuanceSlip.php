@@ -4,6 +4,8 @@ namespace App\Services\Shop;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Setting;
+use App\Services\Settings\SystemSettings;
 use BaconQrCode\Renderer\Color\Rgb;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -13,8 +15,9 @@ use BaconQrCode\Writer;
 
 /**
  * An order's issuance slip, as on STI College-Ormoc's paper form: the
- * school's name and address, No. (the order number), Date, Student Name,
- * Section, each item with QTY / ITEM / UNIT PRICE / AMOUNT, the Total
+ * school's name and address (Maintenance settings), No. (the order
+ * number), Date, Student Name, Section, each item with QTY / ITEM / UNIT
+ * PRICE / AMOUNT, the Total
  * Amount, and once released, the date received and who issued it. The QR
  * holds the order's random slip code, which the Specialist scans to find
  * the order (website and phone app). Expects the items, student and
@@ -22,18 +25,18 @@ use BaconQrCode\Writer;
  */
 final class IssuanceSlip
 {
-    public const SCHOOL = 'STI COLLEGE-ORMOC, INC.';
-
-    public const ADDRESS_LINES = ['Ormoc Centrum Bldg., Barangay South 6541', 'Ormoc City, Leyte Philippines'];
-
     /**
      * @return array{school: string, address_lines: list<string>, order_id: int, number: string|null, date: string|null, student_name: string, section: string|null, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, pick_up_by: string, released_on: string|null, issued_by: string|null, qr_svg: string|null}
      */
     public static function of(Order $order): array
     {
         return [
-            'school' => self::SCHOOL,
-            'address_lines' => self::ADDRESS_LINES,
+            // The Specialist's settings; an empty address line is left out.
+            'school' => SystemSettings::text(Setting::SLIP_SCHOOL_NAME),
+            'address_lines' => array_values(array_filter([
+                SystemSettings::text(Setting::SLIP_ADDRESS_LINE_1),
+                SystemSettings::text(Setting::SLIP_ADDRESS_LINE_2),
+            ], fn (string $line): bool => trim($line) !== '')),
             'order_id' => $order->id,
             'number' => $order->number,
             'date' => $order->created_at?->toDateString(),
