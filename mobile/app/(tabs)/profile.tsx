@@ -1,12 +1,11 @@
 import Constants from 'expo-constants';
 import { useFocusEffect } from 'expo-router';
-import { Bell, BellRing, LogOut, Mail, Server, UserRound } from 'lucide-react-native';
+import { Bell, BellRing, LogOut, Mail, UserRound } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
-import { describeServer } from '@/lib/config';
 import { notificationsAllowed } from '@/lib/push';
 
 /**
@@ -59,9 +58,6 @@ export default function ProfileScreen() {
                 </Row>
                 <Row icon={<Mail size={18} color="#2563eb" />} label="STI email">
                     {user?.email}
-                </Row>
-                <Row icon={<Server size={18} color="#2563eb" />} label="Server">
-                    {describeServer()}
                 </Row>
                 {pushAllowed !== null && (
                     <Row icon={<Bell size={18} color="#2563eb" />} label="Notifications on this phone">

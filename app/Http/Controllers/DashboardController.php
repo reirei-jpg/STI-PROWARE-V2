@@ -28,7 +28,7 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('dashboard', [
-            'tasks' => $user?->role === UserRole::Specialist ? $tasks->all(withOrders: false) : null,
+            'tasks' => $user?->role === UserRole::Specialist ? $tasks->all() : null,
             'orderCards' => $user?->role === UserRole::Specialist ? SpecialistOrders::dashboardCards() : null,
             'overview' => $user?->role === UserRole::SchoolAdmin ? $overview->all() : null,
         ]);

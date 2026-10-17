@@ -68,13 +68,17 @@ test('the to-do list puts each task in its group, and the order cards show the s
             ->where('orderCards.released_today.count', 1)
         );
 
-    // The phone's To-do has no order cards, so it keeps the orders as tasks.
+    // The phone's To-do shows the same tasks and the same order cards.
     Sanctum::actingAs($this->specialist);
     $this->getJson(route('api.v1.specialist.tasks'))
-        ->assertJsonPath('now.0.title', "Prepare {$order->number} · Juan Dela Cruz")
-        ->assertJsonPath('now.0.detail', '0 items · ₱270.00 · pick up by Oct 6')
-        ->assertJsonPath('now.0.action', ['label' => 'Ready for pickup', 'url' => route('orders.ready', $order), 'method' => 'post'])
-        ->assertJsonPath('today.1.title', fn (string $title) => str_starts_with($title, 'Last day to pick up'));
+        ->assertJsonPath('now.0.title', 'Low stock: STI Lanyard')
+        ->assertJsonCount(1, 'now')
+        ->assertJsonCount(1, 'today')
+        ->assertJsonPath('order_cards.new.count', 1)
+        ->assertJsonPath('order_cards.new.orders.0.number', $order->number)
+        ->assertJsonPath('order_cards.new.orders.0.student_name', 'Juan Dela Cruz')
+        ->assertJsonPath('order_cards.last_day.count', 1)
+        ->assertJsonPath('order_cards.released_today.count', 1);
 });
 
 test('an order card lists the first orders and counts them all', function () {
@@ -108,14 +112,17 @@ test('low stock is one row per product, naming its variants', function () {
 });
 
 test('a long list shows the first five and how many more', function () {
-    Order::factory()->count(7)->create();
+    foreach (range(1, 7) as $number) {
+        $product = Product::factory()->create(['name' => "Product {$number}", 'status' => ProductStatus::Available, 'low_stock_alert_at' => 5]);
+        ProductVariant::factory()->for($product)->create(['stock_on_hand' => 1]);
+    }
     Sanctum::actingAs($this->specialist);
 
     $this->getJson(route('api.v1.specialist.tasks'))
         ->assertJsonCount(6, 'now')
-        ->assertJsonPath('now.5.title', 'And 2 more orders to prepare')
+        ->assertJsonPath('now.5.title', 'And 2 more products low on stock')
         ->assertJsonPath('now.5.hidden', 2)
-        ->assertJsonPath('now.5.action.url', route('orders.index'))
+        ->assertJsonPath('now.5.action.url', route('products.index', ['stock' => 'low']))
         ->assertJsonPath('now.0.hidden', 0);
 });
 

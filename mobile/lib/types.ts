@@ -241,7 +241,11 @@ export type SpecialistTasks = {
     now: SpecialistTask[];
     today: SpecialistTask[];
     week: SpecialistTask[];
+    /** The website dashboard's order cards: how many, and the first few. */
+    order_cards: Record<OrderCardKey, { count: number; orders: SpecialistOrder[] }>;
 };
+
+export type OrderCardKey = 'new' | 'ready' | 'last_day' | 'released_today';
 
 /** A student's order on the Specialist's list. */
 export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {

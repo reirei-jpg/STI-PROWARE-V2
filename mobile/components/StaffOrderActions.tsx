@@ -54,10 +54,9 @@ export function ActionButton({
 }
 
 /**
- * Release as three numbered steps, like the website's slip page: collect
- * the amount (shown large), tick "The student has paid", and only then
- * release the items (they leave the shelf only now). The tick clears after
- * each release.
+ * Release, like the website's order popup: one green box where the
+ * Specialist ticks "The student has paid" and only then releases the items
+ * (they leave the shelf only now). The tick clears after each release.
  */
 export function ReleaseBox({
     order,
@@ -75,56 +74,37 @@ export function ReleaseBox({
     }, [order.id, order.status]);
 
     return (
-        <View className="gap-4 rounded-3xl border border-slate-200 bg-white p-4">
-            <ReleaseStep number={1} title="Collect the payment">
-                <Text className="font-sans-bold text-3xl text-emerald-700">
-                    {formatPeso(order.total_centavos)}
-                </Text>
-            </ReleaseStep>
-            <ReleaseStep number={2} title="Confirm it">
-                <Pressable
-                    onPress={() => setPaid(!paid)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: paid }}
-                    className={`flex-row items-center gap-3 rounded-2xl border px-4 py-3.5 ${paid ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white'}`}
+        <View className="gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+            <Text className="font-sans-bold text-xs uppercase tracking-wide text-emerald-800">Release</Text>
+            <Pressable
+                onPress={() => setPaid(!paid)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: paid }}
+                className={`flex-row items-center gap-3 rounded-xl border px-4 py-3 ${paid ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white'}`}
+            >
+                <View
+                    className={`h-6 w-6 items-center justify-center rounded-md border-2 ${paid ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'}`}
                 >
-                    <View
-                        className={`h-6 w-6 items-center justify-center rounded-md border-2 ${paid ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'}`}
-                    >
-                        {paid && <Check size={16} color="#ffffff" strokeWidth={3} />}
-                    </View>
-                    <Text className="flex-1 font-sans-bold text-sm text-slate-800">
-                        The student has paid {formatPeso(order.total_centavos)}.
-                    </Text>
-                </Pressable>
-            </ReleaseStep>
-            <ReleaseStep number={3} title="Hand over the items">
-                <ActionButton
-                    tone="green"
-                    icon={busy ? <ActivityIndicator color="#ffffff" /> : <Banknote size={18} color="#ffffff" />}
-                    busy={busy}
-                    disabled={!paid}
-                    onPress={onRelease}
-                >
-                    Release the items
-                </ActionButton>
-            </ReleaseStep>
-        </View>
-    );
-}
-
-function ReleaseStep({ number, title, children }: { number: number; title: string; children: ReactNode }) {
-    return (
-        <View className="flex-row gap-3">
-            <View className="h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
-                <Text className="font-sans-bold text-xs text-emerald-700">{number}</Text>
-            </View>
-            <View className="flex-1 gap-1.5">
-                <Text className="pt-1 font-sans-bold text-[11px] uppercase tracking-wide text-slate-500">
-                    {title}
+                    {paid && <Check size={16} color="#ffffff" strokeWidth={3} />}
+                </View>
+                <Text className="flex-1 font-sans-bold text-sm text-slate-800">
+                    The student has paid {formatPeso(order.total_centavos)}.
                 </Text>
-                {children}
-            </View>
+            </Pressable>
+            <ActionButton
+                tone="green"
+                icon={busy ? <ActivityIndicator color="#ffffff" /> : <Banknote size={18} color="#ffffff" />}
+                busy={busy}
+                disabled={!paid}
+                onPress={onRelease}
+            >
+                Release the items
+            </ActionButton>
+            {!paid && (
+                <Text className="font-sans-semibold text-xs text-emerald-900/70">
+                    Tick the box above once the student has paid.
+                </Text>
+            )}
         </View>
     );
 }

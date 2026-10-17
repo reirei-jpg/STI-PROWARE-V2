@@ -2,11 +2,9 @@
 
 namespace App\Services\Dashboard;
 
-use App\Enums\OrderStatus;
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\DeliveryItem;
-use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
@@ -20,11 +18,10 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 /**
  * The Specialist's to-do list on the dashboard, most urgent first:
  *
- * - Do now: orders to prepare, products selling below cost, low stock,
- *   deliveries waiting to be split by variant, and delivered items not
- *   linked to a product.
- * - Today: purchase orders not complete after the follow-up days, orders
- *   on their last pickup day, and sales ending today or tomorrow.
+ * - Do now: products selling below cost, low stock, deliveries waiting
+ *   to be split by variant, and delivered items not linked to a product.
+ * - Today: purchase orders not complete after the follow-up days, and
+ *   sales ending today or tomorrow.
  * - This week: preorders closing, slow-moving items.
  *
  * A task disappears by itself once it is done. Long lists show the first
@@ -37,17 +34,15 @@ final class SpecialistTasks
     public const SLOW_MOVING_DAYS = 18;
 
     /**
-     * Every task. The website's dashboard leaves out the student orders
-     * (withOrders: false) because its order cards show them; the phone's
-     * To-do keeps them.
+     * Every task. Student orders are not tasks: the website dashboard and
+     * the phone's To-do show them as their own order cards.
      *
      * @return array{now: list<array<string, mixed>>, today: list<array<string, mixed>>, week: list<array<string, mixed>>}
      */
-    public function all(bool $withOrders = true): array
+    public function all(): array
     {
         return [
             'now' => [
-                ...($withOrders ? $this->ordersToPrepare() : []),
                 ...$this->sellingBelowCost(),
                 ...$this->lowStock(),
                 ...$this->waitingToSplit(),
@@ -55,7 +50,6 @@ final class SpecialistTasks
             ],
             'today' => [
                 ...$this->ordersToFollowUp(),
-                ...($withOrders ? $this->lastPickupDay() : []),
                 ...$this->salesEnding(),
             ],
             'week' => [
@@ -63,36 +57,6 @@ final class SpecialistTasks
                 ...$this->slowMoving(),
             ],
         ];
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function ordersToPrepare(): array
-    {
-        $query = Order::query()->where('status', OrderStatus::Placed);
-        $total = $query->count();
-
-        $tasks = $query->clone()
-            ->with('student')
-            ->withCount('items')
-            ->orderBy('pick_up_by')
-            ->orderBy('id')
-            ->limit(self::SHOWN_PER_KIND)
-            ->get()
-            ->map(fn (Order $order): array => self::task(
-                key: "order-{$order->id}",
-                kind: 'order',
-                title: "Prepare {$order->number} · {$order->student->name}",
-                detail: $order->getAttribute('items_count').' '.((int) $order->getAttribute('items_count') === 1 ? 'item' : 'items').' · ₱'.number_format($order->total_centavos / 100, 2).' · pick up by '.$order->pick_up_by->format('M j'),
-                label: 'Ready for pickup',
-                url: route('orders.ready', $order),
-                method: 'post',
-                target: ['screen' => 'order', 'id' => $order->id],
-            ))
-            ->all();
-
-        return [...$tasks, ...self::more($total, 'more order to prepare', 'more orders to prepare', route('orders.index'), ['screen' => 'orders'])];
     }
 
     /**
@@ -272,30 +236,6 @@ final class SpecialistTasks
             ->all();
 
         return [...$tasks, ...self::more($total, "more order not complete after {$days} days", "more orders not complete after {$days} days", route('deliveries.index', ['show' => 'follow_up']))];
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function lastPickupDay(): array
-    {
-        return array_values(Order::query()
-            ->open()
-            ->whereDate('pick_up_by', now()->toDateString())
-            ->with('student')
-            ->orderBy('id')
-            ->limit(self::SHOWN_PER_KIND)
-            ->get()
-            ->map(fn (Order $order): array => self::task(
-                key: "last-day-{$order->id}",
-                kind: 'last_day',
-                title: "Last day to pick up {$order->number} · {$order->student->name}",
-                detail: '₱'.number_format($order->total_centavos / 100, 2).' · '.$order->status->staffLabel().'. It cancels itself tonight if not picked up.',
-                label: 'Open order',
-                url: route('orders.index', ['show' => 'all', 'search' => $order->number]),
-                target: ['screen' => 'order', 'id' => $order->id],
-            ))
-            ->all());
     }
 
     /**

@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { ChevronRight, Package, ScanLine, Search, X } from 'lucide-react-native';
+import { Package, ScanLine, Search, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -13,8 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
-import { formatPeso } from '@/lib/format';
+import StaffOrderRow from '@/components/StaffOrderRow';
 import type { SpecialistOrder, SpecialistOrderCounts } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
@@ -169,7 +168,7 @@ export default function StaffOrdersScreen() {
             data={orders.items ?? []}
             keyExtractor={(order) => String(order.id)}
             ListHeaderComponent={header}
-            renderItem={({ item }) => <OrderRow order={item} />}
+            renderItem={({ item }) => <StaffOrderRow order={item} />}
             onEndReached={orders.loadMore}
             onEndReachedThreshold={0.5}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullToRefresh} />}
@@ -197,36 +196,3 @@ export default function StaffOrdersScreen() {
     );
 }
 
-function OrderRow({ order }: { order: SpecialistOrder }) {
-    const isOpen = order.status === 'placed' || order.status === 'ready';
-    const note = orderNote(order);
-    const itemCount = order.items.length;
-
-    return (
-        <Pressable
-            onPress={() => router.push(`/staff-order/${order.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Order ${order.number} for ${order.student_name}, ${order.status_label}`}
-            style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
-            className={`flex-row items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 ${isOpen ? '' : 'opacity-70'}`}
-        >
-            <View className="flex-1 gap-1">
-                <View className="flex-row items-center justify-between gap-2">
-                    <Text className="font-sans-bold text-base text-slate-900">{order.number}</Text>
-                    <OrderStatusPill order={order} />
-                </View>
-                <Text numberOfLines={1} className="font-sans-semibold text-sm text-slate-800">
-                    {order.student_name}
-                </Text>
-                <Text className="font-sans text-sm text-slate-600">
-                    {itemCount} {itemCount === 1 ? 'item' : 'items'} ·{' '}
-                    <Text className="font-sans-bold text-slate-900">
-                        {formatPeso(order.total_centavos)}
-                    </Text>
-                </Text>
-                <Text className={`text-xs ${note.className}`}>{note.text}</Text>
-            </View>
-            <ChevronRight size={18} color="#94a3b8" />
-        </Pressable>
-    );
-}

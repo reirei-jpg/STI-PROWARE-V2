@@ -59,13 +59,18 @@ test('the Specialist\'s screens need the Specialist, and the shop needs a studen
 
 test('the to-do list is the website dashboard\'s, and says which phone screen opens each task', function () {
     $order = juansOrder();
+    $lanyard = Product::factory()->create(['name' => 'STI Lanyard', 'status' => ProductStatus::Available, 'low_stock_alert_at' => 5]);
+    ProductVariant::factory()->for($lanyard)->create(['stock_on_hand' => 2]);
     Sanctum::actingAs(User::factory()->specialist()->create());
 
     $tasks = $this->getJson(route('api.v1.specialist.tasks'))->assertOk();
 
-    $tasks->assertJsonPath('now.0.title', "Prepare {$order->number} · Juan Dela Cruz")
-        ->assertJsonPath('now.0.target', ['screen' => 'order', 'id' => $order->id]);
-    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week']);
+    // Student orders are order cards, as on the website, not tasks.
+    $tasks->assertJsonPath('now.0.title', 'Low stock: STI Lanyard')
+        ->assertJsonPath('now.0.target', ['screen' => 'stock', 'id' => $lanyard->id])
+        ->assertJsonPath('order_cards.new.count', 1)
+        ->assertJsonPath('order_cards.new.orders.0.id', $order->id);
+    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week', 'order_cards']);
 });
 
 test('the app lists the Specialist\'s orders exactly as the website does', function () {
