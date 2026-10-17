@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IssuanceSlipCard from '@/components/IssuanceSlipCard';
 import OrderStatusPill from '@/components/OrderStatusPill';
-import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
+import { ActionButton, CancelSheet, ReadySheet, ReleaseBox } from '@/components/StaffOrderActions';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime } from '@/lib/format';
@@ -43,6 +43,7 @@ export default function SlipCheckScreen() {
     const [done, setDone] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
+    const [confirmingReady, setConfirmingReady] = useState(false);
 
     const load = useCallback(async (): Promise<void> => {
         try {
@@ -252,7 +253,7 @@ export default function SlipCheckScreen() {
                                         tone="plain"
                                         icon={<PackageCheck size={16} color="#1d4ed8" />}
                                         busy={busy}
-                                        onPress={() => void run('ready')}
+                                        onPress={() => setConfirmingReady(true)}
                                     >
                                         Ready for pickup
                                     </ActionButton>
@@ -306,6 +307,17 @@ export default function SlipCheckScreen() {
                         }}
                         busy={busy}
                         error={error}
+                    />
+
+                    <ReadySheet
+                        order={order}
+                        open={confirmingReady}
+                        onClose={() => setConfirmingReady(false)}
+                        onConfirm={async () => {
+                            await run('ready');
+                            setConfirmingReady(false);
+                        }}
+                        busy={busy}
                     />
                 </>
             )}

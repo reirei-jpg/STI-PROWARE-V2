@@ -3,6 +3,9 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 
 import type { CancelReasonOption } from '@/lib/cancel-reasons';
 
+/** The fewest characters "Other" needs, as the server checks. */
+const MIN_NOTE = 5;
+
 /**
  * Pick why an order is cancelled, like in online shops: one reason from the
  * list, and a box to write why only for Other.
@@ -57,6 +60,14 @@ export default function CancelReasonList({
                         className="min-h-24 rounded-xl border border-slate-200 bg-white px-3 py-3 font-sans text-sm text-slate-900"
                         style={{ textAlignVertical: 'top' }}
                     />
+                    {/* Like the website: how many characters are still needed. */}
+                    <Text
+                        className={`font-sans-semibold text-xs ${note.trim().length < MIN_NOTE ? 'text-amber-700' : 'text-slate-400'}`}
+                    >
+                        {note.trim().length < MIN_NOTE
+                            ? `Write at least ${MIN_NOTE} characters (${note.trim().length} of ${MIN_NOTE}).`
+                            : `${note.length} of 200 characters`}
+                    </Text>
                 </View>
             )}
         </View>

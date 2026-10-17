@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
-import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
+import { ActionButton, CancelSheet, ReadySheet, ReleaseBox } from '@/components/StaffOrderActions';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
@@ -28,6 +28,7 @@ export default function StaffOrderScreen() {
     const [done, setDone] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
+    const [confirmingReady, setConfirmingReady] = useState(false);
 
     const load = useCallback(() => {
         request<SpecialistOrder>(`/specialist/orders/${id}`)
@@ -63,7 +64,7 @@ export default function StaffOrderScreen() {
 
             return true;
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'It could not be done. Please try again.');
+            setError(caught instanceof ApiError ? caught.message : 'It could not be done. Try again.');
             // Someone may have changed it on the website meanwhile.
             load();
 
@@ -141,7 +142,7 @@ export default function StaffOrderScreen() {
                                 tone="blue"
                                 icon={<PackageCheck size={18} color="#ffffff" />}
                                 busy={busy}
-                                onPress={() => void run('ready')}
+                                onPress={() => setConfirmingReady(true)}
                             >
                                 Ready for pickup
                             </ActionButton>
@@ -188,6 +189,17 @@ export default function StaffOrderScreen() {
                         }}
                         busy={busy}
                         error={error}
+                    />
+
+                    <ReadySheet
+                        order={order}
+                        open={confirmingReady}
+                        onClose={() => setConfirmingReady(false)}
+                        onConfirm={async () => {
+                            await run('ready');
+                            setConfirmingReady(false);
+                        }}
+                        busy={busy}
                     />
                 </>
             )}

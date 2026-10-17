@@ -1,4 +1,4 @@
-import { Banknote, Check, XCircle } from 'lucide-react-native';
+import { Banknote, Check, PackageCheck, XCircle } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
@@ -126,6 +126,58 @@ function ReleaseStep({ number, title, children }: { number: number; title: strin
                 {children}
             </View>
         </View>
+    );
+}
+
+/**
+ * "Mark Order PW-0042 as ready for pickup?": the student is notified at once
+ * and it cannot be taken back, so a mis-tap asks first, like the website.
+ */
+export function ReadySheet({
+    order,
+    open,
+    onClose,
+    onConfirm,
+    busy,
+}: {
+    order: SpecialistOrder;
+    open: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    busy: boolean;
+}) {
+    return (
+        <BottomSheet
+            open={open}
+            onClose={onClose}
+            title={`Mark ${order.number} as ready for pickup?`}
+            subtitle={`${order.student_name} · ${formatPeso(order.total_centavos)}`}
+            icon={<PackageCheck size={20} color="#1d4ed8" />}
+            footer={
+                <View className="flex-row gap-3">
+                    <Pressable
+                        onPress={onClose}
+                        accessibilityRole="button"
+                        className="flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white py-4"
+                    >
+                        <Text className="font-sans-bold text-base text-slate-700">Not yet</Text>
+                    </Pressable>
+                    <Pressable
+                        onPress={onConfirm}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 ${busy ? 'opacity-50' : ''}`}
+                    >
+                        {busy && <ActivityIndicator color="#ffffff" />}
+                        <Text className="font-sans-bold text-base text-white">Mark as ready</Text>
+                    </Pressable>
+                </View>
+            }
+        >
+            <Text className="font-sans text-sm leading-5 text-slate-700">
+                {order.student_name} will be notified to collect and pay for the order. This cannot be undone.
+            </Text>
+        </BottomSheet>
     );
 }
 

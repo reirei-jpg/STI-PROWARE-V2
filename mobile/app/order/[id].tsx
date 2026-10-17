@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Banknote, QrCode, XCircle } from 'lucide-react-native';
+import { ArrowLeft, Banknote, CircleCheck, QrCode, XCircle } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ export default function OrderScreen() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [done, setDone] = useState<string | null>(null);
 
     useEffect(() => {
         request<StudentOrder>(`/orders/${id}`)
@@ -60,15 +61,16 @@ export default function OrderScreen() {
         setError(null);
 
         try {
-            const result = await request<{ order: StudentOrder }>(`/orders/${current.id}/cancel`, {
+            const result = await request<{ message: string; order: StudentOrder }>(`/orders/${current.id}/cancel`, {
                 method: 'POST',
                 body: { reason, note: note.trim() },
             });
 
             setOrder(result.order);
+            setDone(result.message);
             setSheetOpen(false);
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'The order could not be cancelled. Please try again.');
+            setError(caught instanceof ApiError ? caught.message : 'The order could not be cancelled. Try again.');
         } finally {
             setCancelling(false);
         }
@@ -112,6 +114,13 @@ export default function OrderScreen() {
                     </View>
 
                     <NextStep order={order} />
+
+                    {done && (
+                        <View className="flex-row items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                            <CircleCheck size={18} color="#047857" />
+                            <Text className="flex-1 font-sans-semibold text-sm text-emerald-800">{done}</Text>
+                        </View>
+                    )}
 
                     {order.status !== 'cancelled' && (
                         <Pressable
@@ -175,7 +184,8 @@ export default function OrderScreen() {
                             notePlaceholder="e.g. I will order together with my classmates instead."
                         />
                         {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
-                    </BottomSheet>                </>
+                    </BottomSheet>
+                </>
             )}
         </ScrollView>
     );
