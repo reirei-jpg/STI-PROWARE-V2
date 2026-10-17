@@ -355,6 +355,11 @@ test('the specialist marks an order ready, then releases it once paid, and the i
         ->and($this->student->notifications()->sole()->type)->toBe(OrderReady::class)
         ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2);
 
+    // A second tap (e.g. from another screen) is refused, and the student is not told twice.
+    $this->post(route('orders.ready', $order))
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 is already ready for pickup.');
+    expect($this->student->notifications()->count())->toBe(1);
+
     $this->post(route('orders.release', $order))
         ->assertSessionHasErrors(['paid' => 'Confirm that the student has paid before releasing the items.']);
     expect($order->refresh()->status)->toBe(OrderStatus::Ready);

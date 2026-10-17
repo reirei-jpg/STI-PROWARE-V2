@@ -32,7 +32,9 @@ class HandleOrderBySpecialist
      */
     public function ready(Order $order, User $specialist): string
     {
-        $this->refuseUnless($order->status === OrderStatus::Placed, "Order {$order->number} cannot be marked as ready for pickup because its status is {$order->status->label()}.");
+        $this->refuseUnless($order->status === OrderStatus::Placed, $order->status === OrderStatus::Ready
+            ? "Order {$order->number} is already ready for pickup."
+            : "Order {$order->number} cannot be marked as ready for pickup because its status is {$order->status->label()}.");
 
         $order->forceFill(['status' => OrderStatus::Ready, 'ready_at' => now(), 'handled_by' => $specialist->id])->save();
         $order->student->notify(new OrderReady($order));
