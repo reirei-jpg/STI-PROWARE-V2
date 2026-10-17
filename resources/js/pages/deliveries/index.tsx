@@ -159,7 +159,11 @@ export default function DeliveriesIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Deliveries"
-                    description="What arrived from Head Office and what is still to come. Recording a delivery adds its items to stock and updates their purchase orders."
+                    description={
+                        canRecord
+                            ? 'What arrived from Head Office and what is still to come. Recording a delivery adds its items to stock and updates their purchase orders.'
+                            : 'What arrived from Head Office and what is still to come. View only.'
+                    }
                     actions={
                         canRecord && (
                             <Link
@@ -216,9 +220,13 @@ export default function DeliveriesIndex({
                         label="Not in stock yet"
                         value={summary.not_in_stock}
                         detail={
-                            summary.not_in_stock === 1
-                                ? 'item to link to a product'
-                                : 'items to link to a product'
+                            canRecord
+                                ? summary.not_in_stock === 1
+                                    ? 'item to link to a product'
+                                    : 'items to link to a product'
+                                : summary.not_in_stock === 1
+                                  ? 'item not linked to a product yet'
+                                  : 'items not linked to a product yet'
                         }
                         onClick={() => showList({ show: 'not_in_stock' })}
                     />
