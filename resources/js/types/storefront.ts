@@ -44,6 +44,8 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
     variants: {
         id: number;
         label: string;
+        /** Its choice for each option, e.g. { Capacity: '14 oz', Color: 'Black' }. */
+        choices: Record<string, string>;
         /** Its normal price per piece. */
         price_centavos: number | null;
         /** Its sale price per piece while On Sale; null when not on sale. */

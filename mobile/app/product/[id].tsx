@@ -25,26 +25,15 @@ import PreorderSheet from '@/components/PreorderSheet';
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatPeso } from '@/lib/format';
-import type { StorefrontProductDetails, StorefrontVariantAvailability } from '@/lib/types';
+import { formatDate } from '@/lib/format';
+import { choiceIsOpen } from '@/lib/option-picker';
+import type { StorefrontProductDetails } from '@/lib/types';
 
-const availabilityText: Record<StorefrontVariantAvailability, string> = {
-    coming_soon: 'Coming soon',
-    in_stock: 'In stock',
-    almost_sold_out: 'Almost sold out',
-    sold_out: 'Out of stock',
-};
-
-const availabilityClasses: Record<StorefrontVariantAvailability, [string, string]> = {
-    coming_soon: ['bg-amber-100', 'text-amber-800'],
-    in_stock: ['bg-emerald-100', 'text-emerald-800'],
-    almost_sold_out: ['bg-orange-100', 'text-orange-800'],
-    sold_out: ['bg-slate-100', 'text-slate-500'],
-};
 
 /**
  * One product, like the website's product view: its photos (swipe), the
- * price per piece and per pack, and which sizes or colors are in stock.
+ * price per piece and per pack, and each option's choices (crossed out when
+ * none are left).
  * Add to Cart or Preorder stays at the bottom and opens its picker.
  */
 export default function ProductScreen() {
@@ -219,56 +208,43 @@ export default function ProductScreen() {
                             )}
 
                             {hasOptions && (
-                                <View className="gap-2">
-                                    <Text className="font-sans-bold text-sm text-slate-700">
-                                        {product.options.map((option) => option.name).join(' · ') ||
-                                            'Choices'}
-                                    </Text>
-                                    {product.variants.map((variant) => {
-                                        const [badgeBg, badgeText] =
-                                            availabilityClasses[variant.availability];
-                                        const showPrice =
-                                            variant.price_centavos !== null &&
-                                            (product.price.piece_from ||
-                                                variant.sale_price_centavos !== null);
+                                <View className="gap-3">
+                                    {product.options.map((option) => (
+                                        <View key={option.name} className="gap-1.5">
+                                            <Text className="font-sans-bold text-sm text-slate-700">
+                                                {option.name}
+                                            </Text>
+                                            <View className="flex-row flex-wrap gap-2">
+                                                {option.choices.map((choice) => {
+                                                    const inStock = choiceIsOpen(
+                                                        product.variants,
+                                                        {},
+                                                        option.name,
+                                                        choice,
+                                                        (variant) => variant.availability !== 'sold_out',
+                                                    );
 
-                                        return (
-                                            <View
-                                                key={variant.id}
-                                                className="flex-row items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5"
-                                            >
-                                                <View className="flex-1">
-                                                    <Text className="font-sans-bold text-sm text-slate-800">
-                                                        {variant.label}
-                                                    </Text>
-                                                    {showPrice && (
-                                                        <View className="flex-row gap-1.5">
-                                                            {variant.sale_price_centavos !== null && (
-                                                                <Text className="font-sans text-xs text-slate-400 line-through">
-                                                                    {formatPeso(variant.price_centavos)}
-                                                                </Text>
-                                                            )}
+                                                    return (
+                                                        <View
+                                                            key={choice}
+                                                            className={`rounded-lg border px-3 py-1.5 ${inStock ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50'}`}
+                                                        >
                                                             <Text
-                                                                className={`text-xs ${variant.sale_price_centavos !== null ? 'font-sans-bold text-red-600' : 'font-sans text-slate-500'}`}
+                                                                className={`font-sans-semibold text-sm ${inStock ? 'text-slate-700' : 'text-slate-400 line-through'}`}
                                                             >
-                                                                {formatPeso(
-                                                                    variant.sale_price_centavos ??
-                                                                        variant.price_centavos,
-                                                                )}
+                                                                {choice}
                                                             </Text>
                                                         </View>
-                                                    )}
-                                                </View>
-                                                <View className={`rounded-full px-2.5 py-1 ${badgeBg}`}>
-                                                    <Text className={`font-sans-bold text-[11px] ${badgeText}`}>
-                                                        {variant.pieces_left !== null
-                                                            ? `Only ${variant.pieces_left} left`
-                                                            : availabilityText[variant.availability]}
-                                                    </Text>
-                                                </View>
+                                                    );
+                                                })}
                                             </View>
-                                        );
-                                    })}
+                                        </View>
+                                    ))}
+                                    <Text className="font-sans text-xs text-slate-500">
+                                        {comingSoon
+                                            ? 'Choose yours when you tap Preorder.'
+                                            : 'Choose yours when you tap Add to Cart. Crossed out means none are left.'}
+                                    </Text>
                                 </View>
                             )}
                         </View>

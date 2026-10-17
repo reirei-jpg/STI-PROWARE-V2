@@ -13,8 +13,11 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import OptionRow from '@/components/option-row';
 import { formatPeso } from '@/lib/format';
 import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
+import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
+import type { Picked } from '@/lib/option-picker';
 import { formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -176,17 +179,22 @@ function PickerForm({
     details: StorefrontProductDetails;
     onClose: () => void;
 }) {
-    const firstInStock = details.variants.find(
-        (variant) => variant.stock_pieces > 0,
+    const inStock = (variant: { stock_pieces: number }) =>
+        variant.stock_pieces > 0;
+    const [picked, setPicked] = useState<Picked>(() =>
+        startingPicks(details.variants, inStock),
     );
     const soldByPiece = details.variants.some(
         (variant) => variant.buy_price_centavos !== null,
     );
     const form = useForm({
-        product_variant_id:
-            details.variants.length === 1 && firstInStock
-                ? String(firstInStock.id)
-                : '',
+        product_variant_id: String(
+            pickedVariant(
+                details.variants,
+                details.options,
+                startingPicks(details.variants, inStock),
+            )?.id ?? '',
+        ),
         product_pack_id: (soldByPiece
             ? ''
             : String(details.buy_packs[0]?.id ?? '')) as UnitChoice,
@@ -279,50 +287,41 @@ function PickerForm({
                     </div>
                 </div>
 
-                {hasChoices && (
-                    <section className="space-y-2">
-                        <p className="text-sm font-black text-slate-700">
-                            {details.options
-                                .map((option) => option.name)
-                                .join(' · ') || 'Choose one'}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            {details.variants.map((item) => {
-                                const soldOut = item.stock_pieces === 0;
-                                const chosen =
-                                    data.product_variant_id === String(item.id);
-
-                                return (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        disabled={soldOut}
-                                        onClick={() => {
-                                            setData(
-                                                'product_variant_id',
-                                                String(item.id),
-                                            );
-                                            setData('quantity', '1');
-                                        }}
-                                        className={cn(
-                                            'rounded-xl border px-3 py-2 text-sm font-bold transition',
-                                            chosen
-                                                ? 'border-[#0D6EFD] bg-blue-50 text-blue-800'
-                                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
-                                            soldOut &&
-                                                'cursor-not-allowed border-dashed bg-slate-50 text-slate-400 line-through hover:border-slate-200',
-                                        )}
-                                        title={
-                                            soldOut ? 'Out of stock' : undefined
-                                        }
-                                    >
-                                        {item.label}
-                                    </button>
+                {hasChoices &&
+                    details.options.map((option) => (
+                        <OptionRow
+                            key={option.name}
+                            option={option}
+                            picked={picked}
+                            variants={details.variants}
+                            canPick={inStock}
+                            onPick={(choice) => {
+                                const next = pickChoice(
+                                    details.variants,
+                                    details.options,
+                                    picked,
+                                    option.name,
+                                    choice,
+                                    inStock,
                                 );
-                            })}
-                        </div>
-                        <InputError message={errors.product_variant_id} />
-                    </section>
+
+                                setPicked(next);
+                                setData(
+                                    'product_variant_id',
+                                    String(
+                                        pickedVariant(
+                                            details.variants,
+                                            details.options,
+                                            next,
+                                        )?.id ?? '',
+                                    ),
+                                );
+                                setData('quantity', '1');
+                            }}
+                        />
+                    ))}
+                {hasChoices && (
+                    <InputError message={errors.product_variant_id} />
                 )}
 
                 {unitChoices > 1 && (
@@ -447,6 +446,7 @@ function PickerForm({
                     <p className="mr-auto text-xs font-semibold text-slate-500">
                         Choose the{' '}
                         {details.options
+                            .filter((option) => !picked[option.name])
                             .map((option) => option.name.toLowerCase())
                             .join(' and ') || 'size or color'}{' '}
                         first.

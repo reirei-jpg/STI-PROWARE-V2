@@ -97,6 +97,9 @@ final class StorefrontProduct
                 return [
                     'id' => $variant->id,
                     'label' => $variant->label(),
+                    // Its choice for each option, e.g. {"Capacity": "14 oz", "Color": "Black"},
+                    // so the pickers can offer each option on its own row.
+                    'choices' => (object) collect($variant->choices)->mapWithKeys(fn (array $choice): array => [$choice['option'] => $choice['choice']])->all(),
                     'price_centavos' => $variant->normalPiecePrice(),
                     'sale_price_centavos' => $variant->salePiecePrice(),
                     'buy_price_centavos' => $canBuy ? ShopPrice::perPiece($variant) : null,

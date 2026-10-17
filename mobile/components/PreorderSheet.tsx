@@ -4,12 +4,13 @@ import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
 import { chooseFirstText } from '@/components/AddToCartSheet';
 import BottomSheet from '@/components/BottomSheet';
-import ChoiceChip from '@/components/ChoiceChip';
+import OptionRow from '@/components/OptionRow';
 import PriceLines from '@/components/PriceLines';
 import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, unitWord } from '@/lib/format';
+import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
 
 /** As on the website: a reservation, so no stock limit, only this one. */
@@ -32,10 +33,10 @@ export default function PreorderSheet({
     onPlaced: (message: string) => void;
 }) {
     const { request } = useAuth();
-    const firstChoice = (): number | null =>
-        product.variants.length === 1 ? product.variants[0].id : null;
+    // A preorder is for any size or color; nothing is in stock yet.
+    const anyVariant = (): boolean => true;
 
-    const [variantId, setVariantId] = useState<number | null>(firstChoice);
+    const [picked, setPicked] = useState<Picked>(() => startingPicks(product.variants, anyVariant));
     const [quantityText, setQuantityText] = useState('1');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -43,7 +44,7 @@ export default function PreorderSheet({
     // Start fresh every time it opens.
     useEffect(() => {
         if (open) {
-            setVariantId(firstChoice());
+            setPicked(startingPicks(product.variants, anyVariant));
             setQuantityText('1');
             setError(null);
         }
@@ -51,6 +52,7 @@ export default function PreorderSheet({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
+    const variantId = pickedVariant(product.variants, product.options, picked)?.id ?? null;
     const quantity = Number(quantityText) || 0;
     const hasChoices = product.variants.length > 1;
     const canPlace = !saving && variantId !== null && quantity >= 1 && quantity <= MOST;
@@ -125,25 +127,20 @@ export default function PreorderSheet({
                 </View>
             </View>
 
-            {hasChoices && (
-                <View className="gap-2">
-                    <Text className="font-sans-bold text-sm text-slate-700">
-                        {product.options.map((option) => option.name).join(' · ') ||
-                            'Choose one'}
-                    </Text>
-                    <View className="flex-row flex-wrap gap-2">
-                        {product.variants.map((item) => (
-                            <ChoiceChip
-                                key={item.id}
-                                label={item.label}
-                                chosen={item.id === variantId}
-                                tone="amber"
-                                onPress={() => setVariantId(item.id)}
-                            />
-                        ))}
-                    </View>
-                </View>
-            )}
+            {hasChoices &&
+                product.options.map((option) => (
+                    <OptionRow
+                        key={option.name}
+                        option={option}
+                        picked={picked}
+                        variants={product.variants}
+                        canPick={anyVariant}
+                        tone="amber"
+                        onPick={(choice) =>
+                            setPicked(pickChoice(product.variants, product.options, picked, option.name, choice, anyVariant))
+                        }
+                    />
+                ))}
 
             <View className="gap-2">
                 <Text className="font-sans-bold text-sm text-slate-700">How many?</Text>
@@ -155,7 +152,7 @@ export default function PreorderSheet({
                 />
                 {hasChoices && variantId === null && (
                     <Text className="font-sans text-sm text-slate-500">
-                        {chooseFirstText(product)}
+                        {chooseFirstText(product, picked)}
                     </Text>
                 )}
             </View>

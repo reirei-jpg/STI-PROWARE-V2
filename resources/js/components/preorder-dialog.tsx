@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import InputError from '@/components/input-error';
+import OptionRow from '@/components/option-row';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
 import { PriceLines } from '@/components/storefront-tile';
 import {
@@ -16,7 +17,8 @@ import {
 } from '@/components/ui/dialog';
 import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
 import { formatDateOrdered } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
+import type { Picked } from '@/lib/option-picker';
 import type {
     StorefrontProductDetails,
     StorefrontTileProduct,
@@ -180,6 +182,11 @@ function PreorderForm({
     details: StorefrontProductDetails;
     onClose: () => void;
 }) {
+    // A preorder is for any size or color; nothing is in stock yet.
+    const anyVariant = () => true;
+    const [picked, setPicked] = useState<Picked>(() =>
+        startingPicks(details.variants, anyVariant),
+    );
     const form = useForm({
         product_variant_id:
             details.variants.length === 1 ? String(details.variants[0].id) : '',
@@ -220,46 +227,41 @@ function PreorderForm({
                     </div>
                 </div>
 
+                {hasChoices &&
+                    details.options.map((option) => (
+                        <OptionRow
+                            key={option.name}
+                            option={option}
+                            picked={picked}
+                            variants={details.variants}
+                            canPick={anyVariant}
+                            tone="amber"
+                            onPick={(choice) => {
+                                const next = pickChoice(
+                                    details.variants,
+                                    details.options,
+                                    picked,
+                                    option.name,
+                                    choice,
+                                    anyVariant,
+                                );
+
+                                setPicked(next);
+                                setData(
+                                    'product_variant_id',
+                                    String(
+                                        pickedVariant(
+                                            details.variants,
+                                            details.options,
+                                            next,
+                                        )?.id ?? '',
+                                    ),
+                                );
+                            }}
+                        />
+                    ))}
                 {hasChoices && (
-                    <section className="space-y-2">
-                        <p className="text-sm font-black text-slate-700">
-                            {details.options
-                                .map((option) => option.name)
-                                .join(' · ') || 'Choose one'}
-                        </p>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                            {details.variants.map((variant) => (
-                                <label
-                                    key={variant.id}
-                                    className={cn(
-                                        'flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition',
-                                        data.product_variant_id ===
-                                            String(variant.id)
-                                            ? 'border-amber-500 bg-amber-50 text-amber-900'
-                                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
-                                    )}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="product_variant_id"
-                                        checked={
-                                            data.product_variant_id ===
-                                            String(variant.id)
-                                        }
-                                        onChange={() =>
-                                            setData(
-                                                'product_variant_id',
-                                                String(variant.id),
-                                            )
-                                        }
-                                        className="h-4 w-4 shrink-0 accent-amber-500"
-                                    />
-                                    {variant.label}
-                                </label>
-                            ))}
-                        </div>
-                        <InputError message={errors.product_variant_id} />
-                    </section>
+                    <InputError message={errors.product_variant_id} />
                 )}
 
                 <section className="space-y-2">
@@ -321,6 +323,7 @@ function PreorderForm({
                     <p className="mr-auto text-xs font-semibold text-slate-500">
                         Choose the{' '}
                         {details.options
+                            .filter((option) => !picked[option.name])
                             .map((option) => option.name.toLowerCase())
                             .join(' and ') || 'size or color'}{' '}
                         first.

@@ -18,31 +18,15 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { formatDateOrdered } from '@/lib/format';
+import { choiceIsOpen } from '@/lib/option-picker';
 import { cn } from '@/lib/utils';
-import type {
-    StorefrontProductDetails,
-    StorefrontTileProduct,
-    StorefrontVariantAvailability,
-} from '@/types';
-
-const availabilityText: Record<StorefrontVariantAvailability, string> = {
-    coming_soon: 'Coming soon',
-    in_stock: 'In stock',
-    almost_sold_out: 'Almost sold out',
-    sold_out: 'Out of stock',
-};
-
-const availabilityClasses: Record<StorefrontVariantAvailability, string> = {
-    coming_soon: 'bg-amber-100 text-amber-800',
-    in_stock: 'bg-emerald-100 text-emerald-800',
-    almost_sold_out: 'bg-orange-100 text-orange-800',
-    sold_out: 'bg-slate-100 text-slate-500',
-};
+import type { StorefrontProductDetails, StorefrontTileProduct } from '@/types';
 
 /**
  * The view of one product, opened from its tile: all photos, the price per
- * piece and per pack, and which sizes or colors are in stock. Add to Cart
+ * piece and per pack, and each option's choices (crossed out when none are
+ * left). Add to Cart
  * and Preorder open their pickers (a signed-out visitor is asked to sign in).
  */
 export default function StorefrontProductDialog({
@@ -201,73 +185,53 @@ export default function StorefrontProductDialog({
                                     </p>
                                 ) : (
                                     hasOptions && (
-                                        <div>
-                                            <p className="text-sm font-black text-slate-700">
-                                                {details.options
-                                                    .map(
-                                                        (option) => option.name,
-                                                    )
-                                                    .join(' · ') || 'Choices'}
+                                        <div className="space-y-3">
+                                            {details.options.map((option) => (
+                                                <div key={option.name}>
+                                                    <p className="text-sm font-black text-slate-700">
+                                                        {option.name}
+                                                    </p>
+                                                    <div className="mt-1.5 flex flex-wrap gap-2">
+                                                        {option.choices.map(
+                                                            (choice) => {
+                                                                const inStock =
+                                                                    choiceIsOpen(
+                                                                        details.variants,
+                                                                        {},
+                                                                        option.name,
+                                                                        choice,
+                                                                        (
+                                                                            variant,
+                                                                        ) =>
+                                                                            variant.availability !==
+                                                                            'sold_out',
+                                                                    );
+
+                                                                return (
+                                                                    <span
+                                                                        key={
+                                                                            choice
+                                                                        }
+                                                                        className={cn(
+                                                                            'rounded-lg border px-3 py-1.5 text-sm font-semibold',
+                                                                            inStock
+                                                                                ? 'border-slate-200 bg-white text-slate-700'
+                                                                                : 'border-dashed border-slate-200 bg-slate-50 text-slate-400 line-through',
+                                                                        )}
+                                                                    >
+                                                                        {choice}
+                                                                    </span>
+                                                                );
+                                                            },
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <p className="text-xs text-slate-500">
+                                                {comingSoon
+                                                    ? 'Choose yours when you click Preorder.'
+                                                    : 'Choose yours when you click Add to Cart. Crossed out means none are left.'}
                                             </p>
-                                            <ul className="mt-2 grid gap-2 sm:grid-cols-2">
-                                                {details.variants.map(
-                                                    (variant) => (
-                                                        <li
-                                                            key={variant.label}
-                                                            className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                                                        >
-                                                            <span className="font-bold text-slate-800">
-                                                                {variant.label}
-                                                                {variant.price_centavos !==
-                                                                    null &&
-                                                                    (shown.price
-                                                                        .piece_from ||
-                                                                        variant.sale_price_centavos !==
-                                                                            null) && (
-                                                                        <span className="block text-xs font-normal text-slate-500">
-                                                                            {variant.sale_price_centavos !==
-                                                                            null ? (
-                                                                                <>
-                                                                                    <span className="line-through">
-                                                                                        {formatPeso(
-                                                                                            variant.price_centavos,
-                                                                                        )}
-                                                                                    </span>{' '}
-                                                                                    <span className="font-black text-red-600">
-                                                                                        {formatPeso(
-                                                                                            variant.sale_price_centavos,
-                                                                                        )}
-                                                                                    </span>
-                                                                                </>
-                                                                            ) : (
-                                                                                formatPeso(
-                                                                                    variant.price_centavos,
-                                                                                )
-                                                                            )}
-                                                                        </span>
-                                                                    )}
-                                                            </span>
-                                                            <span
-                                                                className={cn(
-                                                                    'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black',
-                                                                    availabilityClasses[
-                                                                        variant
-                                                                            .availability
-                                                                    ],
-                                                                )}
-                                                            >
-                                                                {variant.pieces_left !==
-                                                                null
-                                                                    ? `Only ${variant.pieces_left} left`
-                                                                    : availabilityText[
-                                                                          variant
-                                                                              .availability
-                                                                      ]}
-                                                            </span>
-                                                        </li>
-                                                    ),
-                                                )}
-                                            </ul>
                                         </div>
                                     )
                                 )}

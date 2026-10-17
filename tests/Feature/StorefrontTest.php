@@ -155,6 +155,24 @@ test('the product view shows its photos, options and which variants are in stock
         ->assertJsonPath('variants.2.availability', 'sold_out');
 });
 
+test('each variant says its choice for each option, so size and color can be picked on their own rows', function () {
+    $flask = Product::factory()->create(['name' => 'STI Aqua Flask', 'status' => ProductStatus::Available]);
+    ProductOption::factory()->for($flask)->create(['name' => 'Capacity', 'choices' => ['14 oz', '22 oz'], 'position' => 0]);
+    ProductOption::factory()->for($flask)->create(['name' => 'Color', 'choices' => ['Black', 'Cyan'], 'position' => 1]);
+    ProductVariant::factory()->for($flask)->create([
+        'combination' => 'Capacity: 14 oz | Color: Black',
+        'choices' => [['option' => 'Capacity', 'choice' => '14 oz'], ['option' => 'Color', 'choice' => 'Black']],
+        'stock_on_hand' => 5,
+    ]);
+    $ballpen = Product::factory()->create(['name' => 'STI Ballpen', 'status' => ProductStatus::Available]);
+    ProductVariant::factory()->for($ballpen)->create(['stock_on_hand' => 5]);
+
+    $this->getJson(route('storefront.product', $flask))
+        ->assertJsonPath('variants.0.choices', ['Capacity' => '14 oz', 'Color' => 'Black']);
+    // A product without options sends an empty object, not a list.
+    expect($this->get(route('storefront.product', $ballpen))->getContent())->toContain('"choices":{}');
+});
+
 test('a preorder product\'s view says its variants are coming soon', function () {
     $product = shopProduct('42nd Anniversary Shirt', 0, ['status' => ProductStatus::Preorder], received: false);
 

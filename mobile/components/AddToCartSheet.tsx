@@ -4,11 +4,13 @@ import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
 import BottomSheet from '@/components/BottomSheet';
 import ChoiceChip from '@/components/ChoiceChip';
+import OptionRow from '@/components/OptionRow';
 import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
+import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { CartView, StorefrontProductDetails } from '@/lib/types';
 
 /**
@@ -33,15 +35,11 @@ export default function AddToCartSheet({
     const soldByPiece = product.variants.some(
         (variant) => variant.buy_price_centavos !== null,
     );
-    const firstChoice = (): number | null => {
-        const onlyOne = product.variants.length === 1 ? product.variants[0] : undefined;
-
-        return onlyOne && onlyOne.stock_pieces > 0 ? onlyOne.id : null;
-    };
+    const inStock = (item: { stock_pieces: number }): boolean => item.stock_pieces > 0;
     const firstPack = (): number | null =>
         soldByPiece ? null : (product.buy_packs[0]?.id ?? null);
 
-    const [variantId, setVariantId] = useState<number | null>(firstChoice);
+    const [picked, setPicked] = useState<Picked>(() => startingPicks(product.variants, inStock));
     const [packId, setPackId] = useState<number | null>(firstPack);
     const [quantityText, setQuantityText] = useState('1');
     const [saving, setSaving] = useState(false);
@@ -50,7 +48,7 @@ export default function AddToCartSheet({
     // Start fresh every time it opens.
     useEffect(() => {
         if (open) {
-            setVariantId(firstChoice());
+            setPicked(startingPicks(product.variants, inStock));
             setPackId(firstPack());
             setQuantityText('1');
             setError(null);
@@ -59,7 +57,7 @@ export default function AddToCartSheet({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
-    const variant = product.variants.find((item) => item.id === variantId);
+    const variant = pickedVariant(product.variants, product.options, picked);
     const pack = product.buy_packs.find((item) => item.id === packId);
     const piecesPerUnit = pack?.pieces ?? 1;
     const unitName = pack?.name ?? 'Piece';
@@ -170,28 +168,20 @@ export default function AddToCartSheet({
                 </View>
             </View>
 
-            {hasChoices && (
-                <View className="gap-2">
-                    <Text className="font-sans-bold text-sm text-slate-700">
-                        {product.options.map((option) => option.name).join(' · ') ||
-                            'Choose one'}
-                    </Text>
-                    <View className="flex-row flex-wrap gap-2">
-                        {product.variants.map((item) => (
-                            <ChoiceChip
-                                key={item.id}
-                                label={item.label}
-                                chosen={item.id === variantId}
-                                disabled={item.stock_pieces === 0}
-                                onPress={() => {
-                                    setVariantId(item.id);
-                                    setQuantityText('1');
-                                }}
-                            />
-                        ))}
-                    </View>
-                </View>
-            )}
+            {hasChoices &&
+                product.options.map((option) => (
+                    <OptionRow
+                        key={option.name}
+                        option={option}
+                        picked={picked}
+                        variants={product.variants}
+                        canPick={inStock}
+                        onPick={(choice) => {
+                            setPicked(pickChoice(product.variants, product.options, picked, option.name, choice, inStock));
+                            setQuantityText('1');
+                        }}
+                    />
+                ))}
 
             {unitChoices > 1 && (
                 <View className="gap-2">
@@ -249,7 +239,7 @@ export default function AddToCartSheet({
                 )}
                 {hasChoices && variant === undefined && (
                     <Text className="font-sans text-sm text-slate-500">
-                        {chooseFirstText(product)}
+                        {chooseFirstText(product, picked)}
                     </Text>
                 )}
             </View>
@@ -263,9 +253,14 @@ export default function AddToCartSheet({
     );
 }
 
-/** "Choose a size first.", "Choose a size and color first." or "Choose one first." */
-export function chooseFirstText(product: StorefrontProductDetails): string {
-    const names = product.options.map((option) => option.name.toLowerCase());
+/**
+ * "Choose a size first.", "Choose a capacity and color first." or, once the
+ * capacity is chosen, "Choose a color first."
+ */
+export function chooseFirstText(product: StorefrontProductDetails, picked: Picked = {}): string {
+    const names = product.options
+        .filter((option) => !picked[option.name])
+        .map((option) => option.name.toLowerCase());
 
     return names.length > 0 ? `Choose a ${names.join(' and ')} first.` : 'Choose one first.';
 }
