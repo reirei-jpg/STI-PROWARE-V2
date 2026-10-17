@@ -1,6 +1,7 @@
 import { X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import {
+    Keyboard,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -14,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 /**
  * A panel that slides up from the bottom (like TikTok Shop's picker): a
  * title with Close, the content (scrolls when long), and a footer that
- * always stays visible. Tapping the dimmed area or Back closes it.
+ * always stays visible. Tapping the dimmed area or Back closes it; while
+ * typing, Back first only hides the keyboard, so what was typed is kept.
  */
 export default function BottomSheet({
     open,
@@ -35,12 +37,22 @@ export default function BottomSheet({
 }) {
     const insets = useSafeAreaInsets();
 
+    const onBack = (): void => {
+        if (Keyboard.isVisible()) {
+            Keyboard.dismiss();
+
+            return;
+        }
+
+        onClose();
+    };
+
     return (
         <Modal
             visible={open}
             transparent
             animationType="slide"
-            onRequestClose={onClose}
+            onRequestClose={onBack}
             statusBarTranslucent
         >
             <KeyboardAvoidingView
