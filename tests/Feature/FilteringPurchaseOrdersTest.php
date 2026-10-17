@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
@@ -108,6 +109,29 @@ test('a To date before the From date is refused', function () {
         ->get(route('purchase-orders.index', ['date_from' => '2026-09-30', 'date_to' => '2026-09-01']))
         ->assertRedirect(route('purchase-orders.index'))
         ->assertSessionHasErrors(['date_to' => 'The "To" date cannot be before the "From" date.']);
+});
+
+test('a bookmarked address with a wrong filter opens the list without its filters and says why', function () {
+    // Opened straight from the address bar, after another page was open.
+    $this->from(route('dashboard'))
+        ->get(route('purchase-orders.index', ['date_from' => '2026-09-30', 'date_to' => '2026-09-01']))
+        ->assertRedirect(route('purchase-orders.index'))
+        ->assertSessionHasErrors(['date_to' => 'The "To" date cannot be before the "From" date.'])
+        ->assertInertiaFlash('toast.message', 'The "To" date cannot be before the "From" date. The list is shown without its filters.');
+});
+
+test('a wrong filter chosen on the page itself goes back to the page as it was', function () {
+    $this->from(route('purchase-orders.index', ['status' => 'completed']))
+        ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(request())])
+        ->get(route('purchase-orders.index', ['status' => 'completed', 'date_from' => '2026-09-30', 'date_to' => '2026-09-01']))
+        ->assertRedirect(route('purchase-orders.index', ['status' => 'completed']))
+        ->assertSessionHasErrors('date_to');
+});
+
+test('a download with a wrong filter does not become a download of everything', function () {
+    $this->from(route('sales-reports.index'))
+        ->get(route('sales-reports.export', ['date_from' => '2026-09-30', 'date_to' => '2026-09-01']))
+        ->assertRedirect(route('sales-reports.index'));
 });
 
 test('a date that is not a real date is refused', function () {
