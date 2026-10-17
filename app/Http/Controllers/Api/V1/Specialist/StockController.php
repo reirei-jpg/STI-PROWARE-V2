@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterStockHistoryRequest;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\ProductStock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -46,7 +47,8 @@ class StockController extends Controller
                 'stock_on_hand' => (int) $product->getAttribute('variants_sum_stock_on_hand'),
                 'held_pieces' => (int) $product->getAttribute('variants_sum_held_pieces'),
                 'low_stock_alert_at' => $product->low_stock_alert_at,
-                'is_low' => (bool) $product->getAttribute('has_variant_at_alert'),
+                'is_sold' => LowStockAlerts::isSold($product),
+                'is_low' => LowStockAlerts::isSold($product) && (bool) $product->getAttribute('has_variant_at_alert'),
             ]));
     }
 

@@ -309,6 +309,8 @@ export type StockListProduct = {
     status_label: string;
     stock_on_hand: number;
     low_stock_alert_at: number;
+    /** Available or On Sale; Draft and Preorder items are not out or low. */
+    is_sold: boolean;
     is_low: boolean;
 };
 

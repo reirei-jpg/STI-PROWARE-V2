@@ -228,3 +228,14 @@ test('the stock lookup finds products by name or low stock, and shows the websit
         ->and($app['variants'])->toBe($website['variants'])
         ->and($app['movements']['data'])->toBe($website['movements']['data'])->toHaveCount(1);
 });
+
+test('a preorder product that has not arrived is not called low or out of stock on the phone', function () {
+    $tote = Product::factory()->create(['name' => 'STI Tote Bag', 'status' => ProductStatus::Preorder, 'low_stock_alert_at' => 5]);
+    ProductVariant::factory()->for($tote)->create(['stock_on_hand' => 0]);
+    Sanctum::actingAs(User::factory()->specialist()->create());
+
+    $this->getJson(route('api.v1.specialist.stock.index', ['search' => 'tote']))
+        ->assertJsonPath('data.0.stock_on_hand', 0)
+        ->assertJsonPath('data.0.is_sold', false)
+        ->assertJsonPath('data.0.is_low', false);
+});

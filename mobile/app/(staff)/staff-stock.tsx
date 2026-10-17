@@ -159,7 +159,7 @@ export default function StaffStockScreen() {
 }
 
 function ProductRow({ product }: { product: StockListProduct }) {
-    const out = product.stock_on_hand === 0;
+    const out = product.is_sold && product.stock_on_hand === 0;
 
     return (
         <Pressable
