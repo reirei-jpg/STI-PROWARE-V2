@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, ChevronRight, ImageIcon, Package } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package, Store } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -28,7 +28,8 @@ type Show = 'orders' | 'preorders';
 
 /**
  * My Orders and My Preorders, with a switch between them. My Orders shows
- * Waiting orders (the most urgent pick-up date first) or Past ones, each
+ * Active Orders (the most urgent pick-up date first) or Order History, as
+ * the website names them, each
  * one short row (number, status, total, pick-up date); tapping it opens the
  * order with its issuance slip, items and Cancel.
  */
@@ -38,7 +39,7 @@ export default function OrdersScreen() {
     const params = useLocalSearchParams<{ show?: Show }>();
     const show: Show = params.show === 'preorders' ? 'preorders' : 'orders';
     const setShow = (next: Show): void => router.setParams({ show: next });
-    // My Orders: Waiting (not released yet) first, or Past.
+    // My Orders: Active Orders (not released yet) first, or Order History.
     const [ordersTab, setOrdersTab] = useState<'waiting' | 'past'>('waiting');
     const orders = usePagedList<StudentOrder, { counts: { waiting: number; past: number } }>(
         `/orders?show=${ordersTab}`,
@@ -103,7 +104,7 @@ export default function OrdersScreen() {
                                 <Text
                                     className={`font-sans-bold text-xs ${chosen ? 'text-white' : 'text-slate-600'}`}
                                 >
-                                    {tab === 'waiting' ? 'Waiting' : 'Past'}
+                                    {tab === 'waiting' ? 'Active Orders' : 'Order History'}
                                 </Text>
                                 {count != null && (
                                     <View
@@ -162,7 +163,7 @@ export default function OrdersScreen() {
                 ) : (
                     <EmptyBox
                         icon={<Package size={40} color="#cbd5e1" />}
-                        title={ordersTab === 'waiting' ? 'No orders waiting' : 'No past orders yet'}
+                        title={ordersTab === 'waiting' ? 'No active orders' : 'No order history yet'}
                         text={
                             ordersTab === 'waiting'
                                 ? 'Add items to your cart, then tap Place Order.'
@@ -238,7 +239,7 @@ function preorderNote(preorder: StudentPreorder): { text: string; className: str
 
     if (preorder.status === 'arrived') {
         return {
-            text: `Arrived ${formatDate(preorder.arrived_at)} · order it in the store. It is not held for you.`,
+            text: `Arrived ${formatDate(preorder.arrived_at)}. It is not held for you, so buy it in the store soon.`,
             className: 'font-sans-bold text-emerald-700',
         };
     }
@@ -352,6 +353,17 @@ function PreorderRow({
 
             {error && (
                 <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
+            )}
+
+            {preorder.status === 'arrived' && (
+                <Pressable
+                    onPress={() => router.push(`/product/${preorder.product_id}`)}
+                    accessibilityRole="button"
+                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2.5"
+                >
+                    <Store size={16} color="#ffffff" />
+                    <Text className="font-sans-bold text-sm text-white">Buy it in the store</Text>
+                </Pressable>
             )}
 
             {preorder.can_cancel && (

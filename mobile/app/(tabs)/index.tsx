@@ -13,8 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import ComingSoonBanner from '@/components/ComingSoonBanner';
-import OnSaleCarousel from '@/components/OnSaleCarousel';
+import ProductRow from '@/components/ProductRow';
 import ProductTile from '@/components/ProductTile';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -33,9 +32,10 @@ const SIDE = 16;
 const GAP = 12;
 
 /**
- * Home: the storefront, like the website. Coming Soon (one item at a time),
- * On Sale (one swipeable row), and All Merchandise (newest first, out of stock last) with a
- * search and Available / Out of Stock. More loads as the student scrolls.
+ * Home: the storefront, like the website. Coming Soon (open preorders
+ * first) and On Sale as swipeable rows of full tiles, and All Merchandise
+ * (newest first, out of stock last) with a search and Available / Out of
+ * Stock. More loads as the student scrolls.
  */
 export default function HomeScreen() {
     const insets = useSafeAreaInsets();
@@ -241,10 +241,14 @@ export default function HomeScreen() {
                         they are set for preorder.
                     </EmptyNote>
                 ) : (
-                    <ComingSoonBanner
-                        products={home.coming_soon}
+                    <ProductRow
+                        products={[...home.coming_soon].sort(
+                            (a, b) => Number(b.accepts_preorders) - Number(a.accepts_preorders),
+                        )}
                         width={width - SIDE * 2}
                         onOpen={open}
+                        hintClass="text-amber-700"
+                        hintColor="#b45309"
                     />
                 )}
             </View>
@@ -264,10 +268,12 @@ export default function HomeScreen() {
                         prices.
                     </EmptyNote>
                 ) : (
-                    <OnSaleCarousel
+                    <ProductRow
                         products={home.on_sale}
                         width={width - SIDE * 2 - 24}
                         onOpen={open}
+                        hintClass="text-red-700"
+                        hintColor="#b91c1c"
                     />
                 )}
             </View>
