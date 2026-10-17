@@ -51,7 +51,7 @@ class MaintenanceController extends Controller
     {
         $days = (int) $request->validate(
             ['hold_days' => ['required', 'integer', 'between:'.OrderRules::MIN_HOLD_DAYS.','.OrderRules::MAX_HOLD_DAYS]],
-            ['hold_days.between' => 'Choose 1, 2 or 3 days.', 'hold_days.required' => 'Choose 1, 2 or 3 days.'],
+            ['hold_days.between' => 'Choose 1, 2 or 3 days.', 'hold_days.required' => 'Choose 1, 2 or 3 days.', 'hold_days.integer' => 'Choose 1, 2 or 3 days.'],
         )['hold_days'];
 
         Setting::put(Setting::ORDER_HOLD_DAYS, $days, $request->user());
@@ -70,10 +70,12 @@ class MaintenanceController extends Controller
      */
     public function updateFollowUpDays(Request $request): RedirectResponse
     {
-        $choices = implode(', ', FollowUp::CHOICES);
+        // "14, 21, 30, 45 or 60"
+        $choices = implode(', ', array_slice(FollowUp::CHOICES, 0, -1)).' or '.FollowUp::CHOICES[array_key_last(FollowUp::CHOICES)];
+        $message = "Choose {$choices} days.";
         $days = (int) $request->validate(
             ['follow_up_days' => ['required', 'integer', 'in:'.implode(',', FollowUp::CHOICES)]],
-            ['follow_up_days.in' => "Choose {$choices} days.", 'follow_up_days.required' => "Choose {$choices} days."],
+            ['follow_up_days.in' => $message, 'follow_up_days.required' => $message, 'follow_up_days.integer' => $message],
         )['follow_up_days'];
 
         Setting::put(Setting::DELIVERY_FOLLOW_UP_DAYS, $days, $request->user());
@@ -96,7 +98,7 @@ class MaintenanceController extends Controller
         $max = PromoRules::MAX_GROUP_SIZE;
         $size = (int) $request->validate(
             ['group_size' => ['required', 'integer', "between:{$min},{$max}"]],
-            ['group_size.between' => "Choose {$min} to {$max} students.", 'group_size.required' => "Choose {$min} to {$max} students."],
+            ['group_size.between' => "Choose {$min} to {$max} students.", 'group_size.required' => "Choose {$min} to {$max} students.", 'group_size.integer' => "Choose {$min} to {$max} students."],
         )['group_size'];
 
         Setting::put(Setting::PROMO_GROUP_SIZE, $size, $request->user());

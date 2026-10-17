@@ -285,6 +285,11 @@ function SettingRow({
                     )}
                     Save
                 </button>
+                {!changed && (
+                    <p className="text-center text-xs font-semibold text-slate-500">
+                        Choose a different number to save.
+                    </p>
+                )}
             </form>
         </div>
     );

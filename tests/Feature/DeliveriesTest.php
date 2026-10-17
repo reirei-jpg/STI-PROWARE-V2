@@ -195,7 +195,7 @@ test('the Specialist chooses after how many days orders are followed up', functi
     $this->actingAs($this->specialist);
 
     $this->patch(route('maintenance.follow-up-days'), ['follow_up_days' => 10])
-        ->assertSessionHasErrors(['follow_up_days' => 'Choose 14, 21, 30, 45, 60 days.']);
+        ->assertSessionHasErrors(['follow_up_days' => 'Choose 14, 21, 30, 45 or 60 days.']);
 
     $this->patch(route('maintenance.follow-up-days'), ['follow_up_days' => 14])->assertSessionHasNoErrors();
 

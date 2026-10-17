@@ -139,6 +139,8 @@ test('the Specialist sets how many days new orders hold their items on the Maint
 
     $this->patch(route('maintenance.hold-days'), ['hold_days' => 4])
         ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
+    $this->patch(route('maintenance.hold-days'), ['hold_days' => 'two'])
+        ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
 
     $this->patch(route('maintenance.hold-days'), ['hold_days' => 3])
         ->assertInertiaFlash('toast.message', 'New orders now hold their items for 3 days. Orders already placed keep their pick-up date.');
