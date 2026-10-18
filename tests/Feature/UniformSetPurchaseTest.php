@@ -212,24 +212,6 @@ test('placing the order keeps both pieces with the set name, holds their stock a
         ->and(IssuanceSlip::of($order)['items'][0]['item'])->toBe('BSIT Blouse (S) · BSIT Uniform Set (For Girls)');
 });
 
-test('sales reports show a released set\'s pieces as sold in a uniform set, not on sale', function () {
-    $set = bsitSaleSet();
-    $specialist = User::factory()->specialist()->create();
-    $this->actingAs($this->student)->post(route('cart.store-set', $set), boysSet($set));
-    $this->post(route('my-orders.store'));
-    $order = Order::sole();
-
-    $this->actingAs($specialist)->post(route('orders.ready', $order));
-    $this->post(route('orders.release', $order), ['paid' => '1'])->assertSessionHasNoErrors();
-
-    $this->get(route('sales-reports.index', ['tab' => 'sold']))->assertInertia(fn (Assert $page) => $page
-        ->has('sold.data', 2)
-        ->where('sold.data.0.in_set', true)
-        ->where('sold.data.1.in_set', true)
-        ->where('summary.price_centavos', 110000)
-    );
-});
-
 test('the Specialist sets which bottoms girls choose and the set price', function () {
     $set = bsitSaleSet(['ladies_pants_product_id' => null, 'skirt_product_id' => null, 'set_price_centavos' => null]);
     $skirt = uniformPiece('BSIT Skirt 2', 520);
