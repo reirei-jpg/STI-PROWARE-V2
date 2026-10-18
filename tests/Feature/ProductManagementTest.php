@@ -171,6 +171,29 @@ test('two products cannot have the same name, but an older duplicate keeps its n
         ->assertSessionHasNoErrors();
 });
 
+test('a product name is saved in one style: capitalized words, school abbreviations in capitals', function (string $typed, string $saved) {
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->post(route('products.store'), productForm(['name' => $typed]))->assertSessionHasNoErrors();
+
+    expect(Product::query()->sole()->name)->toBe($saved);
+})->with([
+    'all capitals' => ['43 STI SHIRT', '43 STI Shirt'],
+    'a lowercase word' => ['Student Information form', 'Student Information Form'],
+    'all lowercase with a program code' => ['  bsit   polo  ', 'BSIT Polo'],
+    'small joining words' => ['SET OF PENS FOR STI', 'Set of Pens for STI'],
+    'digits and mixed capitals kept' => ['42nd AquaFlask Bottle', '42nd AquaFlask Bottle'],
+    'hyphen and brackets' => ['chibi keychain - it (FEMALE)', 'Chibi Keychain - IT (Female)'],
+]);
+
+test('a name that only differs in capitals from another product is refused', function () {
+    Product::factory()->create(['name' => 'STI Mug']);
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->post(route('products.store'), productForm(['name' => 'STI  MUG']))
+        ->assertSessionHasErrors(['name' => 'There is already a product named "STI Mug". Use another name, or edit that product.']);
+});
+
 test('the form explains what is wrong', function (array $overrides, string $field, string $message) {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('products.store'), productForm($overrides))

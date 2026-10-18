@@ -32,7 +32,6 @@ class DemoStorefrontSeeder extends Seeder
         ['name' => 'STI Tote Bag', 'price' => 18000, 'color' => [245, 158, 11]],
         ['name' => 'STI Cap', 'price' => 22000, 'colors' => ['Blue', 'Yellow'], 'color' => [30, 64, 175]],
         ['name' => 'STI Notebook Set', 'price' => 12000, 'color' => [5, 150, 105]],
-        ['name' => 'STI Mug', 'price' => 20000, 'color' => [124, 58, 237]],
     ];
 
     /**

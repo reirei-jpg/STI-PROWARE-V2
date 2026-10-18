@@ -21,7 +21,7 @@ test('the demo products fill coming soon and on sale, and running it again adds 
     $page = $this->get('/')->assertOk();
 
     expect(collect($page->inertiaProps('comingSoon'))->pluck('name')->sort()->values()->all())
-        ->toBe(['42nd Anniversary Shirt', 'Intramurals Jersey', 'STI Cap', 'STI Mug', 'STI Notebook Set', 'STI Tote Bag'])
+        ->toBe(['42nd Anniversary Shirt', 'Intramurals Jersey', 'STI Cap', 'STI Notebook Set', 'STI Tote Bag'])
         ->and(collect($page->inertiaProps('onSale'))->pluck('name')->all())
         ->toBe(['STI Pin Set', 'STI Ballpen', 'STI ID Holder', 'STI Sticker Pack'])
         ->and($existing->refresh()->price_centavos)->toBe(9900)

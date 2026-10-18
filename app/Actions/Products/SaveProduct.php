@@ -11,6 +11,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\PreorderArrived;
 use App\Services\EstorePo\ItemCode;
+use App\Services\Products\ProductName;
 use App\Services\Stock\DeliveredStock;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Http\UploadedFile;
@@ -54,7 +55,7 @@ class SaveProduct
         try {
             DB::transaction(function () use ($product, $request, $status, $soldByPiece, &$newPhotoPaths, &$removedPhotoPaths, &$piecesAdded): void {
                 $product->fill([
-                    'name' => trim((string) $request->input('name')),
+                    'name' => ProductName::tidy((string) $request->input('name')),
                     'sold_by_piece' => $soldByPiece,
                     'price_centavos' => $soldByPiece ? $request->centavos('price') : null,
                     // The sale price and end come from Put on Sale; a product

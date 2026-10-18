@@ -24,6 +24,7 @@ import { formatDateTime, formatPeso } from '@/lib/format';
 import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
 import { variantCombinations } from '@/lib/product-variants';
+import { tidyProductName } from '@/lib/product-name';
 import { cn } from '@/lib/utils';
 import type {
     EditableProduct,
@@ -593,7 +594,7 @@ export default function ProductForm({
         .filter((combination) => data.unavailable.includes(combination.key))
         .map((combination) => combination.label);
     const summary = [
-        data.name.trim() || 'This product',
+        tidyProductName(data.name) || 'This product',
         hasVariants
             ? `${availableCombinations.length} ${availableCombinations.length === 1 ? 'variant' : 'variants'}${
                   unavailableLabels.length === 0
@@ -831,6 +832,16 @@ export default function ProductForm({
                                 aria-invalid={Boolean(errors.name)}
                                 className={inputClasses}
                             />
+                            {data.name.trim() !== '' &&
+                                tidyProductName(data.name) !==
+                                    data.name.trim() && (
+                                    <p className="mt-1.5 text-xs text-slate-500">
+                                        Will be saved as:{' '}
+                                        <span className="font-bold text-slate-700">
+                                            {tidyProductName(data.name)}
+                                        </span>
+                                    </p>
+                                )}
                         </Field>
                     </div>
                 </Panel>

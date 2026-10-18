@@ -8,6 +8,7 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\EstorePo\ItemCode;
+use App\Services\Products\ProductName;
 use App\Services\Products\ProductVariants;
 use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -520,7 +521,8 @@ class SaveProductRequest extends FormRequest
      */
     private function validateUniqueName(Validator $validator): void
     {
-        $name = mb_strtolower(trim((string) $this->input('name')));
+        // Compared as it will be saved (ProductName), ignoring capitals.
+        $name = mb_strtolower(ProductName::tidy((string) $this->input('name')));
         $product = $this->route('product');
         $product = $product instanceof Product ? $product : null;
 
