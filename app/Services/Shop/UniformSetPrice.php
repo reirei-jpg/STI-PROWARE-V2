@@ -8,11 +8,9 @@ use App\Models\UniformSet;
 use Illuminate\Support\Collection;
 
 /**
- * What a uniform set costs a student today: the set price, or what its two
- * pieces cost bought one by one if that is less (e.g. while one is on
- * sale). The price is shared between the top and the bottom by their
- * prices, so each piece keeps its own price in orders and reports and the
- * two always add up to the set price.
+ * What a uniform set costs a student today: what its top and its bottom
+ * cost (a piece on sale makes the set cheaper too). A set is only a way to
+ * buy both at once; each piece keeps its own price in orders and reports.
  */
 final class UniformSetPrice
 {
@@ -24,14 +22,11 @@ final class UniformSetPrice
         $topPrice = ShopPrice::canBuy($top->product) ? ShopPrice::perPiece($top) : null;
         $bottomPrice = ShopPrice::canBuy($bottom->product) ? ShopPrice::perPiece($bottom) : null;
 
-        if ($set->set_price_centavos === null || $topPrice === null || $bottomPrice === null) {
+        if (! $set->sold_as_set || $topPrice === null || $bottomPrice === null) {
             return null;
         }
 
-        $total = min($set->set_price_centavos, $topPrice + $bottomPrice);
-        $topShare = (int) round($total * $topPrice / ($topPrice + $bottomPrice));
-
-        return ['top' => $topShare, 'bottom' => $total - $topShare];
+        return ['top' => $topPrice, 'bottom' => $bottomPrice];
     }
 
     /**

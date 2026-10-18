@@ -123,7 +123,10 @@ export type StorefrontSetPiece = {
 export type StorefrontUniformSet = {
     id: number;
     name: string;
+    /** The lowest a set comes to: its top's price plus its bottom's. */
     price_centavos: number;
+    /** True when sizes or bottoms differ in price ("From ₱1,070"). */
+    price_from: boolean;
     photo_url: string | null;
     options: {
         for: 'boys' | 'girls';

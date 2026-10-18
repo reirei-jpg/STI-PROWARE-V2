@@ -18,8 +18,9 @@ import type { StorefrontUniformSet, StorefrontSetPiece, User } from '@/types';
 
 /**
  * The Uniform Sets section of the storefront: each course's whole uniform
- * at one set price. Buy the Set opens the picker (a signed-out visitor is
- * asked to sign in first). Hidden when no set is for sale.
+ * in one go, at what its top and bottom cost. Buy the Set opens the picker
+ * (a signed-out visitor is asked to sign in first). Hidden when no set is
+ * for sale.
  */
 export default function UniformSetSection({
     sets,
@@ -49,7 +50,7 @@ export default function UniformSetSection({
                         Uniform Sets
                     </h2>
                     <p className="text-sm text-slate-500">
-                        The whole uniform at one price: top and bottom, in your
+                        The whole uniform in one go: top and bottom, in your
                         sizes.
                     </p>
                 </div>
@@ -86,6 +87,11 @@ export default function UniformSetSection({
                                     .join(' · ')}
                             </p>
                             <p className="flex items-baseline gap-1">
+                                {set.price_from && (
+                                    <span className="text-xs text-slate-500">
+                                        From
+                                    </span>
+                                )}
                                 <span className="text-base font-black text-blue-700">
                                     {formatPeso(set.price_centavos)}
                                 </span>
@@ -195,15 +201,11 @@ function SetPicker({
         bottomSize?.stock_pieces ?? MAX_PER_ITEM,
     );
     const quantity = Number(data.quantity) || 0;
-    // One by one, the two pieces may cost less (e.g. while one is on sale).
-    const separately =
+    // A set costs what its top and bottom cost (less while one is on sale).
+    const setPrice =
         topSize?.price_centavos != null && bottomSize?.price_centavos != null
             ? topSize.price_centavos + bottomSize.price_centavos
             : null;
-    const setPrice =
-        separately === null
-            ? set.price_centavos
-            : Math.min(set.price_centavos, separately);
     const missing = [
         !option && 'who it is for',
         option && !topSize && `the ${option.top.kind.toLowerCase()} size`,
@@ -342,26 +344,24 @@ function SetPicker({
                     <InputError message={errors.quantity} />
                 </section>
 
-                <div className="space-y-1 rounded-xl bg-slate-50 px-4 py-3 text-sm">
-                    <p className="flex items-baseline justify-between">
-                        <span className="font-bold text-slate-600">
-                            Set price
-                        </span>
-                        <span className="text-lg font-black text-slate-900">
-                            {formatPeso(setPrice * Math.max(quantity, 1))}
-                        </span>
-                    </p>
-                    {separately !== null && separately > setPrice && (
-                        <p className="text-xs text-emerald-700">
-                            You save{' '}
-                            {formatPeso(
-                                (separately - setPrice) * Math.max(quantity, 1),
-                            )}{' '}
-                            compared with buying them one by one (
-                            {formatPeso(separately)} a set).
+                {setPrice !== null && (
+                    <div className="space-y-1 rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                        <p className="flex items-baseline justify-between">
+                            <span className="font-bold text-slate-600">
+                                Subtotal
+                            </span>
+                            <span className="text-lg font-black text-slate-900">
+                                {formatPeso(setPrice * Math.max(quantity, 1))}
+                            </span>
                         </p>
-                    )}
-                </div>
+                        <p className="text-xs text-slate-500">
+                            {option?.top.kind}{' '}
+                            {formatPeso(topSize?.price_centavos ?? 0)} +{' '}
+                            {bottom?.kind}{' '}
+                            {formatPeso(bottomSize?.price_centavos ?? 0)} a set
+                        </p>
+                    </div>
+                )}
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">

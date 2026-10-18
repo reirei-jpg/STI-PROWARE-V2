@@ -290,7 +290,7 @@ export default function HomeScreen() {
                         icon={<Shirt size={18} color="#ffffff" />}
                         iconClass="bg-brand"
                         title="Uniform Sets"
-                        description="The whole uniform at one price, in your sizes."
+                        description="The whole uniform in one go, in your sizes."
                     />
                     {setNotice && (
                         <View className="mb-3 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
@@ -337,6 +337,9 @@ export default function HomeScreen() {
                                             .join(' · ')}
                                     </Text>
                                     <Text className="font-sans-bold text-sm text-blue-700">
+                                        {set.price_from ? (
+                                            <Text className="font-sans text-xs text-slate-500">From </Text>
+                                        ) : null}
                                         {formatPeso(set.price_centavos)}
                                         <Text className="font-sans text-xs text-slate-500"> / set</Text>
                                     </Text>

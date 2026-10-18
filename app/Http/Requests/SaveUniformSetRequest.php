@@ -11,8 +11,8 @@ use Illuminate\Validation\Validator;
 /**
  * Add or change a course's uniform set: its name (e.g. BSIT), the blouse
  * and / or the polo, and the pants, each a product. To sell it whole to
- * students: the girls' ladies' pants and / or skirt, and the set price
- * (empty: not sold as a set).
+ * students (at what its pieces cost): the girls' ladies' pants and / or
+ * skirt, and Sell this set in the store.
  */
 class SaveUniformSetRequest extends FormRequest
 {
@@ -37,7 +37,7 @@ class SaveUniformSetRequest extends FormRequest
             'pants_product_id' => ['required', 'integer', Rule::exists('products', 'id')],
             'ladies_pants_product_id' => ['nullable', 'integer', Rule::exists('products', 'id')],
             'skirt_product_id' => ['nullable', 'integer', Rule::exists('products', 'id')],
-            'set_price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
+            'sold_as_set' => ['nullable', 'boolean'],
         ];
     }
 
@@ -56,15 +56,13 @@ class SaveUniformSetRequest extends FormRequest
             'pants_product_id.exists' => 'Choose one of the products.',
             'ladies_pants_product_id.exists' => 'Choose one of the products.',
             'skirt_product_id.exists' => 'Choose one of the products.',
-            'set_price.decimal' => 'Enter the set price in pesos, e.g. 1100.',
-            'set_price.gt' => 'The set price must be more than ₱0.',
-            'set_price.max' => 'The set price cannot be more than ₱'.number_format(SaveProductRequest::MAX_PRICE_PESOS, 2).'.',
+            'sold_as_set.boolean' => 'Tick or untick Sell this set in the store.',
         ];
     }
 
     /**
-     * A set needs at least one top: the blouse, the polo, or both. A set
-     * price needs something to sell: the polo (with the pants), or the
+     * A set needs at least one top: the blouse, the polo, or both. Selling
+     * it as a set needs something to sell: the polo (with the pants), or the
      * blouse with the ladies' pants or the skirt.
      *
      * @return array<int, callable(Validator): void>
@@ -77,16 +75,16 @@ class SaveUniformSetRequest extends FormRequest
                     $validator->errors()->add('blouse_product_id', 'Choose the blouse, the polo, or both.');
                 }
 
-                if ($this->filled('set_price') && ! $this->filled('polo_product_id')
+                if ($this->boolean('sold_as_set') && ! $this->filled('polo_product_id')
                     && ! ($this->filled('blouse_product_id') && ($this->filled('ladies_pants_product_id') || $this->filled('skirt_product_id')))) {
-                    $validator->errors()->add('set_price', "To sell the set, choose the polo (for boys), or the blouse with the ladies' pants or the skirt (for girls).");
+                    $validator->errors()->add('sold_as_set', "To sell the set, choose the polo (for boys), or the blouse with the ladies' pants or the skirt (for girls).");
                 }
             },
         ];
     }
 
     /**
-     * @return array{name: string, blouse_product_id: int|null, polo_product_id: int|null, pants_product_id: int, ladies_pants_product_id: int|null, skirt_product_id: int|null, set_price_centavos: int|null}
+     * @return array{name: string, blouse_product_id: int|null, polo_product_id: int|null, pants_product_id: int, ladies_pants_product_id: int|null, skirt_product_id: int|null, sold_as_set: bool}
      */
     public function values(): array
     {
@@ -97,7 +95,7 @@ class SaveUniformSetRequest extends FormRequest
             'pants_product_id' => $this->integer('pants_product_id'),
             'ladies_pants_product_id' => $this->filled('ladies_pants_product_id') ? $this->integer('ladies_pants_product_id') : null,
             'skirt_product_id' => $this->filled('skirt_product_id') ? $this->integer('skirt_product_id') : null,
-            'set_price_centavos' => $this->filled('set_price') ? SaveProductRequest::toCentavos((string) $this->input('set_price')) : null,
+            'sold_as_set' => $this->boolean('sold_as_set'),
         ];
     }
 }

@@ -287,7 +287,7 @@ function Step({ number, children }: { number: number; children: ReactNode }) {
 
 /**
  * One item, or one uniform set (its top and bottom shown together, at the
- * set price, changed and removed as one).
+ * price of the two, changed and removed as one).
  */
 function CartLineRow({ row }: { row: CartRow }) {
     const line = row.line;

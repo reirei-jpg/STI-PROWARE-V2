@@ -16,9 +16,9 @@ use Illuminate\Support\Carbon;
  * One course's uniform set, e.g. "BSIT": a top (the blouse for female
  * students, the polo for male students) and the pants, each a product with
  * its own eStore Item Code and sizes. Set up once by the Specialist. It is
- * given free to new students (Free Uniforms), and with a set price students
- * can buy it whole: for boys the polo and pants, for girls the blouse and
- * the ladies' pants or the skirt.
+ * given free to new students (Free Uniforms), and when sold as a set
+ * students can buy it whole, at what its two pieces cost: for boys the polo
+ * and pants, for girls the blouse and the ladies' pants or the skirt.
  *
  * @property int $id
  * @property string $name
@@ -27,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $pants_product_id
  * @property int|null $ladies_pants_product_id
  * @property int|null $skirt_product_id
- * @property int|null $set_price_centavos what students pay for a whole set; null: not sold as a set
+ * @property bool $sold_as_set students can buy it whole in the store
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Product|null $blouseProduct
@@ -36,7 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read Product|null $ladiesPantsProduct
  * @property-read Product|null $skirtProduct
  */
-#[Fillable(['name', 'blouse_product_id', 'polo_product_id', 'pants_product_id', 'ladies_pants_product_id', 'skirt_product_id', 'set_price_centavos'])]
+#[Fillable(['name', 'blouse_product_id', 'polo_product_id', 'pants_product_id', 'ladies_pants_product_id', 'skirt_product_id', 'sold_as_set'])]
 class UniformSet extends Model
 {
     /** @use HasFactory<UniformSetFactory> */
@@ -48,7 +48,7 @@ class UniformSet extends Model
     protected function casts(): array
     {
         return [
-            'set_price_centavos' => 'integer',
+            'sold_as_set' => 'boolean',
         ];
     }
 
@@ -129,12 +129,12 @@ class UniformSet extends Model
     }
 
     /**
-     * Whether students can buy it as a set for boys or girls: it has a set
-     * price, a top and at least one bottom.
+     * Whether students can buy it as a set for boys or girls: it is sold as
+     * a set, with a top and at least one bottom.
      */
     public function sellsFor(UniformSetFor $for): bool
     {
-        return $this->set_price_centavos !== null
+        return $this->sold_as_set
             && $this->topForSale($for) !== null
             && $this->bottomsForSale($for) !== [];
     }

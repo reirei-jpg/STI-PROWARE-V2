@@ -57,12 +57,11 @@ export default function UniformSetSheet({
     const bottomSize = bottom?.sizes.find((size) => size.variant_id === bottomId);
     const most = Math.min(99, topSize?.stock_pieces ?? 99, bottomSize?.stock_pieces ?? 99);
     const quantity = Number(quantityText) || 0;
-    const separately =
+    // A set costs what its top and bottom cost (less while one is on sale).
+    const setPrice =
         topSize?.price_centavos != null && bottomSize?.price_centavos != null
             ? topSize.price_centavos + bottomSize.price_centavos
             : null;
-    const setPrice =
-        set === null ? 0 : separately === null ? set.price_centavos : Math.min(set.price_centavos, separately);
     const missing = [
         !option && 'who it is for',
         option && !topSize && `the ${option.top.kind.toLowerCase()} size`,
@@ -115,7 +114,7 @@ export default function UniformSetSheet({
                 >
                     {saving ? <ActivityIndicator color="#ffffff" /> : <Shirt size={18} color="#ffffff" />}
                     <Text className="font-sans-bold text-base text-white">
-                        {missing.length === 0 && quantity > 0
+                        {missing.length === 0 && quantity > 0 && setPrice !== null
                             ? `Add Set to Cart · ${formatPeso(setPrice * quantity)}`
                             : 'Add Set to Cart'}
                     </Text>
@@ -201,10 +200,10 @@ export default function UniformSetSheet({
                 )}
             </View>
 
-            {set && separately !== null && separately > setPrice && (
-                <Text className="font-sans-semibold text-xs text-emerald-700">
-                    You save {formatPeso((separately - setPrice) * Math.max(quantity, 1))} compared with
-                    buying them one by one ({formatPeso(separately)} a set).
+            {setPrice !== null && option && bottom && (
+                <Text className="font-sans text-xs text-slate-500">
+                    {option.top.kind} {formatPeso(topSize?.price_centavos ?? 0)} + {bottom.kind}{' '}
+                    {formatPeso(bottomSize?.price_centavos ?? 0)} a set
                 </Text>
             )}
 

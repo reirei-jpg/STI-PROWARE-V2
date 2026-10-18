@@ -40,7 +40,7 @@ function uniformPiece(string $name, int $pesos, array $stock = ['S' => 5, 'M' =>
 }
 
 /**
- * The BSIT set sold at ₱1,100: Polo ₱550 and Pants ₱580 for boys, Blouse
+ * The BSIT set sold as a set: Polo ₱550 and Pants ₱580 for boys, Blouse
  * ₱550 with Ladies' Pants ₱580 or Skirt ₱520 for girls.
  */
 function bsitSaleSet(array $overrides = []): UniformSet
@@ -52,7 +52,7 @@ function bsitSaleSet(array $overrides = []): UniformSet
         'blouse_product_id' => uniformPiece('BSIT Blouse', 550)->id,
         'ladies_pants_product_id' => uniformPiece("BSIT Ladies' Pants", 580)->id,
         'skirt_product_id' => uniformPiece('BSIT Skirt', 520)->id,
-        'set_price_centavos' => 110000,
+        'sold_as_set' => true,
         ...$overrides,
     ]);
 }
@@ -77,20 +77,22 @@ function boysSet(UniformSet $set, string $top = 'M', string $bottom = 'S', strin
 
 test('the storefront shows the sets that are for sale, with what boys and girls get', function () {
     $set = bsitSaleSet();
-    UniformSet::factory()->create(['name' => 'BSHM', 'set_price_centavos' => null]);
+    UniformSet::factory()->create(['name' => 'BSHM', 'sold_as_set' => false]);
     UniformSet::factory()->create([
         'name' => 'Senior High',
         'polo_product_id' => uniformPiece('Senior High Polo', 550)->id,
         'pants_product_id' => uniformPiece('Senior High Pants', 580)->id,
         'blouse_product_id' => uniformPiece('Senior High Blouse', 550)->id,
         'skirt_product_id' => uniformPiece('Senior High Skirt', 520)->id,
-        'set_price_centavos' => 110000,
+        'sold_as_set' => true,
     ]);
 
     $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
         ->has('uniformSets', 2)
         ->where('uniformSets.0.name', 'BSIT Uniform Set')
-        ->where('uniformSets.0.price_centavos', 110000)
+        // The lowest a set comes to: Blouse ₱550 + Skirt ₱520.
+        ->where('uniformSets.0.price_centavos', 107000)
+        ->where('uniformSets.0.price_from', true)
         ->where('uniformSets.0.options.0.label', 'For Boys')
         ->where('uniformSets.0.options.0.top.kind', 'Polo')
         ->where('uniformSets.0.options.0.bottoms.0.kind', 'Pants')
@@ -105,7 +107,7 @@ test('the storefront shows the sets that are for sale, with what boys and girls 
     );
 });
 
-test('a student adds a set: its top and bottom go in as one, at the set price', function () {
+test('a student adds a set: its top and bottom go in as one, at what the two cost', function () {
     $set = bsitSaleSet();
     $this->actingAs($this->student);
 
@@ -123,17 +125,16 @@ test('a student adds a set: its top and bottom go in as one, at the set price', 
 
     $this->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page
         ->where('selected_count', 1)
-        // ₱1,100 shared by price: ₱550 / (₱550 + ₱580) → ₱535.40 and ₱564.60.
-        ->where('lines.0.unit_price_centavos', 53540)
-        ->where('lines.1.unit_price_centavos', 56460)
+        ->where('lines.0.unit_price_centavos', 55000)
+        ->where('lines.1.unit_price_centavos', 58000)
         ->where('lines.0.set.name', 'BSIT Uniform Set')
         ->where('lines.0.set.for_label', 'For Boys')
-        ->where('lines.0.set.price_centavos', 110000)
-        ->where('total_centavos', 330000)
+        ->where('lines.0.set.price_centavos', 113000)
+        ->where('total_centavos', 339000)
     );
 });
 
-test('the set costs what its pieces cost one by one when that is less', function () {
+test('a set is cheaper while one of its pieces is on sale', function () {
     $set = bsitSaleSet();
     Product::query()->whereKey($set->polo_product_id)->update(['status' => ProductStatus::OnSale, 'sale_price_centavos' => 40000]);
     $this->actingAs($this->student)->post(route('cart.store-set', $set), boysSet($set));
@@ -161,8 +162,8 @@ test('a set can only have the sizes of its own pieces, for boys or girls', funct
     'none' => [fn (UniformSet $set) => boysSet($set, quantity: '0'), 'quantity', 'The quantity must be at least 1.'],
 ]);
 
-test('a set without a set price cannot be bought', function () {
-    $set = bsitSaleSet(['set_price_centavos' => null]);
+test('a set not sold as a set cannot be bought', function () {
+    $set = bsitSaleSet(['sold_as_set' => false]);
 
     $this->actingAs($this->student)
         ->post(route('cart.store-set', $set), boysSet($set))
@@ -187,7 +188,7 @@ test('changing, ticking and removing a set does both its lines', function () {
     expect(CartItem::count())->toBe(0);
 });
 
-test('placing the order keeps both pieces with the set name, holds their stock and adds up to the set price', function () {
+test('placing the order keeps both pieces at their own price with the set name, and holds their stock', function () {
     $set = bsitSaleSet();
     $this->actingAs($this->student)->post(route('cart.store-set', $set), [
         'for' => 'girls',
@@ -199,12 +200,12 @@ test('placing the order keeps both pieces with the set name, holds their stock a
     $this->post(route('my-orders.store'), ['section' => 'BSIT 1-A'])->assertSessionHasNoErrors();
 
     $order = Order::sole();
-    expect($order->total_centavos)->toBe(220000)
+    expect($order->total_centavos)->toBe(226000)
         ->and($order->items)->toHaveCount(2)
         ->and($order->items->pluck('set_name')->unique()->all())->toBe(['BSIT Uniform Set (For Girls)'])
         ->and($order->items->map(fn (OrderItem $item): array => [$item->product_name, $item->quantity, $item->line_total_centavos, $item->normal_unit_price_centavos])->all())->toBe([
-            ['BSIT Blouse', 2, 107080, 55000],
-            ["BSIT Ladies' Pants", 2, 112920, 58000],
+            ['BSIT Blouse', 2, 110000, 55000],
+            ["BSIT Ladies' Pants", 2, 116000, 58000],
         ])
         ->and(pieceSize($set->blouse_product_id, 'S')->held_pieces)->toBe(2)
         ->and(pieceSize($set->ladies_pants_product_id, 'M')->held_pieces)->toBe(2)
@@ -212,8 +213,26 @@ test('placing the order keeps both pieces with the set name, holds their stock a
         ->and(IssuanceSlip::of($order)['items'][0]['item'])->toBe('BSIT Blouse (S) · BSIT Uniform Set (For Girls)');
 });
 
-test('the Specialist sets which bottoms girls choose and the set price', function () {
-    $set = bsitSaleSet(['ladies_pants_product_id' => null, 'skirt_product_id' => null, 'set_price_centavos' => null]);
+test('sales reports show a released set\'s pieces at their own price, not as a sale', function () {
+    $set = bsitSaleSet();
+    $specialist = User::factory()->specialist()->create();
+    $this->actingAs($this->student)->post(route('cart.store-set', $set), boysSet($set));
+    $this->post(route('my-orders.store'));
+    $order = Order::sole();
+
+    $this->actingAs($specialist)->post(route('orders.ready', $order));
+    $this->post(route('orders.release', $order), ['paid' => '1'])->assertSessionHasNoErrors();
+
+    $this->get(route('sales-reports.index', ['tab' => 'sold']))->assertInertia(fn (Assert $page) => $page
+        ->has('sold.data', 2)
+        ->where('sold.data.0.normal_each_centavos', null)
+        ->where('sold.data.1.normal_each_centavos', null)
+        ->where('summary.price_centavos', 113000)
+    );
+});
+
+test('the Specialist chooses which bottoms girls get and whether the set is sold', function () {
+    $set = bsitSaleSet(['ladies_pants_product_id' => null, 'skirt_product_id' => null, 'sold_as_set' => false]);
     $skirt = uniformPiece('BSIT Skirt 2', 520);
 
     $this->actingAs(User::factory()->specialist()->create())
@@ -224,31 +243,26 @@ test('the Specialist sets which bottoms girls choose and the set price', functio
             'pants_product_id' => $set->pants_product_id,
             'ladies_pants_product_id' => '',
             'skirt_product_id' => $skirt->id,
-            'set_price' => '1100',
+            'sold_as_set' => '1',
         ])
         ->assertSessionHasNoErrors();
 
-    expect($set->refresh())->skirt_product_id->toBe($skirt->id)->set_price_centavos->toBe(110000);
+    expect($set->refresh())->skirt_product_id->toBe($skirt->id)->sold_as_set->toBeTrue();
 });
 
-test('the set price must be a price, and needs something to sell', function (array $changes, string $message) {
+test('a set sold in the store needs something to sell', function () {
     $set = bsitSaleSet();
 
     $this->actingAs(User::factory()->specialist()->create())
         ->put(route('uniform-sets.update', $set), [
             'name' => 'BSIT',
             'blouse_product_id' => $set->blouse_product_id,
-            'polo_product_id' => $set->polo_product_id,
+            'polo_product_id' => '',
             'pants_product_id' => $set->pants_product_id,
-            'set_price' => '1100',
-            ...$changes,
+            'sold_as_set' => '1',
         ])
-        ->assertSessionHasErrors(['set_price' => $message]);
-})->with([
-    'not a price' => [['set_price' => 'abc'], 'Enter the set price in pesos, e.g. 1100.'],
-    'zero' => [['set_price' => '0'], 'The set price must be more than ₱0.'],
-    'no polo, and a blouse with no bottom' => [['polo_product_id' => ''], "To sell the set, choose the polo (for boys), or the blouse with the ladies' pants or the skirt (for girls)."],
-]);
+        ->assertSessionHasErrors(['sold_as_set' => "To sell the set, choose the polo (for boys), or the blouse with the ladies' pants or the skirt (for girls)."]);
+});
 
 test('the phone app shows the sets and adds one to the cart', function () {
     $set = bsitSaleSet();

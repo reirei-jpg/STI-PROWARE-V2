@@ -10,8 +10,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { formatPeso } from '@/lib/format';
-import { priceInput } from '@/lib/number-input';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { UniformSetOption } from '@/types';
 
 type SetForm = {
@@ -21,7 +20,7 @@ type SetForm = {
     pants_product_id: string;
     ladies_pants_product_id: string;
     skirt_product_id: string;
-    set_price: string;
+    sold_as_set: boolean;
 };
 
 const inputClasses =
@@ -30,9 +29,9 @@ const inputClasses =
 /**
  * The uniform sets, one per course: what its free set is made of (the
  * blouse and / or polo, and the pants), each an existing product with its
- * own eStore Item Code and sizes. With a set price, students can also buy
- * it whole in the store (girls choose the ladies' pants or the skirt). Add
- * a set, or change one.
+ * own eStore Item Code and sizes. Sold as a set, students can also buy it
+ * whole in the store, at what its pieces cost (girls choose the ladies'
+ * pants or the skirt). Add a set, or change one.
  */
 export default function UniformSetsDialog({
     open,
@@ -131,11 +130,11 @@ export default function UniformSetsDialog({
                                                 </p>
                                             )}
                                             <p
-                                                className={`mt-1 text-xs font-bold ${set.set_price_centavos === null ? 'text-slate-400' : 'text-blue-700'}`}
+                                                className={`mt-1 text-xs font-bold ${set.sold_as_set ? 'text-blue-700' : 'text-slate-400'}`}
                                             >
-                                                {set.set_price_centavos === null
-                                                    ? 'Not sold as a set in the store'
-                                                    : `Sold in the store at ${formatPeso(set.set_price_centavos)} a set`}
+                                                {set.sold_as_set
+                                                    ? 'Sold as a set in the store'
+                                                    : 'Not sold as a set in the store'}
                                             </p>
                                             <p className="mt-1 text-xs text-slate-400">
                                                 Given to {set.students_count}{' '}
@@ -194,15 +193,12 @@ function SetEditor({
             ? String(set.ladies_pants.product_id)
             : '',
         skirt_product_id: set?.skirt ? String(set.skirt.product_id) : '',
-        set_price:
-            set?.set_price_centavos != null
-                ? String(set.set_price_centavos / 100)
-                : '',
+        sold_as_set: set?.sold_as_set ?? false,
     });
     const { data, setData, errors, processing } = form;
 
     const productSelect = (
-        field: keyof Omit<SetForm, 'name' | 'set_price'>,
+        field: keyof Omit<SetForm, 'name' | 'sold_as_set'>,
         label: string,
         hint: string,
     ) => (
@@ -270,16 +266,28 @@ function SetEditor({
             {productSelect('pants_product_id', 'Pants', 'Choose the pants…')}
 
             <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
-                <div>
-                    <p className="text-sm font-black text-slate-900">
-                        Sell the whole set in the store
-                    </p>
-                    <p className="text-xs leading-5 text-slate-500">
-                        Boys get the polo and pants. Girls get the blouse and
-                        the ladies' pants or the skirt. Leave the price empty to
-                        not sell it as a set.
-                    </p>
-                </div>
+                <label className="flex cursor-pointer items-start gap-3">
+                    <Checkbox
+                        checked={data.sold_as_set}
+                        onCheckedChange={(checked) =>
+                            setData('sold_as_set', checked === true)
+                        }
+                        aria-invalid={Boolean(errors.sold_as_set)}
+                        className="mt-0.5 size-5"
+                    />
+                    <span>
+                        <span className="block text-sm font-black text-slate-900">
+                            Sell this set in the store
+                        </span>
+                        <span className="block text-xs leading-5 text-slate-500">
+                            Students can buy the top and bottom together, at
+                            what the two cost. Boys get the polo and pants;
+                            girls get the blouse and the ladies' pants or the
+                            skirt.
+                        </span>
+                    </span>
+                </label>
+                <InputError message={errors.sold_as_set} />
                 {productSelect(
                     'ladies_pants_product_id',
                     "Ladies' Pants (for girls)",
@@ -290,22 +298,6 @@ function SetEditor({
                     'Skirt (for girls)',
                     'No skirt',
                 )}
-                <label className="grid gap-1.5">
-                    <span className="text-sm font-black text-slate-700">
-                        Set price (₱)
-                    </span>
-                    <input
-                        value={data.set_price}
-                        onChange={(event) =>
-                            setData('set_price', priceInput(event.target.value))
-                        }
-                        inputMode="decimal"
-                        placeholder="e.g. 1100"
-                        aria-invalid={Boolean(errors.set_price)}
-                        className={`${inputClasses} aria-invalid:border-red-400 aria-invalid:ring-2 aria-invalid:ring-red-100`}
-                    />
-                    <InputError message={errors.set_price} />
-                </label>
             </div>
 
             <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">

@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 /**
  * The Uniform Sets section of the storefront (website and phone app): each
- * course's set students can buy whole, at its set price. For boys: the polo
+ * course's set students can buy whole, at what its pieces cost. For boys: the polo
  * and the pants; for girls: the blouse and the ladies' pants or the skirt.
  * Each piece lists its sizes with what is left, so the picker can offer
  * only sizes in stock (a sold-out size is preordered on the item itself).
@@ -21,14 +21,15 @@ use Illuminate\Support\Collection;
 final class StorefrontUniformSets
 {
     /**
-     * Sets with a set price whose pieces can be bought now, by name.
+     * Sets sold as a set whose pieces can be bought now, by name, with the
+     * lowest price a set comes to (price_from when sizes or bottoms differ).
      *
-     * @return list<array{id: int, name: string, price_centavos: int, photo_url: string|null, options: list<array{for: string, label: string, top: SetPiece, bottoms: list<SetPiece>}>}>
+     * @return list<array{id: int, name: string, price_centavos: int, price_from: bool, photo_url: string|null, options: list<array{for: string, label: string, top: SetPiece, bottoms: list<SetPiece>}>}>
      */
     public static function all(): array
     {
         $sets = UniformSet::query()
-            ->whereNotNull('set_price_centavos')
+            ->where('sold_as_set', true)
             ->orderBy('name')
             ->get();
         $products = Product::query()
@@ -57,11 +58,13 @@ final class StorefrontUniformSets
             }
 
             $photoProduct = $products->get($set->polo_product_id) ?? $products->get($set->blouse_product_id);
+            $totals = self::totals($options);
 
             $shown[] = [
                 'id' => $set->id,
                 'name' => $set->displayName(),
-                'price_centavos' => (int) $set->set_price_centavos,
+                'price_centavos' => min($totals),
+                'price_from' => min($totals) !== max($totals),
                 'photo_url' => $photoProduct?->mainPhoto?->url(),
                 'options' => $options,
             ];
@@ -103,6 +106,30 @@ final class StorefrontUniformSets
                 default => 'Pants',
             }), $bottoms),
         ];
+    }
+
+    /**
+     * What a set can come to: each top price with each bottom price.
+     *
+     * @param  non-empty-list<array{for: string, label: string, top: SetPiece, bottoms: list<SetPiece>}>  $options
+     * @return non-empty-list<int>
+     */
+    private static function totals(array $options): array
+    {
+        $prices = fn (array $piece): array => array_values(array_filter(array_column($piece['sizes'], 'price_centavos'), fn (?int $price): bool => $price !== null));
+        $totals = [];
+
+        foreach ($options as $option) {
+            foreach ($prices($option['top']) as $topPrice) {
+                foreach ($option['bottoms'] as $bottom) {
+                    foreach ($prices($bottom) as $bottomPrice) {
+                        $totals[] = $topPrice + $bottomPrice;
+                    }
+                }
+            }
+        }
+
+        return $totals === [] ? [0] : $totals;
     }
 
     /**

@@ -24,8 +24,8 @@ use Illuminate\Validation\ValidationException;
  * pieces for the order (they stay on the shelf until the Specialist
  * releases them), removes them from the cart (unticked items stay) and
  * tells the Specialist. The student's course/section is kept for the
- * issuance slip. A uniform set's two pieces are ordered at their share of
- * the set price and keep the set's name.
+ * issuance slip. A uniform set's two pieces are ordered at their own
+ * prices and keep the set's name.
  */
 class PlaceOrder
 {
@@ -62,7 +62,7 @@ class PlaceOrder
                 ->get()
                 ->keyBy('id');
 
-            // The locked variants (fresh stock) for the set prices too.
+            // The locked variants (fresh stock) for the set lines' prices too.
             $cart->each(fn (CartItem $line) => $line->setRelation('variant', $variants->get($line->product_variant_id)));
             $setPrices = UniformSetPrice::forCart($cart);
 
