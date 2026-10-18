@@ -173,7 +173,7 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         ->assertInertia(fn (Assert $page) => $page->where('summary.price_centavos', 0)->where('summary.spent_centavos', 0));
 
     $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-01-to-2026-10-09.csv')->streamedContent();
-    expect($csv)->toContain('"STI Jacket",,Piece,3,200.00,350.00,400.00,1050.00,600.00,450.00,');
+    expect($csv)->toContain('"STI Jacket",,Piece,3,200.00,350.00,400.00,,1050.00,600.00,450.00,');
 });
 
 test('an item put on sale below its Cost shows what was lost', function () {

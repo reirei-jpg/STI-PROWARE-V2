@@ -59,7 +59,7 @@ class SalesReportController extends Controller
 
             // Lets Excel read the file as UTF-8 (₱, ñ).
             fwrite($file, "\xEF\xBB\xBF");
-            fputcsv($file, ['Item', 'Size / Color', 'Unit', 'Quantity Sold', 'Cost Each (PHP)', 'Price Each (PHP)', 'Normal Price Each (PHP)', 'Total Price (PHP)', 'Total Cost (PHP)', 'Profit (PHP)', 'Sold Below Cost'], escape: '');
+            fputcsv($file, ['Item', 'Size / Color', 'Unit', 'Quantity Sold', 'Cost Each (PHP)', 'Price Each (PHP)', 'Normal Price Each (PHP)', 'In a Uniform Set', 'Total Price (PHP)', 'Total Cost (PHP)', 'Profit (PHP)', 'Sold Below Cost'], escape: '');
 
             foreach ($rows as $row) {
                 fputcsv($file, [
@@ -70,6 +70,7 @@ class SalesReportController extends Controller
                     $peso($row['cost_each_centavos']),
                     $peso($row['price_each_centavos']),
                     $peso($row['normal_each_centavos']),
+                    $row['in_set'] ? 'Yes' : '',
                     $peso($row['price_total_centavos']),
                     $peso($row['cost_total_centavos']),
                     $peso($row['profit_centavos']),

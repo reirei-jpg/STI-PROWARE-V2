@@ -49,6 +49,8 @@ export type SoldRow = {
     price_each_centavos: number;
     /** The normal price, when it was sold on sale. */
     normal_each_centavos: number | null;
+    /** Sold as part of a uniform set: its lower price is the set price, not a sale. */
+    in_set: boolean;
     /** Null while its Cost is not set. */
     cost_each_centavos: number | null;
     price_total_centavos: number;

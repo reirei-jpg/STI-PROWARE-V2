@@ -528,14 +528,21 @@ function SoldTableRow({ row }: { row: SoldRow }) {
                     value={row.price_each_centavos}
                     unit={unit}
                     className={
-                        row.normal_each_centavos !== null
-                            ? 'text-red-600'
-                            : undefined
+                        row.normal_each_centavos === null
+                            ? undefined
+                            : row.in_set
+                              ? 'text-blue-700'
+                              : 'text-red-600'
                     }
                 />
                 {row.normal_each_centavos !== null && (
-                    <span className="block text-[11px] font-black text-red-600">
-                        On sale ·{' '}
+                    <span
+                        className={cn(
+                            'block text-[11px] font-black',
+                            row.in_set ? 'text-blue-700' : 'text-red-600',
+                        )}
+                    >
+                        {row.in_set ? 'In a uniform set' : 'On sale'} ·{' '}
                         {formatPeso(
                             row.normal_each_centavos - row.price_each_centavos,
                         )}{' '}
