@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AddSetToCartRequest;
 use App\Http\Requests\AddToCartRequest;
 use App\Http\Requests\ChangeCartQuantityRequest;
 use App\Http\Requests\SelectCartItemsRequest;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Models\UniformSet;
 use App\Services\Shop\Cart;
 use App\Services\Shop\CartView;
 use Illuminate\Http\RedirectResponse;
@@ -46,6 +48,25 @@ class CartController extends Controller
         return back();
     }
 
+    /**
+     * Add a uniform set: its top and bottom, with the sizes chosen.
+     */
+    public function storeSet(AddSetToCartRequest $request, UniformSet $uniformSet, Cart $cart): RedirectResponse
+    {
+        $top = $request->top();
+        $bottom = $request->bottom();
+        $quantity = $request->integer('quantity');
+
+        $cart->addSet($request->user(), $uniformSet, $request->for(), $top, $bottom, $quantity);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => Cart::addedSetMessage($uniformSet, $request->for(), $top, $bottom, $quantity),
+        ]);
+
+        return back();
+    }
+
     public function update(ChangeCartQuantityRequest $request, CartItem $cartItem, Cart $cart): RedirectResponse
     {
         abort_unless($cartItem->user_id === $request->user()->id, 404);
@@ -65,11 +86,11 @@ class CartController extends Controller
         return back();
     }
 
-    public function destroy(Request $request, CartItem $cartItem): RedirectResponse
+    public function destroy(Request $request, CartItem $cartItem, Cart $cart): RedirectResponse
     {
         abort_unless($cartItem->user_id === $request->user()->id, 404);
 
-        $cartItem->delete();
+        $cart->remove($cartItem);
 
         return back();
     }

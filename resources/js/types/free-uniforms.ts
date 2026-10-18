@@ -20,6 +20,11 @@ export type UniformSetOption = {
     blouse: UniformSetPiece | null;
     polo: UniformSetPiece | null;
     pants: UniformSetPiece | null;
+    /** For girls buying the whole set. */
+    ladies_pants: UniformSetPiece | null;
+    skirt: UniformSetPiece | null;
+    /** What students pay for the whole set; null: not sold as a set. */
+    set_price_centavos: number | null;
     students_count: number;
 };
 

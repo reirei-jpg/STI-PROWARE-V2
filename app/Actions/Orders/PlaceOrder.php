@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\OrderPlaced;
 use App\Services\Shop\OrderRules;
 use App\Services\Shop\ShopPrice;
+use App\Services\Shop\UniformSetPrice;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -23,7 +24,8 @@ use Illuminate\Validation\ValidationException;
  * pieces for the order (they stay on the shelf until the Specialist
  * releases them), removes them from the cart (unticked items stay) and
  * tells the Specialist. The student's course/section is kept for the
- * issuance slip.
+ * issuance slip. A uniform set's two pieces are ordered at their share of
+ * the set price and keep the set's name.
  */
 class PlaceOrder
 {
@@ -44,7 +46,7 @@ class PlaceOrder
         }
 
         $order = DB::transaction(function () use ($student, $section): Order {
-            $cart = $student->cartItems()->where('selected', true)->with(['variant.product', 'pack.product'])->orderBy('id')->get();
+            $cart = $student->cartItems()->where('selected', true)->with(['variant.product', 'pack.product', 'uniformSet'])->orderBy('id')->get();
 
             if ($cart->isEmpty()) {
                 throw ValidationException::withMessages(['cart' => $student->cartItems()->exists()
@@ -60,7 +62,11 @@ class PlaceOrder
                 ->get()
                 ->keyBy('id');
 
-            $this->ensureCanBeOrdered($cart->all(), $variants->all());
+            // The locked variants (fresh stock) for the set prices too.
+            $cart->each(fn (CartItem $line) => $line->setRelation('variant', $variants->get($line->product_variant_id)));
+            $setPrices = UniformSetPrice::forCart($cart);
+
+            $this->ensureCanBeOrdered($cart->all(), $variants->all(), $setPrices);
 
             $order = $student->orders()->create([
                 'student_section' => $section ?? $student->section,
@@ -75,7 +81,7 @@ class PlaceOrder
             foreach ($cart as $line) {
                 /** @var ProductVariant $variant */
                 $variant = $variants->get($line->product_variant_id);
-                $unitPrice = (int) ShopPrice::perUnit($variant, $line->pack);
+                $unitPrice = (int) ($line->set_key === null ? ShopPrice::perUnit($variant, $line->pack) : $setPrices[$line->id]);
                 $piecesPerUnit = $line->pack->pieces ?? 1;
 
                 $item = $order->items()->create([
@@ -83,6 +89,10 @@ class PlaceOrder
                     'product_variant_id' => $variant->id,
                     'product_name' => $variant->product->name,
                     'variant_label' => $variant->choices === [] ? null : $variant->label(),
+                    'set_name' => $line->set_key === null || $line->uniformSet === null || $line->set_for === null
+                        ? null
+                        : "{$line->uniformSet->displayName()} ({$line->set_for->label()})",
+                    'set_key' => $line->set_key,
                     'unit_name' => $line->pack->name ?? 'Piece',
                     'pieces_per_unit' => $piecesPerUnit,
                     'quantity' => $line->quantity,
@@ -124,19 +134,26 @@ class PlaceOrder
     }
 
     /**
-     * Every item must still be for sale at a price, and the pieces asked for
-     * each size or color must be free to sell (not held for other orders).
+     * Every item must still be for sale at a price (a set as a whole, with
+     * both its pieces ticked), and the pieces asked for each size or color
+     * must be free to sell (not held for other orders).
      *
      * @param  array<int, CartItem>  $cart
      * @param  array<int, ProductVariant>  $variants  locked, by id
+     * @param  array<int, int|null>  $setPrices  today's price per piece of set lines, by line id
      */
-    private function ensureCanBeOrdered(array $cart, array $variants): void
+    private function ensureCanBeOrdered(array $cart, array $variants, array $setPrices): void
     {
         $piecesWanted = [];
+        $linesPerSet = collect($cart)->whereNotNull('set_key')->countBy('set_key');
 
         foreach ($cart as $line) {
             $variant = $variants[$line->product_variant_id];
             $name = $variant->displayName();
+
+            if ($line->set_key !== null && (($setPrices[$line->id] ?? null) === null || $linesPerSet->get($line->set_key) !== 2)) {
+                throw ValidationException::withMessages(['cart' => ($line->uniformSet?->displayName() ?? 'A uniform set').' is no longer for sale as it is. Remove it from your cart.']);
+            }
 
             if (! ShopPrice::canBuy($variant->product) || ShopPrice::perUnit($variant, $line->pack) === null) {
                 throw ValidationException::withMessages(['cart' => "{$name} is no longer for sale. Remove it from your cart."]);

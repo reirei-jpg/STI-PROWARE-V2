@@ -10,6 +10,8 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { formatPeso } from '@/lib/format';
+import { priceInput } from '@/lib/number-input';
 import type { UniformSetOption } from '@/types';
 
 type SetForm = {
@@ -17,6 +19,9 @@ type SetForm = {
     blouse_product_id: string;
     polo_product_id: string;
     pants_product_id: string;
+    ladies_pants_product_id: string;
+    skirt_product_id: string;
+    set_price: string;
 };
 
 const inputClasses =
@@ -25,7 +30,9 @@ const inputClasses =
 /**
  * The uniform sets, one per course: what its free set is made of (the
  * blouse and / or polo, and the pants), each an existing product with its
- * own eStore Item Code and sizes. Add a set, or change one.
+ * own eStore Item Code and sizes. With a set price, students can also buy
+ * it whole in the store (girls choose the ladies' pants or the skirt). Add
+ * a set, or change one.
  */
 export default function UniformSetsDialog({
     open,
@@ -110,6 +117,26 @@ export default function UniformSetsDialog({
                                                 Pants:{' '}
                                                 {set.pants?.product_name ?? '—'}
                                             </p>
+                                            {(set.ladies_pants ||
+                                                set.skirt) && (
+                                                <p className="text-slate-600">
+                                                    For girls buying the set:{' '}
+                                                    {[
+                                                        set.ladies_pants
+                                                            ?.product_name,
+                                                        set.skirt?.product_name,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' or ')}
+                                                </p>
+                                            )}
+                                            <p
+                                                className={`mt-1 text-xs font-bold ${set.set_price_centavos === null ? 'text-slate-400' : 'text-blue-700'}`}
+                                            >
+                                                {set.set_price_centavos === null
+                                                    ? 'Not sold as a set in the store'
+                                                    : `Sold in the store at ${formatPeso(set.set_price_centavos)} a set`}
+                                            </p>
                                             <p className="mt-1 text-xs text-slate-400">
                                                 Given to {set.students_count}{' '}
                                                 {set.students_count === 1
@@ -145,7 +172,10 @@ export default function UniformSetsDialog({
     );
 }
 
-/** Add a set, or change one: its course name and its three products. */
+/**
+ * Add a set, or change one: its course name, its products, and the price
+ * students pay for the whole set in the store.
+ */
 function SetEditor({
     set,
     products,
@@ -160,11 +190,19 @@ function SetEditor({
         blouse_product_id: set?.blouse ? String(set.blouse.product_id) : '',
         polo_product_id: set?.polo ? String(set.polo.product_id) : '',
         pants_product_id: set?.pants ? String(set.pants.product_id) : '',
+        ladies_pants_product_id: set?.ladies_pants
+            ? String(set.ladies_pants.product_id)
+            : '',
+        skirt_product_id: set?.skirt ? String(set.skirt.product_id) : '',
+        set_price:
+            set?.set_price_centavos != null
+                ? String(set.set_price_centavos / 100)
+                : '',
     });
     const { data, setData, errors, processing } = form;
 
     const productSelect = (
-        field: keyof Omit<SetForm, 'name'>,
+        field: keyof Omit<SetForm, 'name' | 'set_price'>,
         label: string,
         hint: string,
     ) => (
@@ -230,6 +268,45 @@ function SetEditor({
                 'No polo',
             )}
             {productSelect('pants_product_id', 'Pants', 'Choose the pants…')}
+
+            <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                <div>
+                    <p className="text-sm font-black text-slate-900">
+                        Sell the whole set in the store
+                    </p>
+                    <p className="text-xs leading-5 text-slate-500">
+                        Boys get the polo and pants. Girls get the blouse and
+                        the ladies' pants or the skirt. Leave the price empty to
+                        not sell it as a set.
+                    </p>
+                </div>
+                {productSelect(
+                    'ladies_pants_product_id',
+                    "Ladies' Pants (for girls)",
+                    "No ladies' pants",
+                )}
+                {productSelect(
+                    'skirt_product_id',
+                    'Skirt (for girls)',
+                    'No skirt',
+                )}
+                <label className="grid gap-1.5">
+                    <span className="text-sm font-black text-slate-700">
+                        Set price (₱)
+                    </span>
+                    <input
+                        value={data.set_price}
+                        onChange={(event) =>
+                            setData('set_price', priceInput(event.target.value))
+                        }
+                        inputMode="decimal"
+                        placeholder="e.g. 1100"
+                        aria-invalid={Boolean(errors.set_price)}
+                        className={`${inputClasses} aria-invalid:border-red-400 aria-invalid:ring-2 aria-invalid:ring-red-100`}
+                    />
+                    <InputError message={errors.set_price} />
+                </label>
+            </div>
 
             <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
                 Each is a product in Products, with its own eStore Item Code and

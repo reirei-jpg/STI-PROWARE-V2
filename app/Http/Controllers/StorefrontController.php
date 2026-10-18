@@ -6,6 +6,7 @@ use App\Http\Requests\FilterStorefrontRequest;
 use App\Models\Product;
 use App\Services\Storefront\StorefrontFeed;
 use App\Services\Storefront\StorefrontProduct;
+use App\Services\Storefront\StorefrontUniformSets;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,6 +26,7 @@ class StorefrontController extends Controller
         return Inertia::render('storefront/home', [
             'comingSoon' => StorefrontFeed::comingSoon(),
             'onSale' => StorefrontFeed::onSale(),
+            'uniformSets' => StorefrontUniformSets::all(),
             'merchandise' => Inertia::scroll(fn () => StorefrontFeed::merchandise($search, $show)
                 ->paginate(20)
                 ->withQueryString()

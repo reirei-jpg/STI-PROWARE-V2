@@ -2,12 +2,16 @@
 
 namespace App\Services\Shop;
 
+use App\Enums\UniformSetFor;
 use App\Models\CartItem;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
+use App\Models\UniformSet;
 use App\Models\User;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -15,6 +19,10 @@ use Illuminate\Validation\ValidationException;
  * again adds to its quantity, and the pieces in the cart for a size or color
  * can never be more than its stock. Stock is only taken when the order is
  * placed.
+ *
+ * A uniform set is two lines (its top and its bottom) with one set key:
+ * they always have the same quantity and tick, and are removed together.
+ * Adding the same set with the same sizes again adds to its quantity.
  */
 final class Cart
 {
@@ -26,6 +34,7 @@ final class Cart
         $line = $student->cartItems()
             ->where('product_variant_id', $variant->id)
             ->where('product_pack_id', $pack?->id)
+            ->whereNull('set_key')
             ->first();
 
         $newQuantity = ($line->quantity ?? 0) + $quantity;
@@ -46,15 +55,85 @@ final class Cart
     }
 
     /**
+     * Add a uniform set: its top and its bottom, each by the piece.
+     *
+     * @return string the set key of its two lines
+     */
+    public function addSet(User $student, UniformSet $set, UniformSetFor $for, ProductVariant $top, ProductVariant $bottom, int $quantity): string
+    {
+        return DB::transaction(function () use ($student, $set, $for, $top, $bottom, $quantity): string {
+            $existing = $student->cartItems()
+                ->where('uniform_set_id', $set->id)
+                ->where('set_for', $for)
+                ->where('product_variant_id', $top->id)
+                ->whereIn('set_key', $student->cartItems()->where('product_variant_id', $bottom->id)->whereNotNull('set_key')->select('set_key'))
+                ->first();
+            $lines = $existing === null ? collect() : $student->cartItems()->where('set_key', $existing->set_key)->get();
+            $newQuantity = ($existing->quantity ?? 0) + $quantity;
+
+            $this->ensureInStock($student, $top, null, $newQuantity, $lines->firstWhere('product_variant_id', $top->id));
+            $this->ensureInStock($student, $bottom, null, $newQuantity, $lines->firstWhere('product_variant_id', $bottom->id));
+
+            if ($existing !== null) {
+                $student->cartItems()->where('set_key', $existing->set_key)->update(['quantity' => $newQuantity, 'selected' => true]);
+
+                return (string) $existing->set_key;
+            }
+
+            $key = (string) Str::uuid();
+
+            foreach ([$top, $bottom] as $variant) {
+                $student->cartItems()->create([
+                    'product_variant_id' => $variant->id,
+                    'uniform_set_id' => $set->id,
+                    'set_key' => $key,
+                    'set_for' => $for,
+                    'quantity' => $newQuantity,
+                ]);
+            }
+
+            return $key;
+        });
+    }
+
+    /**
+     * "1 BSIT Uniform Set (For Boys: BSIT Polo M, BSIT Pants L) has been added to your cart."
+     */
+    public static function addedSetMessage(UniformSet $set, UniformSetFor $for, ProductVariant $top, ProductVariant $bottom, int $quantity): string
+    {
+        $sets = $quantity === 1 ? '1 '.$set->displayName() : "{$quantity} × {$set->displayName()}";
+
+        return "{$sets} ({$for->label()}: {$top->displayName()}, {$bottom->displayName()}) ".($quantity === 1 ? 'has' : 'have').' been added to your cart.';
+    }
+
+    /**
      * Tick or untick some of the student's own lines for the next Place
-     * Order (one line, or "Select all"). Other students' lines are never
-     * touched.
+     * Order (one line, or "Select all"); a set's two lines go together.
+     * Other students' lines are never touched.
      *
      * @param  list<int>  $cartItemIds
      */
     public function select(User $student, array $cartItemIds, bool $selected): void
     {
-        $student->cartItems()->whereKey($cartItemIds)->update(['selected' => $selected]);
+        $setKeys = $student->cartItems()->whereKey($cartItemIds)->whereNotNull('set_key')->pluck('set_key');
+
+        $student->cartItems()
+            ->where(fn (Builder $lines) => $lines->whereKey($cartItemIds)->orWhereIn('set_key', $setKeys))
+            ->update(['selected' => $selected]);
+    }
+
+    /**
+     * Take a line out of the cart; for a set, both its lines.
+     */
+    public function remove(CartItem $line): void
+    {
+        if ($line->set_key === null) {
+            $line->delete();
+
+            return;
+        }
+
+        $line->student->cartItems()->where('set_key', $line->set_key)->delete();
     }
 
     /**
@@ -65,11 +144,26 @@ final class Cart
         return Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} ".($quantity === 1 ? 'has' : 'have').' been added to your cart.';
     }
 
+    /**
+     * Change how many; for a set, both its lines (each must have the stock).
+     */
     public function changeQuantity(CartItem $line, int $quantity): void
     {
-        $this->ensureInStock($line->student, $line->variant, $line->pack, $quantity, $line);
+        if ($line->set_key === null) {
+            $this->ensureInStock($line->student, $line->variant, $line->pack, $quantity, $line);
 
-        $line->update(['quantity' => $quantity]);
+            $line->update(['quantity' => $quantity]);
+
+            return;
+        }
+
+        $lines = $line->student->cartItems()->with(['variant.product', 'pack'])->where('set_key', $line->set_key)->get();
+
+        foreach ($lines as $setLine) {
+            $this->ensureInStock($line->student, $setLine->variant, null, $quantity, $setLine);
+        }
+
+        $line->student->cartItems()->where('set_key', $line->set_key)->update(['quantity' => $quantity]);
     }
 
     /**

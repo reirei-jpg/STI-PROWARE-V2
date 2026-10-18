@@ -17,6 +17,8 @@ import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cartRows } from '@/lib/cart-rows';
+import type { CartRow } from '@/lib/cart-rows';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
@@ -69,6 +71,7 @@ export default function Cart({
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const placeOrder = useForm({ section: section ?? '' });
+    const rows = cartRows(lines);
     const allTicked = lines.every((line) => line.selected);
     const tickedHaveProblems = lines.some(
         (line) => line.selected && line.problem !== null,
@@ -127,12 +130,12 @@ export default function Cart({
                                 />
                                 Select all
                                 <span className="font-bold text-slate-500">
-                                    ({selectedCount} of {lines.length})
+                                    ({selectedCount} of {rows.length})
                                 </span>
                             </label>
                             <ul className="divide-y divide-slate-100">
-                                {lines.map((line) => (
-                                    <CartLineRow key={line.id} line={line} />
+                                {rows.map((row) => (
+                                    <CartLineRow key={row.key} row={row} />
                                 ))}
                             </ul>
                         </div>
@@ -256,7 +259,7 @@ export default function Cart({
                                         ` · ${formatPeso(total)}`}
                                 </button>
                                 {selectedCount > 0 &&
-                                    selectedCount < lines.length && (
+                                    selectedCount < rows.length && (
                                         <p className="-mt-2 text-center text-xs text-slate-500">
                                             Unticked items stay in your cart.
                                         </p>
@@ -282,7 +285,14 @@ function Step({ number, children }: { number: number; children: ReactNode }) {
     );
 }
 
-function CartLineRow({ line }: { line: CartLine }) {
+/**
+ * One item, or one uniform set (its top and bottom shown together, at the
+ * set price, changed and removed as one).
+ */
+function CartLineRow({ row }: { row: CartRow }) {
+    const line = row.line;
+    const set = line.set;
+    const ids = row.lines.map((item) => item.id);
     const [quantity, setQuantity] = useState(String(line.quantity));
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -333,9 +343,9 @@ function CartLineRow({ line }: { line: CartLine }) {
                 <Checkbox
                     checked={line.selected}
                     onCheckedChange={(checked) =>
-                        selectLines([line.id], checked === true)
+                        selectLines(ids, checked === true)
                     }
-                    aria-label={`Order ${line.product_name}`}
+                    aria-label={`Order ${set?.name ?? line.product_name}`}
                     className="size-5"
                 />
                 <div
@@ -356,15 +366,41 @@ function CartLineRow({ line }: { line: CartLine }) {
                 </div>
                 <div className="min-w-0">
                     <p className="font-black text-slate-900">
-                        {line.product_name}
+                        {set ? set.name : line.product_name}
                     </p>
-                    <p className="text-sm text-slate-600">
-                        {line.variant_label && `${line.variant_label} · `}
-                        {line.pieces_per_unit > 1
-                            ? `${line.unit_name} of ${line.pieces_per_unit}`
-                            : 'By the piece'}
-                    </p>
-                    {line.unit_price_centavos !== null && (
+                    {set ? (
+                        <>
+                            <p className="text-sm text-slate-600">
+                                {set.for_label}
+                            </p>
+                            <ul className="text-sm text-slate-600">
+                                {row.lines.map((item) => (
+                                    <li key={item.id}>
+                                        · {item.product_name}
+                                        {item.variant_label &&
+                                            ` (${item.variant_label})`}
+                                    </li>
+                                ))}
+                            </ul>
+                        </>
+                    ) : (
+                        <p className="text-sm text-slate-600">
+                            {line.variant_label && `${line.variant_label} · `}
+                            {line.pieces_per_unit > 1
+                                ? `${line.unit_name} of ${line.pieces_per_unit}`
+                                : 'By the piece'}
+                        </p>
+                    )}
+                    {set && set.price_centavos !== null && (
+                        <p className="text-sm font-bold text-blue-700">
+                            {formatPeso(set.price_centavos)}
+                            <span className="font-normal text-slate-500">
+                                {' '}
+                                / set
+                            </span>
+                        </p>
+                    )}
+                    {!set && line.unit_price_centavos !== null && (
                         <p
                             className={cn(
                                 'text-sm font-bold',
@@ -437,14 +473,22 @@ function CartLineRow({ line }: { line: CartLine }) {
                         </button>
                     </div>
                     <p className="mt-1 text-center text-xs text-slate-500">
-                        {formatUnits(line.quantity, line.unit_name)}
-                        {line.pieces_per_unit > 1 &&
+                        {set
+                            ? `${line.quantity} ${line.quantity === 1 ? 'set' : 'sets'}`
+                            : formatUnits(line.quantity, line.unit_name)}
+                        {!set &&
+                            line.pieces_per_unit > 1 &&
                             ` = ${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')}`}
                     </p>
                     {current >= line.most_allowed && line.most_allowed > 0 && (
                         <p className="text-center text-xs font-bold text-amber-700">
                             Only{' '}
-                            {formatUnits(line.most_allowed, line.unit_name)}{' '}
+                            {set
+                                ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
+                                : formatUnits(
+                                      line.most_allowed,
+                                      line.unit_name,
+                                  )}{' '}
                             left
                         </p>
                     )}
@@ -452,7 +496,12 @@ function CartLineRow({ line }: { line: CartLine }) {
 
                 <p className="w-24 text-right font-black text-slate-900">
                     {line.unit_price_centavos !== null
-                        ? formatPeso(line.line_total_centavos)
+                        ? formatPeso(
+                              row.lines.reduce(
+                                  (sum, item) => sum + item.line_total_centavos,
+                                  0,
+                              ),
+                          )
                         : '—'}
                 </p>
 
@@ -461,7 +510,7 @@ function CartLineRow({ line }: { line: CartLine }) {
                     onClick={remove}
                     disabled={busy}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:opacity-40"
-                    aria-label={`Remove ${line.product_name}`}
+                    aria-label={`Remove ${set?.name ?? line.product_name}`}
                     title="Remove"
                 >
                     <Trash2 size={17} />

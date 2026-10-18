@@ -73,6 +73,40 @@ export type StorefrontBuyPack = {
     price_centavos: number;
 };
 
+/** One piece of a uniform set (the top, or a bottom) with its sizes. */
+export type StorefrontSetPiece = {
+    product_id: number;
+    name: string;
+    /** "Polo", "Pants", "Blouse", "Ladies' Pants" or "Skirt". */
+    kind: string;
+    sizes: {
+        variant_id: number;
+        label: string;
+        /** Today's price of one piece bought on its own. */
+        price_centavos: number | null;
+        /** Pieces students can still buy. */
+        stock_pieces: number;
+        can_preorder: boolean;
+    }[];
+};
+
+/** A course's uniform set students can buy whole, on the storefront. */
+export type StorefrontUniformSet = {
+    id: number;
+    /** "BSIT Uniform Set" */
+    name: string;
+    price_centavos: number;
+    photo_url: string | null;
+    options: {
+        for: 'boys' | 'girls';
+        /** "For Boys" */
+        label: string;
+        top: StorefrontSetPiece;
+        /** For girls: the ladies' pants and / or the skirt. */
+        bottoms: StorefrontSetPiece[];
+    }[];
+};
+
 /** One line of the student's cart, at today's price. */
 export type CartLine = {
     id: number;
@@ -93,6 +127,16 @@ export type CartLine = {
     line_total_centavos: number;
     /** What to fix before the order can be placed. */
     problem: string | null;
+    /** Part of a uniform set: its two lines share the key and are shown as one. */
+    set: {
+        key: string;
+        /** "BSIT Uniform Set" */
+        name: string;
+        /** "For Boys" */
+        for_label: string;
+        /** One set today (top and bottom together); null when it cannot be bought now. */
+        price_centavos: number | null;
+    } | null;
 };
 
 export type OrderStatus = 'placed' | 'ready' | 'picked_up' | 'cancelled';
@@ -109,6 +153,8 @@ export type OrderRow = {
         id: number;
         product_name: string;
         variant_label: string | null;
+        /** "BSIT Uniform Set (For Boys)" when bought as part of a set. */
+        set_name: string | null;
         unit_name: string;
         pieces_per_unit: number;
         quantity: number;

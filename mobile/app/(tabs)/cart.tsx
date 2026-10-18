@@ -29,6 +29,7 @@ import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
+import { cartRows, type CartRow } from '@/lib/cart-rows';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
 import type { CartLine, CartView, StudentOrder } from '@/lib/types';
 
@@ -113,9 +114,10 @@ export default function CartScreen() {
     }
 
     const lines = cart?.lines ?? [];
-    const ticked = lines.filter((line) => line.selected);
-    const allTicked = ticked.length === lines.length;
-    const tickedHaveProblems = ticked.some((line) => line.problem !== null);
+    const rows = cartRows(lines);
+    const ticked = rows.filter((row) => row.line.selected);
+    const allTicked = ticked.length === rows.length;
+    const tickedHaveProblems = ticked.some((row) => row.line.problem !== null);
     const canPlaceOrder = cart !== null && cart.can_place_order && cart.order_refusal === null;
 
     // The tick changes at once; the total follows when the server answers.
@@ -202,16 +204,21 @@ export default function CartScreen() {
                                 Select all
                             </Text>
                             <Text className="font-sans-semibold text-sm text-slate-500">
-                                ({ticked.length} of {lines.length})
+                                ({ticked.length} of {rows.length})
                             </Text>
                         </Pressable>
-                        {lines.map((line, position) => (
+                        {rows.map((row, position) => (
                             <CartLineRow
-                                key={line.id}
-                                line={line}
+                                key={row.key}
+                                row={row}
                                 first={position === 0}
                                 onChanged={replace}
-                                onTick={() => selectLines([line.id], !line.selected)}
+                                onTick={() =>
+                                    selectLines(
+                                        row.lines.map((line) => line.id),
+                                        !row.line.selected,
+                                    )
+                                }
                             />
                         ))}
                     </View>
@@ -301,7 +308,7 @@ export default function CartScreen() {
                             Place Order{ticked.length > 0 ? ` · ${formatPeso(cart.total_centavos)}` : ''}
                         </Text>
                     </Pressable>
-                    {ticked.length > 0 && ticked.length < lines.length && (
+                    {ticked.length > 0 && ticked.length < rows.length && (
                         <Text className="text-center font-sans text-xs text-slate-500">
                             Unticked items stay in your cart.
                         </Text>
@@ -323,17 +330,24 @@ function TickBox({ ticked }: { ticked: boolean }) {
     );
 }
 
+/**
+ * One item, or one uniform set (its top and bottom shown together, at the
+ * set price, changed and removed as one).
+ */
 function CartLineRow({
-    line,
+    row,
     first,
     onChanged,
     onTick,
 }: {
-    line: CartLine;
+    row: CartRow;
     first: boolean;
     onChanged: (cart: CartView) => void;
     onTick: () => void;
 }) {
+    const line: CartLine = row.line;
+    const set = line.set;
+    const name = set?.name ?? line.product_name;
     const { request } = useAuth();
     const [quantityText, setQuantityText] = useState(String(line.quantity));
     const [busy, setBusy] = useState(false);
@@ -372,7 +386,7 @@ function CartLineRow({
     };
 
     const remove = (): void => {
-        Alert.alert('Remove from cart?', line.product_name, [
+        Alert.alert('Remove from cart?', name, [
             { text: 'Keep it', style: 'cancel' },
             {
                 text: 'Remove',
@@ -405,7 +419,7 @@ function CartLineRow({
                     hitSlop={10}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: line.selected }}
-                    accessibilityLabel={`Order ${line.product_name}`}
+                    accessibilityLabel={`Order ${name}`}
                 >
                     <TickBox ticked={line.selected} />
                 </Pressable>
@@ -425,15 +439,33 @@ function CartLineRow({
 
                 <View className="flex-1 gap-0.5">
                     <Text className="font-sans-bold text-base text-slate-900">
-                        {line.product_name}
+                        {name}
                     </Text>
-                    <Text className="font-sans text-sm text-slate-600">
-                        {line.variant_label ? `${line.variant_label} · ` : ''}
-                        {line.pieces_per_unit > 1
-                            ? `${line.unit_name} of ${line.pieces_per_unit}`
-                            : 'By the piece'}
-                    </Text>
-                    {line.unit_price_centavos !== null && (
+                    {set ? (
+                        <>
+                            <Text className="font-sans text-sm text-slate-600">{set.for_label}</Text>
+                            {row.lines.map((item) => (
+                                <Text key={item.id} className="font-sans text-sm text-slate-600">
+                                    · {item.product_name}
+                                    {item.variant_label ? ` (${item.variant_label})` : ''}
+                                </Text>
+                            ))}
+                        </>
+                    ) : (
+                        <Text className="font-sans text-sm text-slate-600">
+                            {line.variant_label ? `${line.variant_label} · ` : ''}
+                            {line.pieces_per_unit > 1
+                                ? `${line.unit_name} of ${line.pieces_per_unit}`
+                                : 'By the piece'}
+                        </Text>
+                    )}
+                    {set && set.price_centavos !== null && (
+                        <Text className="font-sans-bold text-sm text-blue-700">
+                            {formatPeso(set.price_centavos)}
+                            <Text className="font-sans text-slate-500"> / set</Text>
+                        </Text>
+                    )}
+                    {!set && line.unit_price_centavos !== null && (
                         <Text
                             className={`font-sans-bold text-sm ${line.on_sale ? 'text-red-600' : 'text-blue-700'}`}
                         >
@@ -451,7 +483,7 @@ function CartLineRow({
                     onPress={remove}
                     disabled={busy}
                     accessibilityRole="button"
-                    accessibilityLabel={`Remove ${line.product_name}`}
+                    accessibilityLabel={`Remove ${name}`}
                     className="h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50"
                 >
                     <Trash2 size={17} color="#dc2626" />
@@ -477,17 +509,23 @@ function CartLineRow({
                         onChange={setQuantityText}
                         onCommit={(quantity) => void save(quantity)}
                         most={Math.max(line.most_allowed, 1)}
-                        unitText={`${unitWord(line.quantity, line.unit_name)}${
-                            line.pieces_per_unit > 1
-                                ? ` (${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')})`
-                                : ''
-                        }`}
+                        unitText={
+                            set
+                                ? line.quantity === 1
+                                    ? 'set'
+                                    : 'sets'
+                                : `${unitWord(line.quantity, line.unit_name)}${
+                                      line.pieces_per_unit > 1
+                                          ? ` (${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')})`
+                                          : ''
+                                  }`
+                        }
                         disabled={busy}
                     />
                 </View>
                 <Text className="font-sans-bold text-base text-slate-900">
                     {line.unit_price_centavos !== null
-                        ? formatPeso(line.line_total_centavos)
+                        ? formatPeso(row.lines.reduce((sum, item) => sum + item.line_total_centavos, 0))
                         : '—'}
                 </Text>
             </View>

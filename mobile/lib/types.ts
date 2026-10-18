@@ -94,6 +94,43 @@ export type CartLine = {
     line_total_centavos: number;
     /** What to fix before Place Order, or null. */
     problem: string | null;
+    /** Part of a uniform set: its two lines share the key and are shown as one. */
+    set: {
+        key: string;
+        name: string;
+        for_label: string;
+        /** One set today (top and bottom together); null when it cannot be bought now. */
+        price_centavos: number | null;
+    } | null;
+};
+
+/** One piece of a uniform set (the top, or a bottom) with its sizes. */
+export type StorefrontSetPiece = {
+    product_id: number;
+    name: string;
+    /** "Polo", "Pants", "Blouse", "Ladies' Pants" or "Skirt". */
+    kind: string;
+    sizes: {
+        variant_id: number;
+        label: string;
+        price_centavos: number | null;
+        stock_pieces: number;
+        can_preorder: boolean;
+    }[];
+};
+
+/** A course's uniform set students can buy whole (the same as the website's). */
+export type StorefrontUniformSet = {
+    id: number;
+    name: string;
+    price_centavos: number;
+    photo_url: string | null;
+    options: {
+        for: 'boys' | 'girls';
+        label: string;
+        top: StorefrontSetPiece;
+        bottoms: StorefrontSetPiece[];
+    }[];
 };
 
 export type CartView = {
@@ -124,6 +161,8 @@ export type StudentOrder = {
         id: number;
         product_name: string;
         variant_label: string | null;
+        /** "BSIT Uniform Set (For Boys)" when bought as part of a set. */
+        set_name: string | null;
         unit_name: string;
         pieces_per_unit: number;
         quantity: number;
@@ -381,4 +420,5 @@ export type ProductStockView = {
 export type StorefrontHome = {
     coming_soon: StorefrontTileProduct[];
     on_sale: StorefrontTileProduct[];
+    uniform_sets: StorefrontUniformSet[];
 };

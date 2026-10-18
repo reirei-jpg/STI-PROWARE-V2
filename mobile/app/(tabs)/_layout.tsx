@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Home, Package, ShoppingCart, UserRound } from 'lucide-react-native';
 
 import { useCart } from '@/lib/cart';
+import { cartRows } from '@/lib/cart-rows';
 
 const BRAND_BLUE = '#0D6EFD';
 const INACTIVE = '#94a3b8';
@@ -12,7 +13,8 @@ const INACTIVE = '#94a3b8';
  */
 export default function TabsLayout() {
     const { cart } = useCart();
-    const inCart = cart?.lines.length ?? 0;
+    // A uniform set's two lines count as one.
+    const inCart = cartRows(cart?.lines ?? []).length;
 
     return (
         <Tabs

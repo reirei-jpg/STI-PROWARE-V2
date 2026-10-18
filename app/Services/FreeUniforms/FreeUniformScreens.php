@@ -115,14 +115,15 @@ final class FreeUniformScreens
 
     /**
      * Every uniform set with its products and their sizes in stock, for the
-     * Record a group pop-up and the Uniform sets list.
+     * Record a group pop-up and the Uniform sets list, with what students
+     * buying the whole set get (the ladies' pants, the skirt) and its price.
      *
-     * @return list<array{id: int, name: string, blouse: SetPiece|null, polo: SetPiece|null, pants: SetPiece|null, students_count: int}>
+     * @return list<array{id: int, name: string, blouse: SetPiece|null, polo: SetPiece|null, pants: SetPiece|null, ladies_pants: SetPiece|null, skirt: SetPiece|null, set_price_centavos: int|null, students_count: int}>
      */
     public static function sets(): array
     {
         return array_values(UniformSet::query()
-            ->with(['blouseProduct.variants', 'poloProduct.variants', 'pantsProduct.variants'])
+            ->with(['blouseProduct.variants', 'poloProduct.variants', 'pantsProduct.variants', 'ladiesPantsProduct.variants', 'skirtProduct.variants'])
             ->withCount('students')
             ->orderBy('name')
             ->get()
@@ -132,6 +133,9 @@ final class FreeUniformScreens
                 'blouse' => self::setPiece($set->blouseProduct),
                 'polo' => self::setPiece($set->poloProduct),
                 'pants' => self::setPiece($set->pantsProduct),
+                'ladies_pants' => self::setPiece($set->ladiesPantsProduct),
+                'skirt' => self::setPiece($set->skirtProduct),
+                'set_price_centavos' => $set->set_price_centavos,
                 'students_count' => (int) $set->getAttribute('students_count'),
             ])
             ->all());

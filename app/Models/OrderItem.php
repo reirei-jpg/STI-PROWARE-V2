@@ -20,6 +20,8 @@ use Illuminate\Support\Carbon;
  * @property int $product_variant_id
  * @property string $product_name
  * @property string|null $variant_label
+ * @property string|null $set_name "BSIT Uniform Set (For Boys)" when bought as part of a uniform set
+ * @property string|null $set_key the same on the set's two items
  * @property string $unit_name "Piece" or the pack's name
  * @property int $pieces_per_unit
  * @property int $quantity
@@ -30,7 +32,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['product_id', 'product_variant_id', 'product_name', 'variant_label', 'unit_name', 'pieces_per_unit', 'quantity', 'unit_price_centavos', 'normal_unit_price_centavos', 'line_total_centavos'])]
+#[Fillable(['product_id', 'product_variant_id', 'product_name', 'variant_label', 'set_name', 'set_key', 'unit_name', 'pieces_per_unit', 'quantity', 'unit_price_centavos', 'normal_unit_price_centavos', 'line_total_centavos'])]
 class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */

@@ -43,7 +43,10 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'notifications' => fn (): ?array => $this->notifications($request),
-            'cart_count' => fn (): ?int => $request->user()?->isStudent() ? $request->user()->cartItems()->count() : null,
+            // A uniform set's two lines count as one.
+            'cart_count' => fn (): ?int => $request->user()?->isStudent()
+                ? $request->user()->cartItems()->whereNull('set_key')->count() + $request->user()->cartItems()->whereNotNull('set_key')->distinct()->count('set_key')
+                : null,
         ];
     }
 

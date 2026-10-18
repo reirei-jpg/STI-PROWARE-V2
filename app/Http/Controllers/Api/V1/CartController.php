@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AddSetToCartRequest;
 use App\Http\Requests\AddToCartRequest;
 use App\Http\Requests\ChangeCartQuantityRequest;
 use App\Http\Requests\SelectCartItemsRequest;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Models\UniformSet;
 use App\Services\Shop\Cart;
 use App\Services\Shop\CartView;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +40,23 @@ class CartController extends Controller
         ], 201);
     }
 
+    /**
+     * Add a uniform set: its top and bottom, with the sizes chosen.
+     */
+    public function storeSet(AddSetToCartRequest $request, UniformSet $uniformSet, Cart $cart): JsonResponse
+    {
+        $top = $request->top();
+        $bottom = $request->bottom();
+        $quantity = $request->integer('quantity');
+
+        $cart->addSet($request->user(), $uniformSet, $request->for(), $top, $bottom, $quantity);
+
+        return response()->json([
+            'message' => Cart::addedSetMessage($uniformSet, $request->for(), $top, $bottom, $quantity),
+            'cart' => CartView::for($request->user()),
+        ], 201);
+    }
+
     public function update(ChangeCartQuantityRequest $request, CartItem $cartItem, Cart $cart): JsonResponse
     {
         abort_unless($cartItem->user_id === $request->user()->id, 404);
@@ -57,11 +76,11 @@ class CartController extends Controller
         return response()->json(['cart' => CartView::for($request->user())]);
     }
 
-    public function destroy(Request $request, CartItem $cartItem): JsonResponse
+    public function destroy(Request $request, CartItem $cartItem, Cart $cart): JsonResponse
     {
         abort_unless($cartItem->user_id === $request->user()->id, 404);
 
-        $cartItem->delete();
+        $cart->remove($cartItem);
 
         return response()->json(['cart' => CartView::for($request->user())]);
     }

@@ -5,7 +5,8 @@ import type { StudentOrder } from '@/lib/types';
 
 /**
  * An order's items, each with its unit and the price when it was ordered
- * ("2 Packs (100 pcs) × ₱900.00"), and the total to pay in cash.
+ * ("2 Packs (100 pcs) × ₱900.00"), the uniform set it was bought in, and
+ * the total to pay in cash.
  */
 export default function OrderItemsList({
     order,
@@ -29,6 +30,11 @@ export default function OrderItemsList({
                                 </Text>
                             )}
                         </Text>
+                        {item.set_name && (
+                            <Text className="font-sans-bold text-xs text-blue-700">
+                                Part of {item.set_name}
+                            </Text>
+                        )}
                         <Text className="font-sans text-xs text-slate-500">
                             {formatUnits(item.quantity, item.unit_name)}
                             {item.pieces_per_unit > 1

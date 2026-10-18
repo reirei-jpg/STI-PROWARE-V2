@@ -102,7 +102,7 @@ final class OrderRow
      * With what the issuance slip needs: its QR code (slip_code) and the
      * student's course/section.
      *
-     * @return array{id: int, number: string|null, slip_code: string|null, status: string, status_label: string, student_name: string, student_section: string|null, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string, ready_at: string|null, picked_up_at: string|null, cancelled_at: string|null, expired: bool, cancel_reason: string|null}
+     * @return array{id: int, number: string|null, slip_code: string|null, status: string, status_label: string, student_name: string, student_section: string|null, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, pieces_per_unit: int, quantity: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string, ready_at: string|null, picked_up_at: string|null, cancelled_at: string|null, expired: bool, cancel_reason: string|null}
      */
     public static function of(Order $order): array
     {
@@ -119,6 +119,8 @@ final class OrderRow
                 'id' => $item->id,
                 'product_name' => $item->product_name,
                 'variant_label' => $item->variant_label,
+                // "BSIT Uniform Set (For Boys)" when bought as part of a set.
+                'set_name' => $item->set_name,
                 'unit_name' => $item->unit_name,
                 'pieces_per_unit' => $item->pieces_per_unit,
                 'quantity' => $item->quantity,

@@ -1,9 +1,10 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Bell, Clock, Flame, Search, Store, X } from 'lucide-react-native';
+import { Bell, CircleCheck, Clock, Flame, Search, Shirt, Store, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
+    Image,
     Pressable,
     RefreshControl,
     Text,
@@ -15,10 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ProductRow from '@/components/ProductRow';
 import ProductTile from '@/components/ProductTile';
+import UniformSetSheet from '@/components/UniformSetSheet';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { formatPeso } from '@/lib/format';
 import { useNotifications } from '@/lib/notifications';
-import type { Page, StorefrontHome, StorefrontTileProduct } from '@/lib/types';
+import type { Page, StorefrontHome, StorefrontTileProduct, StorefrontUniformSet } from '@/lib/types';
 
 type Show = 'in_stock' | 'sold_out' | null;
 
@@ -33,9 +36,10 @@ const GAP = 12;
 
 /**
  * Home: the storefront, like the website. Coming Soon (open preorders
- * first) and On Sale as swipeable rows of full tiles, and All Merchandise
- * (newest first, out of stock last) with a search and Available / Out of
- * Stock. More loads as the student scrolls.
+ * first) and On Sale as swipeable rows of full tiles, Uniform Sets (Buy
+ * the Set opens its picker), and All Merchandise (newest first, out of
+ * stock last) with a search and Available / Out of Stock. More loads as the
+ * student scrolls.
  */
 export default function HomeScreen() {
     const insets = useSafeAreaInsets();
@@ -55,6 +59,8 @@ export default function HomeScreen() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [buyingSet, setBuyingSet] = useState<StorefrontUniformSet | null>(null);
+    const [setNotice, setSetNotice] = useState<string | null>(null);
     const latestRequest = useRef(0);
 
     const loadMerchandise = useCallback(
@@ -278,6 +284,80 @@ export default function HomeScreen() {
                 )}
             </View>
 
+            {home !== null && home.uniform_sets.length > 0 && (
+                <View className="rounded-3xl border border-blue-100 bg-blue-50/60 p-3">
+                    <SectionTitle
+                        icon={<Shirt size={18} color="#ffffff" />}
+                        iconClass="bg-brand"
+                        title="Uniform Sets"
+                        description="The whole uniform at one price, in your sizes."
+                    />
+                    {setNotice && (
+                        <View className="mb-3 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                            <View className="flex-row items-start gap-2">
+                                <CircleCheck size={18} color="#047857" />
+                                <Text className="flex-1 font-sans-semibold text-sm text-emerald-800">
+                                    {setNotice}
+                                </Text>
+                            </View>
+                            <Pressable
+                                onPress={() => router.navigate('/cart')}
+                                accessibilityRole="button"
+                                className="self-start rounded-xl border border-emerald-300 bg-white px-4 py-2"
+                            >
+                                <Text className="font-sans-bold text-sm text-emerald-800">View Cart</Text>
+                            </Pressable>
+                        </View>
+                    )}
+                    <View className="gap-2.5">
+                        {home.uniform_sets.map((set) => (
+                            <View
+                                key={set.id}
+                                className="flex-row items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3"
+                            >
+                                <View className="h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                                    {set.photo_url ? (
+                                        <Image
+                                            source={{ uri: set.photo_url }}
+                                            style={{ width: 64, height: 64 }}
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <Shirt size={22} color="#cbd5e1" />
+                                    )}
+                                </View>
+                                <View className="flex-1 gap-0.5">
+                                    <Text className="font-sans-bold text-sm text-slate-900">{set.name}</Text>
+                                    <Text className="font-sans text-xs text-slate-500">
+                                        {set.options
+                                            .map(
+                                                (item) =>
+                                                    `${item.label}: ${item.top.kind} + ${item.bottoms.map((piece) => piece.kind).join(' or ')}`,
+                                            )
+                                            .join(' · ')}
+                                    </Text>
+                                    <Text className="font-sans-bold text-sm text-blue-700">
+                                        {formatPeso(set.price_centavos)}
+                                        <Text className="font-sans text-xs text-slate-500"> / set</Text>
+                                    </Text>
+                                </View>
+                                <Pressable
+                                    onPress={() => {
+                                        setSetNotice(null);
+                                        setBuyingSet(set);
+                                    }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Buy the ${set.name}`}
+                                    className="rounded-xl bg-brand px-3 py-2.5"
+                                >
+                                    <Text className="font-sans-bold text-xs text-white">Buy the Set</Text>
+                                </Pressable>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
+
             <View className="gap-3">
                 <SectionTitle
                     icon={<Store size={18} color="#2563eb" />}
@@ -333,6 +413,7 @@ export default function HomeScreen() {
     );
 
     return (
+        <>
         <FlatList
             className="flex-1 bg-page"
             data={items}
@@ -372,6 +453,17 @@ export default function HomeScreen() {
             }
             keyboardShouldPersistTaps="handled"
         />
+        <UniformSetSheet
+            set={buyingSet}
+            onClose={() => setBuyingSet(null)}
+            onAdded={(message) => {
+                setBuyingSet(null);
+                setSetNotice(message);
+                // The stock may have changed since the page opened.
+                void loadAll();
+            }}
+        />
+        </>
     );
 }
 

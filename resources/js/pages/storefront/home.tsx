@@ -1,13 +1,26 @@
 import { Head, InfiniteScroll, router, usePage } from '@inertiajs/react';
-import { Clock, Flame, Search, ShoppingBag, Store, X } from 'lucide-react';
+import {
+    Clock,
+    Flame,
+    Search,
+    Shirt,
+    ShoppingBag,
+    Store,
+    X,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import StorefrontProductDialog from '@/components/storefront-product-dialog';
 import StorefrontTile, { PlaceholderTile } from '@/components/storefront-tile';
 import TileCarousel from '@/components/tile-carousel';
+import UniformSetSection from '@/components/uniform-set-section';
 import { cn } from '@/lib/utils';
-import type { StorefrontFilters, StorefrontTileProduct } from '@/types';
+import type {
+    StorefrontFilters,
+    StorefrontTileProduct,
+    StorefrontUniformSet,
+} from '@/types';
 
 const feedChoices: { value: StorefrontFilters['show']; label: string }[] = [
     { value: null, label: 'All' },
@@ -41,11 +54,13 @@ const gridClasses =
 export default function StorefrontHome({
     comingSoon,
     onSale,
+    uniformSets,
     merchandise,
     filters,
 }: {
     comingSoon: StorefrontTileProduct[];
     onSale: StorefrontTileProduct[];
+    uniformSets: StorefrontUniformSet[];
     merchandise: { data: StorefrontTileProduct[] };
     filters: StorefrontFilters;
 }) {
@@ -59,11 +74,14 @@ export default function StorefrontHome({
                 <WelcomeBanner
                     comingSoon={comingSoon.length}
                     onSale={onSale.length}
+                    uniformSets={uniformSets.length}
                 />
 
                 <ComingSoonCarousel products={comingSoon} onView={setViewing} />
 
                 <OnSaleSection products={onSale} onView={setViewing} />
+
+                <UniformSetSection sets={uniformSets} />
 
                 <MerchandiseFeed
                     merchandise={merchandise}
@@ -88,9 +106,11 @@ export default function StorefrontHome({
 function WelcomeBanner({
     comingSoon,
     onSale,
+    uniformSets,
 }: {
     comingSoon: number;
     onSale: number;
+    uniformSets: number;
 }) {
     const { auth } = usePage().props;
     const firstName =
@@ -109,6 +129,16 @@ function WelcomeBanner({
             count: onSale,
             icon: <Flame size={15} />,
         },
+        ...(uniformSets > 0
+            ? [
+                  {
+                      href: '#uniform-sets',
+                      label: 'Uniform Sets',
+                      count: uniformSets,
+                      icon: <Shirt size={15} />,
+                  },
+              ]
+            : []),
         {
             href: '#all-merchandise',
             label: 'All Merchandise',

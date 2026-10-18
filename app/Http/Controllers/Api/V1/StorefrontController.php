@@ -7,6 +7,7 @@ use App\Http\Requests\FilterStorefrontRequest;
 use App\Models\Product;
 use App\Services\Storefront\StorefrontFeed;
 use App\Services\Storefront\StorefrontProduct;
+use App\Services\Storefront\StorefrontUniformSets;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -16,13 +17,14 @@ use Illuminate\Http\JsonResponse;
 class StorefrontController extends Controller
 {
     /**
-     * Coming Soon and On Sale, for the top of the Home screen.
+     * Coming Soon, On Sale and Uniform Sets, for the top of the Home screen.
      */
     public function home(): JsonResponse
     {
         return response()->json([
             'coming_soon' => StorefrontFeed::comingSoon(),
             'on_sale' => StorefrontFeed::onSale(),
+            'uniform_sets' => StorefrontUniformSets::all(),
         ]);
     }
 

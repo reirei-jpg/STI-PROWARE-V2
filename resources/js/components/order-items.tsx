@@ -30,7 +30,8 @@ export function OrderStatusBadge({ order }: { order: OrderRow }) {
 
 /**
  * An order's items, each with its unit and the price when it was ordered
- * ("2 Packs of 50 (100 pcs) × ₱900.00"), and the total.
+ * ("2 Packs of 50 (100 pcs) × ₱900.00"), the uniform set it was bought in,
+ * and the total.
  */
 export default function OrderItems({ order }: { order: OrderRow }) {
     return (
@@ -51,6 +52,11 @@ export default function OrderItems({ order }: { order: OrderRow }) {
                                     </span>
                                 )}
                             </p>
+                            {item.set_name && (
+                                <p className="text-xs font-bold text-blue-700">
+                                    Part of {item.set_name}
+                                </p>
+                            )}
                             <p className="text-xs text-slate-500">
                                 {item.pieces_per_unit > 1
                                     ? `${formatUnits(item.quantity, item.unit_name)} of ${item.pieces_per_unit} (${formatUnits(item.quantity * item.pieces_per_unit, 'Piece')})`
