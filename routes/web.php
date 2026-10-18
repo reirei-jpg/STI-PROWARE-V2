@@ -9,6 +9,7 @@ use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PreorderController;
+use App\Http\Controllers\PreorderRestockController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\ProductStockController;
@@ -92,6 +93,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('preorders/export', [PreorderController::class, 'export'])->name('preorders.export');
         Route::get('preorders/{product}', [PreorderController::class, 'show'])->name('preorders.show');
         Route::patch('preorders/{product}/close-date', [PreorderController::class, 'updateCloseDate'])->name('preorders.close-date');
+        Route::post('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'store'])->name('preorders.not-restocked');
+        Route::delete('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'destroy'])->name('preorders.allow-restock');
 
         Route::get('deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
         Route::post('deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');

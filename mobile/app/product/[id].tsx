@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddToCartSheet from '@/components/AddToCartSheet';
 import PreorderSheet from '@/components/PreorderSheet';
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
+import { takesPreorders } from '@/components/ProductTile';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
@@ -33,8 +34,9 @@ import type { StorefrontProductDetails } from '@/lib/types';
 /**
  * One product, like the website's product view: its photos (swipe), the
  * price per piece and per pack, and each option's choices (crossed out when
- * none are left).
- * Add to Cart or Preorder stays at the bottom and opens its picker.
+ * none are left; those can be preordered). Add to Cart or Preorder stays at
+ * the bottom and opens its picker; a product sold out in every size offers
+ * Preorder while it can be preordered.
  */
 export default function ProductScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -46,6 +48,8 @@ export default function ProductScreen() {
     const [photoIndex, setPhotoIndex] = useState(0);
     const [picking, setPicking] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
+    // The last thing done was a preorder (it shows "See My Preorders").
+    const [preordered, setPreordered] = useState(false);
 
     const load = useCallback(
         () =>
@@ -65,14 +69,17 @@ export default function ProductScreen() {
         void load();
     }, [load]);
 
-    const done = (message: string): void => {
+    const done = (message: string, wasPreorder: boolean): void => {
         setPicking(false);
         setNotice(message);
+        setPreordered(wasPreorder);
         // The stock may have changed since the page opened.
         void load();
     };
 
     const comingSoon = product?.status === 'preorder';
+    // Coming Soon, or out of stock in every size with sizes to preorder.
+    const preorderOnly = product !== null && takesPreorders(product);
     const photos =
         product === null
             ? []
@@ -156,19 +163,19 @@ export default function ProductScreen() {
                                     <Pressable
                                         onPress={() =>
                                             router.navigate(
-                                                comingSoon ? '/orders?show=preorders' : '/cart',
+                                                preordered ? '/orders?show=preorders' : '/cart',
                                             )
                                         }
                                         accessibilityRole="button"
                                         className="flex-row items-center justify-center gap-2 self-start rounded-xl border border-emerald-300 bg-white px-4 py-2.5"
                                     >
-                                        {comingSoon ? (
+                                        {preordered ? (
                                             <CalendarClock size={16} color="#047857" />
                                         ) : (
                                             <ShoppingCart size={16} color="#047857" />
                                         )}
                                         <Text className="font-sans-bold text-sm text-emerald-800">
-                                            {comingSoon ? 'See My Preorders' : 'View Cart'}
+                                            {preordered ? 'See My Preorders' : 'View Cart'}
                                         </Text>
                                     </Pressable>
                                 </View>
@@ -182,7 +189,9 @@ export default function ProductScreen() {
                                     {comingSoon
                                         ? 'Coming soon · preorder it now'
                                         : product.sold_out
-                                          ? 'Out of stock for now'
+                                          ? product.accepts_preorders
+                                              ? 'Out of stock · preorder it to be notified when it is back'
+                                              : 'Out of stock for now'
                                           : product.sale_ends_at
                                             ? `On sale · ${saleEndsText(product.sale_ends_at).toLowerCase()}`
                                             : 'Official STI merchandise'}
@@ -241,9 +250,9 @@ export default function ProductScreen() {
                                         </View>
                                     ))}
                                     <Text className="font-sans text-xs text-slate-500">
-                                        {comingSoon
+                                        {preorderOnly
                                             ? 'Choose yours when you tap Preorder.'
-                                            : 'Choose yours when you tap Add to Cart. Crossed out means none are left.'}
+                                            : 'Choose yours when you tap Add to Cart. Crossed out means none are left; you can preorder those there.'}
                                     </Text>
                                 </View>
                             )}
@@ -257,7 +266,7 @@ export default function ProductScreen() {
                     style={{ paddingBottom: insets.bottom + 12 }}
                     className="border-t border-slate-200 bg-white px-4 pt-3"
                 >
-                    {product.sold_out ? (
+                    {product.sold_out && !product.accepts_preorders ? (
                         <ClosedBar>Out of stock for now</ClosedBar>
                     ) : comingSoon && !product.accepts_preorders ? (
                         <ClosedBar>Preorders closed</ClosedBar>
@@ -265,17 +274,17 @@ export default function ProductScreen() {
                         <Pressable
                             onPress={() => setPicking(true)}
                             accessibilityRole="button"
-                            className={`flex-row items-center justify-center gap-2 rounded-2xl py-4 ${comingSoon ? 'bg-amber-400' : 'bg-brand'}`}
+                            className={`flex-row items-center justify-center gap-2 rounded-2xl py-4 ${preorderOnly ? 'bg-amber-400' : 'bg-brand'}`}
                         >
-                            {comingSoon ? (
+                            {preorderOnly ? (
                                 <CalendarClock size={18} color="#451a03" />
                             ) : (
                                 <ShoppingCart size={18} color="#ffffff" />
                             )}
                             <Text
-                                className={`font-sans-bold text-base ${comingSoon ? 'text-amber-950' : 'text-white'}`}
+                                className={`font-sans-bold text-base ${preorderOnly ? 'text-amber-950' : 'text-white'}`}
                             >
-                                {comingSoon ? 'Preorder' : 'Add to Cart'}
+                                {preorderOnly ? 'Preorder' : 'Add to Cart'}
                             </Text>
                         </Pressable>
                     )}
@@ -283,12 +292,12 @@ export default function ProductScreen() {
             )}
 
             {product &&
-                (comingSoon ? (
+                (preorderOnly ? (
                     <PreorderSheet
                         product={product}
                         open={picking}
                         onClose={() => setPicking(false)}
-                        onPlaced={done}
+                        onPlaced={(message) => done(message, true)}
                     />
                 ) : (
                     <AddToCartSheet

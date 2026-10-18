@@ -22,6 +22,9 @@ use App\Services\Shop\ShopPrice;
 final class StorefrontProduct
 {
     /**
+     * accepts_preorders: a Preorder product taking preorders, or a product
+     * for sale with a sold-out size students can preorder.
+     *
      * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, accepts_preorders: bool}
      */
     public static function tile(Product $product): array
@@ -30,6 +33,10 @@ final class StorefrontProduct
         $stock = (int) $product->variants->sum(fn (ProductVariant $variant): int => $variant->freeToSell());
         $isPreorder = $product->status === ProductStatus::Preorder;
         $almostSoldOut = ! $isPreorder && $stock > 0 && $stock <= $product->low_stock_alert_at;
+        // A sold-out size of a product for sale can be preordered too.
+        $soldOutSizeToPreorder = $product->variants->contains(
+            fn (ProductVariant $variant): bool => $variant->setRelation('product', $product)->canBePreordered(),
+        );
 
         return [
             'id' => $product->id,
@@ -42,7 +49,7 @@ final class StorefrontProduct
             'pieces_left' => $almostSoldOut ? $stock : null,
             'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
             'preorders_close_on' => $isPreorder ? $product->preorders_close_on?->toDateString() : null,
-            'accepts_preorders' => $product->acceptsPreorders(),
+            'accepts_preorders' => $product->acceptsPreorders() || $soldOutSizeToPreorder,
         ];
     }
 
@@ -111,6 +118,9 @@ final class StorefrontProduct
                         default => 'in_stock',
                     },
                     'pieces_left' => ! $isPreorder && $stock > 0 && $stock <= $product->low_stock_alert_at ? $stock : null,
+                    // Sold out: it can be preordered, or it will not be restocked.
+                    'can_preorder' => $variant->canBePreordered(),
+                    'not_restocked' => ! $isPreorder && $stock === 0 && $variant->not_restocked_at !== null,
                 ];
             })->all(),
         ];

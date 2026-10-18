@@ -6,11 +6,14 @@ import {
     Eye,
     ImageIcon,
     PackageCheck,
+    PackageSearch,
     Search,
     ShoppingCart,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
+import NotRestockedDialog from '@/components/not-restocked-dialog';
+import type { NotRestockedTarget } from '@/components/not-restocked-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
@@ -35,14 +38,17 @@ type Stage = 'all' | PreorderStage;
 const tabs: { value: Stage; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'to_order', label: 'To order' },
+    { value: 'sold_out', label: 'Waiting for restock' },
     { value: 'open', label: 'Taking preorders' },
     { value: 'arrived', label: 'Arrived' },
 ];
 
 const descriptions: Record<Stage, string> = {
-    all: 'To order first, then those taking preorders (closing soonest), then arrived.',
+    all: 'To order and waiting for restock first, then those taking preorders (closing soonest), then arrived.',
     to_order:
         'Preorders closed. Order these pieces in the eStore, then set the product to Available when they arrive.',
+    sold_out:
+        'Students preordered sizes that are out of stock. Order more in the eStore; students are notified when a delivery puts the size back in stock. Mark a size as not restocked if it will not come back.',
     open: 'Students can still preorder these. Closing soonest first.',
     arrived:
         'For sale now. The students who preordered were notified; nothing is held for them.',
@@ -51,10 +57,12 @@ const descriptions: Record<Stage, string> = {
 /**
  * The Specialist's Preorders page. Each Preorder product goes from Taking
  * preorders to To order in eStore (preorders closed) to Arrived (for sale,
- * the students were told). Three cards say how many are in each stage and
- * filter the table; each row shows the stage, the date that matters, the
- * pieces per size, and View Details (what to order, who preordered, change
- * the date). Export downloads what is still to order for Excel.
+ * the students were told). A product for sale whose sold-out sizes students
+ * preordered is Waiting for restock. Four cards say how many are in each
+ * stage and filter the table; each row shows the stage, the date that
+ * matters, the pieces per size, and View Details (what to order, who
+ * preordered, change the date, mark a size as not restocked). Export
+ * downloads what is still to order for Excel.
  */
 export default function PreordersIndex({
     products,
@@ -72,7 +80,10 @@ export default function PreordersIndex({
     const [search, setSearch] = useState(filters.search ?? '');
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [changing, setChanging] = useState<CloseDateTarget | null>(null);
+    const [notRestocking, setNotRestocking] =
+        useState<NotRestockedTarget | null>(null);
     const firstRender = useRef(true);
+    const piecesToOrder = summary.to_order.pieces + summary.sold_out.pieces;
 
     const showList = (stage: Stage, term: string) =>
         router.get(
@@ -108,6 +119,16 @@ export default function PreordersIndex({
         router.reload({ data: { details: product.id }, only: ['details'] });
     };
 
+    // After a size was marked or allowed again: the open popup is refreshed.
+    const refreshDetails = () => {
+        if (viewingId !== null) {
+            router.reload({
+                data: { details: viewingId },
+                only: ['details', 'products', 'summary'],
+            });
+        }
+    };
+
     return (
         <>
             <Head title="Preorders" />
@@ -115,13 +136,13 @@ export default function PreordersIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Preorders"
-                    description="Students reserve Preorder products; when preorders close, order that many in the eStore; when they arrive, set the product to Available and the students are notified."
+                    description="Students reserve Preorder products and sold-out sizes; order that many in the eStore; when they arrive, the students are notified."
                     actions={
-                        summary.to_order.pieces > 0 ? (
+                        piecesToOrder > 0 ? (
                             <a
                                 href={PreorderController.export().url}
                                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
-                                title="The products whose preorders closed, per size or color, with a total per product"
+                                title="The products whose preorders closed and the sold-out sizes students wait for, per size or color, with a total per product"
                             >
                                 <Download size={18} />
                                 Export what to order (CSV)
@@ -129,7 +150,7 @@ export default function PreordersIndex({
                         ) : (
                             <span
                                 className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-5 py-3 text-sm font-black text-slate-400"
-                                title="No product's preorders have closed with pieces to order"
+                                title="No closed preorders or sold-out sizes with pieces to order"
                             >
                                 <Download size={18} />
                                 Nothing to order yet
@@ -138,7 +159,7 @@ export default function PreordersIndex({
                     }
                 />
 
-                <section className="grid gap-4 md:grid-cols-3">
+                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <StageCard
                         stage="to_order"
                         current={filters.stage}
@@ -148,6 +169,16 @@ export default function PreordersIndex({
                         value={formatUnits(summary.to_order.pieces, 'Piece')}
                         detail={`${summary.to_order.products} ${summary.to_order.products === 1 ? 'product' : 'products'} closed · ${summary.to_order.students} ${summary.to_order.students === 1 ? 'student' : 'students'}`}
                         onClick={() => showList('to_order', search)}
+                    />
+                    <StageCard
+                        stage="sold_out"
+                        current={filters.stage}
+                        icon={PackageSearch}
+                        tone="orange"
+                        title="Waiting for restock"
+                        value={formatUnits(summary.sold_out.pieces, 'Piece')}
+                        detail={`${summary.sold_out.products} ${summary.sold_out.products === 1 ? 'product' : 'products'} · ${summary.sold_out.students} ${summary.sold_out.students === 1 ? 'student' : 'students'} waiting`}
+                        onClick={() => showList('sold_out', search)}
                     />
                     <StageCard
                         stage="open"
@@ -311,12 +342,23 @@ export default function PreordersIndex({
                     setViewingId(null);
                     setChanging(product);
                 }}
+                onMarkNotRestocked={setNotRestocking}
+                onChanged={refreshDetails}
             />
 
             <PreorderCloseDateDialog
                 product={changing}
                 today={today}
                 onClose={() => setChanging(null)}
+            />
+
+            <NotRestockedDialog
+                target={notRestocking}
+                onClose={() => setNotRestocking(null)}
+                onDone={() => {
+                    setNotRestocking(null);
+                    refreshDetails();
+                }}
             />
         </>
     );
@@ -328,6 +370,10 @@ const toneClasses = {
         ring: 'ring-amber-400',
     },
     blue: { icon: 'bg-blue-50 text-blue-600', ring: 'ring-blue-400' },
+    orange: {
+        icon: 'bg-orange-50 text-orange-600',
+        ring: 'ring-orange-400',
+    },
     green: {
         icon: 'bg-emerald-50 text-emerald-600',
         ring: 'ring-emerald-400',
@@ -454,7 +500,7 @@ function PreorderTableRow({
             <td
                 className={cn(
                     'px-5 py-4 text-right text-base font-black',
-                    product.stage === 'to_order'
+                    product.stage === 'to_order' || product.stage === 'sold_out'
                         ? 'text-amber-700'
                         : 'text-slate-900',
                 )}

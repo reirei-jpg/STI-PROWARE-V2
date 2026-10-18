@@ -5,15 +5,17 @@ namespace App\Http\Requests;
 use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Services\Shop\Cart;
+use App\Services\Stock\LowStockAlerts;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * A student's preorder: which size or color and how many. There is no limit
- * on how many, and no payment; it is a reservation. Only Preorder products
- * whose close date has not passed take preorders.
+ * A student's preorder: which size or color and how many. There is no
+ * payment; it is a reservation. Preorder products take preorders until
+ * their close date; a product for sale takes them only for a size that is
+ * sold out and not marked "will not be restocked".
  */
 class PlacePreorderRequest extends FormRequest
 {
@@ -59,7 +61,19 @@ class PlacePreorderRequest extends FormRequest
             function (Validator $validator): void {
                 $product = $this->product();
 
-                if ($product->acceptsPreorders()) {
+                if ($product->acceptsPreorders() || $validator->errors()->has('product_variant_id')) {
+                    return;
+                }
+
+                if (LowStockAlerts::isSold($product)) {
+                    $variant = $product->variants()->findOrFail($this->integer('product_variant_id'))->setRelation('product', $product);
+
+                    if ($variant->freeToSell() > 0) {
+                        $validator->errors()->add('product_variant_id', "{$variant->displayName()} is in stock. Add it to your cart instead.");
+                    } elseif ($variant->not_restocked_at !== null) {
+                        $validator->errors()->add('product_variant_id', "{$variant->displayName()} will not be restocked, so it cannot be preordered.");
+                    }
+
                     return;
                 }
 

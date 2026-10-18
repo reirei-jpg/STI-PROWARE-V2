@@ -5,14 +5,16 @@ namespace App\Actions\Preorders;
 use App\Enums\PreorderStatus;
 use App\Models\Preorder;
 use App\Models\User;
+use App\Services\Stock\LowStockAlerts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 
 /**
  * A student cancels their own preorder, from the website or the phone app,
- * while preorders for the product are still open.
+ * while preorders for the product are still open, or while a sold-out size
+ * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, can_cancel: bool, created_at: string|null, arrived_at: string|null}
+ * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -29,7 +31,7 @@ class CancelPreorderByStudent
      */
     public static function refusal(Preorder $preorder): ?string
     {
-        if ($preorder->status === PreorderStatus::Active && $preorder->product->acceptsPreorders()) {
+        if ($preorder->status === PreorderStatus::Active && ($preorder->product->acceptsPreorders() || LowStockAlerts::isSold($preorder->product))) {
             return null;
         }
 
@@ -52,7 +54,8 @@ class CancelPreorderByStudent
 
     /**
      * A page of the student's My Preorders (website and phone app): waiting
-     * ones first, then arrived, then cancelled, newest first, 20 at a time.
+     * ones first, then arrived, then closed or cancelled, newest first, 20
+     * at a time.
      *
      * @return LengthAwarePaginator<int, PreorderRow>
      */
@@ -84,9 +87,13 @@ class CancelPreorderByStudent
             'status' => $preorder->status->value,
             'status_label' => $preorder->status->label(),
             'preorders_close_on' => $preorder->product->preorders_close_on?->toDateString(),
+            // A sold-out size of a product for sale, not a Coming Soon product.
+            'waiting_for_restock' => $preorder->status === PreorderStatus::Active && LowStockAlerts::isSold($preorder->product),
             'can_cancel' => self::refusal($preorder) === null,
             'created_at' => $preorder->created_at?->toIso8601String(),
             'arrived_at' => $preorder->arrived_at?->toIso8601String(),
+            'not_restocked_at' => $preorder->not_restocked_at?->toIso8601String(),
+            'not_restocked_reason' => $preorder->not_restocked_reason,
         ];
     }
 }

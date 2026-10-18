@@ -4,6 +4,10 @@ import type { PreorderProductSummary, PreorderStage } from '@/types';
 
 /** V1's colors: blue in progress, amber needs action, green good news. */
 const stages: Record<PreorderStage, { label: string; className: string }> = {
+    sold_out: {
+        label: 'Waiting for restock',
+        className: 'bg-orange-100 text-orange-800',
+    },
     open: { label: 'Taking preorders', className: 'bg-blue-100 text-blue-700' },
     to_order: {
         label: 'To order in eStore',
@@ -13,12 +17,13 @@ const stages: Record<PreorderStage, { label: string; className: string }> = {
 };
 
 export const preorderStageLabels: Record<PreorderStage, string> = {
+    sold_out: stages.sold_out.label,
     open: stages.open.label,
     to_order: stages.to_order.label,
     arrived: stages.arrived.label,
 };
 
-/** "Taking preorders", "To order in eStore" or "Arrived", in color. */
+/** "Waiting for restock", "Taking preorders", "To order in eStore" or "Arrived", in color. */
 export default function PreorderStageBadge({
     stage,
 }: {
@@ -38,8 +43,8 @@ export default function PreorderStageBadge({
 
 /**
  * The date that matters for the stage: when preorders close (in V1's date
- * colors: amber on the last day, blue later), when they closed, or when
- * the students were told it arrived.
+ * colors: amber on the last day, blue later), when they closed, when the
+ * students were told it arrived, or that sizes are out of stock.
  */
 export function PreorderWhen({
     product,
@@ -51,6 +56,12 @@ export function PreorderWhen({
     >;
     today: string;
 }) {
+    if (product.stage === 'sold_out') {
+        return (
+            <span className="font-bold text-red-700">Sizes out of stock</span>
+        );
+    }
+
     if (product.stage === 'arrived') {
         return (
             <span className="font-bold text-emerald-700">

@@ -1,13 +1,17 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import {
     CalendarClock,
     Download,
     ImageIcon,
     LoaderCircle,
+    PackageX,
     Users,
     X,
 } from 'lucide-react';
+import { useState } from 'react';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
+import PreorderRestockController from '@/actions/App/Http/Controllers/PreorderRestockController';
+import type { NotRestockedTarget } from '@/components/not-restocked-dialog';
 import { TableHeading } from '@/components/panel';
 import PreorderStageBadge, {
     PreorderWhen,
@@ -28,7 +32,8 @@ import type { PreorderDetails } from '@/types';
  * eStore (pieces per size or color, with the eStore item codes) or what
  * arrived, the students who preordered (newest first; the full list has
  * its own page), Change date / Reopen while it is on Preorder, and a CSV of
- * this product.
+ * this product. While it waits for a restock, each size shows its stock,
+ * and a sold-out size can be marked as not restocked (or allowed again).
  */
 export default function PreorderDetailsDialog({
     open,
@@ -36,6 +41,8 @@ export default function PreorderDetailsDialog({
     today,
     onClose,
     onChangeDate,
+    onMarkNotRestocked,
+    onChanged,
 }: {
     open: boolean;
     /** Undefined while it loads. */
@@ -43,14 +50,34 @@ export default function PreorderDetailsDialog({
     today: string;
     onClose: () => void;
     onChangeDate: (product: PreorderDetails) => void;
+    onMarkNotRestocked: (target: NotRestockedTarget) => void;
+    /** After a size was allowed to be preordered again. */
+    onChanged: () => void;
 }) {
+    const [allowing, setAllowing] = useState<number | null>(null);
     const arrived = details?.stage === 'arrived';
+    const restock = details?.stage === 'sold_out';
     const counted = details?.variants ?? [];
     const oneSize = counted.length === 1 && counted[0].label === null;
+    const nameOf = (label: string | null) =>
+        label === null || details === null || details === undefined
+            ? (details?.name ?? '')
+            : `${details.name} (${label})`;
+
+    const allowAgain = (variantId: number) => {
+        setAllowing(variantId);
+        router.delete(PreorderRestockController.destroy(variantId).url, {
+            preserveScroll: true,
+            onSuccess: onChanged,
+            onFinish: () => setAllowing(null),
+        });
+    };
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-            <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-3xl [&>button:last-child]:hidden">
+            <DialogContent
+                className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 [&>button:last-child]:hidden ${restock ? 'sm:max-w-5xl' : 'sm:max-w-3xl'}`}
+            >
                 {!details ? (
                     <div className="flex flex-col items-center gap-3 px-6 py-16 text-sm font-bold text-slate-500">
                         <DialogTitle className="sr-only">
@@ -114,11 +141,21 @@ export default function PreorderDetailsDialog({
                                 <h3 className="text-xs font-black tracking-wide text-slate-400 uppercase">
                                     {arrived
                                         ? 'What arrived for them'
-                                        : details.stage === 'to_order'
-                                          ? 'What to order in the eStore'
-                                          : 'Preordered so far'}
+                                        : restock
+                                          ? 'Waiting for restock: order these in the eStore'
+                                          : details.stage === 'to_order'
+                                            ? 'What to order in the eStore'
+                                            : 'Preordered so far'}
                                 </h3>
-                                <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200">
+                                {restock && (
+                                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                                        Students are notified by themselves when
+                                        a delivery puts the size back in stock.
+                                        If a size will not come back, mark it as
+                                        not restocked.
+                                    </p>
+                                )}
+                                <div className="mt-2 overflow-x-auto rounded-2xl border border-slate-200">
                                     <table className="w-full text-sm">
                                         <thead className="bg-slate-50">
                                             <tr>
@@ -134,6 +171,16 @@ export default function PreorderDetailsDialog({
                                                 <TableHeading align="right">
                                                     Pieces
                                                 </TableHeading>
+                                                {restock && (
+                                                    <>
+                                                        <TableHeading align="right">
+                                                            In Stock
+                                                        </TableHeading>
+                                                        <TableHeading align="right">
+                                                            Action
+                                                        </TableHeading>
+                                                    </>
+                                                )}
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -162,6 +209,88 @@ export default function PreorderDetailsDialog({
                                                             'Piece',
                                                         )}
                                                     </td>
+                                                    {restock && (
+                                                        <>
+                                                            <td
+                                                                className={`px-5 py-2.5 text-right font-bold whitespace-nowrap ${variant.free_to_sell === 0 ? 'text-red-600' : 'text-slate-700'}`}
+                                                            >
+                                                                {variant.free_to_sell ===
+                                                                0
+                                                                    ? 'Out of stock'
+                                                                    : formatUnits(
+                                                                          variant.free_to_sell,
+                                                                          'Piece',
+                                                                      )}
+                                                            </td>
+                                                            <td className="px-5 py-2.5 text-right">
+                                                                {variant.not_restocked ? (
+                                                                    <div className="flex flex-col items-end gap-1.5">
+                                                                        <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-black whitespace-nowrap text-red-700">
+                                                                            Not
+                                                                            restocked
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={
+                                                                                allowing !==
+                                                                                null
+                                                                            }
+                                                                            onClick={() =>
+                                                                                allowAgain(
+                                                                                    variant.id,
+                                                                                )
+                                                                            }
+                                                                            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
+                                                                        >
+                                                                            {allowing ===
+                                                                                variant.id && (
+                                                                                <LoaderCircle
+                                                                                    size={
+                                                                                        14
+                                                                                    }
+                                                                                    className="animate-spin"
+                                                                                />
+                                                                            )}
+                                                                            Allow
+                                                                            preorders
+                                                                            again
+                                                                        </button>
+                                                                    </div>
+                                                                ) : variant.free_to_sell ===
+                                                                  0 ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            onMarkNotRestocked(
+                                                                                {
+                                                                                    variantId:
+                                                                                        variant.id,
+                                                                                    name: nameOf(
+                                                                                        variant.label,
+                                                                                    ),
+                                                                                    students:
+                                                                                        variant.students,
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm font-black whitespace-nowrap text-red-700 transition hover:bg-red-100"
+                                                                    >
+                                                                        <PackageX
+                                                                            size={
+                                                                                15
+                                                                            }
+                                                                        />
+                                                                        Won't be
+                                                                        restocked
+                                                                    </button>
+                                                                ) : (
+                                                                    <span className="text-xs text-slate-400">
+                                                                        —
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        </>
+                                                    )}
                                                 </tr>
                                             ))}
                                             <tr className="border-t-2 border-slate-200 bg-slate-50">
@@ -180,6 +309,7 @@ export default function PreorderDetailsDialog({
                                                         'Piece',
                                                     )}
                                                 </td>
+                                                {restock && <td colSpan={2} />}
                                             </tr>
                                         </tbody>
                                     </table>

@@ -6,6 +6,7 @@ import {
     Clock3,
     LoaderCircle,
     PackageOpen,
+    PackageX,
     ShoppingBag,
     Store,
     XCircle,
@@ -24,13 +25,18 @@ type MyPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'arrived' | 'cancelled';
+    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked';
     status_label: string;
     preorders_close_on: string | null;
+    /** A sold-out size of an item for sale, waiting to be back in stock. */
+    waiting_for_restock: boolean;
     can_cancel: boolean;
     created_at: string | null;
     /** When the student was told it arrived. */
     arrived_at: string | null;
+    /** When the student was told it will not be restocked. */
+    not_restocked_at: string | null;
+    not_restocked_reason: string | null;
 };
 
 /** Each status's words, icon and V1 colors. */
@@ -56,13 +62,21 @@ const statusLooks: Record<
         badge: 'border-slate-200 bg-slate-50 text-slate-600',
         iconBox: 'bg-slate-200 text-slate-600',
     },
+    not_restocked: {
+        label: 'Not Restocked',
+        icon: PackageX,
+        badge: 'border-red-200 bg-red-50 text-red-700',
+        iconBox: 'bg-red-100 text-red-700',
+    },
 };
 
 /**
  * The student's preorders, laid out like V1's My Preorders: three counts
- * (Waiting to Arrive, Arrived, Cancelled), then a card per preorder with
- * the item on the left and, on the right, what its status means and what
- * to do: wait (Cancel while preorders are open) or buy it once it arrived.
+ * (Waiting to Arrive, Arrived, Cancelled or not restocked), then a card per
+ * preorder with the item on the left and, on the right, what its status
+ * means and what to do: wait (Cancel while it can be cancelled) or buy it
+ * once it arrived. A sold-out size waits for a restock; the PROWARE office
+ * may close it as not restocked, with a reason.
  */
 export default function MyPreorders({
     preorders,
@@ -86,8 +100,9 @@ export default function MyPreorders({
                         My Preorders
                     </h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                        Items you reserved before they arrive. There is nothing
-                        to pay now; you are notified when your item arrives.
+                        Items you reserved before they arrive or while they are
+                        out of stock. There is nothing to pay now; you are
+                        notified when your item arrives.
                     </p>
                 </div>
 
@@ -105,8 +120,8 @@ export default function MyPreorders({
                         tone="green"
                     />
                     <SummaryCard
-                        label="Cancelled"
-                        value={count('cancelled')}
+                        label="Cancelled / Not Restocked"
+                        value={count('cancelled') + count('not_restocked')}
                         icon={XCircle}
                         tone="slate"
                     />
@@ -236,7 +251,9 @@ function SummaryCard({
 function PreorderCard({ preorder }: { preorder: MyPreorder }) {
     const [confirming, setConfirming] = useState(false);
     const [cancelling, setCancelling] = useState(false);
-    const look = statusLooks[preorder.status];
+    const look = preorder.waiting_for_restock
+        ? { ...statusLooks.active, label: 'Waiting for Restock' }
+        : statusLooks[preorder.status];
     const StatusIcon = look.icon;
 
     const cancel = () => {
@@ -261,7 +278,8 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                 alt={preorder.product_name}
                                 className={cn(
                                     'h-full w-full object-cover',
-                                    preorder.status === 'cancelled' &&
+                                    (preorder.status === 'cancelled' ||
+                                        preorder.status === 'not_restocked') &&
                                         'grayscale',
                                 )}
                             />
@@ -399,6 +417,32 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
         return (
             <p className="mt-1 text-xs leading-5 font-medium">
                 This preorder was cancelled.
+            </p>
+        );
+    }
+
+    if (preorder.status === 'not_restocked') {
+        return (
+            <>
+                <p className="mt-1 text-xs leading-5 font-medium">
+                    The PROWARE office said it will not be restocked, so this
+                    preorder was closed on{' '}
+                    {formatDateOrdered(preorder.not_restocked_at)}.
+                </p>
+                {preorder.not_restocked_reason && (
+                    <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 text-xs font-bold">
+                        Reason: {preorder.not_restocked_reason}
+                    </p>
+                )}
+            </>
+        );
+    }
+
+    if (preorder.waiting_for_restock) {
+        return (
+            <p className="mt-1 text-xs leading-5 font-medium">
+                It is out of stock. No payment is needed. You are notified when
+                it is back in stock; it is not held for you.
             </p>
         );
     }

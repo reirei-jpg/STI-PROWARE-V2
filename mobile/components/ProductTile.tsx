@@ -6,20 +6,23 @@ import { formatDate } from '@/lib/format';
 import type { StorefrontTileProduct } from '@/lib/types';
 
 /**
- * Out of stock, or Coming Soon with preorders closed: still shown, greyed,
- * but nothing happens when it is tapped.
+ * Out of stock with nothing to preorder, or Coming Soon with preorders
+ * closed: still shown, greyed, but nothing happens when it is tapped.
  */
 export function isUnavailable(product: StorefrontTileProduct): boolean {
-    return (
-        product.sold_out || (product.status === 'preorder' && !product.accepts_preorders)
-    );
+    return (product.sold_out || product.status === 'preorder') && !product.accepts_preorders;
+}
+
+/** Coming Soon, or out of stock with sizes students can preorder. */
+export function takesPreorders(product: StorefrontTileProduct): boolean {
+    return (product.status === 'preorder' || product.sold_out) && product.accepts_preorders;
 }
 
 /**
  * A merchandise tile, like the website's: square photo, name, price and the
  * button. Badges: SALE (and when it ends), COMING SOON, "Only 3 left", and
- * OUT OF STOCK (greyed, no button). Tapping opens the product, unless it is
- * unavailable (out of stock, or preorders closed).
+ * OUT OF STOCK (greyed; a Preorder button while it can be preordered,
+ * otherwise none). Tapping opens the product, unless it is unavailable.
  */
 export default function ProductTile({
     product,
@@ -33,6 +36,7 @@ export default function ProductTile({
     const comingSoon = product.status === 'preorder';
     const onSale = product.status === 'on_sale';
     const unavailable = isUnavailable(product);
+    const preorderButton = takesPreorders(product);
 
     return (
         <Pressable
@@ -125,8 +129,14 @@ export default function ProductTile({
                     </Text>
                 )}
 
+                {product.sold_out && product.accepts_preorders && (
+                    <Text className="font-sans-bold text-[11px] text-amber-700">
+                        Out of stock · preorder to be notified
+                    </Text>
+                )}
+
                 <View className="mt-auto">
-                    {product.sold_out ? (
+                    {product.sold_out && !product.accepts_preorders ? (
                         <View className="items-center rounded-xl bg-slate-100 py-2">
                             <Text className="font-sans-bold text-xs text-slate-500">
                                 Unavailable for now
@@ -140,17 +150,17 @@ export default function ProductTile({
                         </View>
                     ) : (
                         <View
-                            className={`flex-row items-center justify-center gap-1.5 rounded-xl py-2 ${comingSoon ? 'bg-amber-400' : 'bg-brand'}`}
+                            className={`flex-row items-center justify-center gap-1.5 rounded-xl py-2 ${preorderButton ? 'bg-amber-400' : 'bg-brand'}`}
                         >
-                            {comingSoon ? (
+                            {preorderButton ? (
                                 <CalendarClock size={14} color="#451a03" />
                             ) : (
                                 <ShoppingCart size={14} color="#ffffff" />
                             )}
                             <Text
-                                className={`font-sans-bold text-xs ${comingSoon ? 'text-amber-950' : 'text-white'}`}
+                                className={`font-sans-bold text-xs ${preorderButton ? 'text-amber-950' : 'text-white'}`}
                             >
-                                {comingSoon ? 'Preorder' : 'Add to Cart'}
+                                {preorderButton ? 'Preorder' : 'Add to Cart'}
                             </Text>
                         </View>
                     )}

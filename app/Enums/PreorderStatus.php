@@ -19,12 +19,19 @@ enum PreorderStatus: string
      */
     case Arrived = 'arrived';
 
+    /**
+     * The size was sold out and the Specialist said it will not be
+     * restocked; the student was told and it no longer counts.
+     */
+    case NotRestocked = 'not_restocked';
+
     public function label(): string
     {
         return match ($this) {
             self::Active => 'Preordered',
             self::Cancelled => 'Cancelled',
             self::Arrived => 'Arrived',
+            self::NotRestocked => 'Not restocked',
         };
     }
 }

@@ -71,6 +71,27 @@ export type PreorderArrivedData = {
     kind: 'preorder_arrived';
     product_id: number;
     product_name: string;
+    /** The size that is back in stock; missing or null for a Coming Soon product. */
+    variant_label?: string | null;
+};
+
+/** The sold-out size the student preordered will not be restocked. */
+export type PreorderNotRestockedData = {
+    kind: 'preorder_not_restocked';
+    product_id: number;
+    product_name: string;
+    variant_label: string | null;
+    reason: string | null;
+};
+
+/** A student preordered a sold-out size (for the Specialist). */
+export type PreorderPlacedData = {
+    kind: 'preorder_placed';
+    product_id: number;
+    product_name: string;
+    variant_label: string | null;
+    student_name: string;
+    quantity: number;
 };
 
 /** The Specialist lifted the student's ordering pause. */
@@ -114,6 +135,8 @@ export type StaffNotification = {
         | OrderLastDayData
         | OrderCancelledData
         | PreorderArrivedData
+        | PreorderNotRestockedData
+        | PreorderPlacedData
         | OrderingResumedData
         | DeliveryRecordedData
         | PurchaseOrderClosedShortData;

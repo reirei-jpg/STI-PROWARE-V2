@@ -8,6 +8,7 @@ use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\RestockedPreorders;
 use App\Services\Stock\StockCost;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,11 +17,15 @@ use Illuminate\Validation\ValidationException;
  * Corrects a variant's stock: takes damaged, lost or returned pieces out,
  * or sets it to the count on the shelf. The correction is kept in the stock
  * history with its reason, note and who made it. A count that adds pieces
- * needs their eStore price per piece, so every piece has a cost.
+ * needs their eStore price per piece, so every piece has a cost; students
+ * waiting for that sold-out size are then notified.
  */
 class CorrectStock
 {
-    public function __construct(private LowStockAlerts $lowStockAlerts) {}
+    public function __construct(
+        private LowStockAlerts $lowStockAlerts,
+        private RestockedPreorders $restockedPreorders,
+    ) {}
 
     /**
      * @param  int  $amount  pieces to take out, or the actual count on the shelf, depending on the reason
@@ -64,6 +69,7 @@ class CorrectStock
             StockCost::replay($locked->id);
 
             $this->lowStockAlerts->check($locked);
+            $this->restockedPreorders->check($locked);
 
             return $correction;
         });

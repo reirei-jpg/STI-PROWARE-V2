@@ -19,7 +19,9 @@ const MOST = 99;
 
 /**
  * Preorder, like the website's: which size or color and how many. Nothing
- * is paid; it tells the PROWARE office how many to order.
+ * is paid; it tells the PROWARE office how many to order. For an item for
+ * sale that is out of stock, only its sizes that can be preordered are
+ * offered, and the student is notified when it is back in stock.
  */
 export default function PreorderSheet({
     product,
@@ -33,8 +35,11 @@ export default function PreorderSheet({
     onPlaced: (message: string) => void;
 }) {
     const { request } = useAuth();
-    // A preorder is for any size or color; nothing is in stock yet.
-    const anyVariant = (): boolean => true;
+    // An item for sale that is out of stock: only its sizes that can be
+    // preordered. A Coming Soon product: any size, nothing is in stock yet.
+    const restock = product.status !== 'preorder';
+    const anyVariant = (variant: { can_preorder: boolean }): boolean =>
+        !restock || variant.can_preorder;
 
     const [picked, setPicked] = useState<Picked>(() => startingPicks(product.variants, anyVariant));
     const [quantityText, setQuantityText] = useState('1');
@@ -52,7 +57,8 @@ export default function PreorderSheet({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
-    const variantId = pickedVariant(product.variants, product.options, picked)?.id ?? null;
+    const chosen = pickedVariant(product.variants, product.options, picked);
+    const variantId = chosen !== undefined && anyVariant(chosen) ? chosen.id : null;
     const quantity = Number(quantityText) || 0;
     const hasChoices = product.variants.length > 1;
     const canPlace = !saving && variantId !== null && quantity >= 1 && quantity <= MOST;
@@ -119,7 +125,10 @@ export default function PreorderSheet({
                 )}
                 <View className="flex-1 justify-center gap-1">
                     <PriceLines price={product.price} />
-                    {product.preorders_close_on && (
+                    {restock && (
+                        <Text className="font-sans-bold text-xs text-red-600">Out of stock</Text>
+                    )}
+                    {!restock && product.preorders_close_on && (
                         <Text className="font-sans-bold text-xs text-amber-700">
                             Preorders close {formatDate(product.preorders_close_on)}
                         </Text>
@@ -159,9 +168,9 @@ export default function PreorderSheet({
 
             <View className="rounded-xl bg-amber-50 px-4 py-3">
                 <Text className="font-sans text-xs leading-5 text-amber-900">
-                    A preorder reserves the item so the PROWARE office knows how
-                    many to order. There is nothing to pay now. If you preorder
-                    the same size again, the new number replaces the old one.
+                    {restock
+                        ? 'This item is out of stock. Preorder it and you will be notified when it is back in stock. There is nothing to pay now, and nothing is held for you. If you preorder the same size again, the new number replaces the old one.'
+                        : 'A preorder reserves the item so the PROWARE office knows how many to order. There is nothing to pay now. If you preorder the same size again, the new number replaces the old one.'}
                 </Text>
             </View>
 

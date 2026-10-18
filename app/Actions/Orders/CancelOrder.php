@@ -8,18 +8,23 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderCancelled;
 use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\RestockedPreorders;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Cancels an order that was not released yet: its hold ends, so its pieces
- * (which never left the shelf) are free to sell again. When it cancels
- * itself for not being released in time, it is marked expired (this counts
- * towards the no-show pause in OrderRules). When the student did not
- * cancel it themselves, they are told why.
+ * (which never left the shelf) are free to sell again, and students waiting
+ * for a sold-out size get notified. When it cancels itself for not being
+ * released in time, it is marked expired (this counts towards the no-show
+ * pause in OrderRules). When the student did not cancel it themselves, they
+ * are told why.
  */
 class CancelOrder
 {
-    public function __construct(private LowStockAlerts $lowStockAlerts) {}
+    public function __construct(
+        private LowStockAlerts $lowStockAlerts,
+        private RestockedPreorders $restockedPreorders,
+    ) {}
 
     /**
      * @param  User|null  $cancelledBy  null when it expired (not released in time)
@@ -38,6 +43,7 @@ class CancelOrder
                 $variant->forceFill(['held_pieces' => max(0, $variant->held_pieces - $item->pieces())])->save();
 
                 $this->lowStockAlerts->check($variant);
+                $this->restockedPreorders->check($variant);
             }
 
             $order->forceFill([

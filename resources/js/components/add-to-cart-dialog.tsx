@@ -1,9 +1,17 @@
 import { useForm, useHttp, usePage } from '@inertiajs/react';
-import { LoaderCircle, Minus, Plus, ShoppingCart, X } from 'lucide-react';
+import {
+    CalendarClock,
+    LoaderCircle,
+    Minus,
+    Plus,
+    ShoppingCart,
+    X,
+} from 'lucide-react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
+import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import InputError from '@/components/input-error';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
 import {
@@ -69,7 +77,10 @@ export function useAddToCart(): (product: StorefrontTileProduct) => void {
 
 /**
  * The picker (TikTok Shop style): size or color, by the piece or by a pack,
- * and how many, up to what is in stock.
+ * and how many, up to what is in stock. A sold-out size can still be
+ * picked: it says Out of stock, and the button becomes Preorder (the
+ * student is notified when it is back), or it says it will not be
+ * restocked.
  */
 function AddToCartDialog({
     product,
@@ -179,10 +190,12 @@ function PickerForm({
     details: StorefrontProductDetails;
     onClose: () => void;
 }) {
-    const inStock = (variant: { stock_pieces: number }) =>
-        variant.stock_pieces > 0;
+    // Every size can be picked; sold-out ones are crossed out and preordered.
+    const anyVariant = () => true;
+    const soldOut = (variant: { stock_pieces: number }) =>
+        variant.stock_pieces === 0;
     const [picked, setPicked] = useState<Picked>(() =>
-        startingPicks(details.variants, inStock),
+        startingPicks(details.variants, anyVariant),
     );
     const soldByPiece = details.variants.some(
         (variant) => variant.buy_price_centavos !== null,
@@ -192,7 +205,7 @@ function PickerForm({
             pickedVariant(
                 details.variants,
                 details.options,
-                startingPicks(details.variants, inStock),
+                startingPicks(details.variants, anyVariant),
             )?.id ?? '',
         ),
         product_pack_id: (soldByPiece
@@ -214,12 +227,16 @@ function PickerForm({
     // This size or color by the piece is on sale (sizes may differ).
     const pieceOnSale =
         pack === undefined && (variant?.sale_price_centavos ?? null) !== null;
-    const most = variant
-        ? Math.min(
-              MAX_PER_ITEM,
-              Math.floor(variant.stock_pieces / piecesPerUnit),
-          )
-        : 0;
+    // The chosen size is sold out: preorder it (by the piece) instead.
+    const preordering = variant !== undefined && soldOut(variant);
+    const most = preordering
+        ? MAX_PER_ITEM
+        : variant
+          ? Math.min(
+                MAX_PER_ITEM,
+                Math.floor(variant.stock_pieces / piecesPerUnit),
+            )
+          : 0;
     const quantity = Number(data.quantity) || 0;
     const hasChoices = details.variants.length > 1;
     const unitChoices = (soldByPiece ? 1 : 0) + details.buy_packs.length;
@@ -231,10 +248,15 @@ function PickerForm({
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                form.post(CartController.store(details.id).url, {
-                    preserveScroll: true,
-                    onSuccess: onClose,
-                });
+                form.post(
+                    preordering
+                        ? StudentPreorderController.store(details.id).url
+                        : CartController.store(details.id).url,
+                    {
+                        preserveScroll: true,
+                        onSuccess: onClose,
+                    },
+                );
             }}
             className="flex min-h-0 flex-col"
         >
@@ -276,8 +298,15 @@ function PickerForm({
                             )}
                         </p>
                         {variant && (
-                            <p className="text-xs font-bold text-slate-500">
-                                {variant.stock_pieces === 0
+                            <p
+                                className={cn(
+                                    'text-xs font-bold',
+                                    preordering
+                                        ? 'text-red-600'
+                                        : 'text-slate-500',
+                                )}
+                            >
+                                {preordering
                                     ? 'Out of stock'
                                     : variant.pieces_left !== null
                                       ? `Only ${formatUnits(variant.pieces_left, 'Piece')} left`
@@ -294,7 +323,8 @@ function PickerForm({
                             option={option}
                             picked={picked}
                             variants={details.variants}
-                            canPick={inStock}
+                            canPick={anyVariant}
+                            isOut={soldOut}
                             onPick={(choice) => {
                                 const next = pickChoice(
                                     details.variants,
@@ -302,7 +332,7 @@ function PickerForm({
                                     picked,
                                     option.name,
                                     choice,
-                                    inStock,
+                                    anyVariant,
                                 );
 
                                 setPicked(next);
@@ -324,7 +354,23 @@ function PickerForm({
                     <InputError message={errors.product_variant_id} />
                 )}
 
-                {unitChoices > 1 && (
+                {preordering && variant.not_restocked && (
+                    <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm leading-6 font-bold text-slate-600">
+                        This {hasChoices ? 'size or color' : 'item'} is out of
+                        stock and will not be restocked.
+                    </p>
+                )}
+
+                {preordering && variant.can_preorder && (
+                    <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                        This {hasChoices ? 'size or color' : 'item'} is out of
+                        stock. Preorder it and you will be notified when it is
+                        back in stock. There is nothing to pay now, and nothing
+                        is held for you.
+                    </p>
+                )}
+
+                {!preordering && unitChoices > 1 && (
                     <section className="space-y-2">
                         <p className="text-sm font-black text-slate-700">
                             Buy by
@@ -371,63 +417,77 @@ function PickerForm({
                     </section>
                 )}
 
-                <section className="space-y-2">
-                    <p className="text-sm font-black text-slate-700">
-                        How many?
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setQuantity(quantity - 1)}
-                            disabled={quantity <= 1}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                            aria-label="One less"
-                        >
-                            <Minus size={16} />
-                        </button>
-                        <input
-                            value={data.quantity}
-                            onChange={(event) =>
-                                setData(
-                                    'quantity',
-                                    // Never more than what is left to buy.
-                                    wholeNumberInput(
-                                        event.target.value,
-                                        variant
-                                            ? Math.max(most, 1)
-                                            : MAX_PER_ITEM,
-                                    ),
-                                )
-                            }
-                            onBlur={() => setQuantity(quantity)}
-                            inputMode="numeric"
-                            className="h-11 w-20 rounded-xl border border-slate-200 text-center text-sm font-black text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                            aria-label="How many"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setQuantity(quantity + 1)}
-                            disabled={variant === undefined || quantity >= most}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                            aria-label="One more"
-                        >
-                            <Plus size={16} />
-                        </button>
-                        <span className="text-sm text-slate-500">
-                            {unitWord(quantity, unitName)}
-                            {piecesPerUnit > 1 &&
-                                ` (${formatUnits(quantity * piecesPerUnit, 'Piece')})`}
-                        </span>
-                    </div>
-                    {variant && quantity >= most && most > 0 && (
-                        <p className="text-sm font-bold text-amber-700">
-                            Only {formatUnits(most, unitName)} left to add.
+                {!(preordering && !variant.can_preorder) && (
+                    <section className="space-y-2">
+                        <p className="text-sm font-black text-slate-700">
+                            {preordering
+                                ? 'How many to preorder?'
+                                : 'How many?'}
                         </p>
-                    )}
-                    <InputError message={errors.quantity} />
-                </section>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setQuantity(quantity - 1)}
+                                disabled={quantity <= 1}
+                                className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                                aria-label="One less"
+                            >
+                                <Minus size={16} />
+                            </button>
+                            <input
+                                value={data.quantity}
+                                onChange={(event) =>
+                                    setData(
+                                        'quantity',
+                                        // Never more than what is left to buy.
+                                        wholeNumberInput(
+                                            event.target.value,
+                                            variant
+                                                ? Math.max(most, 1)
+                                                : MAX_PER_ITEM,
+                                        ),
+                                    )
+                                }
+                                onBlur={() => setQuantity(quantity)}
+                                inputMode="numeric"
+                                className="h-11 w-20 rounded-xl border border-slate-200 text-center text-sm font-black text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                                aria-label="How many"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setQuantity(quantity + 1)}
+                                disabled={
+                                    variant === undefined || quantity >= most
+                                }
+                                className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                                aria-label="One more"
+                            >
+                                <Plus size={16} />
+                            </button>
+                            <span className="text-sm text-slate-500">
+                                {preordering
+                                    ? unitWord(quantity, 'Piece')
+                                    : unitWord(quantity, unitName)}
+                                {!preordering &&
+                                    piecesPerUnit > 1 &&
+                                    ` (${formatUnits(quantity * piecesPerUnit, 'Piece')})`}
+                            </span>
+                        </div>
+                        {!preordering &&
+                            variant &&
+                            quantity >= most &&
+                            most > 0 && (
+                                <p className="text-sm font-bold text-amber-700">
+                                    Only {formatUnits(most, unitName)} left to
+                                    add.
+                                </p>
+                            )}
+                        <InputError message={errors.quantity} />
+                    </section>
+                )}
 
-                {unitPrice !== undefined &&
+                {!preordering &&
+                    unitPrice !== undefined &&
                     unitPrice !== null &&
                     quantity > 0 && (
                         <p className="flex items-baseline justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm">
@@ -453,27 +513,47 @@ function PickerForm({
                     </p>
                 )}
                 <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
-                    Cancel
+                    {preordering && !variant.can_preorder ? 'Close' : 'Cancel'}
                 </DialogClose>
-                <button
-                    type="submit"
-                    disabled={
-                        processing ||
-                        variant === undefined ||
-                        unitPrice === undefined ||
-                        unitPrice === null ||
-                        quantity < 1 ||
-                        quantity > most
-                    }
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {processing ? (
-                        <LoaderCircle size={17} className="animate-spin" />
-                    ) : (
-                        <ShoppingCart size={17} />
-                    )}
-                    Add to Cart
-                </button>
+                {preordering ? (
+                    variant.can_preorder && (
+                        <button
+                            type="submit"
+                            disabled={processing || quantity < 1}
+                            className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {processing ? (
+                                <LoaderCircle
+                                    size={17}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <CalendarClock size={17} />
+                            )}
+                            Preorder
+                        </button>
+                    )
+                ) : (
+                    <button
+                        type="submit"
+                        disabled={
+                            processing ||
+                            variant === undefined ||
+                            unitPrice === undefined ||
+                            unitPrice === null ||
+                            quantity < 1 ||
+                            quantity > most
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {processing ? (
+                            <LoaderCircle size={17} className="animate-spin" />
+                        ) : (
+                            <ShoppingCart size={17} />
+                        )}
+                        Add to Cart
+                    </button>
+                )}
             </div>
         </form>
     );

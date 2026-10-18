@@ -29,6 +29,7 @@ export type StorefrontTileProduct = {
     sale_ends_at: string | null;
     /** The last day students can preorder, for a Preorder product. */
     preorders_close_on: string | null;
+    /** A Preorder product taking preorders, or a product for sale with a sold-out size to preorder. */
     accepts_preorders: boolean;
 };
 
@@ -56,6 +57,10 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
         stock_pieces: number;
         availability: StorefrontVariantAvailability;
         pieces_left: number | null;
+        /** Sold out, and students can preorder it until it is back in stock. */
+        can_preorder: boolean;
+        /** Sold out, and the PROWARE office said it will not be restocked. */
+        not_restocked: boolean;
     }[];
     /** Packs students can buy now, at today's price. */
     buy_packs: StorefrontBuyPack[];

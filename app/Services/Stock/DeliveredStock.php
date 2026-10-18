@@ -23,11 +23,15 @@ use Illuminate\Validation\ValidationException;
  * variant gets its own stock movement. Until then the item waits.
  *
  * Each delivered item is added at most once per variant; the stock
- * movements table refuses a second one.
+ * movements table refuses a second one. Students waiting for a sold-out
+ * size that arrived are notified.
  */
 final class DeliveredStock
 {
-    public function __construct(private LowStockAlerts $lowStockAlerts) {}
+    public function __construct(
+        private LowStockAlerts $lowStockAlerts,
+        private RestockedPreorders $restockedPreorders,
+    ) {}
 
     /**
      * Add the delivered items whose eStore Item Code is linked. Items already
@@ -92,6 +96,7 @@ final class DeliveredStock
             // Stock went up, so a variant warned before may be warned again.
             foreach ($variantsByCode->flatten(1) as $variant) {
                 $this->lowStockAlerts->check($variant);
+                $this->restockedPreorders->check($variant);
             }
 
             return $piecesAdded;

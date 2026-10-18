@@ -79,14 +79,17 @@ test('preorders are taken until the end of the close date', function (string $cl
     'closed yesterday' => ['2026-10-02', false],
 ]);
 
-test('only preorder products take preorders', function () {
-    $product = Product::factory()->create(['name' => 'Lanyard', 'status' => ProductStatus::Available]);
-    $variant = ProductVariant::factory()->for($product)->create();
+test('only preorder products and sold-out sizes take preorders', function (ProductStatus $status, int $stock, string $field, string $message) {
+    $product = Product::factory()->create(['name' => 'Lanyard', 'status' => $status]);
+    $variant = ProductVariant::factory()->for($product)->create(['stock_on_hand' => $stock]);
 
     $this->actingAs($this->student)
         ->post(route('my-preorders.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1'])
-        ->assertSessionHasErrors(['quantity' => 'Lanyard is not open for preorder.']);
-});
+        ->assertSessionHasErrors([$field => $message]);
+})->with([
+    'in stock' => [ProductStatus::Available, 5, 'product_variant_id', 'Lanyard is in stock. Add it to your cart instead.'],
+    'a draft' => [ProductStatus::Draft, 0, 'quantity', 'Lanyard is not open for preorder.'],
+]);
 
 test('only students can preorder', function () {
     [$product, $small] = preorderShirt();
@@ -166,8 +169,8 @@ test('the specialist sees how many students preordered each size, not counting c
             ->where('products.data.1.students_count', 3)
             ->where('products.data.1.pieces_total', 7)
             ->where('products.data.1.variants', [
-                ['id' => $small->id, 'label' => 'S/M', 'estore_item_code' => null, 'students' => 2, 'pieces' => 3],
-                ['id' => $large->id, 'label' => 'M/L', 'estore_item_code' => null, 'students' => 1, 'pieces' => 4],
+                ['id' => $small->id, 'label' => 'S/M', 'estore_item_code' => null, 'students' => 2, 'pieces' => 3, 'free_to_sell' => 0, 'not_restocked' => false],
+                ['id' => $large->id, 'label' => 'M/L', 'estore_item_code' => null, 'students' => 1, 'pieces' => 4, 'free_to_sell' => 0, 'not_restocked' => false],
             ])
             ->where('summary.open', ['products' => 2, 'students' => 3, 'pieces' => 7])
         );
@@ -204,6 +207,7 @@ test('preorder products move from taking preorders to to order to arrived', func
         ->where('products.data.2.stage', 'arrived')
         ->where('products.data.2.pieces_total', 3)
         ->where('summary', [
+            'sold_out' => ['products' => 0, 'students' => 0, 'pieces' => 0],
             'open' => ['products' => 1, 'students' => 1, 'pieces' => 1],
             'to_order' => ['products' => 1, 'students' => 1, 'pieces' => 2],
             'arrived' => ['products' => 1, 'students' => 1, 'pieces' => 3],

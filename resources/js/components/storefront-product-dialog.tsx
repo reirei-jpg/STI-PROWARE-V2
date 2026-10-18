@@ -26,8 +26,9 @@ import type { StorefrontProductDetails, StorefrontTileProduct } from '@/types';
 /**
  * The view of one product, opened from its tile: all photos, the price per
  * piece and per pack, and each option's choices (crossed out when none are
- * left). Add to Cart
- * and Preorder open their pickers (a signed-out visitor is asked to sign in).
+ * left; those can be preordered). Add to Cart and Preorder open their
+ * pickers (a signed-out visitor is asked to sign in). A product sold out in
+ * every size offers Preorder while it can be preordered.
  */
 export default function StorefrontProductDialog({
     product,
@@ -76,6 +77,12 @@ export default function StorefrontProductDialog({
     const shown = details ?? product;
     const photo = details?.photos[photoIndex]?.url ?? product?.photo_url;
     const comingSoon = shown?.status === 'preorder';
+    // Coming Soon, or out of stock in every size with sizes to preorder.
+    const takesPreorders =
+        shown !== undefined &&
+        shown !== null &&
+        (comingSoon || shown.sold_out) &&
+        shown.accepts_preorders;
     const hasOptions =
         details !== null &&
         (details.variants.length > 1 || details.options.length > 0);
@@ -97,7 +104,9 @@ export default function StorefrontProductDialog({
                                     {comingSoon
                                         ? 'Coming soon · preorder it now'
                                         : shown.sold_out
-                                          ? 'Out of stock for now'
+                                          ? shown.accepts_preorders
+                                              ? 'Out of stock · preorder it to be notified when it is back'
+                                              : 'Out of stock for now'
                                           : shown.sale_ends_at
                                             ? `On sale · ${saleEndsText(shown.sale_ends_at).toLowerCase()}`
                                             : 'Official STI merchandise'}
@@ -228,9 +237,9 @@ export default function StorefrontProductDialog({
                                                 </div>
                                             ))}
                                             <p className="text-xs text-slate-500">
-                                                {comingSoon
+                                                {takesPreorders
                                                     ? 'Choose yours when you click Preorder.'
-                                                    : 'Choose yours when you click Add to Cart. Crossed out means none are left.'}
+                                                    : 'Choose yours when you click Add to Cart. Crossed out means none are left; you can preorder those there.'}
                                             </p>
                                         </div>
                                     )
@@ -244,7 +253,7 @@ export default function StorefrontProductDialog({
                                     </p>
                                 )}
 
-                                {shown.sold_out ? (
+                                {shown.sold_out && !shown.accepts_preorders ? (
                                     <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
                                         Out of stock for now
                                     </p>
@@ -262,7 +271,7 @@ export default function StorefrontProductDialog({
 
                                             onClose();
 
-                                            if (comingSoon) {
+                                            if (takesPreorders) {
                                                 preorder(product);
                                             } else {
                                                 addToCart(product);
@@ -270,17 +279,17 @@ export default function StorefrontProductDialog({
                                         }}
                                         className={cn(
                                             'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition',
-                                            comingSoon
+                                            takesPreorders
                                                 ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                                                 : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
                                         )}
                                     >
-                                        {comingSoon ? (
+                                        {takesPreorders ? (
                                             <CalendarClock size={17} />
                                         ) : (
                                             <ShoppingCart size={17} />
                                         )}
-                                        {comingSoon
+                                        {takesPreorders
                                             ? 'Preorder'
                                             : 'Add to Cart'}
                                     </button>

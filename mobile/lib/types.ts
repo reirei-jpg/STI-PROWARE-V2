@@ -31,6 +31,7 @@ export type StorefrontTileProduct = {
     pieces_left: number | null;
     sale_ends_at: string | null;
     preorders_close_on: string | null;
+    /** A Preorder product taking preorders, or a product for sale with a sold-out size to preorder. */
     accepts_preorders: boolean;
 };
 
@@ -54,6 +55,10 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
         stock_pieces: number;
         availability: StorefrontVariantAvailability;
         pieces_left: number | null;
+        /** Sold out, and students can preorder it until it is back in stock. */
+        can_preorder: boolean;
+        /** Sold out, and the PROWARE office said it will not be restocked. */
+        not_restocked: boolean;
     }[];
     buy_packs: {
         id: number;
@@ -169,13 +174,18 @@ export type StudentPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'arrived' | 'cancelled';
+    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked';
     status_label: string;
     /** When the student was told it arrived. */
     arrived_at: string | null;
     preorders_close_on: string | null;
+    /** A sold-out size of an item for sale, waiting to be back in stock. */
+    waiting_for_restock: boolean;
     can_cancel: boolean;
     created_at: string | null;
+    /** When the student was told it will not be restocked. */
+    not_restocked_at: string | null;
+    not_restocked_reason: string | null;
 };
 
 /** What a student's notice is about (the same notices as the website's bell). */
@@ -195,7 +205,14 @@ export type StudentNotificationData =
           pick_up_by: string;
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
-    | { kind: 'preorder_arrived'; product_id: number; product_name: string }
+    | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
+    | {
+          kind: 'preorder_not_restocked';
+          product_id: number;
+          product_name: string;
+          variant_label: string | null;
+          reason: string | null;
+      }
     // The Specialist lifted the student's ordering pause.
     | { kind: 'ordering_resumed' }
     // The Specialist's notices.
@@ -213,6 +230,14 @@ export type StudentNotificationData =
           product_name: string;
           stock_on_hand: number;
           alert_at: number;
+      }
+    | {
+          kind: 'preorder_placed';
+          product_id: number;
+          product_name: string;
+          variant_label: string | null;
+          student_name: string;
+          quantity: number;
       }
     | { kind: 'sale_ending'; product_id: number; product_name: string; ends_at: string | null }
     | { kind: 'sale_ended'; product_id: number; product_name: string; normal_price: string };

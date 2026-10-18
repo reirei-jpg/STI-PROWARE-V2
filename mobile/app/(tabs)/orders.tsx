@@ -231,10 +231,27 @@ function OrderRow({ order }: { order: StudentOrder }) {
     );
 }
 
-/** When preorders close (date-colored while it can still be changed). */
+/**
+ * When preorders close (date-colored while it can still be changed), or
+ * where a sold-out size stands: waiting for a restock, or not restocked.
+ */
 function preorderNote(preorder: StudentPreorder): { text: string; className: string } {
     if (preorder.status === 'cancelled') {
         return { text: 'Cancelled', className: 'font-sans text-slate-500' };
+    }
+
+    if (preorder.status === 'not_restocked') {
+        return {
+            text: `Not restocked, so this preorder was closed on ${formatDate(preorder.not_restocked_at)}.${preorder.not_restocked_reason ? ` Reason: ${preorder.not_restocked_reason}` : ''}`,
+            className: 'font-sans-bold text-red-700',
+        };
+    }
+
+    if (preorder.waiting_for_restock) {
+        return {
+            text: 'Out of stock. You are notified when it is back in stock.',
+            className: 'font-sans-bold text-amber-700',
+        };
     }
 
     if (preorder.status === 'arrived') {
@@ -314,7 +331,7 @@ function PreorderRow({
             style={{
                 borderLeftWidth: 5,
                 borderLeftColor:
-                    preorder.status === 'cancelled'
+                    preorder.status === 'cancelled' || preorder.status === 'not_restocked'
                         ? '#f87171'
                         : preorder.status === 'arrived'
                           ? '#10b981'

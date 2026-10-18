@@ -1,4 +1,4 @@
-import { ShoppingCart } from 'lucide-react-native';
+import { CalendarClock, ShoppingCart } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
@@ -15,8 +15,10 @@ import type { CartView, StorefrontProductDetails } from '@/lib/types';
 
 /**
  * Add to Cart, like the website's picker: size or color, by the piece or by
- * a pack, and how many, up to what is in stock. The server checks it all
- * again and answers in words.
+ * a pack, and how many, up to what is in stock. A sold-out size can still be
+ * picked: it says Out of stock, and the button becomes Preorder (the student
+ * is notified when it is back), or it says it will not be restocked. The
+ * server checks it all again and answers in words.
  */
 export default function AddToCartSheet({
     product,
@@ -27,7 +29,7 @@ export default function AddToCartSheet({
     product: StorefrontProductDetails;
     open: boolean;
     onClose: () => void;
-    onAdded: (message: string) => void;
+    onAdded: (message: string, wasPreorder: boolean) => void;
 }) {
     const { request } = useAuth();
     const { replace: replaceCart } = useCart();
@@ -35,11 +37,13 @@ export default function AddToCartSheet({
     const soldByPiece = product.variants.some(
         (variant) => variant.buy_price_centavos !== null,
     );
-    const inStock = (item: { stock_pieces: number }): boolean => item.stock_pieces > 0;
+    // Every size can be picked; sold-out ones are crossed out and preordered.
+    const anyVariant = (): boolean => true;
+    const soldOut = (item: { stock_pieces: number }): boolean => item.stock_pieces === 0;
     const firstPack = (): number | null =>
         soldByPiece ? null : (product.buy_packs[0]?.id ?? null);
 
-    const [picked, setPicked] = useState<Picked>(() => startingPicks(product.variants, inStock));
+    const [picked, setPicked] = useState<Picked>(() => startingPicks(product.variants, anyVariant));
     const [packId, setPackId] = useState<number | null>(firstPack);
     const [quantityText, setQuantityText] = useState('1');
     const [saving, setSaving] = useState(false);
@@ -48,7 +52,7 @@ export default function AddToCartSheet({
     // Start fresh every time it opens.
     useEffect(() => {
         if (open) {
-            setPicked(startingPicks(product.variants, inStock));
+            setPicked(startingPicks(product.variants, anyVariant));
             setPackId(firstPack());
             setQuantityText('1');
             setError(null);
@@ -64,13 +68,20 @@ export default function AddToCartSheet({
     const unitPrice = pack ? pack.price_centavos : (variant?.buy_price_centavos ?? null);
     const pieceOnSale = pack === undefined && (variant?.sale_price_centavos ?? null) !== null;
     const priceIsSale = pieceOnSale || (pack !== undefined && product.status === 'on_sale');
+    // The chosen size is sold out: preorder it (by the piece) instead.
+    const preordering = variant !== undefined && soldOut(variant);
     // At most 99 of one item (Cart::MAX_QUANTITY on the server).
-    const most = variant ? Math.min(99, Math.floor(variant.stock_pieces / piecesPerUnit)) : 0;
+    const most = preordering
+        ? 99
+        : variant
+          ? Math.min(99, Math.floor(variant.stock_pieces / piecesPerUnit))
+          : 0;
     const quantity = Number(quantityText) || 0;
     const hasChoices = product.variants.length > 1;
     const unitChoices = (soldByPiece ? 1 : 0) + product.buy_packs.length;
-    const canAdd =
-        !saving && variant !== undefined && unitPrice !== null && quantity >= 1 && quantity <= most;
+    const canAdd = preordering
+        ? !saving && variant.can_preorder && quantity >= 1 && quantity <= most
+        : !saving && variant !== undefined && unitPrice !== null && quantity >= 1 && quantity <= most;
 
     const add = async (): Promise<void> => {
         if (!canAdd || variant === undefined) {
@@ -81,6 +92,17 @@ export default function AddToCartSheet({
         setError(null);
 
         try {
+            if (preordering) {
+                const result = await request<{ message: string }>(`/products/${product.id}/preorder`, {
+                    method: 'POST',
+                    body: { product_variant_id: variant.id, quantity },
+                });
+
+                onAdded(result.message, true);
+
+                return;
+            }
+
             const result = await request<{ message: string; cart: CartView }>(`/products/${product.id}/cart`, {
                 method: 'POST',
                 body: {
@@ -91,12 +113,14 @@ export default function AddToCartSheet({
             });
 
             replaceCart(result.cart);
-            onAdded(result.message);
+            onAdded(result.message, false);
         } catch (caught) {
             setError(
                 caught instanceof ApiError
                     ? caught.message
-                    : 'It could not be added. Try again.',
+                    : preordering
+                      ? 'The preorder could not be placed. Try again.'
+                      : 'It could not be added. Try again.',
             );
         } finally {
             setSaving(false);
@@ -111,23 +135,37 @@ export default function AddToCartSheet({
             subtitle={product.name}
             icon={<ShoppingCart size={20} color="#1d4ed8" />}
             footer={
-                <Pressable
-                    onPress={add}
-                    disabled={!canAdd}
-                    accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4 ${canAdd ? '' : 'opacity-50'}`}
-                >
-                    {saving ? (
-                        <ActivityIndicator color="#ffffff" />
-                    ) : (
-                        <ShoppingCart size={18} color="#ffffff" />
-                    )}
-                    <Text className="font-sans-bold text-base text-white">
-                        {unitPrice !== null && quantity > 0 && variant
-                            ? `Add to Cart · ${formatPeso(unitPrice * quantity)}`
-                            : 'Add to Cart'}
-                    </Text>
-                </Pressable>
+                preordering && !variant.can_preorder ? (
+                    <View className="items-center rounded-2xl bg-slate-100 py-4">
+                        <Text className="font-sans-bold text-base text-slate-500">
+                            Will not be restocked
+                        </Text>
+                    </View>
+                ) : (
+                    <Pressable
+                        onPress={add}
+                        disabled={!canAdd}
+                        accessibilityRole="button"
+                        className={`flex-row items-center justify-center gap-2 rounded-2xl py-4 ${preordering ? 'bg-amber-400' : 'bg-brand'} ${canAdd ? '' : 'opacity-50'}`}
+                    >
+                        {saving ? (
+                            <ActivityIndicator color={preordering ? '#451a03' : '#ffffff'} />
+                        ) : preordering ? (
+                            <CalendarClock size={18} color="#451a03" />
+                        ) : (
+                            <ShoppingCart size={18} color="#ffffff" />
+                        )}
+                        <Text
+                            className={`font-sans-bold text-base ${preordering ? 'text-amber-950' : 'text-white'}`}
+                        >
+                            {preordering
+                                ? 'Preorder'
+                                : unitPrice !== null && quantity > 0 && variant
+                                  ? `Add to Cart · ${formatPeso(unitPrice * quantity)}`
+                                  : 'Add to Cart'}
+                        </Text>
+                    </Pressable>
+                )
             }
         >
             <View className="flex-row gap-4">
@@ -157,8 +195,10 @@ export default function AddToCartSheet({
                         )}
                     </View>
                     {variant && (
-                        <Text className="font-sans-bold text-xs text-slate-500">
-                            {variant.stock_pieces === 0
+                        <Text
+                            className={`font-sans-bold text-xs ${preordering ? 'text-red-600' : 'text-slate-500'}`}
+                        >
+                            {preordering
                                 ? 'Out of stock'
                                 : variant.pieces_left !== null
                                   ? `Only ${formatUnits(variant.pieces_left, 'Piece')} left`
@@ -175,15 +215,35 @@ export default function AddToCartSheet({
                         option={option}
                         picked={picked}
                         variants={product.variants}
-                        canPick={inStock}
+                        canPick={anyVariant}
+                        isOut={soldOut}
                         onPick={(choice) => {
-                            setPicked(pickChoice(product.variants, product.options, picked, option.name, choice, inStock));
+                            setPicked(pickChoice(product.variants, product.options, picked, option.name, choice, anyVariant));
                             setQuantityText('1');
                         }}
                     />
                 ))}
 
-            {unitChoices > 1 && (
+            {preordering && variant.not_restocked && (
+                <View className="rounded-xl bg-slate-100 px-4 py-3">
+                    <Text className="font-sans-bold text-sm leading-5 text-slate-600">
+                        This {hasChoices ? 'size or color' : 'item'} is out of stock and will not
+                        be restocked.
+                    </Text>
+                </View>
+            )}
+
+            {preordering && variant.can_preorder && (
+                <View className="rounded-xl bg-amber-50 px-4 py-3">
+                    <Text className="font-sans text-xs leading-5 text-amber-900">
+                        This {hasChoices ? 'size or color' : 'item'} is out of stock. Preorder it
+                        and you will be notified when it is back in stock. There is nothing to pay
+                        now, and nothing is held for you.
+                    </Text>
+                </View>
+            )}
+
+            {!preordering && unitChoices > 1 && (
                 <View className="gap-2">
                     <Text className="font-sans-bold text-sm text-slate-700">Buy by</Text>
                     <View className="flex-row flex-wrap gap-2">
@@ -220,19 +280,26 @@ export default function AddToCartSheet({
                 </View>
             )}
 
+            {!(preordering && !variant.can_preorder) && (
             <View className="gap-2">
-                <Text className="font-sans-bold text-sm text-slate-700">How many?</Text>
+                <Text className="font-sans-bold text-sm text-slate-700">
+                    {preordering ? 'How many to preorder?' : 'How many?'}
+                </Text>
                 <QuantityStepper
                     value={quantityText}
                     onChange={setQuantityText}
                     most={most}
-                    unitText={`${unitWord(quantity, unitName)}${
-                        piecesPerUnit > 1
-                            ? ` (${formatUnits(quantity * piecesPerUnit, 'Piece')})`
-                            : ''
-                    }`}
+                    unitText={
+                        preordering
+                            ? unitWord(quantity, 'Piece')
+                            : `${unitWord(quantity, unitName)}${
+                                  piecesPerUnit > 1
+                                      ? ` (${formatUnits(quantity * piecesPerUnit, 'Piece')})`
+                                      : ''
+                              }`
+                    }
                 />
-                {variant && quantity > most && most > 0 && (
+                {!preordering && variant && quantity > most && most > 0 && (
                     <Text className="font-sans-semibold text-sm text-red-600">
                         Only {formatUnits(most, unitName)} can be added.
                     </Text>
@@ -243,6 +310,7 @@ export default function AddToCartSheet({
                     </Text>
                 )}
             </View>
+            )}
 
             {error && (
                 <View className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">

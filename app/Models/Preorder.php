@@ -11,9 +11,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * A student's reservation of a Preorder product: which size or color and
- * how many. It tells the Specialist how many to order in the eStore; there
- * is no payment. A student has at most one active preorder per variant;
+ * A student's reservation of a Preorder product, or of a sold-out size of a
+ * product for sale (waiting for a restock): which size or color and how
+ * many. It tells the Specialist how many to order in the eStore; there is
+ * no payment. A student has at most one active preorder per variant;
  * preordering it again changes the quantity.
  *
  * @property int $id
@@ -24,10 +25,12 @@ use Illuminate\Support\Carbon;
  * @property PreorderStatus $status
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $arrived_at when the student was told it arrived
+ * @property Carbon|null $not_restocked_at when the student was told it will not be restocked
+ * @property string|null $not_restocked_reason the Specialist's reason, if she gave one
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'status', 'cancelled_at', 'arrived_at'])]
+#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'status', 'cancelled_at', 'arrived_at', 'not_restocked_at', 'not_restocked_reason'])]
 class Preorder extends Model
 {
     /** @use HasFactory<PreorderFactory> */
@@ -43,6 +46,7 @@ class Preorder extends Model
             'status' => PreorderStatus::class,
             'cancelled_at' => 'datetime',
             'arrived_at' => 'datetime',
+            'not_restocked_at' => 'datetime',
         ];
     }
 

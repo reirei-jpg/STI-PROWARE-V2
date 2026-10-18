@@ -68,7 +68,10 @@ export function usePreorder(): (product: StorefrontTileProduct) => void {
 
 /**
  * The Preorder form: which size or color and how many. A preorder is a
- * reservation (no payment) that tells the PROWARE office how many to order.
+ * reservation (no payment) that tells the PROWARE office how many to order:
+ * of a Coming Soon product, or of an item for sale that is out of stock
+ * (only its sizes that can be preordered; the student is notified when it
+ * is back in stock).
  */
 function PreorderDialog({
     product,
@@ -182,14 +185,19 @@ function PreorderForm({
     details: StorefrontProductDetails;
     onClose: () => void;
 }) {
-    // A preorder is for any size or color; nothing is in stock yet.
-    const anyVariant = () => true;
+    // An item for sale that is out of stock: only its sizes that can be
+    // preordered. A Coming Soon product: any size, nothing is in stock yet.
+    const restock = details.status !== 'preorder';
+    const canPreorder = (variant: { can_preorder: boolean }) =>
+        !restock || variant.can_preorder;
     const [picked, setPicked] = useState<Picked>(() =>
-        startingPicks(details.variants, anyVariant),
+        startingPicks(details.variants, canPreorder),
     );
     const form = useForm({
         product_variant_id:
-            details.variants.length === 1 ? String(details.variants[0].id) : '',
+            details.variants.length === 1 && canPreorder(details.variants[0])
+                ? String(details.variants[0].id)
+                : '',
         quantity: '1',
     });
     const { data, setData, processing, errors } = form;
@@ -218,7 +226,12 @@ function PreorderForm({
                     )}
                     <div className="space-y-1">
                         <PriceLines price={details.price} />
-                        {details.preorders_close_on && (
+                        {restock && (
+                            <p className="text-xs font-bold text-red-600">
+                                Out of stock
+                            </p>
+                        )}
+                        {!restock && details.preorders_close_on && (
                             <p className="text-xs font-bold text-amber-700">
                                 Preorders close{' '}
                                 {formatDateOrdered(details.preorders_close_on)}
@@ -234,7 +247,7 @@ function PreorderForm({
                             option={option}
                             picked={picked}
                             variants={details.variants}
-                            canPick={anyVariant}
+                            canPick={canPreorder}
                             tone="amber"
                             onPick={(choice) => {
                                 const next = pickChoice(
@@ -243,7 +256,7 @@ function PreorderForm({
                                     picked,
                                     option.name,
                                     choice,
-                                    anyVariant,
+                                    canPreorder,
                                 );
 
                                 setPicked(next);
@@ -312,9 +325,9 @@ function PreorderForm({
                 </section>
 
                 <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-                    A preorder reserves the item so the PROWARE office knows how
-                    many to order. There is nothing to pay now. If you preorder
-                    the same size again, the new number replaces the old one.
+                    {restock
+                        ? 'This item is out of stock. Preorder it and you will be notified when it is back in stock. There is nothing to pay now, and nothing is held for you. If you preorder the same size again, the new number replaces the old one.'
+                        : 'A preorder reserves the item so the PROWARE office knows how many to order. There is nothing to pay now. If you preorder the same size again, the new number replaces the old one.'}
                 </p>
             </div>
 

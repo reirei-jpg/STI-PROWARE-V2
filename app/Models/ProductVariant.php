@@ -38,6 +38,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $opening_unit_cost_centavos eStore price per piece of stock from before any delivery was recorded
  * @property int $uncosted_pieces pieces in stock with no eStore price yet (StockCost)
  * @property Carbon|null $low_stock_notified_at when the low-stock warning was sent; cleared when stock rises above the number
+ * @property Carbon|null $not_restocked_at when the Specialist said this sold-out size will not be restocked; cleared when stock comes in
  * @property int $position
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -65,6 +66,7 @@ class ProductVariant extends Model
             'opening_unit_cost_centavos' => 'integer',
             'uncosted_pieces' => 'integer',
             'low_stock_notified_at' => 'datetime',
+            'not_restocked_at' => 'datetime',
         ];
     }
 
@@ -75,6 +77,18 @@ class ProductVariant extends Model
     public function freeToSell(): int
     {
         return max(0, $this->stock_on_hand - $this->held_pieces);
+    }
+
+    /**
+     * Students can preorder this size while it is sold out: the product is
+     * for sale (Available or On Sale), none is left to buy, and the
+     * Specialist has not said it will not be restocked.
+     */
+    public function canBePreordered(): bool
+    {
+        return in_array($this->product->status, [ProductStatus::Available, ProductStatus::OnSale], true)
+            && $this->freeToSell() === 0
+            && $this->not_restocked_at === null;
     }
 
     /**

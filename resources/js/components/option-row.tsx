@@ -10,13 +10,16 @@ import { cn } from '@/lib/utils';
  * One option of a product as a row of choices, e.g. "Color: Black, White,
  * Blue". A choice that does not go with the others chosen is lighter but
  * can still be picked (the others are then cleared); one that is not sold
- * or has no stock at all is crossed out.
+ * or has no stock at all is crossed out. With `isOut`, a choice that is
+ * out of stock (with the others chosen) is crossed out but can still be
+ * picked, e.g. to preorder it.
  */
 export default function OptionRow<V extends PickableVariant>({
     option,
     picked,
     variants,
     canPick,
+    isOut,
     onPick,
     tone = 'blue',
 }: {
@@ -24,6 +27,7 @@ export default function OptionRow<V extends PickableVariant>({
     picked: Picked;
     variants: V[];
     canPick: (variant: V) => boolean;
+    isOut?: (variant: V) => boolean;
     onPick: (choice: string) => void;
     tone?: 'blue' | 'amber';
 }) {
@@ -54,6 +58,17 @@ export default function OptionRow<V extends PickableVariant>({
                         choice,
                         canPick,
                     );
+                    // Every size that fits is out of stock (still pickable).
+                    const out =
+                        isOut !== undefined &&
+                        sold &&
+                        !choiceIsOpen(
+                            variants,
+                            fitsOthers ? picked : {},
+                            option.name,
+                            choice,
+                            (variant) => canPick(variant) && !isOut(variant),
+                        );
 
                     return (
                         <button
@@ -66,7 +81,9 @@ export default function OptionRow<V extends PickableVariant>({
                                     ? 'Not available'
                                     : !fitsOthers
                                       ? 'Not available with your other choice'
-                                      : undefined
+                                      : out
+                                        ? 'Out of stock'
+                                        : undefined
                             }
                             className={cn(
                                 'min-w-14 rounded-xl border px-3 py-2 text-sm font-bold transition',
@@ -78,6 +95,10 @@ export default function OptionRow<V extends PickableVariant>({
                                 !chosen &&
                                     sold &&
                                     !fitsOthers &&
+                                    'border-dashed text-slate-400',
+                                out && 'line-through decoration-slate-400',
+                                out &&
+                                    !chosen &&
                                     'border-dashed text-slate-400',
                                 !sold &&
                                     'cursor-not-allowed border-dashed bg-slate-50 text-slate-400 line-through hover:border-slate-200',

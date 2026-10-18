@@ -14,8 +14,9 @@ import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
  * Badges on the photo: SALE with how much is off (original price crossed
  * out before the sale price), when the sale ends, COMING SOON with a
  * Preorder button, "Only 3 left" when almost sold out, and OUT OF STOCK
- * (greyed, no button). The photo zooms in a little on hover; names keep two
- * lines so every card's price and button line up. Add to Cart and Preorder ask a
+ * (greyed; a Preorder button while it can be preordered, otherwise none).
+ * The photo zooms in a little on hover; names keep two lines so every
+ * card's price and button line up. Add to Cart and Preorder ask a
  * signed-out visitor to sign in first, then open their pickers.
  */
 export default function StorefrontTile({
@@ -31,9 +32,13 @@ export default function StorefrontTile({
     const preorder = usePreorder();
     const comingSoon = product.status === 'preorder';
     const onSale = product.status === 'on_sale';
-    // Out of stock, or preorders closed: shown, but nothing opens.
+    // Coming Soon, or out of stock with sizes students can preorder.
+    const takesPreorders =
+        (comingSoon || product.sold_out) && product.accepts_preorders;
+    // Out of stock with nothing to preorder, or preorders closed: shown,
+    // but nothing opens.
     const unavailable =
-        product.sold_out || (comingSoon && !product.accepts_preorders);
+        (product.sold_out || comingSoon) && !product.accepts_preorders;
     const Top = unavailable ? 'div' : 'button';
     const percentOff = saleDiscount(product.price);
 
@@ -129,7 +134,13 @@ export default function StorefrontTile({
                     </p>
                 )}
 
-                {product.sold_out ? (
+                {product.sold_out && product.accepts_preorders && (
+                    <p className="text-[11px] font-bold text-amber-700">
+                        Out of stock · preorder to be notified
+                    </p>
+                )}
+
+                {product.sold_out && !product.accepts_preorders ? (
                     <span className="mt-auto inline-flex h-10 w-full items-center justify-center rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-500">
                         Unavailable for now
                     </span>
@@ -141,21 +152,23 @@ export default function StorefrontTile({
                     <button
                         type="button"
                         onClick={() =>
-                            comingSoon ? preorder(product) : addToCart(product)
+                            takesPreorders
+                                ? preorder(product)
+                                : addToCart(product)
                         }
                         className={cn(
                             'mt-auto inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-black shadow-sm transition active:scale-[0.98]',
-                            comingSoon
+                            takesPreorders
                                 ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                                 : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
                         )}
                     >
-                        {comingSoon ? (
+                        {takesPreorders ? (
                             <CalendarClock size={16} />
                         ) : (
                             <ShoppingCart size={16} />
                         )}
-                        {comingSoon ? 'Preorder' : 'Add to Cart'}
+                        {takesPreorders ? 'Preorder' : 'Add to Cart'}
                     </button>
                 )}
             </div>

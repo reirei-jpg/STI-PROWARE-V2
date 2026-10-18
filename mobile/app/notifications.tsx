@@ -53,8 +53,24 @@ function describe(data: StudentNotificationData): {
             };
         case 'preorder_arrived':
             return {
-                title: `Your preordered item is here: ${data.product_name}`,
+                title: data.variant_label
+                    ? `Back in stock: ${data.product_name} (${data.variant_label})`
+                    : `Your preordered item is here: ${data.product_name}`,
                 body: 'You can now add it to your cart and order it. It is not held for you, so order soon.',
+                titleClass: 'text-amber-800',
+                stripe: '#f59e0b',
+            };
+        case 'preorder_not_restocked':
+            return {
+                title: `Not restocked: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
+                body: `It will not be restocked, so your preorder has been closed.${data.reason ? ` Reason: ${data.reason}` : ''}`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
+        case 'preorder_placed':
+            return {
+                title: `New preorder: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
+                body: `${data.student_name} preordered ${formatUnits(data.quantity, 'Piece')}. It is out of stock. Order more in the eStore, or mark it as not restocked on the website's Preorders page.`,
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };

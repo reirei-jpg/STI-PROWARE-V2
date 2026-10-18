@@ -245,11 +245,45 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-amber-800">
-                    Your preordered item is here: {data.product_name}
+                    {data.variant_label
+                        ? `Back in stock: ${data.product_name} (${data.variant_label})`
+                        : `Your preordered item is here: ${data.product_name}`}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     You can now add it to your cart and order it. It is not held
                     for you, so order soon.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'preorder_not_restocked') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Not restocked: {data.product_name}
+                    {data.variant_label && ` (${data.variant_label})`}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    It will not be restocked, so your preorder has been closed.
+                    {data.reason && ` Reason: ${data.reason}`}
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'preorder_placed') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-amber-800">
+                    New preorder: {data.product_name}
+                    {data.variant_label && ` (${data.variant_label})`}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.student_name} preordered{' '}
+                    {formatUnits(data.quantity, 'Piece')}. It is out of stock.
+                    Order more in the eStore, or mark it as not restocked on
+                    Preorders.
                 </span>
             </>
         );

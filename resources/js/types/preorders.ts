@@ -6,13 +6,18 @@ export type PreorderVariantCount = {
     estore_item_code: string | null;
     students: number;
     pieces: number;
+    /** Pieces students can buy now. */
+    free_to_sell: number;
+    /** The Specialist said this sold-out size will not be restocked. */
+    not_restocked: boolean;
 };
 
 /**
  * Where a Preorder product is: taking preorders, closed and to order in
- * the eStore, or arrived (for sale; the students were told).
+ * the eStore, or arrived (for sale; the students were told). A product for
+ * sale is waiting for restock while students preordered a sold-out size.
  */
-export type PreorderStage = 'open' | 'to_order' | 'arrived';
+export type PreorderStage = 'sold_out' | 'open' | 'to_order' | 'arrived';
 
 export type PreorderProductSummary = {
     id: number;
@@ -38,7 +43,7 @@ export type PreorderRow = {
     student_email: string;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'arrived' | 'cancelled';
+    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked';
     status_label: string;
     created_at: string | null;
     arrived_at: string | null;

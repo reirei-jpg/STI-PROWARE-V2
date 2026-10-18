@@ -6,13 +6,15 @@ import { formatPeso } from '@/lib/format';
  * One choice in a picker: a size or color, or Piece / Pack. The chosen one
  * is outlined (blue, or amber for preorders); one that does not go with the
  * other choices is lighter but can still be picked; one that cannot be
- * chosen at all is dashed and crossed out.
+ * chosen at all is dashed and crossed out. An out-of-stock one is crossed
+ * out but can still be picked (to preorder it).
  */
 export default function ChoiceChip({
     label,
     chosen,
     disabled = false,
     faded = false,
+    out = false,
     price = null,
     tone = 'blue',
     onPress,
@@ -21,6 +23,7 @@ export default function ChoiceChip({
     chosen: boolean;
     disabled?: boolean;
     faded?: boolean;
+    out?: boolean;
     price?: number | null;
     tone?: 'blue' | 'amber';
     onPress: () => void;
@@ -40,7 +43,7 @@ export default function ChoiceChip({
                     ? 'border-dashed border-slate-200 bg-slate-50'
                     : chosen
                       ? chosenClass
-                      : faded
+                      : faded || out
                         ? 'border-dashed border-slate-200 bg-white'
                         : 'border-slate-200 bg-white'
             }`}
@@ -52,9 +55,9 @@ export default function ChoiceChip({
                     disabled
                         ? 'text-slate-400 line-through'
                         : chosen
-                          ? chosenText
-                          : faded
-                            ? 'text-slate-400'
+                          ? `${chosenText} ${out ? 'line-through' : ''}`
+                          : faded || out
+                            ? `text-slate-400 ${out ? 'line-through' : ''}`
                             : 'text-slate-700'
                 }`}
             >
