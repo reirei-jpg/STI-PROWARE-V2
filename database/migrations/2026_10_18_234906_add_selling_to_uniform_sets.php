@@ -28,7 +28,8 @@ return new class extends Migration
         });
 
         Schema::table('order_items', function (Blueprint $table) {
-            $table->string('set_name', 80)->nullable()->after('variant_label');
+            // "<course, up to 60> Uniform Set (For Girls)"
+            $table->string('set_name', 120)->nullable()->after('variant_label');
             $table->string('set_key', 36)->nullable()->after('set_name');
         });
     }

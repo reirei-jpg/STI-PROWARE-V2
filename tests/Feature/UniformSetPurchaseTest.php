@@ -170,6 +170,17 @@ test('a set not sold as a set cannot be bought', function () {
         ->assertSessionHasErrors(['for' => 'The BSIT Uniform Set is not sold for boys.']);
 });
 
+test('a set whose piece is not for sale right now cannot be bought', function () {
+    $set = bsitSaleSet();
+    Product::query()->whereKey($set->pants_product_id)->update(['status' => ProductStatus::Draft]);
+
+    $this->actingAs($this->student)
+        ->post(route('cart.store-set', $set), boysSet($set))
+        ->assertSessionHasErrors(['for' => 'The BSIT Uniform Set is not for sale right now.']);
+
+    expect(CartItem::count())->toBe(0);
+});
+
 test('changing, ticking and removing a set does both its lines', function () {
     $set = bsitSaleSet();
     $this->actingAs($this->student)->post(route('cart.store-set', $set), boysSet($set));

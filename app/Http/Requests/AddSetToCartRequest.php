@@ -82,7 +82,11 @@ class AddSetToCartRequest extends FormRequest
                     $validator->errors()->add('bottom_variant_id', 'Choose one of the bottoms shown and its size.');
                 }
 
-                if ($validator->errors()->isEmpty() && (! ShopPrice::canBuy($this->top()->product) || ! ShopPrice::canBuy($this->bottom()->product))) {
+                $top = $this->top();
+                $bottom = $this->bottom();
+
+                if ($validator->errors()->isEmpty() && (! ShopPrice::canBuy($top->product) || ! ShopPrice::canBuy($bottom->product)
+                    || ShopPrice::perPiece($top) === null || ShopPrice::perPiece($bottom) === null)) {
                     $validator->errors()->add('for', "The {$set->displayName()} is not for sale right now.");
                 }
             },
