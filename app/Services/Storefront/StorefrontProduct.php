@@ -8,6 +8,7 @@ use App\Models\ProductOption;
 use App\Models\ProductPack;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
+use App\Services\Preorders\EarlyBird;
 use App\Services\Shop\ShopPrice;
 
 /**
@@ -25,7 +26,7 @@ final class StorefrontProduct
      * accepts_preorders: a Preorder product taking preorders, or a product
      * for sale with a sold-out size students can preorder.
      *
-     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, expected_arrival: string|null, accepts_preorders: bool}
+     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, expected_arrival: string|null, early_bird: array{price_centavos: int, pieces: int, pieces_left: int}|null, accepts_preorders: bool}
      */
     public static function tile(Product $product): array
     {
@@ -50,6 +51,9 @@ final class StorefrontProduct
             'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
             'preorders_close_on' => $isPreorder ? $product->preorders_close_on?->toDateString() : null,
             'expected_arrival' => $isPreorder ? $product->expectedArrivalText() : null,
+            'early_bird' => $isPreorder && $product->early_bird_price_centavos !== null
+                ? ['price_centavos' => $product->early_bird_price_centavos, 'pieces' => (int) $product->early_bird_pieces, 'pieces_left' => (int) EarlyBird::piecesLeft($product)]
+                : null,
             'accepts_preorders' => $product->acceptsPreorders() || $soldOutSizeToPreorder,
         ];
     }

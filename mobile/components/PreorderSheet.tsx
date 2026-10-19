@@ -9,7 +9,7 @@ import PriceLines from '@/components/PriceLines';
 import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, unitWord } from '@/lib/format';
+import { formatDate, formatPeso, unitWord } from '@/lib/format';
 import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
 
@@ -205,6 +205,13 @@ export default function PreorderSheet({
                     {!restock && product.expected_arrival && (
                         <Text className="font-sans-semibold text-xs text-slate-600">
                             Expected to arrive {product.expected_arrival}
+                        </Text>
+                    )}
+                    {!restock && product.early_bird && (
+                        <Text className="font-sans-bold text-xs text-red-600">
+                            {product.early_bird.pieces_left > 0
+                                ? `Early bird: ${formatPeso(product.early_bird.price_centavos)} each for the next ${product.early_bird.pieces_left} pcs preordered`
+                                : 'The early-bird pieces are all taken.'}
                         </Text>
                     )}
                 </View>

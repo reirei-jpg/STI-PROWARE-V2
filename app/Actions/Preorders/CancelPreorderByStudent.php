@@ -6,6 +6,7 @@ use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Preorder;
 use App\Models\User;
+use App\Services\Preorders\EarlyBird;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +16,7 @@ use Illuminate\Validation\ValidationException;
  * while preorders for the product are still open, or while a sold-out size
  * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null}
+ * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -51,6 +52,9 @@ class CancelPreorderByStudent
         }
 
         $preorder->update(['status' => PreorderStatus::Cancelled, 'cancelled_at' => now()]);
+
+        // Its early-bird pieces go to the next preorders in line.
+        EarlyBird::reallocate($preorder->product);
     }
 
     /**
@@ -92,6 +96,8 @@ class CancelPreorderByStudent
             'expected_arrival' => $preorder->status === PreorderStatus::Active && $preorder->product->status === ProductStatus::Preorder
                 ? $preorder->product->expectedArrivalText()
                 : null,
+            'early_bird_pieces' => $preorder->early_bird_pieces,
+            'early_bird_price_centavos' => $preorder->early_bird_pieces > 0 ? $preorder->product->early_bird_price_centavos : null,
             // A sold-out size of a product for sale, not a Coming Soon product.
             'waiting_for_restock' => $preorder->status === PreorderStatus::Active && LowStockAlerts::isSold($preorder->product),
             'can_cancel' => self::refusal($preorder) === null,

@@ -47,6 +47,9 @@ class SaveProductRequest extends FormRequest
     /** The highest price anyone can type anywhere in PROWARE, in pesos. */
     public const MAX_PRICE_PESOS = 100000;
 
+    /** The highest Cost per piece on the eStore orders, once prices were checked. */
+    private ?int $highestCostPerPiece = null;
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -92,6 +95,9 @@ class SaveProductRequest extends FormRequest
                 'date_format:Y-m-d',
                 'after_or_equal:expected_arrival_from',
             ],
+            // Optional: a lower price for the first pieces preordered.
+            'early_bird_price' => ['nullable', 'required_with:early_bird_pieces', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
+            'early_bird_pieces' => ['nullable', 'required_with:early_bird_price', 'integer', 'min:1', 'max:100000'],
 
             'packs' => ['nullable', 'array', 'max:'.self::MAX_PACKS],
             'packs.*.key' => ['required', 'string', 'max:40', 'distinct'],
@@ -166,6 +172,14 @@ class SaveProductRequest extends FormRequest
             'expected_arrival_to.required' => 'Choose the last day it is expected to arrive.',
             'expected_arrival_to.date_format' => 'Choose a valid date.',
             'expected_arrival_to.after_or_equal' => 'The last day cannot be before the first day.',
+            'early_bird_price.required_with' => 'Enter the early-bird price, or clear the number of pieces.',
+            'early_bird_price.decimal' => 'Enter the early-bird price in pesos, e.g. 300 or 299.50.',
+            'early_bird_price.gt' => 'The early-bird price must be more than ₱0.',
+            'early_bird_price.max' => 'The early-bird price cannot be more than ₱100,000.00.',
+            'early_bird_pieces.required_with' => 'Enter how many pieces get the early-bird price, or clear the price.',
+            'early_bird_pieces.integer' => 'Enter a whole number of pieces.',
+            'early_bird_pieces.min' => 'At least 1 piece must get the early-bird price.',
+            'early_bird_pieces.max' => 'Enter at most 100,000 pieces.',
             'packs.max' => 'A product can have up to '.self::MAX_PACKS.' packs.',
             'packs.*.name.required' => 'Name the pack, e.g. Pack or Box.',
             'packs.*.pieces.required' => 'Enter how many pieces are in one pack.',
@@ -253,6 +267,7 @@ class SaveProductRequest extends FormRequest
                 $this->validatePreorderCloseDate($validator);
                 $this->validateItemCodes($validator);
                 $this->validateSellingPricesCoverCost($validator);
+                $this->validateEarlyBirdPrice($validator);
                 $this->validateVariantsWithStockAreKept($validator);
                 $this->validateVariantsWithPreordersAreKept($validator);
             },
@@ -559,6 +574,7 @@ class SaveProductRequest extends FormRequest
 
             $cost = (int) round($unitPrices[$code] / max(1, $packPieces[(string) ($variant['estore_pack_key'] ?? '')] ?? 1));
             $highestCost = max($highestCost ?? 0, $cost);
+            $this->highestCostPerPiece = $highestCost;
             $ownPrice = ($variant['price'] ?? '') === '' ? null : self::toCentavos((string) $variant['price']);
             $price = $this->boolean('sold_by_piece') ? ($ownPrice ?? $productPrice) : null;
 
@@ -604,6 +620,46 @@ class SaveProductRequest extends FormRequest
         if ($taken !== null) {
             $validator->errors()->add('name', "There is already a product named \"{$taken->name}\". Use another name, or edit that product.");
         }
+    }
+
+    /**
+     * The early-bird price is per piece, for a Preorder product sold by the
+     * piece: lower than every size's Selling Price, and not below the Cost.
+     */
+    private function validateEarlyBirdPrice(Validator $validator): void
+    {
+        $earlyBird = $this->earlyBirdPrice();
+
+        if ($earlyBird === null || $this->input('status') !== ProductStatus::Preorder->value) {
+            return;
+        }
+
+        if (! $this->boolean('sold_by_piece')) {
+            $validator->errors()->add('early_bird_price', 'The early-bird price is per piece. Sell this product by the piece to give one.');
+
+            return;
+        }
+
+        /** @var array<int, array{price?: string|null}> $variants */
+        $variants = $this->input('variants', []);
+        $productPrice = $this->centavos('price');
+        $prices = array_filter(array_map(
+            fn (array $variant): ?int => ($variant['price'] ?? '') === '' ? $productPrice : self::toCentavos((string) $variant['price']),
+            $variants,
+        ), fn (?int $price): bool => $price !== null);
+        $lowest = $prices === [] ? $productPrice : min($prices);
+
+        if ($lowest !== null && $earlyBird >= $lowest) {
+            $validator->errors()->add('early_bird_price', 'The early-bird price must be lower than the Selling Price (₱'.number_format($lowest / 100, 2).').');
+        } elseif ($this->highestCostPerPiece !== null && $earlyBird < $this->highestCostPerPiece) {
+            $validator->errors()->add('early_bird_price', 'The early-bird price (₱'.number_format($earlyBird / 100, 2).') is below the Cost on the eStore order (₱'.number_format($this->highestCostPerPiece / 100, 2).' per piece).');
+        }
+    }
+
+    /** The early-bird price per piece in centavos, or null when there is none. */
+    public function earlyBirdPrice(): ?int
+    {
+        return $this->filled('early_bird_price') ? self::toCentavos((string) $this->input('early_bird_price')) : null;
     }
 
     private static function belowCost(int $price, int $cost, string $unit): string

@@ -138,6 +138,13 @@ export default function StorefrontTile({
                         Expected {product.expected_arrival}
                     </p>
                 )}
+                {comingSoon && product.early_bird && (
+                    <p className="text-[11px] font-black text-red-600">
+                        {product.early_bird.pieces_left > 0
+                            ? `Early bird ${formatPeso(product.early_bird.price_centavos)} · ${product.early_bird.pieces_left} of ${product.early_bird.pieces} left`
+                            : 'Early-bird pieces all taken'}
+                    </p>
+                )}
 
                 {product.sold_out && product.accepts_preorders && (
                     <p className="text-[11px] font-bold text-amber-700">

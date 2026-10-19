@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\PreorderArrivalChanged;
 use App\Notifications\PreorderArrived;
 use App\Services\EstorePo\ItemCode;
+use App\Services\Preorders\EarlyBird;
 use App\Services\Products\ProductName;
 use App\Services\Stock\DeliveredStock;
 use App\Services\Stock\LowStockAlerts;
@@ -74,7 +75,16 @@ class SaveProduct
                     'expected_arrival_to' => $status === ProductStatus::Preorder
                         ? $request->input('expected_arrival_to')
                         : $product->expected_arrival_to,
+                    'early_bird_price_centavos' => $status === ProductStatus::Preorder
+                        ? $request->earlyBirdPrice()
+                        : $product->early_bird_price_centavos,
+                    'early_bird_pieces' => $status === ProductStatus::Preorder
+                        ? ($request->filled('early_bird_pieces') ? $request->integer('early_bird_pieces') : null)
+                        : $product->early_bird_pieces,
                 ])->save();
+
+                // The early-bird pieces follow a changed price or number.
+                EarlyBird::reallocate($product);
 
                 $removedPhotoPaths = $this->syncPhotos($product, $request, $newPhotoPaths);
                 $packIdsByKey = $this->savePacks($product, $request);

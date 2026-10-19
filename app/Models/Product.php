@@ -37,10 +37,12 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $preorders_close_on last day students can preorder a Preorder product
  * @property Carbon|null $expected_arrival_from first day a Preorder product is expected to arrive
  * @property Carbon|null $expected_arrival_to last day a Preorder product is expected to arrive
+ * @property int|null $early_bird_price_centavos lower price per piece for the first pieces preordered
+ * @property int|null $early_bird_pieces how many pieces get the early-bird price
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'preorders_close_on', 'expected_arrival_from', 'expected_arrival_to'])]
+#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'preorders_close_on', 'expected_arrival_from', 'expected_arrival_to', 'early_bird_price_centavos', 'early_bird_pieces'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -63,6 +65,8 @@ class Product extends Model
             'preorders_close_on' => 'date',
             'expected_arrival_from' => 'date',
             'expected_arrival_to' => 'date',
+            'early_bird_price_centavos' => 'integer',
+            'early_bird_pieces' => 'integer',
         ];
     }
 

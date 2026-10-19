@@ -26,7 +26,7 @@ import PriceLines, { saleEndsText } from '@/components/PriceLines';
 import { takesPreorders } from '@/components/ProductTile';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatPeso } from '@/lib/format';
 import { choiceIsOpen } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
 
@@ -218,6 +218,13 @@ export default function ProductScreen() {
                             {comingSoon && product.expected_arrival && (
                                 <Text className="font-sans-semibold text-sm text-slate-700">
                                     Expected to arrive {product.expected_arrival}
+                                </Text>
+                            )}
+                            {comingSoon && product.early_bird && (
+                                <Text className="font-sans-bold text-sm text-red-600">
+                                    {product.early_bird.pieces_left > 0
+                                        ? `Early bird: ${formatPeso(product.early_bird.price_centavos)} each for the first ${product.early_bird.pieces} pcs (${product.early_bird.pieces_left} left)`
+                                        : `The ${product.early_bird.pieces} early-bird pieces are all taken.`}
                                 </Text>
                             )}
 

@@ -17,7 +17,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { MAX_PER_ITEM } from '@/lib/number-input';
-import { formatDateOrdered } from '@/lib/format';
+import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
 import type {
@@ -320,6 +320,13 @@ function PreorderForm({
                         {!restock && details.expected_arrival && (
                             <p className="text-xs font-semibold text-slate-600">
                                 Expected to arrive {details.expected_arrival}
+                            </p>
+                        )}
+                        {!restock && details.early_bird && (
+                            <p className="text-xs font-black text-red-600">
+                                {details.early_bird.pieces_left > 0
+                                    ? `Early bird: ${formatPeso(details.early_bird.price_centavos)} each for the next ${details.early_bird.pieces_left} pcs preordered`
+                                    : 'The early-bird pieces are all taken.'}
                             </p>
                         )}
                     </div>

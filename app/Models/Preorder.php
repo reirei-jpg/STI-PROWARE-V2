@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property int $product_id
  * @property int $product_variant_id
  * @property int $quantity
+ * @property int $early_bird_pieces how many of its pieces get the early-bird price
  * @property PreorderStatus $status
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $arrived_at when the student was told it arrived
@@ -30,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'status', 'cancelled_at', 'arrived_at', 'not_restocked_at', 'not_restocked_reason'])]
+#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'early_bird_pieces', 'status', 'cancelled_at', 'arrived_at', 'not_restocked_at', 'not_restocked_reason'])]
 class Preorder extends Model
 {
     /** @use HasFactory<PreorderFactory> */
@@ -43,6 +44,7 @@ class Preorder extends Model
     {
         return [
             'quantity' => 'integer',
+            'early_bird_pieces' => 'integer',
             'status' => PreorderStatus::class,
             'cancelled_at' => 'datetime',
             'arrived_at' => 'datetime',

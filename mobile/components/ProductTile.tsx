@@ -2,7 +2,7 @@ import { CalendarClock, ImageIcon, ShoppingCart } from 'lucide-react-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatPeso } from '@/lib/format';
 import type { StorefrontTileProduct } from '@/lib/types';
 
 /**
@@ -131,6 +131,13 @@ export default function ProductTile({
                 {comingSoon && product.expected_arrival && (
                     <Text className="font-sans-semibold text-[11px] text-slate-600">
                         Expected {product.expected_arrival}
+                    </Text>
+                )}
+                {comingSoon && product.early_bird && (
+                    <Text className="font-sans-bold text-[11px] text-red-600">
+                        {product.early_bird.pieces_left > 0
+                            ? `Early bird ${formatPeso(product.early_bird.price_centavos)} · ${product.early_bird.pieces_left} of ${product.early_bird.pieces} left`
+                            : 'Early-bird pieces all taken'}
                     </Text>
                 )}
 

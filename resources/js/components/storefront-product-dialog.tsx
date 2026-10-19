@@ -18,7 +18,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { formatDateOrdered } from '@/lib/format';
+import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { choiceIsOpen } from '@/lib/option-picker';
 import { cn } from '@/lib/utils';
 import type { StorefrontProductDetails, StorefrontTileProduct } from '@/types';
@@ -256,6 +256,13 @@ export default function StorefrontProductDialog({
                                     <p className="text-sm font-semibold text-slate-700">
                                         Expected to arrive{' '}
                                         {shown.expected_arrival}
+                                    </p>
+                                )}
+                                {comingSoon && shown.early_bird && (
+                                    <p className="text-sm font-black text-red-600">
+                                        {shown.early_bird.pieces_left > 0
+                                            ? `Early bird: ${formatPeso(shown.early_bird.price_centavos)} each for the first ${shown.early_bird.pieces} pcs (${shown.early_bird.pieces_left} left)`
+                                            : `The ${shown.early_bird.pieces} early-bird pieces are all taken.`}
                                     </p>
                                 )}
 

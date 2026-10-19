@@ -79,6 +79,8 @@ type ProductFormData = {
     preorders_close_on: string;
     expected_arrival_from: string;
     expected_arrival_to: string;
+    early_bird_price: string;
+    early_bird_pieces: string;
     low_stock_alert_at: string;
     photos: PhotoInput[];
     packs: ProductPackInput[];
@@ -165,6 +167,8 @@ function errorBelongsTo(key: string, field: keyof ProductFormData): boolean {
                 'preorders_close_on',
                 'expected_arrival_from',
                 'expected_arrival_to',
+                'early_bird_price',
+                'early_bird_pieces',
             ].includes(top);
         default:
             return top === field;
@@ -209,6 +213,8 @@ export default function ProductForm({
             (product?.preorders_close_on
                 ? addDays(product.preorders_close_on, ARRIVAL_ENDS_AFTER_DAYS)
                 : ''),
+        early_bird_price: product?.early_bird_price ?? '',
+        early_bird_pieces: product?.early_bird_pieces ?? '',
         low_stock_alert_at: product?.low_stock_alert_at ?? '5',
         photos:
             product?.photos.map((photo) => ({
@@ -393,6 +399,10 @@ export default function ProductForm({
                 current.status === 'preorder'
                     ? current.expected_arrival_to
                     : '',
+            early_bird_price:
+                current.status === 'preorder' ? current.early_bird_price : '',
+            early_bird_pieces:
+                current.status === 'preorder' ? current.early_bird_pieces : '',
             low_stock_alert_at: current.low_stock_alert_at,
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
@@ -655,6 +665,12 @@ export default function ProductForm({
             case 'expected_arrival_to':
                 return {
                     place: 'Expected arrival',
+                    section: 'product-status',
+                };
+            case 'early_bird_price':
+            case 'early_bird_pieces':
+                return {
+                    place: 'Early-bird price',
                     section: 'product-status',
                 };
             default:
@@ -1896,11 +1912,62 @@ export default function ProductForm({
                                         />
                                     </div>
                                 </Field>
+                                <Field
+                                    label="Early-bird price (optional)"
+                                    hint="A lower price per piece for the first pieces preordered, first come, first served. Leave both empty for no early-bird price."
+                                    error={
+                                        errors.early_bird_price ??
+                                        errors.early_bird_pieces
+                                    }
+                                >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="w-32">
+                                            <PesoInput
+                                                value={data.early_bird_price}
+                                                onChange={(value) =>
+                                                    setData(
+                                                        'early_bird_price',
+                                                        value,
+                                                    )
+                                                }
+                                                placeholder="300"
+                                                label="Early-bird price per piece"
+                                                invalid={Boolean(
+                                                    errors.early_bird_price,
+                                                )}
+                                            />
+                                        </span>
+                                        <span className="text-sm font-bold text-slate-500">
+                                            for the first
+                                        </span>
+                                        <input
+                                            value={data.early_bird_pieces}
+                                            onChange={(event) =>
+                                                setData(
+                                                    'early_bird_pieces',
+                                                    digitsOnly(
+                                                        event.target.value,
+                                                    ),
+                                                )
+                                            }
+                                            inputMode="numeric"
+                                            placeholder="20"
+                                            aria-label="Pieces at the early-bird price"
+                                            aria-invalid={Boolean(
+                                                errors.early_bird_pieces,
+                                            )}
+                                            className={cn(inputClasses, 'w-24')}
+                                        />
+                                        <span className="text-sm font-bold text-slate-500">
+                                            pcs
+                                        </span>
+                                    </div>
+                                </Field>
                             </div>
                         </div>
                     )}
                     <div className="px-6 pb-6">
-                        <InputError message={errors.status} />{' '}
+                        <InputError message={errors.status} />
                     </div>
                 </Panel>
 

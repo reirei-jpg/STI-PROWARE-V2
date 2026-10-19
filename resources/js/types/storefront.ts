@@ -31,6 +31,12 @@ export type StorefrontTileProduct = {
     preorders_close_on: string | null;
     /** When a Preorder product is expected to arrive, e.g. "Nov 13 – Nov 20, 2026". */
     expected_arrival: string | null;
+    /** A lower price per piece for the first pieces preordered, and how many are still free. */
+    early_bird: {
+        price_centavos: number;
+        pieces: number;
+        pieces_left: number;
+    } | null;
     /** A Preorder product taking preorders, or a product for sale with a sold-out size to preorder. */
     accepts_preorders: boolean;
 };

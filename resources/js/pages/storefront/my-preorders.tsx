@@ -15,7 +15,8 @@ import {
 import { useState } from 'react';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import Pagination from '@/components/pagination';
-import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import type { Paginated } from '@/types';
@@ -31,6 +32,9 @@ type MyPreorder = {
     preorders_close_on: string | null;
     /** When the Coming Soon product is expected to arrive (active preorders only). */
     expected_arrival: string | null;
+    /** How many of its pieces get the early-bird price, and that price. */
+    early_bird_pieces: number;
+    early_bird_price_centavos: number | null;
     /** A sold-out size of an item for sale, waiting to be back in stock. */
     waiting_for_restock: boolean;
     can_cancel: boolean;
@@ -480,6 +484,13 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
                         </p>
                     </div>
                 </div>
+            )}
+            {preorder.early_bird_price_centavos !== null && (
+                <p className="mt-2 text-xs font-black text-red-600">
+                    {formatUnits(preorder.early_bird_pieces, 'Piece')} at the
+                    early-bird price of{' '}
+                    {formatPeso(preorder.early_bird_price_centavos)} each
+                </p>
             )}
         </>
     );

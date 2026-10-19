@@ -213,6 +213,8 @@ class ProductController extends Controller
                 'preorders_close_on' => $product->preorders_close_on?->toDateString() ?? '',
                 'expected_arrival_from' => $product->expected_arrival_from?->toDateString() ?? '',
                 'expected_arrival_to' => $product->expected_arrival_to?->toDateString() ?? '',
+                'early_bird_price' => $product->early_bird_price_centavos === null ? '' : $this->pesos($product->early_bird_price_centavos),
+                'early_bird_pieces' => $product->early_bird_pieces === null ? '' : (string) $product->early_bird_pieces,
                 'low_stock_alert_at' => (string) $product->low_stock_alert_at,
                 'photos' => $product->photos->map(fn (ProductPhoto $photo): array => [
                     'id' => $photo->id,

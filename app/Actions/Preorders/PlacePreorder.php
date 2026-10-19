@@ -8,7 +8,9 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\PreorderPlaced;
+use App\Services\Preorders\EarlyBird;
 use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\Units;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -48,7 +50,9 @@ class PlacePreorder
                 );
             }
 
-            return $saved;
+            EarlyBird::reallocate($product);
+
+            return array_map(fn (Preorder $preorder): Preorder => $preorder->refresh(), $saved);
         });
 
         if (LowStockAlerts::isSold($product)) {
@@ -82,6 +86,7 @@ class PlacePreorder
     public static function messageForMany(array $preorders, Product $product): string
     {
         $after = (LowStockAlerts::isSold($product) ? ' You will be notified when it is back in stock.' : '')
+            .self::earlyBirdNote($preorders, $product)
             .' It is listed in My Preorders.';
 
         if (count($preorders) === 1) {
@@ -97,5 +102,24 @@ class PlacePreorder
         ));
 
         return "Your preorder of {$product->name} has been placed: {$sizes}.".$after;
+    }
+
+    /**
+     * " 2 pcs get the early-bird price of ₱300.00." or, when they are all
+     * taken, " The early-bird pieces are all taken."
+     *
+     * @param  list<Preorder>  $preorders
+     */
+    private static function earlyBirdNote(array $preorders, Product $product): string
+    {
+        if ($product->early_bird_price_centavos === null || LowStockAlerts::isSold($product)) {
+            return '';
+        }
+
+        $pieces = array_sum(array_map(fn (Preorder $preorder): int => $preorder->early_bird_pieces, $preorders));
+
+        return $pieces === 0
+            ? ' The early-bird pieces are all taken.'
+            : ' '.Units::count($pieces, 'Piece').' '.($pieces === 1 ? 'gets' : 'get').' the early-bird price of ₱'.number_format($product->early_bird_price_centavos / 100, 2).'.';
     }
 }

@@ -370,6 +370,12 @@ function PreorderRow({
                             Expected to arrive {preorder.expected_arrival}
                         </Text>
                     )}
+                    {preorder.early_bird_price_centavos !== null && (
+                        <Text className="font-sans-bold text-xs text-red-600">
+                            {formatUnits(preorder.early_bird_pieces, 'Piece')} at the early-bird price of{' '}
+                            {formatPeso(preorder.early_bird_price_centavos)} each
+                        </Text>
+                    )}
                 </View>
             </Pressable>
 

@@ -140,6 +140,9 @@ export type EditableProduct = {
     /** First and last day it is expected to arrive ("YYYY-MM-DD"), or empty. */
     expected_arrival_from: string;
     expected_arrival_to: string;
+    /** Early-bird price per piece in pesos and how many pieces get it, or empty. */
+    early_bird_price: string;
+    early_bird_pieces: string;
     low_stock_alert_at: string;
     photos: { id: number; url: string; label: string }[];
     packs: ProductPackInput[];
