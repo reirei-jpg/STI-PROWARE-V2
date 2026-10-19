@@ -317,6 +317,11 @@ function PreorderForm({
                                 {formatDateOrdered(details.preorders_close_on)}
                             </p>
                         )}
+                        {!restock && details.expected_arrival && (
+                            <p className="text-xs font-semibold text-slate-600">
+                                Expected to arrive {details.expected_arrival}
+                            </p>
+                        )}
                     </div>
                 </div>
 

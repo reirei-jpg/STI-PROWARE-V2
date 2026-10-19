@@ -137,6 +137,9 @@ export type EditableProduct = {
     sale_ends_at: string | null;
     /** Last day students can preorder ("YYYY-MM-DD"), or empty. */
     preorders_close_on: string;
+    /** First and last day it is expected to arrive ("YYYY-MM-DD"), or empty. */
+    expected_arrival_from: string;
+    expected_arrival_to: string;
     low_stock_alert_at: string;
     photos: { id: number; url: string; label: string }[];
     packs: ProductPackInput[];

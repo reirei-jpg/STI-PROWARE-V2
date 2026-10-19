@@ -84,6 +84,15 @@ export type PreorderNotRestockedData = {
     reason: string | null;
 };
 
+/** The expected arrival of a product the student preordered was set or changed. */
+export type PreorderArrivalChangedData = {
+    kind: 'preorder_arrival_changed';
+    product_id: number;
+    product_name: string;
+    expected_arrival: string | null;
+    before: string | null;
+};
+
 /** A student preordered a sold-out size (for the Specialist). */
 export type PreorderPlacedData = {
     kind: 'preorder_placed';
@@ -136,6 +145,7 @@ export type StaffNotification = {
         | OrderCancelledData
         | PreorderArrivedData
         | PreorderNotRestockedData
+        | PreorderArrivalChangedData
         | PreorderPlacedData
         | OrderingResumedData
         | DeliveryRecordedData

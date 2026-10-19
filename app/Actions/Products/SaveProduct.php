@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Notifications\PreorderArrivalChanged;
 use App\Notifications\PreorderArrived;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductName;
@@ -48,6 +49,7 @@ class SaveProduct
     {
         $status = ProductStatus::from((string) $request->input('status'));
         $wasPreorder = $product->exists && $product->status === ProductStatus::Preorder;
+        $arrivalBefore = $product->exists ? $product->expectedArrivalText() : null;
         $soldByPiece = $request->boolean('sold_by_piece');
         $newPhotoPaths = [];
         $removedPhotoPaths = [];
@@ -66,6 +68,12 @@ class SaveProduct
                     'preorders_close_on' => $status === ProductStatus::Preorder
                         ? $request->input('preorders_close_on')
                         : $product->preorders_close_on,
+                    'expected_arrival_from' => $status === ProductStatus::Preorder
+                        ? $request->input('expected_arrival_from')
+                        : $product->expected_arrival_from,
+                    'expected_arrival_to' => $status === ProductStatus::Preorder
+                        ? $request->input('expected_arrival_to')
+                        : $product->expected_arrival_to,
                 ])->save();
 
                 $removedPhotoPaths = $this->syncPhotos($product, $request, $newPhotoPaths);
@@ -91,7 +99,24 @@ class SaveProduct
             $this->tellStudentsItArrived($product);
         }
 
+        if ($wasPreorder && $product->status === ProductStatus::Preorder && $product->expectedArrivalText() !== $arrivalBefore) {
+            $this->tellStudentsNewArrival($product, $arrivalBefore);
+        }
+
         return $piecesAdded;
+    }
+
+    /**
+     * The expected arrival was set or changed: everyone with an active
+     * preorder for it is told the new days (and the old ones, if any).
+     */
+    private function tellStudentsNewArrival(Product $product, ?string $before): void
+    {
+        $students = User::query()
+            ->whereIn('id', $product->preorders()->where('status', PreorderStatus::Active)->select('user_id'))
+            ->get();
+
+        Notification::send($students, new PreorderArrivalChanged($product, $before));
     }
 
     /**

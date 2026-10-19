@@ -365,6 +365,11 @@ function PreorderRow({
                         {formatUnits(preorder.quantity, 'Piece')}
                     </Text>
                     <Text className={`text-xs ${closing.className}`}>{closing.text}</Text>
+                    {preorder.expected_arrival && (
+                        <Text className="font-sans text-xs text-slate-600">
+                            Expected to arrive {preorder.expected_arrival}
+                        </Text>
+                    )}
                 </View>
             </Pressable>
 

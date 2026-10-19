@@ -329,6 +329,7 @@ test('a preorder product needs a close date that is not in the past', function (
         'name' => 'Anniversary Shirt', 'sold_by_piece' => '1', 'price' => '350', 'status' => 'draft', 'sale_price' => '',
         'low_stock_alert_at' => '5', 'photos' => [], 'packs' => [], 'options' => [],
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
+        'expected_arrival_from' => '2026-10-15', 'expected_arrival_to' => '2026-10-22',
     ];
     $product = Product::factory()->create(['status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-01']);
     ProductVariant::factory()->for($product)->create();

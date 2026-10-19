@@ -202,6 +202,11 @@ export default function PreorderSheet({
                             Preorders close {formatDate(product.preorders_close_on)}
                         </Text>
                     )}
+                    {!restock && product.expected_arrival && (
+                        <Text className="font-sans-semibold text-xs text-slate-600">
+                            Expected to arrive {product.expected_arrival}
+                        </Text>
+                    )}
                 </View>
             </View>
 

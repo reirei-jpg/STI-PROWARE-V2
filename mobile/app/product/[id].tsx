@@ -215,6 +215,11 @@ export default function ProductScreen() {
                                         : `Preorders closed on ${formatDate(product.preorders_close_on)}`}
                                 </Text>
                             )}
+                            {comingSoon && product.expected_arrival && (
+                                <Text className="font-sans-semibold text-sm text-slate-700">
+                                    Expected to arrive {product.expected_arrival}
+                                </Text>
+                            )}
 
                             {hasOptions && (
                                 <View className="gap-3">

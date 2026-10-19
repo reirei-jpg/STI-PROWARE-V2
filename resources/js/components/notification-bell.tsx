@@ -272,6 +272,21 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'preorder_arrival_changed') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-amber-800">
+                    New expected arrival: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Your preorder is now expected to arrive{' '}
+                    {data.expected_arrival}.
+                    {data.before && ` It was expected ${data.before}.`}
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'preorder_placed') {
         return (
             <>

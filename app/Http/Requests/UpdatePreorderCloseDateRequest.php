@@ -47,6 +47,15 @@ class UpdatePreorderCloseDateRequest extends FormRequest
 
                 if ($product instanceof Product && $product->status !== ProductStatus::Preorder) {
                     $validator->errors()->add('preorders_close_on', "{$product->name} is no longer a Preorder product.");
+
+                    return;
+                }
+
+                // Preorders close before it is expected to arrive.
+                $date = $this->input('preorders_close_on');
+
+                if ($product instanceof Product && is_string($date) && $product->expected_arrival_from !== null && $date >= $product->expected_arrival_from->toDateString()) {
+                    $validator->errors()->add('preorders_close_on', "The close date must be before the expected arrival ({$product->expectedArrivalText()}). Change the expected arrival in Edit Product first.");
                 }
             },
         ];

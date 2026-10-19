@@ -9,6 +9,7 @@ import {
     PackageX,
     ShoppingBag,
     Store,
+    Truck,
     XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -28,6 +29,8 @@ type MyPreorder = {
     status: 'active' | 'arrived' | 'cancelled' | 'not_restocked';
     status_label: string;
     preorders_close_on: string | null;
+    /** When the Coming Soon product is expected to arrive (active preorders only). */
+    expected_arrival: string | null;
     /** A sold-out size of an item for sale, waiting to be back in stock. */
     waiting_for_restock: boolean;
     can_cancel: boolean;
@@ -461,6 +464,19 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
                         </p>
                         <p className="text-xs font-black">
                             {formatDateOrdered(preorder.preorders_close_on)}
+                        </p>
+                    </div>
+                </div>
+            )}
+            {preorder.expected_arrival && (
+                <div className="mt-2 flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2">
+                    <Truck size={15} className="shrink-0" />
+                    <div>
+                        <p className="text-[10px] font-black tracking-wide uppercase opacity-70">
+                            Expected to arrive
+                        </p>
+                        <p className="text-xs font-black">
+                            {preorder.expected_arrival}
                         </p>
                     </div>
                 </div>

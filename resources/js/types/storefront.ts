@@ -29,6 +29,8 @@ export type StorefrontTileProduct = {
     sale_ends_at: string | null;
     /** The last day students can preorder, for a Preorder product. */
     preorders_close_on: string | null;
+    /** When a Preorder product is expected to arrive, e.g. "Nov 13 – Nov 20, 2026". */
+    expected_arrival: string | null;
     /** A Preorder product taking preorders, or a product for sale with a sold-out size to preorder. */
     accepts_preorders: boolean;
 };

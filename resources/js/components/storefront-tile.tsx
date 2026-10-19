@@ -133,6 +133,11 @@ export default function StorefrontTile({
                             : 'Preorders closed'}
                     </p>
                 )}
+                {comingSoon && product.expected_arrival && (
+                    <p className="text-[11px] font-semibold text-slate-600">
+                        Expected {product.expected_arrival}
+                    </p>
+                )}
 
                 {product.sold_out && product.accepts_preorders && (
                     <p className="text-[11px] font-bold text-amber-700">

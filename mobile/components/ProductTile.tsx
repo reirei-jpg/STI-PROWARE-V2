@@ -128,6 +128,11 @@ export default function ProductTile({
                             : 'Preorders closed'}
                     </Text>
                 )}
+                {comingSoon && product.expected_arrival && (
+                    <Text className="font-sans-semibold text-[11px] text-slate-600">
+                        Expected {product.expected_arrival}
+                    </Text>
+                )}
 
                 {product.sold_out && product.accepts_preorders && (
                     <Text className="font-sans-bold text-[11px] text-amber-700">

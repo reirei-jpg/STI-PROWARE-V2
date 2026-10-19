@@ -39,6 +39,26 @@ const MAX_PHOTOS = 6;
 const MAX_OPTIONS = 3;
 const MAX_PACKS = 5;
 
+/** The expected arrival filled in from the close date: 2 to 3 weeks after it. */
+const ARRIVAL_STARTS_AFTER_DAYS = 14;
+const ARRIVAL_ENDS_AFTER_DAYS = 21;
+
+/** "2026-10-30" plus 14 days = "2026-11-13". */
+function addDays(date: string, days: number): string {
+    const day = new Date(`${date}T00:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + days);
+
+    return day.toISOString().slice(0, 10);
+}
+
+/** "2026-11-13" as "Nov 13, 2026". */
+function formatDay(date: string): string {
+    return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+}
 type PhotoInput = {
     id: number | null;
     url: string;
@@ -57,6 +77,8 @@ type ProductFormData = {
     price: string;
     status: ProductStatus;
     preorders_close_on: string;
+    expected_arrival_from: string;
+    expected_arrival_to: string;
     low_stock_alert_at: string;
     photos: PhotoInput[];
     packs: ProductPackInput[];
@@ -137,7 +159,13 @@ function errorBelongsTo(key: string, field: keyof ProductFormData): boolean {
         case 'packs':
             return top === 'packs' || top === 'sold_by_piece';
         case 'status':
-            return ['status', 'photos', 'preorders_close_on'].includes(top);
+            return [
+                'status',
+                'photos',
+                'preorders_close_on',
+                'expected_arrival_from',
+                'expected_arrival_to',
+            ].includes(top);
         default:
             return top === field;
     }
@@ -169,6 +197,18 @@ export default function ProductForm({
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
         preorders_close_on: product?.preorders_close_on ?? '',
+        // A Preorder product saved before expected arrivals existed gets
+        // the usual range from its close date.
+        expected_arrival_from:
+            product?.expected_arrival_from ||
+            (product?.preorders_close_on
+                ? addDays(product.preorders_close_on, ARRIVAL_STARTS_AFTER_DAYS)
+                : ''),
+        expected_arrival_to:
+            product?.expected_arrival_to ||
+            (product?.preorders_close_on
+                ? addDays(product.preorders_close_on, ARRIVAL_ENDS_AFTER_DAYS)
+                : ''),
         low_stock_alert_at: product?.low_stock_alert_at ?? '5',
         photos:
             product?.photos.map((photo) => ({
@@ -205,7 +245,29 @@ export default function ProductForm({
     });
 
     const { data, setData, processing } = form;
-    // A saved product without options: when options are added, the
+
+    // The expected arrival follows the close date until the Specialist
+    // changes it herself (a saved product keeps its own days).
+    const [arrivalChosen, setArrivalChosen] = useState(
+        Boolean(product?.expected_arrival_from),
+    );
+    const changeCloseDate = (date: string) =>
+        setData((current) => ({
+            ...current,
+            preorders_close_on: date,
+            ...(arrivalChosen || date === ''
+                ? {}
+                : {
+                      expected_arrival_from: addDays(
+                          date,
+                          ARRIVAL_STARTS_AFTER_DAYS,
+                      ),
+                      expected_arrival_to: addDays(
+                          date,
+                          ARRIVAL_ENDS_AFTER_DAYS,
+                      ),
+                  }),
+        })); // A saved product without options: when options are added, the
     // Specialist says which new variant its stock (and history) is.
     const withoutOptions =
         product !== null &&
@@ -288,6 +350,23 @@ export default function ProductForm({
         data.preorders_close_on < today &&
         data.preorders_close_on !== (product?.preorders_close_on ?? '');
 
+    // The expected arrival is after the close date, first day first.
+    const arrivalProblem =
+        data.status !== 'preorder'
+            ? undefined
+            : data.expected_arrival_from !== '' &&
+                data.preorders_close_on !== '' &&
+                data.expected_arrival_from <= data.preorders_close_on
+              ? `The expected arrival must be after the close date (${formatDay(data.preorders_close_on)}).`
+              : undefined;
+    const arrivalEndProblem =
+        data.status === 'preorder' &&
+        data.expected_arrival_from !== '' &&
+        data.expected_arrival_to !== '' &&
+        data.expected_arrival_to < data.expected_arrival_from
+            ? 'The last day cannot be before the first day.'
+            : undefined;
+
     // New packs get a key of their own until they are saved.
     const nextPackNumber = useRef(1);
 
@@ -306,6 +385,14 @@ export default function ProductForm({
             status: current.status,
             preorders_close_on:
                 current.status === 'preorder' ? current.preorders_close_on : '',
+            expected_arrival_from:
+                current.status === 'preorder'
+                    ? current.expected_arrival_from
+                    : '',
+            expected_arrival_to:
+                current.status === 'preorder'
+                    ? current.expected_arrival_to
+                    : '',
             low_stock_alert_at: current.low_stock_alert_at,
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
@@ -564,6 +651,12 @@ export default function ProductForm({
                     place: 'Preorders close on',
                     section: 'product-status',
                 };
+            case 'expected_arrival_from':
+            case 'expected_arrival_to':
+                return {
+                    place: 'Expected arrival',
+                    section: 'product-status',
+                };
             default:
                 return { place: 'Where it shows', section: 'product-status' };
         }
@@ -640,7 +733,7 @@ export default function ProductForm({
             preorder:
                 data.preorders_close_on === ''
                     ? 'Preorder: choose the closing date'
-                    : `Preorder: open until ${new Date(`${data.preorders_close_on}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+                    : `Preorder: open until ${formatDay(data.preorders_close_on)}${data.expected_arrival_from && data.expected_arrival_to ? `, expected ${formatDay(data.expected_arrival_from)} to ${formatDay(data.expected_arrival_to)}` : ''}`,
             available: 'Available: visible to students',
             on_sale: 'On Sale: visible to students',
         }[data.status],
@@ -1718,7 +1811,7 @@ export default function ProductForm({
                     )}
                     {data.status === 'preorder' && (
                         <div className="border-t border-slate-100 bg-amber-50/40 px-6 py-5">
-                            <div className="max-w-sm">
+                            <div className="max-w-md space-y-4">
                                 <Field
                                     label="Preorders close on"
                                     hint="The last day students can preorder. You can move it later on the Preorders page to collect more."
@@ -1733,10 +1826,7 @@ export default function ProductForm({
                                         value={data.preorders_close_on}
                                         min={today}
                                         onChange={(event) =>
-                                            setData(
-                                                'preorders_close_on',
-                                                event.target.value,
-                                            )
+                                            changeCloseDate(event.target.value)
                                         }
                                         aria-invalid={
                                             closeDateInPast ||
@@ -1745,11 +1835,72 @@ export default function ProductForm({
                                         className={inputClasses}
                                     />
                                 </Field>
+                                <Field
+                                    label="Expected arrival"
+                                    hint="Filled in as 2 to 3 weeks after the close date. Change it when Head Office says otherwise; students who preordered are notified."
+                                    error={
+                                        arrivalProblem ??
+                                        arrivalEndProblem ??
+                                        errors.expected_arrival_from ??
+                                        errors.expected_arrival_to
+                                    }
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="date"
+                                            value={data.expected_arrival_from}
+                                            min={
+                                                data.preorders_close_on || today
+                                            }
+                                            onChange={(event) => {
+                                                setArrivalChosen(true);
+                                                setData(
+                                                    'expected_arrival_from',
+                                                    event.target.value,
+                                                );
+                                            }}
+                                            aria-label="Expected arrival, first day"
+                                            aria-invalid={
+                                                Boolean(arrivalProblem) ||
+                                                Boolean(
+                                                    errors.expected_arrival_from,
+                                                )
+                                            }
+                                            className={inputClasses}
+                                        />
+                                        <span className="text-sm font-bold text-slate-500">
+                                            to
+                                        </span>
+                                        <input
+                                            type="date"
+                                            value={data.expected_arrival_to}
+                                            min={
+                                                data.expected_arrival_from ||
+                                                today
+                                            }
+                                            onChange={(event) => {
+                                                setArrivalChosen(true);
+                                                setData(
+                                                    'expected_arrival_to',
+                                                    event.target.value,
+                                                );
+                                            }}
+                                            aria-label="Expected arrival, last day"
+                                            aria-invalid={
+                                                Boolean(arrivalEndProblem) ||
+                                                Boolean(
+                                                    errors.expected_arrival_to,
+                                                )
+                                            }
+                                            className={inputClasses}
+                                        />
+                                    </div>
+                                </Field>
                             </div>
                         </div>
                     )}
                     <div className="px-6 pb-6">
-                        <InputError message={errors.status} />
+                        <InputError message={errors.status} />{' '}
                     </div>
                 </Panel>
 
@@ -1802,7 +1953,12 @@ export default function ProductForm({
                     </Link>
                     <button
                         type="submit"
-                        disabled={processing || closeDateInPast}
+                        disabled={
+                            processing ||
+                            closeDateInPast ||
+                            arrivalProblem !== undefined ||
+                            arrivalEndProblem !== undefined
+                        }
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         data-test="save-product-button"
                     >

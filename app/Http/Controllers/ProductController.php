@@ -211,6 +211,8 @@ class ProductController extends Controller
                 'status' => $product->status->value,
                 'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
                 'preorders_close_on' => $product->preorders_close_on?->toDateString() ?? '',
+                'expected_arrival_from' => $product->expected_arrival_from?->toDateString() ?? '',
+                'expected_arrival_to' => $product->expected_arrival_to?->toDateString() ?? '',
                 'low_stock_alert_at' => (string) $product->low_stock_alert_at,
                 'photos' => $product->photos->map(fn (ProductPhoto $photo): array => [
                     'id' => $photo->id,
@@ -266,7 +268,7 @@ class ProductController extends Controller
             .($variants > 1 ? " with {$variants} variants" : '').'. '
             .match ($product->status) {
                 ProductStatus::Draft => 'It is not visible to students.',
-                ProductStatus::Preorder => 'It is open for preorders until '.$product->preorders_close_on?->format('M j, Y').'.',
+                ProductStatus::Preorder => 'It is open for preorders until '.$product->preorders_close_on?->format('M j, Y').' and expected to arrive '.$product->expectedArrivalText().'.',
                 ProductStatus::Available => 'It is now visible to students.',
                 ProductStatus::OnSale => 'It is currently on sale.',
             };

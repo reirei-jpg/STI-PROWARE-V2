@@ -12,6 +12,7 @@ use App\Services\Products\ProductName;
 use App\Services\Products\ProductVariants;
 use App\Services\Sales\HeadOfficeCost;
 use App\Services\Stock\Units;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -79,6 +80,17 @@ class SaveProductRequest extends FormRequest
                 Rule::requiredIf($this->input('status') === ProductStatus::Preorder->value),
                 'nullable',
                 'date_format:Y-m-d',
+            ],
+            'expected_arrival_from' => [
+                Rule::requiredIf($this->input('status') === ProductStatus::Preorder->value),
+                'nullable',
+                'date_format:Y-m-d',
+            ],
+            'expected_arrival_to' => [
+                Rule::requiredIf($this->input('status') === ProductStatus::Preorder->value),
+                'nullable',
+                'date_format:Y-m-d',
+                'after_or_equal:expected_arrival_from',
             ],
 
             'packs' => ['nullable', 'array', 'max:'.self::MAX_PACKS],
@@ -149,6 +161,11 @@ class SaveProductRequest extends FormRequest
             'status.in' => 'Choose Draft, Preorder or Available. To put a product on sale, use Put on Sale on the Products list.',
             'preorders_close_on.required' => 'Choose the last day students can preorder.',
             'preorders_close_on.date_format' => 'Choose a valid date.',
+            'expected_arrival_from.required' => 'Choose the first day it is expected to arrive.',
+            'expected_arrival_from.date_format' => 'Choose a valid date.',
+            'expected_arrival_to.required' => 'Choose the last day it is expected to arrive.',
+            'expected_arrival_to.date_format' => 'Choose a valid date.',
+            'expected_arrival_to.after_or_equal' => 'The last day cannot be before the first day.',
             'packs.max' => 'A product can have up to '.self::MAX_PACKS.' packs.',
             'packs.*.name.required' => 'Name the pack, e.g. Pack or Box.',
             'packs.*.pieces.required' => 'Enter how many pieces are in one pack.',
@@ -326,6 +343,13 @@ class SaveProductRequest extends FormRequest
 
         if (! $unchanged && $date < now()->toDateString()) {
             $validator->errors()->add('preorders_close_on', 'The close date cannot be in the past.');
+        }
+
+        // It arrives after preorders close (Head Office is ordered then).
+        $arrivesFrom = $this->input('expected_arrival_from');
+
+        if (is_string($arrivesFrom) && $arrivesFrom !== '' && $arrivesFrom <= $date) {
+            $validator->errors()->add('expected_arrival_from', 'The expected arrival must be after the close date ('.CarbonImmutable::parse($date)->format('M j, Y').').');
         }
     }
 

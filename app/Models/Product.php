@@ -35,10 +35,12 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $sale_ends_at
  * @property Carbon|null $sale_ending_notified_at when the "sale ending tomorrow" notice was sent
  * @property Carbon|null $preorders_close_on last day students can preorder a Preorder product
+ * @property Carbon|null $expected_arrival_from first day a Preorder product is expected to arrive
+ * @property Carbon|null $expected_arrival_to last day a Preorder product is expected to arrive
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'preorders_close_on'])]
+#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'preorders_close_on', 'expected_arrival_from', 'expected_arrival_to'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -59,7 +61,27 @@ class Product extends Model
             'sale_ends_at' => 'datetime',
             'sale_ending_notified_at' => 'datetime',
             'preorders_close_on' => 'date',
+            'expected_arrival_from' => 'date',
+            'expected_arrival_to' => 'date',
         ];
+    }
+
+    /**
+     * "Nov 14 – Nov 21, 2026" ("Dec 28, 2026 – Jan 4, 2027" across years), or
+     * null when no expected arrival is set.
+     */
+    public function expectedArrivalText(): ?string
+    {
+        $from = $this->expected_arrival_from;
+        $to = $this->expected_arrival_to;
+
+        if ($from === null || $to === null) {
+            return null;
+        }
+
+        return $from->year === $to->year
+            ? $from->format('M j').' – '.$to->format('M j, Y')
+            : $from->format('M j, Y').' – '.$to->format('M j, Y');
     }
 
     /**

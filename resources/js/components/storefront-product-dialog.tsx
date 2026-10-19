@@ -252,6 +252,12 @@ export default function StorefrontProductDialog({
                                             : `Preorders closed on ${formatDateOrdered(shown.preorders_close_on)}`}
                                     </p>
                                 )}
+                                {comingSoon && shown.expected_arrival && (
+                                    <p className="text-sm font-semibold text-slate-700">
+                                        Expected to arrive{' '}
+                                        {shown.expected_arrival}
+                                    </p>
+                                )}
 
                                 {shown.sold_out && !shown.accepts_preorders ? (
                                     <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">

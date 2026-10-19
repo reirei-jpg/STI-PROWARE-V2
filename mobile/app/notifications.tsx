@@ -60,6 +60,13 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        case 'preorder_arrival_changed':
+            return {
+                title: `New expected arrival: ${data.product_name}`,
+                body: `Your preorder is now expected to arrive ${data.expected_arrival}.${data.before ? ` It was expected ${data.before}.` : ''}`,
+                titleClass: 'text-amber-800',
+                stripe: '#f59e0b',
+            };
         case 'preorder_not_restocked':
             return {
                 title: `Not restocked: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,

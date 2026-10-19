@@ -553,6 +553,8 @@ test('a size students preordered cannot be removed or renamed, so their preorder
     $form = fn (array $choices) => productForm([
         'status' => 'preorder',
         'preorders_close_on' => now()->addWeek()->toDateString(),
+        'expected_arrival_from' => now()->addWeeks(3)->toDateString(),
+        'expected_arrival_to' => now()->addWeeks(4)->toDateString(),
         'options' => [['name' => 'Size', 'choices' => $choices]],
         'variants' => array_map(fn (string $choice): array => ['combination' => "Size: {$choice}", 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => ''], $choices),
     ]);

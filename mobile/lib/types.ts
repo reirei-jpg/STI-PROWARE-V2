@@ -31,6 +31,8 @@ export type StorefrontTileProduct = {
     pieces_left: number | null;
     sale_ends_at: string | null;
     preorders_close_on: string | null;
+    /** When a Preorder product is expected to arrive, e.g. "Nov 13 – Nov 20, 2026". */
+    expected_arrival: string | null;
     /** A Preorder product taking preorders, or a product for sale with a sold-out size to preorder. */
     accepts_preorders: boolean;
 };
@@ -221,6 +223,8 @@ export type StudentPreorder = {
     /** When the student was told it arrived. */
     arrived_at: string | null;
     preorders_close_on: string | null;
+    /** When the Coming Soon product is expected to arrive (active preorders only). */
+    expected_arrival: string | null;
     /** A sold-out size of an item for sale, waiting to be back in stock. */
     waiting_for_restock: boolean;
     can_cancel: boolean;
@@ -248,6 +252,13 @@ export type StudentNotificationData =
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
+    | {
+          kind: 'preorder_arrival_changed';
+          product_id: number;
+          product_name: string;
+          expected_arrival: string | null;
+          before: string | null;
+      }
     | {
           kind: 'preorder_not_restocked';
           product_id: number;
