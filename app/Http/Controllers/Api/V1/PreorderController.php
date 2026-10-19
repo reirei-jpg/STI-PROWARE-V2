@@ -28,11 +28,16 @@ class PreorderController extends Controller
 
     public function store(PlacePreorderRequest $request, Product $product, PlacePreorder $placePreorder): JsonResponse
     {
-        $preorder = $placePreorder->handle($request->user(), $product, $request->integer('product_variant_id'), $request->integer('quantity'));
+        $preorders = $placePreorder->handleMany($request->user(), $product, $request->items());
+        $rows = array_map(
+            fn (Preorder $preorder): array => CancelPreorderByStudent::row($preorder->load(['product.mainPhoto', 'variant'])),
+            $preorders,
+        );
 
         return response()->json([
-            'message' => PlacePreorder::message($preorder, $product),
-            'preorder' => CancelPreorderByStudent::row($preorder->load(['product.mainPhoto', 'variant'])),
+            'message' => PlacePreorder::messageForMany($preorders, $product),
+            'preorder' => $rows[0],
+            'preorders' => $rows,
         ], 201);
     }
 

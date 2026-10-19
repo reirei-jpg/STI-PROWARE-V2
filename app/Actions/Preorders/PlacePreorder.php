@@ -9,38 +9,59 @@ use App\Models\Product;
 use App\Models\User;
 use App\Notifications\PreorderPlaced;
 use App\Services\Stock\LowStockAlerts;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * A student preorders a size or color (website or phone app): of a Preorder
- * product, or a sold-out size of a product for sale. Preordering the same
- * one again changes how many, so a student has one active preorder per size
- * or color. A new preorder of a sold-out size is sent to the Specialist, so
- * she can order more.
+ * A student preorders sizes or colors (website or phone app): of a Preorder
+ * product, or sold-out sizes of a product for sale. Preordering the same
+ * size again changes how many, so a student has one active preorder per
+ * size or color. A new preorder of a sold-out size is sent to the
+ * Specialist, so she can order more.
  */
 class PlacePreorder
 {
     public function handle(User $student, Product $product, int $variantId, int $quantity): Preorder
     {
-        $preorder = $student->preorders()->updateOrCreate(
-            [
-                'product_variant_id' => $variantId,
-                'status' => PreorderStatus::Active,
-            ],
-            [
-                'product_id' => $product->id,
-                'quantity' => $quantity,
-            ],
-        );
+        return $this->handleMany($student, $product, [['product_variant_id' => $variantId, 'quantity' => $quantity]])[0];
+    }
 
-        if ($preorder->wasRecentlyCreated && LowStockAlerts::isSold($product)) {
-            Notification::send(
-                User::query()->where('role', UserRole::Specialist)->get(),
-                new PreorderPlaced($preorder->setRelations(['product' => $product, 'student' => $student])),
-            );
+    /**
+     * @param  list<array{product_variant_id: int, quantity: int}>  $items
+     * @return list<Preorder> in the order given
+     */
+    public function handleMany(User $student, Product $product, array $items): array
+    {
+        $preorders = DB::transaction(function () use ($student, $product, $items): array {
+            $saved = [];
+
+            foreach ($items as $item) {
+                $saved[] = $student->preorders()->updateOrCreate(
+                    [
+                        'product_variant_id' => $item['product_variant_id'],
+                        'status' => PreorderStatus::Active,
+                    ],
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => $item['quantity'],
+                    ],
+                );
+            }
+
+            return $saved;
+        });
+
+        if (LowStockAlerts::isSold($product)) {
+            $specialists = User::query()->where('role', UserRole::Specialist)->get();
+
+            foreach ($preorders as $preorder) {
+                if ($preorder->wasRecentlyCreated) {
+                    Notification::send($specialists, new PreorderPlaced($preorder->setRelations(['product' => $product, 'student' => $student])));
+                }
+            }
         }
 
-        return $preorder;
+        return $preorders;
     }
 
     /**
@@ -49,10 +70,32 @@ class PlacePreorder
      */
     public static function message(Preorder $preorder, Product $product): string
     {
-        $variant = $preorder->variant;
+        return self::messageForMany([$preorder], $product);
+    }
 
-        return "Your preorder of {$preorder->quantity} × {$product->name}".($variant->choices === [] ? '' : " ({$variant->label()})").' has been placed.'
-            .(LowStockAlerts::isSold($product) ? ' You will be notified when it is back in stock.' : '')
+    /**
+     * One size: "Your preorder of 2 × BSIT Polo (M) has been placed. …"
+     * Several: "Your preorder of BSIT Polo has been placed: 2 × S, 3 × M. …"
+     *
+     * @param  list<Preorder>  $preorders
+     */
+    public static function messageForMany(array $preorders, Product $product): string
+    {
+        $after = (LowStockAlerts::isSold($product) ? ' You will be notified when it is back in stock.' : '')
             .' It is listed in My Preorders.';
+
+        if (count($preorders) === 1) {
+            $preorder = $preorders[0];
+            $variant = $preorder->variant;
+
+            return "Your preorder of {$preorder->quantity} × {$product->name}".($variant->choices === [] ? '' : " ({$variant->label()})").' has been placed.'.$after;
+        }
+
+        $sizes = implode(', ', array_map(
+            fn (Preorder $preorder): string => "{$preorder->quantity} × {$preorder->variant->label()}",
+            $preorders,
+        ));
+
+        return "Your preorder of {$product->name} has been placed: {$sizes}.".$after;
     }
 }

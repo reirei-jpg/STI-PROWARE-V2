@@ -29,16 +29,16 @@ class StudentPreorderController extends Controller
     }
 
     /**
-     * Preorder a size or color. Preordering the same one again changes how
+     * Preorder sizes or colors. Preordering the same one again changes how
      * many, so a student has one preorder per size or color.
      */
     public function store(PlacePreorderRequest $request, Product $product, PlacePreorder $placePreorder): RedirectResponse
     {
-        $preorder = $placePreorder->handle($request->user(), $product, $request->integer('product_variant_id'), $request->integer('quantity'));
+        $preorders = $placePreorder->handleMany($request->user(), $product, $request->items());
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => PlacePreorder::message($preorder, $product),
+            'message' => PlacePreorder::messageForMany($preorders, $product),
         ]);
 
         return back();

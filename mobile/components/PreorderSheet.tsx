@@ -1,4 +1,4 @@
-import { CalendarClock } from 'lucide-react-native';
+import { CalendarClock, Plus } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
@@ -17,11 +17,20 @@ import type { StorefrontProductDetails } from '@/lib/types';
 /** At most 99 of one item (PlacePreorderRequest::MAX_QUANTITY on the server). */
 const MOST = 99;
 
+type PreorderLine = { variantId: number; quantity: string };
+
+/** "2 pcs", "1 pc". */
+function piecesText(pieces: number): string {
+    return `${pieces} ${pieces === 1 ? 'pc' : 'pcs'}`;
+}
+
 /**
- * Preorder, like the website's: which size or color and how many. Nothing
- * is paid; it tells the PROWARE office how many to order. For an item for
- * sale that is out of stock, only its sizes that can be preordered are
- * offered, and the student is notified when it is back in stock.
+ * Preorder, like the website's: which sizes or colors and how many of each.
+ * Sizes are added one at a time, like a cart, and one Preorder button sends
+ * them all. Nothing is paid; it tells the PROWARE office how many to order.
+ * For an item for sale that is out of stock, only its sizes that can be
+ * preordered are offered, and the student is notified when it is back in
+ * stock.
  */
 export default function PreorderSheet({
     product,
@@ -43,6 +52,7 @@ export default function PreorderSheet({
 
     const [picked, setPicked] = useState<Picked>(() => startingPicks(product.variants, anyVariant));
     const [quantityText, setQuantityText] = useState('1');
+    const [added, setAdded] = useState<PreorderLine[]>([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +61,7 @@ export default function PreorderSheet({
         if (open) {
             setPicked(startingPicks(product.variants, anyVariant));
             setQuantityText('1');
+            setAdded([]);
             setError(null);
         }
         // Only on opening; the choices are read from the product then.
@@ -61,7 +72,51 @@ export default function PreorderSheet({
     const variantId = chosen !== undefined && anyVariant(chosen) ? chosen.id : null;
     const quantity = Number(quantityText) || 0;
     const hasChoices = product.variants.length > 1;
-    const canPlace = !saving && variantId !== null && quantity >= 1 && quantity <= MOST;
+    const labelOf = (id: number): string =>
+        product.variants.find((variant) => variant.id === id)?.label ?? '';
+    // With nothing added yet, Preorder sends the size chosen now.
+    const lines: PreorderLine[] =
+        added.length > 0
+            ? added
+            : variantId !== null && quantity >= 1
+              ? [{ variantId, quantity: String(quantity) }]
+              : [];
+    const totalPieces = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
+    const chosenNotAdded =
+        added.length > 0 && variantId !== null && !added.some((line) => line.variantId === variantId);
+    const canAdd = variantId !== null && quantity >= 1;
+    const canPlace =
+        !saving &&
+        lines.length > 0 &&
+        lines.every((line) => {
+            const pieces = Number(line.quantity) || 0;
+
+            return pieces >= 1 && pieces <= MOST;
+        });
+
+    const addChosen = (): void => {
+        if (variantId === null || quantity < 1) {
+            return;
+        }
+
+        const existing = added.find((line) => line.variantId === variantId);
+
+        setAdded(
+            existing
+                ? added.map((line) =>
+                      line === existing
+                          ? { ...line, quantity: String(Math.min(MOST, (Number(line.quantity) || 0) + quantity)) }
+                          : line,
+                  )
+                : [...added, { variantId, quantity: String(quantity) }],
+        );
+        setError(null);
+        setPicked(startingPicks(product.variants, anyVariant));
+        setQuantityText('1');
+    };
+
+    const changeLine = (id: number, value: string): void =>
+        setAdded(added.map((line) => (line.variantId === id ? { ...line, quantity: value } : line)));
 
     const place = async (): Promise<void> => {
         if (!canPlace) {
@@ -76,7 +131,12 @@ export default function PreorderSheet({
                 `/products/${product.id}/preorder`,
                 {
                     method: 'POST',
-                    body: { product_variant_id: variantId, quantity },
+                    body: {
+                        items: lines.map((line) => ({
+                            product_variant_id: line.variantId,
+                            quantity: Number(line.quantity) || 0,
+                        })),
+                    },
                 },
             );
 
@@ -100,19 +160,28 @@ export default function PreorderSheet({
             subtitle={product.name}
             icon={<CalendarClock size={20} color="#b45309" />}
             footer={
-                <Pressable
-                    onPress={place}
-                    disabled={!canPlace}
-                    accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-amber-400 py-4 ${canPlace ? '' : 'opacity-50'}`}
-                >
-                    {saving ? (
-                        <ActivityIndicator color="#451a03" />
-                    ) : (
-                        <CalendarClock size={18} color="#451a03" />
+                <View className="gap-2">
+                    {chosenNotAdded && variantId !== null && (
+                        <Text className="font-sans-semibold text-sm text-amber-800">
+                            {labelOf(variantId)} is not in your preorder yet. Tap Add to preorder to include it.
+                        </Text>
                     )}
-                    <Text className="font-sans-bold text-base text-amber-950">Preorder</Text>
-                </Pressable>
+                    <Pressable
+                        onPress={place}
+                        disabled={!canPlace}
+                        accessibilityRole="button"
+                        className={`flex-row items-center justify-center gap-2 rounded-2xl bg-amber-400 py-4 ${canPlace ? '' : 'opacity-50'}`}
+                    >
+                        {saving ? (
+                            <ActivityIndicator color="#451a03" />
+                        ) : (
+                            <CalendarClock size={18} color="#451a03" />
+                        )}
+                        <Text className="font-sans-bold text-base text-amber-950">
+                            {added.length > 1 ? `Preorder ${piecesText(totalPieces)}` : 'Preorder'}
+                        </Text>
+                    </Pressable>
+                </View>
             }
         >
             <View className="flex-row gap-4">
@@ -164,7 +233,59 @@ export default function PreorderSheet({
                         {chooseFirstText(product, picked)}
                     </Text>
                 )}
+                {hasChoices && (
+                    <Pressable
+                        onPress={addChosen}
+                        disabled={!canAdd}
+                        accessibilityRole="button"
+                        className={`flex-row items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 py-3 ${canAdd ? '' : 'opacity-50'}`}
+                    >
+                        <Plus size={16} color="#78350f" />
+                        <Text className="font-sans-bold text-sm text-amber-900">Add to preorder</Text>
+                    </Pressable>
+                )}
+                {hasChoices && added.length === 0 && (
+                    <Text className="font-sans text-xs text-slate-500">
+                        To preorder more than one size or color, choose one, tap Add to preorder, then choose the next.
+                    </Text>
+                )}
             </View>
+
+            {added.length > 0 && (
+                <View className="gap-2">
+                    <Text className="font-sans-bold text-sm text-slate-700">
+                        Your preorder ({piecesText(totalPieces)})
+                    </Text>
+                    <View className="rounded-xl border border-slate-200 bg-white">
+                        {added.map((line, index) => (
+                            <View
+                                key={line.variantId}
+                                className={`gap-2 px-3 py-3 ${index > 0 ? 'border-t border-slate-100' : ''}`}
+                            >
+                                <View className="flex-row items-center justify-between gap-3">
+                                    <Text className="flex-1 font-sans-bold text-sm text-slate-800" numberOfLines={1}>
+                                        {labelOf(line.variantId)}
+                                    </Text>
+                                    <Pressable
+                                        onPress={() => setAdded(added.filter((other) => other !== line))}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Remove ${labelOf(line.variantId)}`}
+                                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5"
+                                    >
+                                        <Text className="font-sans-bold text-sm text-red-700">Remove</Text>
+                                    </Pressable>
+                                </View>
+                                <QuantityStepper
+                                    value={line.quantity}
+                                    onChange={(value) => changeLine(line.variantId, value)}
+                                    most={MOST}
+                                    unitText={unitWord(Number(line.quantity) || 0, 'Piece')}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
 
             <View className="rounded-xl bg-amber-50 px-4 py-3">
                 <Text className="font-sans text-xs leading-5 text-amber-900">
