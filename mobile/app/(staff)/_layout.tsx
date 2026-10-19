@@ -17,8 +17,8 @@ export default function StaffTabsLayout() {
                 tabBarActiveTintColor: BRAND_BLUE,
                 tabBarInactiveTintColor: INACTIVE,
                 tabBarLabelStyle: {
-                    fontFamily: 'InstrumentSans_600SemiBold',
-                    fontSize: 11,
+                    fontFamily: 'Aptos-Bold',
+                    fontSize: 12,
                 },
                 tabBarStyle: {
                     backgroundColor: '#ffffff',

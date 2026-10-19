@@ -1,12 +1,6 @@
 import '../global.css';
 
-import {
-    InstrumentSans_400Regular,
-    InstrumentSans_500Medium,
-    InstrumentSans_600SemiBold,
-    InstrumentSans_700Bold,
-    useFonts,
-} from '@expo-google-fonts/instrument-sans';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -65,11 +59,10 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+    // Aptos, the Microsoft 365 font (regular and bold), as in global.css.
     const [fontsLoaded] = useFonts({
-        InstrumentSans_400Regular,
-        InstrumentSans_500Medium,
-        InstrumentSans_600SemiBold,
-        InstrumentSans_700Bold,
+        Aptos: require('../assets/fonts/Aptos-Regular.ttf'),
+        'Aptos-Bold': require('../assets/fonts/Aptos-Bold.ttf'),
     });
 
     if (!fontsLoaded) {

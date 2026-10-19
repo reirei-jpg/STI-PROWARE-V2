@@ -13,9 +13,31 @@
     --color-brand: #0d6efd;
     --color-page: #f3f7fa;
 
-    /* Instrument Sans has no true "black" weight, matching the website's fallback. */
-    --font-sans: InstrumentSans_400Regular;
-    --font-sans-medium: InstrumentSans_500Medium;
-    --font-sans-semibold: InstrumentSans_600SemiBold;
-    --font-sans-bold: InstrumentSans_700Bold;
+    /*
+     * Aptos (Microsoft 365) has a regular and a bold: medium text uses the
+     * regular, semibold the bold.
+     */
+    --font-sans: Aptos;
+    --font-sans-medium: Aptos;
+    --font-sans-semibold: Aptos-Bold;
+    --font-sans-bold: Aptos-Bold;
+
+    /*
+     * A little bigger than Tailwind's sizes for reading on a phone: body text
+     * one point up, headings two to three.
+     */
+    --text-xs: 13px;
+    --text-xs--line-height: 18px;
+    --text-sm: 15px;
+    --text-sm--line-height: 21px;
+    --text-base: 17px;
+    --text-base--line-height: 25px;
+    --text-lg: 20px;
+    --text-lg--line-height: 28px;
+    --text-xl: 22px;
+    --text-xl--line-height: 30px;
+    --text-2xl: 27px;
+    --text-2xl--line-height: 34px;
+    --text-3xl: 33px;
+    --text-3xl--line-height: 40px;
 }
