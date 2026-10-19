@@ -1,11 +1,12 @@
 import { useForm, useHttp, usePage } from '@inertiajs/react';
-import { CalendarClock, LoaderCircle, Minus, Plus, X } from 'lucide-react';
+import { CalendarClock, LoaderCircle, Plus, X } from 'lucide-react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import InputError from '@/components/input-error';
 import OptionRow from '@/components/option-row';
+import QuantityInput from '@/components/quantity-input';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
 import { PriceLines } from '@/components/storefront-tile';
 import {
@@ -15,7 +16,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
+import { MAX_PER_ITEM } from '@/lib/number-input';
 import { formatDateOrdered } from '@/lib/format';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
@@ -352,6 +353,7 @@ function PreorderForm({
                             value={quantityText}
                             onChange={setQuantityText}
                             label="How many"
+                            tone="amber"
                         />
                         {hasChoices && (
                             <button
@@ -398,6 +400,7 @@ function PreorderForm({
                                             }
                                             label={`How many ${labelOf(line.product_variant_id)}`}
                                             small
+                                            tone="amber"
                                         />
                                         <button
                                             type="button"
@@ -475,54 +478,5 @@ function PreorderForm({
                 </button>
             </div>
         </form>
-    );
-}
-
-/** − [ 2 ] + for how many, at most 99 (as the server allows). */
-function QuantityInput({
-    value,
-    onChange,
-    label,
-    small = false,
-}: {
-    value: string;
-    onChange: (value: string) => void;
-    label: string;
-    small?: boolean;
-}) {
-    const quantity = Number(value) || 0;
-    const box = small ? 'h-9 w-9' : 'h-11 w-11';
-
-    return (
-        <div className="flex items-center gap-2">
-            <button
-                type="button"
-                onClick={() => onChange(String(Math.max(1, quantity - 1)))}
-                className={`flex ${box} items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50`}
-                aria-label={`One less (${label})`}
-            >
-                <Minus size={16} />
-            </button>
-            <input
-                value={value}
-                onChange={(event) =>
-                    onChange(wholeNumberInput(event.target.value, MAX_PER_ITEM))
-                }
-                onBlur={() => quantity < 1 && onChange('1')}
-                inputMode="numeric"
-                className={`${small ? 'h-9 w-14' : 'h-11 w-20'} rounded-xl border border-slate-200 text-center text-sm font-black text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100`}
-                aria-label={label}
-            />
-            <button
-                type="button"
-                onClick={() =>
-                    onChange(String(Math.min(MAX_PER_ITEM, quantity + 1)))
-                }
-                className={`flex ${box} items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50`}
-                aria-label={`One more (${label})`}
-            >
-                <Plus size={16} />
-            </button>
-        </div>
     );
 }

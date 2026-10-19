@@ -28,14 +28,12 @@ class CartController extends Controller
 
     public function store(AddToCartRequest $request, Product $product, Cart $cart): JsonResponse
     {
-        $variant = $request->variant();
-        $pack = $request->pack();
-        $quantity = $request->integer('quantity');
+        $lines = $request->lines();
 
-        $cart->add($request->user(), $variant, $pack, $quantity);
+        $cart->addMany($request->user(), $lines, $request->fieldFor(...));
 
         return response()->json([
-            'message' => Cart::addedMessage($variant, $pack, $quantity),
+            'message' => Cart::addedManyMessage($lines),
             'cart' => CartView::for($request->user()),
         ], 201);
     }

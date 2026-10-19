@@ -145,6 +145,50 @@ final class Cart
     }
 
     /**
+     * Add several lines at once (Add to Cart with more than one size): all
+     * of them, or none when one cannot be added. The problem is reported on
+     * that line's field, given by $fieldFor(index, 'quantity').
+     *
+     * @param  list<array{variant: ProductVariant, pack: ProductPack|null, quantity: int}>  $lines
+     * @param  callable(int, string): string  $fieldFor
+     */
+    public function addMany(User $student, array $lines, callable $fieldFor): void
+    {
+        DB::transaction(function () use ($student, $lines, $fieldFor): void {
+            foreach ($lines as $index => $line) {
+                try {
+                    $this->add($student, $line['variant'], $line['pack'], $line['quantity']);
+                } catch (ValidationException $exception) {
+                    throw ValidationException::withMessages([
+                        $fieldFor($index, 'quantity') => $exception->validator->errors()->first(),
+                    ]);
+                }
+            }
+        });
+    }
+
+    /**
+     * One line: "2 pcs of BSIT Polo (M) have been added to your cart."
+     * Several: "2 pcs of BSIT Polo (S) and 1 pc of BSIT Polo (M) have been added to your cart."
+     *
+     * @param  list<array{variant: ProductVariant, pack: ProductPack|null, quantity: int}>  $lines
+     */
+    public static function addedManyMessage(array $lines): string
+    {
+        if (count($lines) === 1) {
+            return self::addedMessage($lines[0]['variant'], $lines[0]['pack'], $lines[0]['quantity']);
+        }
+
+        $parts = array_map(
+            fn (array $line): string => Units::count($line['quantity'], $line['pack']->name ?? 'Piece')." of {$line['variant']->displayName()}",
+            $lines,
+        );
+        $last = array_pop($parts);
+
+        return implode(', ', $parts)." and {$last} have been added to your cart.";
+    }
+
+    /**
      * Change how many; for a set, both its lines (each must have the stock).
      */
     public function changeQuantity(CartItem $line, int $quantity): void
