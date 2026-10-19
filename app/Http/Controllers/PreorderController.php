@@ -250,7 +250,7 @@ class PreorderController extends Controller
                     ->whereHas('preorders', fn (Builder $preorders) => $preorders->where('status', PreorderStatus::Active))));
         $arrived = fn (Builder $products) => $products
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('preorders', fn (Builder $preorders) => $preorders->where('status', PreorderStatus::Arrived));
+            ->whereHas('preorders', fn (Builder $preorders) => $preorders->whereIn('status', PreorderStatus::arrivedGroup()));
 
         return match ($stage) {
             'open' => $query->where($open),
@@ -304,7 +304,7 @@ class PreorderController extends Controller
     {
         $numbers = function (string $stage, PreorderStatus $status): array {
             $productIds = $this->inStage(Product::query(), $stage)->select('id');
-            $preorders = Preorder::query()->where('status', $status)->whereIn('product_id', $productIds);
+            $preorders = Preorder::query()->countedAs($status)->whereIn('product_id', $productIds);
 
             return [
                 'products' => $this->inStage(Product::query(), $stage)->count(),
@@ -354,7 +354,7 @@ class PreorderController extends Controller
     private function preordersOf(Product $product, string $tab = 'all'): HasMany
     {
         return $product->preorders()
-            ->where('status', $this->countedStatus($product, $tab))
+            ->countedAs($this->countedStatus($product, $tab))
             ->with(['student', 'variant'])
             ->latest('id');
     }
@@ -371,7 +371,7 @@ class PreorderController extends Controller
             'variant_label' => $preorder->variant->choices === [] ? null : $preorder->variant->label(),
             'quantity' => $preorder->quantity,
             'status' => $preorder->status->value,
-            'status_label' => $preorder->status->label(),
+            'status_label' => $preorder->status->staffLabel(),
             'created_at' => $preorder->created_at?->toIso8601String(),
             'arrived_at' => $preorder->arrived_at?->toIso8601String(),
         ];
@@ -388,7 +388,7 @@ class PreorderController extends Controller
     {
         $ofProduct = fn (PreorderStatus $status) => Preorder::query()
             ->whereColumn('preorders.product_id', 'products.id')
-            ->where('status', $status);
+            ->countedAs($status);
 
         return $query->addSelect([
             'students_count' => $ofProduct(PreorderStatus::Active)->selectRaw('count(distinct user_id)'),
@@ -436,7 +436,7 @@ class PreorderController extends Controller
     private function countsByVariant(array $productIds, PreorderStatus $status): Collection
     {
         $counts = Preorder::query()
-            ->where('status', $status)
+            ->countedAs($status)
             ->whereIn('product_id', $productIds)
             ->groupBy('product_variant_id')
             ->selectRaw('product_variant_id, count(distinct user_id) as students, sum(quantity) as pieces')

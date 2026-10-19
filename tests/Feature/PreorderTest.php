@@ -6,7 +6,7 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
-use App\Notifications\PreorderArrived;
+use App\Notifications\PreorderHeld;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -181,7 +181,7 @@ test('preorder products move from taking preorders to to order to arrived', func
     [$open, $openSize] = preorderShirt('2026-10-20', 'Intramurals Jersey');
     [$closed, $closedSize] = preorderShirt('2026-10-02', 'STI Mug');
     $arriving = Product::factory()->create(['name' => 'Chibi Keychain', 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-02']);
-    $arrivingSize = ProductVariant::factory()->for($arriving)->create();
+    $arrivingSize = ProductVariant::factory()->for($arriving)->create(['stock_on_hand' => 5]);
     Preorder::factory()->forVariant($openSize)->create(['quantity' => 1]);
     Preorder::factory()->forVariant($closedSize)->create(['quantity' => 2]);
     Preorder::factory()->forVariant($arrivingSize)->for($this->student, 'student')->create(['quantity' => 3]);
@@ -193,9 +193,9 @@ test('preorder products move from taking preorders to to order to arrived', func
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
     ])->assertSessionHasNoErrors();
 
-    Notification::assertSentTo($this->student, PreorderArrived::class);
+    Notification::assertSentTo($this->student, PreorderHeld::class);
     expect(Preorder::query()->where('product_id', $arriving->id)->sole())
-        ->status->toBe(PreorderStatus::Arrived)
+        ->status->toBe(PreorderStatus::Held)
         ->arrived_at->not->toBeNull();
 
     $this->get(route('preorders.index'))->assertInertia(fn (Assert $page) => $page
@@ -222,8 +222,8 @@ test('preorder products move from taking preorders to to order to arrived', func
     expect($csv)->toContain('STI Mug')->not->toContain('Chibi Keychain')->not->toContain('Intramurals Jersey');
 
     $this->actingAs($this->student)->get(route('my-preorders.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('preorders.data.0.status_label', 'Arrived')
-        ->where('preorders.data.0.can_cancel', false));
+        ->where('preorders.data.0.status_label', 'Held for you')
+        ->where('preorders.data.0.can_cancel', true));
 });
 
 test('a product\'s details list what to order and who preordered, only when asked', function () {

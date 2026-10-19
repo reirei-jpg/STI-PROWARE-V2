@@ -220,7 +220,7 @@ export type StudentPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked';
+    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked' | 'held' | 'ordered' | 'hold_ended';
     status_label: string;
     /** When the student was told it arrived. */
     arrived_at: string | null;
@@ -237,6 +237,13 @@ export type StudentPreorder = {
     /** When the student was told it will not be restocked. */
     not_restocked_at: string | null;
     not_restocked_reason: string | null;
+    /** Held pieces: until when, and today's price per piece. */
+    held_until: string | null;
+    piece_price_centavos: number | null;
+    /** The order the held pieces went into. */
+    order_id: number | null;
+    order_number: string | null;
+    hold_ended_at: string | null;
 };
 
 /** What a student's notice is about (the same notices as the website's bell). */
@@ -257,6 +264,24 @@ export type StudentNotificationData =
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
+    | {
+          kind: 'preorder_held';
+          preorder_id: number;
+          product_id: number;
+          product_name: string;
+          variant_label: string | null;
+          held: number;
+          preordered: number;
+          held_until: string | null;
+      }
+    | {
+          kind: 'preorder_hold_ended';
+          preorder_id: number;
+          product_id: number;
+          product_name: string;
+          variant_label: string | null;
+          held: number;
+      }
     | {
           kind: 'preorder_arrival_changed';
           product_id: number;

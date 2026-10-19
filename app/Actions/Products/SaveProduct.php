@@ -10,12 +10,12 @@ use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\PreorderArrivalChanged;
-use App\Notifications\PreorderArrived;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Preorders\EarlyBird;
 use App\Services\Products\ProductName;
 use App\Services\Stock\DeliveredStock;
 use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\RestockedPreorders;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -41,6 +41,7 @@ class SaveProduct
     public function __construct(
         private DeliveredStock $deliveredStock,
         private LowStockAlerts $lowStockAlerts,
+        private RestockedPreorders $restockedPreorders,
     ) {}
 
     /**
@@ -105,8 +106,12 @@ class SaveProduct
 
         Storage::disk('public')->delete($removedPhotoPaths);
 
-        if ($wasPreorder && LowStockAlerts::isSold($product)) {
-            $this->tellStudentsItArrived($product);
+        // Made Available by hand, or deliveries added above: students waiting
+        // get the pieces there are, first come, first served (held 24 hours).
+        if (LowStockAlerts::isSold($product)) {
+            foreach ($product->variants()->get() as $variant) {
+                $this->restockedPreorders->check($variant);
+            }
         }
 
         if ($wasPreorder && $product->status === ProductStatus::Preorder && $product->expectedArrivalText() !== $arrivalBefore) {
@@ -127,21 +132,6 @@ class SaveProduct
             ->get();
 
         Notification::send($students, new PreorderArrivalChanged($product, $before));
-    }
-
-    /**
-     * A Preorder product students can now buy: everyone with an active
-     * preorder for it is told once, and their preorders become Arrived, so
-     * they stop counting as still to order. Nothing is held for them.
-     */
-    private function tellStudentsItArrived(Product $product): void
-    {
-        $preorders = $product->preorders()->where('status', PreorderStatus::Active);
-        $students = User::query()->whereIn('id', (clone $preorders)->select('user_id'))->get();
-
-        Notification::send($students, new PreorderArrived($product));
-
-        $preorders->update(['status' => PreorderStatus::Arrived, 'arrived_at' => now()]);
     }
 
     /**

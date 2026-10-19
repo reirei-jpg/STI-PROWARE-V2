@@ -93,6 +93,28 @@ export type PreorderArrivalChangedData = {
     before: string | null;
 };
 
+/** The student's preordered pieces arrived and are held for them (24 hours). */
+export type PreorderHeldData = {
+    kind: 'preorder_held';
+    preorder_id: number;
+    product_id: number;
+    product_name: string;
+    variant_label: string | null;
+    held: number;
+    preordered: number;
+    held_until: string | null;
+};
+
+/** The held pieces were not ordered in time and went to the next student. */
+export type PreorderHoldEndedData = {
+    kind: 'preorder_hold_ended';
+    preorder_id: number;
+    product_id: number;
+    product_name: string;
+    variant_label: string | null;
+    held: number;
+};
+
 /** A student preordered a sold-out size (for the Specialist). */
 export type PreorderPlacedData = {
     kind: 'preorder_placed';
@@ -146,6 +168,8 @@ export type StaffNotification = {
         | PreorderArrivedData
         | PreorderNotRestockedData
         | PreorderArrivalChangedData
+        | PreorderHeldData
+        | PreorderHoldEndedData
         | PreorderPlacedData
         | OrderingResumedData
         | DeliveryRecordedData

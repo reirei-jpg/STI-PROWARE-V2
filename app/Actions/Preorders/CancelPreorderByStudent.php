@@ -7,6 +7,8 @@ use App\Enums\ProductStatus;
 use App\Models\Preorder;
 use App\Models\User;
 use App\Services\Preorders\EarlyBird;
+use App\Services\Preorders\PreorderHolds;
+use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
@@ -16,7 +18,7 @@ use Illuminate\Validation\ValidationException;
  * while preorders for the product are still open, or while a sold-out size
  * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null}
+ * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, hold_ended_at: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -37,6 +39,11 @@ class CancelPreorderByStudent
             return null;
         }
 
+        // Pieces held for the student can be given up, for the next student.
+        if ($preorder->status === PreorderStatus::Held) {
+            return null;
+        }
+
         return "Preorders for {$preorder->product->name} are closed, so this preorder can no longer be cancelled here. Ask the PROWARE office.";
     }
 
@@ -49,6 +56,13 @@ class CancelPreorderByStudent
 
         if ($refusal !== null) {
             throw ValidationException::withMessages(['preorder' => $refusal]);
+        }
+
+        if ($preorder->status === PreorderStatus::Held) {
+            app(PreorderHolds::class)->end($preorder, PreorderStatus::Cancelled);
+            $preorder->refresh();
+
+            return;
         }
 
         $preorder->update(['status' => PreorderStatus::Cancelled, 'cancelled_at' => now()]);
@@ -67,8 +81,8 @@ class CancelPreorderByStudent
     public static function studentPage(User $student): LengthAwarePaginator
     {
         return $student->preorders()
-            ->with(['product.mainPhoto', 'variant'])
-            ->orderByRaw("case when status = 'active' then 0 when status = 'arrived' then 1 else 2 end")
+            ->with(['product.mainPhoto', 'variant.product', 'order'])
+            ->orderByRaw("case when status = 'held' then 0 when status = 'active' then 1 when status in ('arrived', 'ordered') then 2 else 3 end")
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -105,6 +119,12 @@ class CancelPreorderByStudent
             'arrived_at' => $preorder->arrived_at?->toIso8601String(),
             'not_restocked_at' => $preorder->not_restocked_at?->toIso8601String(),
             'not_restocked_reason' => $preorder->not_restocked_reason,
+            // Pieces held for the student: until when, and today's price per piece.
+            'held_until' => $preorder->status === PreorderStatus::Held ? $preorder->held_until?->toIso8601String() : null,
+            'piece_price_centavos' => $preorder->status === PreorderStatus::Held ? ShopPrice::perUnit($preorder->variant->setRelation('product', $preorder->product), null) : null,
+            'order_id' => $preorder->order_id,
+            'order_number' => $preorder->order?->number,
+            'hold_ended_at' => $preorder->hold_ended_at?->toIso8601String(),
         ];
     }
 }

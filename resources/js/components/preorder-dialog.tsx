@@ -445,7 +445,7 @@ function PreorderForm({
 
                 <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                     {restock
-                        ? 'This item is out of stock. Preorder it and you will be notified when it is back in stock. There is nothing to pay now, and nothing is held for you. If you preorder the same size again, the new number replaces the old one.'
+                        ? 'This item is out of stock. Preorder it: when it is back in stock, your pieces are held for you for 24 hours and you are notified. There is nothing to pay now. If you preorder the same size again, the new number replaces the old one.'
                         : 'A preorder reserves the item so the PROWARE office knows how many to order. There is nothing to pay now. If you preorder the same size again, the new number replaces the old one.'}
                 </p>
             </div>

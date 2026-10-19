@@ -10,7 +10,7 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
-use App\Notifications\PreorderArrived;
+use App\Notifications\PreorderHeld;
 use App\Notifications\PreorderNotRestocked;
 use App\Notifications\PreorderPlaced;
 use Carbon\CarbonImmutable;
@@ -103,10 +103,13 @@ test('students waiting for a size are notified when a delivery puts it back in s
         ])
         ->assertSessionHasNoErrors();
 
-    expect($waiting->refresh())->status->toBe(PreorderStatus::Arrived)->arrived_at->not->toBeNull()
-        ->and($otherSize->refresh()->status)->toBe(PreorderStatus::Active);
-    Notification::assertSentTo($this->student, PreorderArrived::class, fn (PreorderArrived $notice) => $notice->toArray($this->student)['variant_label'] === 'XS'
-        && $notice->toPush($this->student)['title'] === 'Back in stock: BSIT Polo (XS)');
+    // Its pieces are held for the student for 24 hours.
+    expect($waiting->refresh())->status->toBe(PreorderStatus::Held)->arrived_at->not->toBeNull()
+        ->held_until->toEqual(now()->addHours(24))
+        ->and($otherSize->refresh()->status)->toBe(PreorderStatus::Active)
+        ->and($extraSmall->refresh()->preorder_held_pieces)->toBe($waiting->quantity);
+    Notification::assertSentTo($this->student, PreorderHeld::class, fn (PreorderHeld $notice) => $notice->toArray($this->student)['variant_label'] === 'XS'
+        && $notice->toPush($this->student)['title'] === 'Your preorder has arrived: BSIT Polo (XS)');
 });
 
 test('students waiting for a size are notified when a cancelled order gives the last piece back', function () {
@@ -119,8 +122,8 @@ test('students waiting for a size are notified when a cancelled order gives the 
 
     app(CancelOrder::class)->handle($order, $this->specialist, 'Test order for the restock check');
 
-    expect($waiting->refresh()->status)->toBe(PreorderStatus::Arrived);
-    Notification::assertSentTo($this->student, PreorderArrived::class);
+    expect($waiting->refresh()->status)->toBe(PreorderStatus::Held);
+    Notification::assertSentTo($this->student, PreorderHeld::class);
 });
 
 test('the Specialist can mark a sold-out size as not restocked, closing every preorder waiting for it', function () {

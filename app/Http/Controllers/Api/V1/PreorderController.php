@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Orders\PlaceOrder;
 use App\Actions\Preorders\CancelPreorderByStudent;
+use App\Actions\Preorders\OrderHeldPreorder;
 use App\Actions\Preorders\PlacePreorder;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\OrderHeldPreorderRequest;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
 use App\Models\Product;
+use App\Services\Shop\OrderRow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,6 +42,19 @@ class PreorderController extends Controller
             'message' => PlacePreorder::messageForMany($preorders, $product),
             'preorder' => $rows[0],
             'preorders' => $rows,
+        ], 201);
+    }
+
+    /**
+     * Order Now on held pieces (as on the website).
+     */
+    public function order(OrderHeldPreorderRequest $request, Preorder $preorder, OrderHeldPreorder $orderHeldPreorder): JsonResponse
+    {
+        $order = $orderHeldPreorder->handle($request->user(), $preorder, $request->integer('quantity'), $request->section());
+
+        return response()->json([
+            'message' => PlaceOrder::message($order),
+            'order' => OrderRow::forStudent($order->load(['items', 'student'])),
         ], 201);
     }
 

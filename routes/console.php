@@ -10,3 +10,7 @@ Schedule::command('sales:check')->hourly()->withoutOverlapping();
 // stock goes back.
 Schedule::command('orders:cancel-unclaimed')->hourly()->withoutOverlapping();
 Schedule::command('orders:remind-last-day')->hourly()->withoutOverlapping();
+
+// Pieces held for a student whose preorder arrived go to the next student
+// once their 24 hours are up.
+Schedule::command('preorders:end-holds')->everyMinute()->withoutOverlapping();

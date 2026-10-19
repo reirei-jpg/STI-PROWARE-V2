@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, ChevronRight, ImageIcon, Package, Store } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package, ShoppingBag, Store } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -20,7 +20,8 @@ import OrderStatusPill, {
 } from '@/components/OrderStatusPill';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { dueDateTier, formatDate, formatPeso, formatUnits } from '@/lib/format';
+import HeldOrderSheet from '@/components/HeldOrderSheet';
+import { dueDateTier, formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
@@ -236,6 +237,24 @@ function OrderRow({ order }: { order: StudentOrder }) {
  * where a sold-out size stands: waiting for a restock, or not restocked.
  */
 function preorderNote(preorder: StudentPreorder): { text: string; className: string } {
+    if (preorder.status === 'held') {
+        return {
+            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or the pieces go to the next student.`,
+            className: 'font-sans-bold text-emerald-700',
+        };
+    }
+
+    if (preorder.status === 'ordered') {
+        return { text: `Ordered in ${preorder.order_number}`, className: 'font-sans-bold text-blue-700' };
+    }
+
+    if (preorder.status === 'hold_ended') {
+        return {
+            text: 'Hold ended: it was not ordered within 24 hours, so it went to the next student.',
+            className: 'font-sans text-slate-500',
+        };
+    }
+
     if (preorder.status === 'cancelled') {
         return { text: 'Cancelled', className: 'font-sans text-slate-500' };
     }
@@ -249,7 +268,7 @@ function preorderNote(preorder: StudentPreorder): { text: string; className: str
 
     if (preorder.waiting_for_restock) {
         return {
-            text: 'Out of stock. You are notified when it is back in stock.',
+            text: 'Out of stock. When it is back, your pieces are held for you for 24 hours and you are notified.',
             className: 'font-sans-bold text-amber-700',
         };
     }
@@ -291,13 +310,15 @@ function PreorderRow({
 }) {
     const { request } = useAuth();
     const [cancelling, setCancelling] = useState(false);
+    const [ordering, setOrdering] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const held = preorder.status === 'held';
 
     const cancel = (): void => {
-        Alert.alert('Cancel this preorder?', preorder.product_name, [
+        Alert.alert(held ? 'Give up these pieces?' : 'Cancel this preorder?', preorder.product_name, [
             { text: 'Keep it', style: 'cancel' },
             {
-                text: 'Cancel preorder',
+                text: held ? 'Give up' : 'Cancel preorder',
                 style: 'destructive',
                 onPress: async () => {
                     setCancelling(true);
@@ -333,9 +354,13 @@ function PreorderRow({
                 borderLeftColor:
                     preorder.status === 'cancelled' || preorder.status === 'not_restocked'
                         ? '#f87171'
-                        : preorder.status === 'arrived'
+                        : preorder.status === 'arrived' || held
                           ? '#10b981'
-                          : '#fbbf24',
+                          : preorder.status === 'ordered'
+                            ? '#3b82f6'
+                            : preorder.status === 'hold_ended'
+                              ? '#94a3b8'
+                              : '#fbbf24',
             }}
             className={`gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`}
         >
@@ -394,6 +419,30 @@ function PreorderRow({
                 </Pressable>
             )}
 
+            {held && (
+                <Pressable
+                    onPress={() => setOrdering(true)}
+                    accessibilityRole="button"
+                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2.5"
+                >
+                    <ShoppingBag size={16} color="#ffffff" />
+                    <Text className="font-sans-bold text-sm text-white">Order now</Text>
+                </Pressable>
+            )}
+
+            {preorder.status === 'ordered' && preorder.order_id !== null && (
+                <Pressable
+                    onPress={() => router.push(`/order/${preorder.order_id}`)}
+                    accessibilityRole="button"
+                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-brand px-4 py-2.5"
+                >
+                    <ShoppingBag size={16} color="#ffffff" />
+                    <Text className="font-sans-bold text-sm text-white">Open order {preorder.order_number}</Text>
+                </Pressable>
+            )}
+
+            {held && <HeldOrderSheet preorder={preorder} open={ordering} onClose={() => setOrdering(false)} />}
+
             {preorder.can_cancel && (
                 <Pressable
                     onPress={cancel}
@@ -402,7 +451,9 @@ function PreorderRow({
                     className={`flex-row items-center justify-center gap-2 self-start rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 ${cancelling ? 'opacity-60' : ''}`}
                 >
                     {cancelling && <ActivityIndicator size="small" color="#b91c1c" />}
-                    <Text className="font-sans-bold text-sm text-red-700">Cancel preorder</Text>
+                    <Text className="font-sans-bold text-sm text-red-700">
+                        {held ? 'I do not want them' : 'Cancel preorder'}
+                    </Text>
                 </Pressable>
             )}
         </View>

@@ -15,6 +15,7 @@ export default function QuantityStepper({
     most,
     unitText,
     disabled = false,
+    showLeft = true,
 }: {
     /** The box's text, so the student can clear it while typing. */
     value: string;
@@ -23,6 +24,8 @@ export default function QuantityStepper({
     most: number;
     unitText: string;
     disabled?: boolean;
+    /** "Only N left" at the most (off where the most is not what is left in stock). */
+    showLeft?: boolean;
 }) {
     const quantity = Number(value) || 0;
     const commit = (next: number): void => {
@@ -70,7 +73,7 @@ export default function QuantityStepper({
 
             <View className="flex-1">
                 <Text className="font-sans text-sm text-slate-500">{unitText}</Text>
-                {most > 0 && quantity >= most && (
+                {showLeft && most > 0 && quantity >= most && (
                     <Text className="font-sans-bold text-xs text-amber-700">Only {most} left</Text>
                 )}
             </View>

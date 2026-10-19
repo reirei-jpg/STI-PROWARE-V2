@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Orders\PlaceOrder;
 use App\Actions\Preorders\CancelPreorderByStudent;
+use App\Actions\Preorders\OrderHeldPreorder;
 use App\Actions\Preorders\PlacePreorder;
+use App\Http\Requests\OrderHeldPreorderRequest;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
 use App\Models\Product;
@@ -42,6 +45,22 @@ class StudentPreorderController extends Controller
         ]);
 
         return back();
+    }
+
+    /**
+     * Order Now: order the pieces held for the student (all or fewer). They
+     * land on the new order's issuance slip, like Place Order.
+     */
+    public function order(OrderHeldPreorderRequest $request, Preorder $preorder, OrderHeldPreorder $orderHeldPreorder): RedirectResponse
+    {
+        $order = $orderHeldPreorder->handle($request->user(), $preorder, $request->integer('quantity'), $request->section());
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => PlaceOrder::message($order),
+        ]);
+
+        return to_route('my-orders.slip', $order);
     }
 
     /**

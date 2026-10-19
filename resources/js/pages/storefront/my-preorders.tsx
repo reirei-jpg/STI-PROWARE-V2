@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     CalendarClock,
@@ -13,7 +13,9 @@ import {
     XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
+import QuantityInput from '@/components/quantity-input';
 import Pagination from '@/components/pagination';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
@@ -27,7 +29,14 @@ type MyPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked';
+    status:
+        | 'active'
+        | 'arrived'
+        | 'cancelled'
+        | 'not_restocked'
+        | 'held'
+        | 'ordered'
+        | 'hold_ended';
     status_label: string;
     preorders_close_on: string | null;
     /** When the Coming Soon product is expected to arrive (active preorders only). */
@@ -44,6 +53,13 @@ type MyPreorder = {
     /** When the student was told it will not be restocked. */
     not_restocked_at: string | null;
     not_restocked_reason: string | null;
+    /** Held pieces: until when, and today's price per piece. */
+    held_until: string | null;
+    piece_price_centavos: number | null;
+    /** The order the held pieces went into. */
+    order_id: number | null;
+    order_number: string | null;
+    hold_ended_at: string | null;
 };
 
 /** Each status's words, icon and V1 colors. */
@@ -74,6 +90,24 @@ const statusLooks: Record<
         icon: PackageX,
         badge: 'border-red-200 bg-red-50 text-red-700',
         iconBox: 'bg-red-100 text-red-700',
+    },
+    held: {
+        label: 'Arrived · Held for You',
+        icon: CheckCircle2,
+        badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        iconBox: 'bg-emerald-100 text-emerald-700',
+    },
+    ordered: {
+        label: 'Ordered',
+        icon: ShoppingBag,
+        badge: 'border-blue-200 bg-blue-50 text-blue-700',
+        iconBox: 'bg-blue-100 text-blue-700',
+    },
+    hold_ended: {
+        label: 'Hold Ended',
+        icon: Clock3,
+        badge: 'border-slate-200 bg-slate-50 text-slate-600',
+        iconBox: 'bg-slate-200 text-slate-600',
     },
 };
 
@@ -122,13 +156,19 @@ export default function MyPreorders({
                     />
                     <SummaryCard
                         label="Arrived"
-                        value={count('arrived')}
+                        value={
+                            count('arrived') + count('held') + count('ordered')
+                        }
                         icon={CheckCircle2}
                         tone="green"
                     />
                     <SummaryCard
                         label="Cancelled / Not Restocked"
-                        value={count('cancelled') + count('not_restocked')}
+                        value={
+                            count('cancelled') +
+                            count('not_restocked') +
+                            count('hold_ended')
+                        }
                         icon={XCircle}
                         tone="slate"
                     />
@@ -362,11 +402,30 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                             </Link>
                         )}
 
+                        {preorder.status === 'held' && (
+                            <OrderNowBox preorder={preorder} />
+                        )}
+
+                        {preorder.status === 'ordered' &&
+                            preorder.order_id !== null && (
+                                <Link
+                                    href={StudentOrderController.slip(
+                                        preorder.order_id,
+                                    )}
+                                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700"
+                                >
+                                    <ShoppingBag size={16} />
+                                    Open order {preorder.order_number}
+                                </Link>
+                            )}
+
                         {preorder.can_cancel &&
                             (confirming ? (
                                 <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2">
                                     <span className="text-sm font-black text-slate-800">
-                                        Cancel this preorder?
+                                        {preorder.status === 'held'
+                                            ? 'Give up these pieces?'
+                                            : 'Cancel this preorder?'}
                                     </span>
                                     <div className="flex gap-2">
                                         <button
@@ -388,7 +447,9 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                                     className="animate-spin"
                                                 />
                                             )}
-                                            Cancel preorder
+                                            {preorder.status === 'held'
+                                                ? 'Give up'
+                                                : 'Cancel preorder'}
                                         </button>
                                     </div>
                                 </div>
@@ -399,7 +460,9 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 shadow-sm transition hover:bg-red-100"
                                 >
                                     <XCircle size={16} />
-                                    Cancel preorder
+                                    {preorder.status === 'held'
+                                        ? 'I do not want them'
+                                        : 'Cancel preorder'}
                                 </button>
                             ))}
                     </div>
@@ -411,6 +474,37 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
 
 /** What the status means for the student, and the date that matters. */
 function StatusDetails({ preorder }: { preorder: MyPreorder }) {
+    if (preorder.status === 'held') {
+        return (
+            <p className="mt-1 text-xs leading-5 font-medium">
+                Held for you until{' '}
+                <span className="font-black">
+                    {formatDateTime(preorder.held_until)}
+                </span>
+                . Order before then, or the pieces go to the next student.
+            </p>
+        );
+    }
+
+    if (preorder.status === 'ordered') {
+        return (
+            <p className="mt-1 text-xs leading-5 font-medium">
+                You ordered it in order {preorder.order_number}. Show its
+                issuance slip at the PROWARE office to pay and collect it.
+            </p>
+        );
+    }
+
+    if (preorder.status === 'hold_ended') {
+        return (
+            <p className="mt-1 text-xs leading-5 font-medium">
+                It was held for you but not ordered within 24 hours, so it went
+                to the next student on{' '}
+                {formatDateOrdered(preorder.hold_ended_at)}.
+            </p>
+        );
+    }
+
     if (preorder.status === 'arrived') {
         return (
             <p className="mt-1 text-xs leading-5 font-medium">
@@ -448,8 +542,9 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
     if (preorder.waiting_for_restock) {
         return (
             <p className="mt-1 text-xs leading-5 font-medium">
-                It is out of stock. No payment is needed. You are notified when
-                it is back in stock; it is not held for you.
+                It is out of stock. No payment is needed. When it is back in
+                stock, your pieces are held for you for 24 hours and you are
+                notified.
             </p>
         );
     }
@@ -493,5 +588,83 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
                 </p>
             )}
         </>
+    );
+}
+
+/**
+ * Order Now on held pieces: how many (all or fewer; the rest go to the next
+ * student), with the price, early-bird pieces first. The order is placed at
+ * once and the student lands on its issuance slip.
+ */
+function OrderNowBox({ preorder }: { preorder: MyPreorder }) {
+    const form = useForm({ quantity: String(preorder.quantity) });
+    const quantity = Number(form.data.quantity) || 0;
+    const piecePrice = preorder.piece_price_centavos ?? 0;
+    const earlyBirdPrice = Math.min(
+        preorder.early_bird_price_centavos ?? piecePrice,
+        piecePrice,
+    );
+    const earlyBirdPieces =
+        earlyBirdPrice < piecePrice
+            ? Math.min(preorder.early_bird_pieces, quantity)
+            : 0;
+    const total =
+        earlyBirdPieces * earlyBirdPrice +
+        (quantity - earlyBirdPieces) * piecePrice;
+
+    return (
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                form.post(StudentPreorderController.order(preorder.id).url);
+            }}
+            className="mt-3 space-y-2 rounded-xl bg-white/80 p-3 text-slate-800"
+        >
+            <div className="flex flex-wrap items-center gap-2">
+                <QuantityInput
+                    value={form.data.quantity}
+                    onChange={(value) => form.setData('quantity', value)}
+                    label="How many to order"
+                    most={preorder.quantity}
+                    small
+                />
+                <span className="text-xs text-slate-500">
+                    of {formatUnits(preorder.quantity, 'Piece')} held
+                </span>
+            </div>
+            {earlyBirdPieces > 0 && (
+                <p className="text-xs font-bold text-red-600">
+                    {formatUnits(earlyBirdPieces, 'Piece')} at the early-bird
+                    price of {formatPeso(earlyBirdPrice)}
+                </p>
+            )}
+            <p className="flex items-baseline justify-between text-sm">
+                <span className="font-bold text-slate-600">Total</span>
+                <span className="font-black">{formatPeso(total)}</span>
+            </p>
+            {quantity > 0 && quantity < preorder.quantity && (
+                <p className="text-xs text-slate-500">
+                    The other {preorder.quantity - quantity} will go to the next
+                    student.
+                </p>
+            )}
+            {form.errors.quantity && (
+                <p className="text-xs font-bold text-red-600">
+                    {form.errors.quantity}
+                </p>
+            )}
+            <button
+                type="submit"
+                disabled={form.processing || quantity < 1}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            >
+                {form.processing ? (
+                    <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                    <ShoppingBag size={16} />
+                )}
+                Order now
+            </button>
+        </form>
     );
 }

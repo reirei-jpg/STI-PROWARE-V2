@@ -35,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $sale_price_centavos its own sale price while On Sale; empty: the product's sale price, if any
  * @property int $stock_on_hand pieces on the shelf
  * @property int $held_pieces pieces on the shelf kept for open orders
+ * @property int $preorder_held_pieces pieces on the shelf held for students whose preorders arrived (24 hours)
  * @property int|null $opening_unit_cost_centavos eStore price per piece of stock from before any delivery was recorded
  * @property int $uncosted_pieces pieces in stock with no eStore price yet (StockCost)
  * @property Carbon|null $low_stock_notified_at when the low-stock warning was sent; cleared when stock rises above the number
@@ -50,7 +51,7 @@ class ProductVariant extends Model
     use HasFactory;
 
     /** "Free to sell" (on the shelf, less held) for queries. */
-    public const FREE_TO_SELL_SQL = '(product_variants.stock_on_hand - product_variants.held_pieces)';
+    public const FREE_TO_SELL_SQL = '(product_variants.stock_on_hand - product_variants.held_pieces - product_variants.preorder_held_pieces)';
 
     /**
      * @return array<string, string>
@@ -63,6 +64,7 @@ class ProductVariant extends Model
             'sale_price_centavos' => 'integer',
             'stock_on_hand' => 'integer',
             'held_pieces' => 'integer',
+            'preorder_held_pieces' => 'integer',
             'opening_unit_cost_centavos' => 'integer',
             'uncosted_pieces' => 'integer',
             'low_stock_notified_at' => 'datetime',
@@ -76,7 +78,7 @@ class ProductVariant extends Model
      */
     public function freeToSell(): int
     {
-        return max(0, $this->stock_on_hand - $this->held_pieces);
+        return max(0, $this->stock_on_hand - $this->held_pieces - $this->preorder_held_pieces);
     }
 
     /**

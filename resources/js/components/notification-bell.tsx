@@ -272,6 +272,39 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'preorder_held') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Your preorder has arrived: {data.product_name}
+                    {data.variant_label && ` (${data.variant_label})`}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.held === data.preordered
+                        ? `${formatUnits(data.held, 'Piece')} held for you`
+                        : `${data.held} of your ${formatUnits(data.preordered, 'Piece')} arrived and are held for you`}{' '}
+                    until {formatDateTime(data.held_until)}. Order in My
+                    Preorders before then.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'preorder_hold_ended') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-slate-700">
+                    Your hold has ended: {data.product_name}
+                    {data.variant_label && ` (${data.variant_label})`}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    The {formatUnits(data.held, 'Piece')} held for you were not
+                    ordered within 24 hours, so they went to the next student.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'preorder_arrival_changed') {
         return (
             <>

@@ -504,9 +504,9 @@ function PickerForm({
                 {preordering && variant.can_preorder && (
                     <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                         This {hasChoices ? 'size or color' : 'item'} is out of
-                        stock. Preorder it and you will be notified when it is
-                        back in stock. There is nothing to pay now, and nothing
-                        is held for you.
+                        stock. Preorder it: when it is back in stock, your
+                        pieces are held for you for 24 hours and you are
+                        notified. There is nothing to pay now.
                     </p>
                 )}
 

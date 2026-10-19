@@ -60,6 +60,20 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        case 'preorder_held':
+            return {
+                title: `Your preorder has arrived: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
+                body: `Held for you until ${formatDateTime(data.held_until)}. ${data.held === data.preordered ? `Order the ${formatUnits(data.held, 'Piece')}` : `Order the ${data.held} of your ${formatUnits(data.preordered, 'Piece')} that arrived`} in My Preorders before then.`,
+                titleClass: 'text-emerald-700',
+                stripe: '#10b981',
+            };
+        case 'preorder_hold_ended':
+            return {
+                title: `Your hold has ended: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
+                body: `The ${formatUnits(data.held, 'Piece')} held for you were not ordered within 24 hours, so they went to the next student.`,
+                titleClass: 'text-slate-700',
+                stripe: '#94a3b8',
+            };
         case 'preorder_arrival_changed':
             return {
                 title: `New expected arrival: ${data.product_name}`,
