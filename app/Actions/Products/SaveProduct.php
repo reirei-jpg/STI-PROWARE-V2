@@ -26,7 +26,8 @@ use Illuminate\Support\Facades\Storage;
  * Variants are rebuilt from the options. A variant that still exists keeps
  * its eStore Item Code, pack, price and stock; variants whose combination
  * no longer exists are removed (the form refuses this for a variant with
- * stock).
+ * stock). When options are added to a product that had none, its one
+ * variant becomes the variant the Specialist chose for its stock.
  *
  * When a variant gets an eStore Item Code, deliveries of that item that
  * arrived before it was linked are added to stock. Changing the low-stock
@@ -210,6 +211,14 @@ class SaveProduct
         $existingByKey = $product->variants()->get()->keyBy('combination');
         $keptIds = [];
 
+        // Options added to a product that had none: its one variant (with
+        // its stock, history and preorders) becomes the variant chosen.
+        $stockGoesTo = $request->stockWithoutOptionsGoesTo();
+
+        if ($stockGoesTo !== null && $existingByKey->has('') && ! $existingByKey->has($stockGoesTo)) {
+            $existingByKey->put($stockGoesTo, $existingByKey->pull(''));
+        }
+
         // Only the combinations that exist (not those marked as not available).
         foreach ($request->availableCombinations() as $position => $combination) {
             $input = $submittedByKey[$combination['combination']] ?? [];
@@ -228,7 +237,7 @@ class SaveProduct
             $variant = $existingByKey->get($combination['combination']);
 
             if ($variant !== null) {
-                $variant->update($attributes);
+                $variant->update(['combination' => $combination['combination'], ...$attributes]);
             } else {
                 $variant = $product->variants()->create(['combination' => $combination['combination'], ...$attributes]);
             }

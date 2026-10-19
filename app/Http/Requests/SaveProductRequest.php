@@ -11,6 +11,7 @@ use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductName;
 use App\Services\Products\ProductVariants;
 use App\Services\Sales\HeadOfficeCost;
+use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -120,6 +121,8 @@ class SaveProductRequest extends FormRequest
             // Combinations of the options that do not exist (e.g. Pink in 32 oz).
             'unavailable' => ['nullable', 'array'],
             'unavailable.*' => ['string', 'max:500'],
+            // Adding options to a product with stock: the variant that stock is.
+            'existing_stock_combination' => ['nullable', 'string', 'max:500'],
             'variants.*.combination' => ['present', 'nullable', 'string'],
             'variants.*.estore_item_code' => ['nullable', 'string', 'max:40'],
             'variants.*.estore_pack_key' => ['nullable', 'string', 'max:40'],
@@ -327,10 +330,33 @@ class SaveProductRequest extends FormRequest
     }
 
     /**
+     * When options are added to a saved product that had none, the variant
+     * its stock (and history and preorders) already belongs to becomes one
+     * of the new variants, chosen by the Specialist: e.g. the 240 pcs of
+     * STI Ballpen are Blue. Null when not adding options to such a product,
+     * or nothing valid was chosen.
+     */
+    public function stockWithoutOptionsGoesTo(): ?string
+    {
+        $product = $this->route('product');
+        $chosen = $this->input('existing_stock_combination');
+
+        if (! $product instanceof Product || $this->options() === [] || ! is_string($chosen) || $chosen === '') {
+            return null;
+        }
+
+        if (! $product->variants()->where('combination', '')->exists()) {
+            return null;
+        }
+
+        return in_array($chosen, array_column($this->availableCombinations(), 'combination'), true) ? $chosen : null;
+    }
+
+    /**
      * A variant that already has stock records cannot disappear, or its
      * stock and history would be lost. That happens when a choice it uses
-     * is removed or renamed, or when options are added to a product that
-     * had none.
+     * is removed or renamed. When options are added to a product that had
+     * none, the Specialist chooses which new variant its stock is.
      */
     private function validateVariantsWithStockAreKept(Validator $validator): void
     {
@@ -349,8 +375,15 @@ class SaveProductRequest extends FormRequest
             ->get();
 
         foreach ($lost as $variant) {
+            if ($variant->choices === []) {
+                if ($this->stockWithoutOptionsGoesTo() === null) {
+                    $validator->errors()->add('existing_stock_combination', 'Choose which variant the '.Units::count($variant->stock_on_hand, 'Piece').' already in stock are.');
+                }
+
+                continue;
+            }
+
             $validator->errors()->add('options', match (true) {
-                $variant->choices === [] => 'This product already has stock without options, so options cannot be added to it.',
                 in_array($variant->combination, $all, true) => "\"{$variant->label()}\" cannot be marked unavailable because it has stock.",
                 default => "\"{$variant->label()}\" already has stock, so it cannot be removed or renamed. Put its choice back.",
             });
@@ -387,11 +420,20 @@ class SaveProductRequest extends FormRequest
 
         foreach ($studentsByVariant as $variantId => $students) {
             $variant = $lost->get($variantId);
+
+            // Its preorders go with it to the variant chosen for its stock.
+            if ($variant !== null && $variant->choices === []) {
+                if ($this->stockWithoutOptionsGoesTo() === null && ! $validator->errors()->has('existing_stock_combination')) {
+                    $validator->errors()->add('existing_stock_combination', 'Choose which variant the preorders already placed are for.');
+                }
+
+                continue;
+            }
             $count = (int) $students;
             $who = $count === 1 ? '1 student' : "{$count} students";
 
             $validator->errors()->add('options', match (true) {
-                $variant === null || $variant->choices === [] => 'This product already has preorders without options, so options cannot be added to it.',
+                $variant === null => 'Some preorders would be lost. Reload the page and try again.',
                 in_array($variant->combination, $all, true) => "\"{$variant->label()}\" cannot be marked unavailable because {$who} ".($count === 1 ? 'has' : 'have').' preordered it.',
                 default => "\"{$variant->label()}\" has preorders from {$who}, so it cannot be removed or renamed. Put its choice back.",
             });

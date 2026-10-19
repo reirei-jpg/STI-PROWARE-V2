@@ -475,12 +475,36 @@ test('a variant that has stock cannot disappear from the product', function (arr
         [['name' => 'Size', 'choices' => ['M']]],
         '"S/M" already has stock, so it cannot be removed or renamed. Put its choice back.',
     ],
-    'options added to a product that had none' => [
-        [],
-        [['name' => 'Size', 'choices' => ['M']]],
-        'This product already has stock without options, so options cannot be added to it.',
-    ],
 ]);
+
+test('options can be added to a product with stock once the Specialist says which variant that stock is', function () {
+    $product = Product::factory()->create(['name' => 'STI Ballpen']);
+    $variant = ProductVariant::factory()->for($product)->create(['stock_on_hand' => 240]);
+    StockMovement::factory()->for($variant, 'variant')->create(['quantity' => 240, 'balance_after' => 240]);
+    $preorder = Preorder::factory()->forVariant($variant)->create();
+    $colors = [
+        'options' => [['name' => 'Color', 'choices' => ['Blue', 'Black']]],
+        'variants' => [
+            ['combination' => 'Color: Blue', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => ''],
+            ['combination' => 'Color: Black', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => ''],
+        ],
+    ];
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->put(route('products.update', $product), productForm(['name' => 'STI Ballpen', ...$colors]))
+        ->assertSessionHasErrors(['existing_stock_combination' => 'Choose which variant the 240 pcs already in stock are.']);
+    expect($product->variants()->count())->toBe(1);
+
+    $this->put(route('products.update', $product), productForm(['name' => 'STI Ballpen', ...$colors, 'existing_stock_combination' => 'Color: Black']))
+        ->assertSessionHasNoErrors();
+
+    // The same variant, now Black, keeps its stock, history and preorder; Blue starts at 0.
+    expect($variant->refresh())->combination->toBe('Color: Black')->stock_on_hand->toBe(240)
+        ->and($variant->choices)->toBe([['option' => 'Color', 'choice' => 'Black']])
+        ->and($variant->stockMovements()->count())->toBe(1)
+        ->and($preorder->refresh()->product_variant_id)->toBe($variant->id)
+        ->and($product->variants()->where('combination', 'Color: Blue')->sole()->stock_on_hand)->toBe(0);
+});
 
 test('a combination that does not exist is not saved, and can be made available later', function () {
     $this->actingAs(User::factory()->specialist()->create());

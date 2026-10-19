@@ -25,6 +25,7 @@ import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
 import { variantCombinations } from '@/lib/product-variants';
 import { tidyProductName } from '@/lib/product-name';
+import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
     EditableProduct,
@@ -66,6 +67,8 @@ type ProductFormData = {
     shared_pack_key: string;
     /** Combinations that do not exist (e.g. Pink in 32 oz): not saved, not shown to students. */
     unavailable: string[];
+    /** Options added to a product that had none: the variant its stock already is. */
+    existing_stock_combination: string;
 };
 
 const emptyVariantInput: VariantInput = {
@@ -198,9 +201,18 @@ export default function ProductForm({
                           ),
                   )
             : [],
+        existing_stock_combination: '',
     });
 
     const { data, setData, processing } = form;
+    // A saved product without options: when options are added, the
+    // Specialist says which new variant its stock (and history) is.
+    const withoutOptions =
+        product !== null &&
+        product.variants.length === 1 &&
+        product.variants[0].combination === ''
+            ? product.variants[0]
+            : null;
     const errors = form.errors as Record<string, string | undefined>;
     const combinations = variantCombinations(
         data.options.filter(
@@ -218,12 +230,18 @@ export default function ProductForm({
                 ? data.unavailable.filter((current) => current !== key)
                 : [...data.unavailable, key],
         );
-    const stockByCombination = Object.fromEntries(
+    const stockByCombination: Record<string, number> = Object.fromEntries(
         (product?.variants ?? []).map((variant) => [
             variant.combination,
             variant.stock_on_hand,
         ]),
     );
+
+    // The stock without options shows on the variant chosen for it.
+    if (withoutOptions !== null && data.existing_stock_combination !== '') {
+        stockByCombination[data.existing_stock_combination] =
+            withoutOptions.stock_on_hand;
+    }
     const variantInput = (key: string): VariantInput =>
         data.variant_inputs[key] ?? emptyVariantInput;
     // With variants, the price per piece is the default for those without
@@ -306,6 +324,14 @@ export default function ProductForm({
             unavailable: combinations
                 .map((combination) => combination.key)
                 .filter((key) => current.unavailable.includes(key)),
+            existing_stock_combination:
+                withoutOptions !== null &&
+                availableCombinations.some(
+                    (combination) =>
+                        combination.key === current.existing_stock_combination,
+                )
+                    ? current.existing_stock_combination
+                    : '',
             variants: availableCombinations.map((combination) => {
                 const input =
                     current.variant_inputs[combination.key] ??
@@ -528,6 +554,11 @@ export default function ProductForm({
                 };
             case 'unavailable':
                 return { place: 'Variants', section: 'product-variants' };
+            case 'existing_stock_combination':
+                return {
+                    place: 'Stock already on hand',
+                    section: 'product-variants',
+                };
             case 'preorders_close_on':
                 return {
                     place: 'Preorders close on',
@@ -1371,6 +1402,62 @@ export default function ProductForm({
                                 <InputError message={sharedPackError} />
                             </label>
                         </div>
+                        {withoutOptions !== null &&
+                            availableCombinations.length > 0 && (
+                                <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                    <label className="grid gap-1.5">
+                                        <span className="text-sm font-black text-amber-900">
+                                            The{' '}
+                                            {formatUnits(
+                                                withoutOptions.stock_on_hand,
+                                                'Piece',
+                                            )}{' '}
+                                            already in stock: which variant are
+                                            they?
+                                        </span>
+                                        <select
+                                            value={
+                                                data.existing_stock_combination
+                                            }
+                                            onChange={(event) =>
+                                                setData(
+                                                    'existing_stock_combination',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            aria-invalid={Boolean(
+                                                errors.existing_stock_combination,
+                                            )}
+                                            className={inputClasses}
+                                        >
+                                            <option value="">
+                                                Choose the variant…
+                                            </option>
+                                            {availableCombinations.map(
+                                                (combination) => (
+                                                    <option
+                                                        key={combination.key}
+                                                        value={combination.key}
+                                                    >
+                                                        {combination.label}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                    </label>
+                                    <p className="text-xs leading-5 text-amber-800">
+                                        They keep their stock history and
+                                        preorders. The other variants start at 0
+                                        pcs. If the pieces are mixed, correct
+                                        each variant's stock after saving.
+                                    </p>
+                                    <InputError
+                                        message={
+                                            errors.existing_stock_combination
+                                        }
+                                    />
+                                </div>
+                            )}
                         {availableCombinations.length > 1 && (
                             <p className="text-xs leading-5 text-slate-500">
                                 All {availableCombinations.length} variants use
