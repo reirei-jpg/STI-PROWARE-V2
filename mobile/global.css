@@ -27,17 +27,10 @@
      * one point up, headings two to three.
      */
     --text-xs: 13px;
-    --text-xs--line-height: 18px;
     --text-sm: 15px;
-    --text-sm--line-height: 21px;
     --text-base: 17px;
-    --text-base--line-height: 25px;
     --text-lg: 20px;
-    --text-lg--line-height: 28px;
     --text-xl: 22px;
-    --text-xl--line-height: 30px;
     --text-2xl: 27px;
-    --text-2xl--line-height: 34px;
     --text-3xl: 33px;
-    --text-3xl--line-height: 40px;
 }
