@@ -5,7 +5,32 @@ import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
+import { networkInterfaces } from 'node:os';
 import { defineConfig, lazyPlugins } from 'vite-plus';
+
+/**
+ * The laptop's Wi-Fi (or cable) address, e.g. 192.168.8.50, or undefined
+ * when it is offline. Pages then load their design from it, so the site
+ * also looks right when opened by that address from the laptop, a phone or
+ * another computer on the same Wi-Fi.
+ */
+function networkAddress(): string | undefined {
+    const candidates = Object.entries(networkInterfaces())
+        .filter(
+            ([name]) => !/vethernet|virtual|vmware|wsl|loopback/i.test(name),
+        )
+        .sort(
+            ([a], [b]) =>
+                Number(/wi-?fi|wlan/i.test(b)) - Number(/wi-?fi|wlan/i.test(a)),
+        )
+        .flatMap(([, addresses]) => addresses ?? []);
+
+    return candidates.find(
+        (address) => address.family === 'IPv4' && !address.internal,
+    )?.address;
+}
+
+const lanAddress = networkAddress();
 
 export default defineConfig({
     plugins: lazyPlugins(() => [
@@ -29,6 +54,11 @@ export default defineConfig({
         }),
     ]),
     server: {
+        // Reachable on the Wi-Fi, not only as localhost, and for pages
+        // opened by any address (only while developing).
+        host: '0.0.0.0',
+        cors: true,
+        hmr: lanAddress ? { host: lanAddress } : undefined,
         watch: {
             ignored: [
                 '**/.agents/**',

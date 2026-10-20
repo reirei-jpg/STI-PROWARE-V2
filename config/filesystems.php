@@ -41,7 +41,8 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim((string) env('APP_URL', 'http://localhost'), '/').'/storage',
+            // Relative, so links follow the address the system was opened with (see ProductPhoto::url).
+            'url' => '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

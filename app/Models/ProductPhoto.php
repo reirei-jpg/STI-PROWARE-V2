@@ -36,8 +36,13 @@ class ProductPhoto extends Model
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * The photo's address on the address the page or phone app was opened
+     * with (127.0.0.1, the laptop's Wi-Fi address, the school server), not
+     * always APP_URL, so photos show wherever the system is opened from.
+     */
     public function url(): string
     {
-        return Storage::disk('public')->url($this->path);
+        return url(Storage::disk('public')->url($this->path));
     }
 }
