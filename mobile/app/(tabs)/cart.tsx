@@ -2,7 +2,6 @@ import { router, useFocusEffect } from 'expo-router';
 import {
     Check,
     CircleCheck,
-    GraduationCap,
     ImageIcon,
     QrCode,
     ShoppingCart,
@@ -18,7 +17,6 @@ import {
     RefreshControl,
     ScrollView,
     Text,
-    TextInput,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,8 +32,8 @@ import { formatPeso, formatUnits, unitWord } from '@/lib/format';
 import type { CartLine, CartView, StudentOrder } from '@/lib/types';
 
 /**
- * The cart at today's prices, and Place Order with the course/section for
- * the issuance slip, like the website. The student shows the slip and pays
+ * The cart at today's prices, and Place Order, like the website. The
+ * student shows the issuance slip and pays
  * at the PROWARE office; the items are held for them until the pick-up date.
  */
 export default function CartScreen() {
@@ -48,9 +46,6 @@ export default function CartScreen() {
     const [placed, setPlaced] = useState<{ message: string; order: StudentOrder } | null>(
         null,
     );
-    // Null until typed in: shows the course/section saved last time.
-    const [sectionText, setSectionText] = useState<string | null>(null);
-    const section = sectionText ?? cart?.section ?? '';
 
     // Prices and stock may have changed since it was last opened.
     useFocusEffect(
@@ -74,11 +69,10 @@ export default function CartScreen() {
         try {
             const result = await request<{ message: string; order: StudentOrder }>(
                 '/orders',
-                { method: 'POST', body: { section: section.trim() } },
+                { method: 'POST' },
             );
 
             setPlaced(result);
-            setSectionText(null);
             await refresh();
         } catch (caught) {
             setError(
@@ -243,25 +237,6 @@ export default function CartScreen() {
                         <View className="gap-5 p-4">
                             <OrderSteps pickUpBy={cart.pick_up_by} />
 
-                            <View className="gap-1.5">
-                                <Text className="font-sans-bold text-sm text-slate-700">Course/Section</Text>
-                                <View className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3">
-                                    <GraduationCap size={18} color="#94a3b8" />
-                                    <TextInput
-                                        value={section}
-                                        onChangeText={setSectionText}
-                                        maxLength={40}
-                                        placeholder="e.g. BSIT 1-A"
-                                        placeholderTextColor="#94a3b8"
-                                        autoCapitalize="characters"
-                                        autoCorrect={false}
-                                        className="flex-1 py-3 font-sans-semibold text-sm text-slate-900"
-                                    />
-                                </View>
-                                <Text className="font-sans text-xs text-slate-500">
-                                    Printed on your issuance slip. Kept for next time.
-                                </Text>
-                            </View>
                         </View>
                     </View>
                 )}

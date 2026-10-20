@@ -2,7 +2,6 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     CalendarDays,
-    GraduationCap,
     ImageIcon,
     LoaderCircle,
     Minus,
@@ -46,8 +45,8 @@ function selectLines(ids: number[], selected: boolean): void {
 
 /**
  * The student's cart at today's prices, and Place Order for the ticked
- * items (the rest stay in the cart for later), with the course/section for
- * the issuance slip. They show the slip and pay at the PROWARE office; the
+ * items (the rest stay in the cart for later). They show the issuance slip
+ * and pay at the PROWARE office; the
  * items are held for them until the pick-up date.
  */
 export default function Cart({
@@ -56,7 +55,6 @@ export default function Cart({
     total_centavos: total,
     can_place_order: canPlaceOrder,
     pick_up_by: pickUpBy,
-    section,
     order_refusal: orderRefusal,
 }: {
     lines: CartLine[];
@@ -64,13 +62,11 @@ export default function Cart({
     total_centavos: number;
     can_place_order: boolean;
     pick_up_by: string;
-    /** The course/section the student gave last time, for the slip. */
-    section: string | null;
     /** Why Place Order would be refused (too many waiting, or paused). */
     order_refusal: string | null;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
-    const placeOrder = useForm({ section: section ?? '' });
+    const placeOrder = useForm({});
     const rows = cartRows(lines);
     const allTicked = lines.every((line) => line.selected);
     const tickedHaveProblems = lines.some(
@@ -175,41 +171,6 @@ export default function Cart({
                                     Not picked up by then? The order is
                                     cancelled.
                                 </p>
-
-                                <div>
-                                    <label
-                                        htmlFor="section"
-                                        className="text-sm font-black text-slate-700"
-                                    >
-                                        Course/Section
-                                    </label>
-                                    <div className="relative mt-1">
-                                        <GraduationCap
-                                            size={18}
-                                            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400"
-                                        />
-                                        <input
-                                            id="section"
-                                            value={placeOrder.data.section}
-                                            onChange={(event) =>
-                                                placeOrder.setData(
-                                                    'section',
-                                                    event.target.value,
-                                                )
-                                            }
-                                            maxLength={40}
-                                            placeholder="e.g. BSIT 1-A"
-                                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pr-3 pl-10 text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
-                                        />
-                                    </div>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        Printed on your issuance slip. Kept for
-                                        next time.
-                                    </p>
-                                    <InputError
-                                        message={placeOrder.errors.section}
-                                    />
-                                </div>
 
                                 <InputError message={errors.cart} />
 
