@@ -136,7 +136,7 @@ test('the polo comes with the pants, the blouse with the ladies\' pants or the s
             'students.1.bottom_kind' => 'The polo comes with the pants.',
             'students.2.pants_variant_id' => "Choose the size of the ladies' pants.",
             'students.3.bottom_kind' => "The Senior High set has no ladies' pants. Choose the other bottom, or add it in Uniform sets.",
-            'students.4.bottom_kind' => "Choose Ladies' Pants or Skirt.",
+            'students.4.bottom_kind' => "Choose the bottom: Pants, Ladies' Pants or Skirt.",
         ]);
     expect(FreeUniformGroup::count())->toBe(0);
 

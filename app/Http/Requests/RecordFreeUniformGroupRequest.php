@@ -122,8 +122,8 @@ class RecordFreeUniformGroupRequest extends FormRequest
             'students.*.top_kind.required' => 'Choose Blouse or Polo.',
             'students.*.top_kind.enum' => 'Choose Blouse or Polo.',
             'students.*.top_variant_id.required' => 'Choose the size of the top.',
-            'students.*.bottom_kind.required' => "Choose Ladies' Pants or Skirt.",
-            'students.*.bottom_kind.enum' => "Choose Pants, Ladies' Pants or Skirt.",
+            'students.*.bottom_kind.required' => "Choose the bottom: Pants, Ladies' Pants or Skirt.",
+            'students.*.bottom_kind.enum' => "Choose the bottom: Pants, Ladies' Pants or Skirt.",
             'students.*.pants_variant_id.required' => 'Choose the size of the bottom.',
         ];
     }
