@@ -41,7 +41,7 @@ const secondaryButtonClasses =
 /**
  * Free Uniforms (the enrollment promo), as a back office: students who
  * enroll together in a group of at least N each get one uniform set (a
- * blouse or polo and pants) for free. Four numbers at the top, the groups
+ * polo and pants, or a blouse and ladies' pants or a skirt) for free. Four numbers at the top, the groups
  * recorded (newest first) with View Details, Record a group, the uniform
  * sets, and a download for Excel. Free pieces leave stock as "Free
  * (promo)", never as a sale.
@@ -123,7 +123,7 @@ export default function FreeUniformsIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Free Uniforms (Promo)"
-                    description={`Students who enroll together (${summary.group_size} or more) each get one free set: a top and pants.`}
+                    description={`Students who enroll together (${summary.group_size} or more) each get one free set: a polo and pants, or a blouse and ladies' pants or a skirt.`}
                     actions={
                         <div className="flex flex-wrap gap-2 lg:flex-nowrap">
                             <button

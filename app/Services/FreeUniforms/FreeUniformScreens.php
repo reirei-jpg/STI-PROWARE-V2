@@ -108,7 +108,7 @@ final class FreeUniformScreens
                 'course_section' => $student->course_section,
                 'set_name' => $student->uniformSet->name,
                 'top' => self::piece($student->topVariant, $student->top_kind->label(), $student->top_movement_id !== null),
-                'pants' => self::piece($student->pantsVariant, 'Pants', $student->pants_movement_id !== null),
+                'pants' => self::piece($student->pantsVariant, $student->bottom_kind->label(), $student->pants_movement_id !== null),
             ])->all()),
         ];
     }

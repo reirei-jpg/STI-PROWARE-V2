@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\UniformBottom;
 use App\Enums\UniformTop;
 use App\Models\FreeUniformGroup;
 use App\Models\FreeUniformStudent;
@@ -29,6 +30,7 @@ class FreeUniformStudentFactory extends Factory
             'course_section' => null,
             'top_kind' => UniformTop::Polo,
             'top_variant_id' => ProductVariant::factory(),
+            'bottom_kind' => UniformBottom::Pants,
             'pants_variant_id' => ProductVariant::factory(),
             'top_movement_id' => null,
             'pants_movement_id' => null,

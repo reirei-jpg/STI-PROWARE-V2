@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\UniformBottom;
 use App\Enums\UniformTop;
 use App\Models\ProductVariant;
 use App\Models\UniformSet;
@@ -17,7 +18,8 @@ use Inertia\Inertia;
  * The Record a group pop-up: the date the students enrolled together, and
  * each student (at least the promo's group size) with the set they get:
  * name, Enrollment Form # (one free set per form #), course / section, the
- * course's set, Blouse or Polo and its size, and the pants' size.
+ * course's set, Blouse or Polo and its size, and the bottom (the pants with
+ * the polo; the ladies' pants or the skirt with the blouse) and its size.
  */
 class RecordFreeUniformGroupRequest extends FormRequest
 {
@@ -87,6 +89,7 @@ class RecordFreeUniformGroupRequest extends FormRequest
             'students.*.uniform_set_id' => ['required', 'integer', Rule::exists('uniform_sets', 'id')],
             'students.*.top_kind' => ['required', Rule::enum(UniformTop::class)],
             'students.*.top_variant_id' => ['required', 'integer'],
+            'students.*.bottom_kind' => ['required', Rule::enum(UniformBottom::class)],
             'students.*.pants_variant_id' => ['required', 'integer'],
         ];
     }
@@ -119,12 +122,16 @@ class RecordFreeUniformGroupRequest extends FormRequest
             'students.*.top_kind.required' => 'Choose Blouse or Polo.',
             'students.*.top_kind.enum' => 'Choose Blouse or Polo.',
             'students.*.top_variant_id.required' => 'Choose the size of the top.',
-            'students.*.pants_variant_id.required' => 'Choose the size of the pants.',
+            'students.*.bottom_kind.required' => "Choose Ladies' Pants or Skirt.",
+            'students.*.bottom_kind.enum' => "Choose Pants, Ladies' Pants or Skirt.",
+            'students.*.pants_variant_id.required' => 'Choose the size of the bottom.',
         ];
     }
 
     /**
-     * Each student's top and pants must be sizes of their set's products.
+     * Each student's top and bottom must be sizes of their set's products:
+     * the polo comes with the pants, the blouse with the ladies' pants or
+     * the skirt.
      *
      * @return array<int, callable(Validator): void>
      */
@@ -152,10 +159,22 @@ class RecordFreeUniformGroupRequest extends FormRequest
                         $validator->errors()->add("students.{$index}.top_variant_id", 'Choose the size of the '.mb_strtolower($top->label()).'.');
                     }
 
-                    if ($set->pants_product_id === null) {
-                        $validator->errors()->add("students.{$index}.pants_variant_id", "The {$set->name} set has no pants yet. Add them in Uniform sets.");
-                    } elseif (! self::isSizeOf($student['pants_variant_id'] ?? null, $set->pants_product_id)) {
-                        $validator->errors()->add("students.{$index}.pants_variant_id", 'Choose the size of the pants.');
+                    if ($validator->errors()->has("students.{$index}.bottom_kind")) {
+                        continue;
+                    }
+
+                    $bottom = UniformBottom::from((string) $student['bottom_kind']);
+                    $bottomProductId = $set->bottomProductId($bottom);
+                    $bottomName = mb_strtolower($bottom->label());
+
+                    if (! in_array($bottom, UniformBottom::forTop($top), true)) {
+                        $validator->errors()->add("students.{$index}.bottom_kind", $top === UniformTop::Polo
+                            ? 'The polo comes with the pants.'
+                            : "The blouse comes with the ladies' pants or the skirt.");
+                    } elseif ($bottomProductId === null) {
+                        $validator->errors()->add("students.{$index}.bottom_kind", "The {$set->name} set has no {$bottomName}. ".($top === UniformTop::Polo ? 'Add them in Uniform sets.' : 'Choose the other bottom, or add it in Uniform sets.'));
+                    } elseif (! self::isSizeOf($student['pants_variant_id'] ?? null, $bottomProductId)) {
+                        $validator->errors()->add("students.{$index}.pants_variant_id", "Choose the size of the {$bottomName}.");
                     }
                 }
             },
@@ -165,7 +184,7 @@ class RecordFreeUniformGroupRequest extends FormRequest
     /**
      * The students as the action takes them.
      *
-     * @return list<array{name: string, enrollment_form_number: string, course_section: string|null, uniform_set_id: int, top_kind: string, top_variant_id: int, pants_variant_id: int}>
+     * @return list<array{name: string, enrollment_form_number: string, course_section: string|null, uniform_set_id: int, top_kind: string, top_variant_id: int, bottom_kind: string, pants_variant_id: int}>
      */
     public function students(): array
     {
@@ -179,6 +198,7 @@ class RecordFreeUniformGroupRequest extends FormRequest
             'uniform_set_id' => (int) $student['uniform_set_id'],
             'top_kind' => (string) $student['top_kind'],
             'top_variant_id' => (int) $student['top_variant_id'],
+            'bottom_kind' => (string) $student['bottom_kind'],
             'pants_variant_id' => (int) $student['pants_variant_id'],
         ], $students));
     }

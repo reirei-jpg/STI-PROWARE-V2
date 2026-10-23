@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\StockMovementType;
+use App\Enums\UniformBottom;
 use App\Models\FreeUniformGroup;
 use App\Models\FreeUniformStudent;
 use App\Models\Product;
@@ -38,7 +39,8 @@ function sizedProduct(string $name, array $stock): Product
 }
 
 /**
- * The BSIT set: BSIT Blouse, BSIT Polo and BSIT Pants with this stock.
+ * The BSIT set: BSIT Blouse, BSIT Polo and BSIT Pants with this stock, and
+ * BSIT Ladies' Pants and BSIT Skirt (S and M, 10 each).
  *
  * @param  array<string, int>  $tops  stock of each size of the blouse and of the polo
  * @param  array<string, int>  $pants
@@ -50,6 +52,8 @@ function bsitSet(array $tops = ['S' => 10, 'M' => 10], array $pants = ['28' => 1
         'blouse_product_id' => sizedProduct('BSIT Blouse', $tops)->id,
         'polo_product_id' => sizedProduct('BSIT Polo', $tops)->id,
         'pants_product_id' => sizedProduct('BSIT Pants', $pants)->id,
+        'ladies_pants_product_id' => sizedProduct("BSIT Ladies' Pants", ['S' => 10, 'M' => 10])->id,
+        'skirt_product_id' => sizedProduct('BSIT Skirt', ['S' => 10, 'M' => 10])->id,
     ]);
 }
 
@@ -73,6 +77,7 @@ function freeStudents(UniformSet $set, int $count, array $overrides = []): array
         'uniform_set_id' => $set->id,
         'top_kind' => 'polo',
         'top_variant_id' => $overrides['top_variant_id'] ?? uniformSize($set->polo_product_id, 'M')->id,
+        'bottom_kind' => 'pants',
         'pants_variant_id' => uniformSize($set->pants_product_id, '30')->id,
     ], $overrides), range(1, $count));
 }
@@ -80,7 +85,7 @@ function freeStudents(UniformSet $set, int $count, array $overrides = []): array
 test('a group of 5 who enrolled together each get one set, which leaves stock as Free (promo)', function () {
     $set = bsitSet();
     $students = freeStudents($set, 5);
-    $students[0] = array_merge($students[0], ['name' => 'Juan Dela Cruz', 'top_kind' => 'blouse', 'top_variant_id' => uniformSize($set->blouse_product_id, 'S')->id]);
+    $students[0] = array_merge($students[0], ['name' => 'Juan Dela Cruz', 'top_kind' => 'blouse', 'top_variant_id' => uniformSize($set->blouse_product_id, 'S')->id, 'bottom_kind' => 'skirt', 'pants_variant_id' => uniformSize($set->skirt_product_id, 'S')->id]);
 
     $this->actingAs($this->specialist)
         ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-09', 'note' => 'Barkada of five', 'students' => $students])
@@ -96,13 +101,58 @@ test('a group of 5 who enrolled together each get one set, which leaves stock as
         ->and(FreeUniformStudent::query()->stillOwed()->count())->toBe(0)
         ->and(uniformSize($set->blouse_product_id, 'S')->stock_on_hand)->toBe(9)
         ->and(uniformSize($set->polo_product_id, 'M')->stock_on_hand)->toBe(6)
-        ->and(uniformSize($set->pants_product_id, '30')->stock_on_hand)->toBe(5)
+        ->and(uniformSize($set->pants_product_id, '30')->stock_on_hand)->toBe(6)
+        ->and(uniformSize($set->skirt_product_id, 'S')->stock_on_hand)->toBe(9)
+        ->and($group->students()->where('name', 'Juan Dela Cruz')->sole()->bottom_kind)->toBe(UniformBottom::Skirt)
         ->and(StockMovement::query()->where('type', StockMovementType::FreePromo)->count())->toBe(10);
 
     $this->get(route('products.stock', $set->blouse_product_id))->assertInertia(fn (Assert $page) => $page
         ->where('movements.data.0.type_label', 'Free (promo)')
         ->where('movements.data.0.quantity', -1)
         ->where('movements.data.0.note', "To Juan Dela Cruz · Enrollment form #2026-01 · BSIT set · Free uniform group #{$group->id}"));
+});
+
+test('the polo comes with the pants, the blouse with the ladies\' pants or the skirt the set has', function () {
+    $set = bsitSet();
+    $seniorHigh = UniformSet::factory()->create([
+        'name' => 'Senior High',
+        'blouse_product_id' => sizedProduct('Senior High Blouse', ['S' => 5])->id,
+        'polo_product_id' => sizedProduct('Senior High Polo', ['S' => 5])->id,
+        'pants_product_id' => sizedProduct('Senior High Pants', ['S' => 5])->id,
+        'skirt_product_id' => sizedProduct('Senior High Skirt', ['S' => 5])->id,
+    ]);
+    $girl = ['top_kind' => 'blouse', 'top_variant_id' => uniformSize($set->blouse_product_id, 'S')->id];
+    $students = freeStudents($set, 5);
+    $students[0] = array_merge($students[0], $girl); // the blouse with the (boys') pants
+    $students[1] = array_merge($students[1], ['bottom_kind' => 'skirt', 'pants_variant_id' => uniformSize($set->skirt_product_id, 'S')->id]); // the polo with a skirt
+    $students[2] = array_merge($students[2], $girl, ['bottom_kind' => 'ladies_pants', 'pants_variant_id' => uniformSize($set->skirt_product_id, 'S')->id]); // a skirt size as ladies' pants
+    $students[3] = array_merge($students[3], ['uniform_set_id' => $seniorHigh->id, 'top_kind' => 'blouse', 'top_variant_id' => uniformSize($seniorHigh->blouse_product_id, 'S')->id, 'bottom_kind' => 'ladies_pants', 'pants_variant_id' => uniformSize($seniorHigh->pants_product_id, 'S')->id]);
+    $students[4] = array_merge($students[4], ['bottom_kind' => '']);
+
+    $this->actingAs($this->specialist)
+        ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => $students])
+        ->assertSessionHasErrors([
+            'students.0.bottom_kind' => "The blouse comes with the ladies' pants or the skirt.",
+            'students.1.bottom_kind' => 'The polo comes with the pants.',
+            'students.2.pants_variant_id' => "Choose the size of the ladies' pants.",
+            'students.3.bottom_kind' => "The Senior High set has no ladies' pants. Choose the other bottom, or add it in Uniform sets.",
+            'students.4.bottom_kind' => "Choose Ladies' Pants or Skirt.",
+        ]);
+    expect(FreeUniformGroup::count())->toBe(0);
+
+    // A Senior High girl gets the blouse and the skirt.
+    $students = freeStudents($set, 5);
+    $students[0] = array_merge($students[0], ['uniform_set_id' => $seniorHigh->id, 'top_kind' => 'blouse', 'top_variant_id' => uniformSize($seniorHigh->blouse_product_id, 'S')->id, 'bottom_kind' => 'skirt', 'pants_variant_id' => uniformSize($seniorHigh->skirt_product_id, 'S')->id]);
+    $this->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => $students])->assertSessionHasNoErrors();
+
+    $group = FreeUniformGroup::sole();
+    $this->get(route('free-uniforms.index', ['details' => $group->id]))->assertInertia(fn (Assert $page) => $page
+        ->reloadOnly('details', fn (Assert $reload) => $reload
+            ->where('details.students.0.pants.name', 'Skirt')
+            ->where('details.students.0.pants.product_name', 'Senior High Skirt')
+            ->where('details.students.1.pants.name', 'Pants')));
+
+    expect($this->get(route('free-uniforms.export'))->streamedContent())->toContain('"Skirt S",Given');
 });
 
 test('a piece out of stock is still to give, and is given when it arrives, in another size if needed', function () {
@@ -293,7 +343,7 @@ test('the list downloads as a CSV for Excel', function () {
 
     $csv = $this->get(route('free-uniforms.export'))->assertOk()->streamedContent();
 
-    expect($csv)->toContain('"Group #","Date Enrolled",Student,"Enrollment Form #","Course / Section",Set,Top,"Top Given",Pants,"Pants Given","Recorded By"')
+    expect($csv)->toContain('"Group #","Date Enrolled",Student,"Enrollment Form #","Course / Section",Set,Top,"Top Given",Bottom,"Bottom Given","Recorded By"')
         ->toContain('"Oct 9, 2026","Student 1",2026-01,"BSIT 1A",BSIT,"Polo M",Given,"Pants 30",Given,"Carlo Mendoza"');
 });
 

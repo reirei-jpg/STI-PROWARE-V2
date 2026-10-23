@@ -95,7 +95,7 @@ class FreeUniformController extends Controller
 
             // Lets Excel read the file as UTF-8 (ñ).
             fwrite($file, "\xEF\xBB\xBF");
-            fputcsv($file, ['Group #', 'Date Enrolled', 'Student', 'Enrollment Form #', 'Course / Section', 'Set', 'Top', 'Top Given', 'Pants', 'Pants Given', 'Recorded By'], escape: '');
+            fputcsv($file, ['Group #', 'Date Enrolled', 'Student', 'Enrollment Form #', 'Course / Section', 'Set', 'Top', 'Top Given', 'Bottom', 'Bottom Given', 'Recorded By'], escape: '');
 
             foreach ($rows as $row) {
                 fputcsv($file, [

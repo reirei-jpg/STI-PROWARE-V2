@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import type {
+    UniformBottom,
     UniformSetOption,
     UniformSetPiece,
     UniformSizeOption,
@@ -27,8 +28,34 @@ type StudentInput = {
     uniform_set_id: string;
     top_kind: UniformTop | '';
     top_variant_id: string;
+    bottom_kind: UniformBottom | '';
+    /** The bottom's size (pants, ladies' pants or skirt). */
     pants_variant_id: string;
 };
+
+const BOTTOM_LABELS: Record<UniformBottom, string> = {
+    pants: 'Pants',
+    ladies_pants: "Ladies' Pants",
+    skirt: 'Skirt',
+};
+
+/**
+ * The bottoms the set has for the top: the pants with the polo; the
+ * ladies' pants and / or the skirt with the blouse.
+ */
+function bottomsFor(
+    set: UniformSetOption | undefined,
+    top: UniformTop | '',
+): UniformBottom[] {
+    if (!set || top === '') {
+        return [];
+    }
+
+    const kinds: UniformBottom[] =
+        top === 'polo' ? ['pants'] : ['ladies_pants', 'skirt'];
+
+    return kinds.filter((kind) => set[kind] !== null);
+}
 
 type GroupForm = {
     enrolled_on: string;
@@ -47,15 +74,17 @@ const STUDENT_FIELDS: Record<string, string> = {
     uniform_set_id: 'Set',
     top_kind: 'Top',
     top_variant_id: 'Top size',
-    pants_variant_id: 'Pants size',
+    bottom_kind: 'Bottom',
+    pants_variant_id: 'Bottom size',
 };
 
 /**
  * The Record a group pop-up: the date the students enrolled together, then
  * one card per student (at least the promo's group size): name, Enrollment
  * Form #, course / section, the course's set, Blouse or Polo with its size,
- * and the pants' size. A size with none left (counting the students above)
- * is still to give: it is saved and given when it arrives.
+ * and the bottom with its size (the pants with the polo; the ladies' pants
+ * or the skirt with the blouse). A size with none left (counting the
+ * students above) is still to give: it is saved and given when it arrives.
  */
 export default function RecordFreeUniformGroupDialog({
     open,
@@ -109,6 +138,7 @@ function GroupForm({
             from?.uniform_set_id ?? (onlySet ? String(onlySet.id) : ''),
         top_kind: '',
         top_variant_id: '',
+        bottom_kind: '',
         pants_variant_id: '',
     });
 
@@ -436,7 +466,22 @@ function StudentCard({
         ? (['blouse', 'polo'] as const).filter((kind) => set[kind] !== null)
         : [];
     const top = set && student.top_kind !== '' ? set[student.top_kind] : null;
+    const bottoms = bottomsFor(set, student.top_kind);
+    const bottom =
+        set && student.bottom_kind !== '' ? set[student.bottom_kind] : null;
     const error = (field: string) => errors[`students.${index}.${field}`];
+
+    /** Choosing the top also chooses the bottom when only one goes with it. */
+    const chooseTop = (kind: UniformTop) => {
+        const fits = bottomsFor(set, kind);
+
+        onChange({
+            top_kind: kind,
+            top_variant_id: '',
+            bottom_kind: fits.length === 1 ? fits[0] : '',
+            pants_variant_id: '',
+        });
+    };
 
     return (
         <section
@@ -515,6 +560,7 @@ function StudentCard({
                                 uniform_set_id: event.target.value,
                                 top_kind: '',
                                 top_variant_id: '',
+                                bottom_kind: '',
                                 pants_variant_id: '',
                             })
                         }
@@ -536,12 +582,7 @@ function StudentCard({
                                 key={kind}
                                 type="button"
                                 disabled={!tops.includes(kind)}
-                                onClick={() =>
-                                    onChange({
-                                        top_kind: kind,
-                                        top_variant_id: '',
-                                    })
-                                }
+                                onClick={() => chooseTop(kind)}
                                 aria-pressed={student.top_kind === kind}
                                 className={cn(
                                     'h-11 rounded-xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40',
@@ -572,15 +613,67 @@ function StudentCard({
                     error={error('top_variant_id')}
                     onChange={(id) => onChange({ top_variant_id: id })}
                 />
-                <SizeField
-                    label="Pants size"
-                    piece={set?.pants ?? null}
-                    value={student.pants_variant_id}
-                    takenBefore={takenBefore}
-                    placeholder="Choose the set first"
-                    error={error('pants_variant_id')}
-                    onChange={(id) => onChange({ pants_variant_id: id })}
-                />
+                <div className="grid content-start gap-3">
+                    {student.top_kind === 'blouse' && bottoms.length > 1 && (
+                        <Field
+                            label="Bottom"
+                            error={error('bottom_kind')}
+                            isGroup
+                        >
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {bottoms.map((kind) => (
+                                    <button
+                                        key={kind}
+                                        type="button"
+                                        onClick={() =>
+                                            onChange({
+                                                bottom_kind: kind,
+                                                pants_variant_id: '',
+                                            })
+                                        }
+                                        aria-pressed={
+                                            student.bottom_kind === kind
+                                        }
+                                        className={cn(
+                                            'h-11 rounded-xl text-sm font-black transition',
+                                            student.bottom_kind === kind
+                                                ? 'bg-blue-600 text-white shadow-sm'
+                                                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                                        )}
+                                    >
+                                        {BOTTOM_LABELS[kind]}
+                                    </button>
+                                ))}
+                            </div>
+                        </Field>
+                    )}
+                    <SizeField
+                        label={
+                            student.bottom_kind === ''
+                                ? 'Bottom size'
+                                : `${BOTTOM_LABELS[student.bottom_kind]} size`
+                        }
+                        piece={bottom}
+                        value={student.pants_variant_id}
+                        takenBefore={takenBefore}
+                        placeholder={
+                            !set
+                                ? 'Choose the set first'
+                                : student.top_kind === ''
+                                  ? 'Choose Blouse or Polo first'
+                                  : bottoms.length === 0
+                                    ? `The ${set.name} set has no ${student.top_kind === 'polo' ? 'pants' : "ladies' pants or skirt"}`
+                                    : "Choose Ladies' Pants or Skirt first"
+                        }
+                        error={
+                            error('pants_variant_id') ??
+                            (bottoms.length > 1
+                                ? undefined
+                                : error('bottom_kind'))
+                        }
+                        onChange={(id) => onChange({ pants_variant_id: id })}
+                    />
+                </div>
             </div>
         </section>
     );

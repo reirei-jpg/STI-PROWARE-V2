@@ -21,7 +21,7 @@ class FreeUniformStock
     public function __construct(private LowStockAlerts $lowStockAlerts) {}
 
     /**
-     * Give the student's top and pants that are not given yet. Call inside
+     * Give the student's top and bottom that are not given yet. Call inside
      * a transaction.
      *
      * @return array{given: int, still_to_give: list<string>} pieces given, and what is still to give (e.g. "Polo M")
@@ -54,14 +54,15 @@ class FreeUniformStock
     }
 
     /**
-     * "Polo M" or "Pants 30": the piece and its size.
+     * "Polo M", "Pants 30" or "Skirt S": the piece and its size ('pants' is
+     * the bottom, whichever it is).
      *
      * @param  'top'|'pants'  $piece
      */
     public static function pieceName(FreeUniformStudent $student, string $piece): string
     {
         $variant = $piece === 'top' ? $student->topVariant : $student->pantsVariant;
-        $name = $piece === 'top' ? $student->top_kind->label() : 'Pants';
+        $name = $piece === 'top' ? $student->top_kind->label() : $student->bottom_kind->label();
 
         return $variant->choices === [] ? $name : "{$name} {$variant->label()}";
     }

@@ -96,7 +96,7 @@ export default function FreeUniformGroupDialog({
                                                 <TableHeading>Set</TableHeading>
                                             )}
                                             <TableHeading>Top</TableHeading>
-                                            <TableHeading>Pants</TableHeading>
+                                            <TableHeading>Bottom</TableHeading>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -246,7 +246,7 @@ function PieceStatus({ piece }: { piece: FreeUniformPiece }) {
 
 /**
  * Give the pieces still to give: each in the size recorded, or another
- * size of the same top or pants that is in stock.
+ * size of the same top or bottom that is in stock.
  */
 function GiveRest({ groupId, student }: { groupId: number; student: Student }) {
     const form = useForm({

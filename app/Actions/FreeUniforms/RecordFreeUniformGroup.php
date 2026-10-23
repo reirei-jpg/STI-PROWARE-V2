@@ -17,7 +17,7 @@ class RecordFreeUniformGroup
     public function __construct(private FreeUniformStock $stock) {}
 
     /**
-     * @param  list<array{name: string, enrollment_form_number: string, course_section: string|null, uniform_set_id: int, top_kind: string, top_variant_id: int, pants_variant_id: int}>  $students
+     * @param  list<array{name: string, enrollment_form_number: string, course_section: string|null, uniform_set_id: int, top_kind: string, top_variant_id: int, bottom_kind: string, pants_variant_id: int}>  $students
      * @return array{group: FreeUniformGroup, given: int, still_to_give: list<string>} pieces given, and what is still to give (e.g. "Juan Dela Cruz: Polo M")
      */
     public function handle(User $recordedBy, string $enrolledOn, ?string $note, array $students): array

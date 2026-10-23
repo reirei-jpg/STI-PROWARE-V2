@@ -30,6 +30,9 @@ export type UniformSetOption = {
 
 export type UniformTop = 'blouse' | 'polo';
 
+/** The pants go with the polo; the ladies' pants or the skirt with the blouse. */
+export type UniformBottom = 'pants' | 'ladies_pants' | 'skirt';
+
 /** One row of the groups table. */
 export type FreeUniformGroupRow = {
     id: number;
@@ -63,9 +66,9 @@ export type FreeUniformFilters = {
     search: string | null;
 };
 
-/** A student's top or pants in the group's details. */
+/** A student's top or bottom in the group's details. */
 export type FreeUniformPiece = {
-    /** "Polo", "Blouse" or "Pants". */
+    /** "Polo", "Blouse", "Pants", "Ladies' Pants" or "Skirt". */
     name: string;
     product_name: string;
     size: string;

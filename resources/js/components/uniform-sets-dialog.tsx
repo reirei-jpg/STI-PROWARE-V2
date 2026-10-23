@@ -67,8 +67,9 @@ export default function UniformSetsDialog({
                                 Uniform sets
                             </DialogTitle>
                             <DialogDescription className="text-sm text-slate-500">
-                                One set per course: a blouse (female) or polo
-                                (male), and pants.
+                                One set per course: a polo and pants (male), or
+                                a blouse and ladies&apos; pants or a skirt
+                                (female).
                             </DialogDescription>
                         </div>
                     </div>

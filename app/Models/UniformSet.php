@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UniformBottom;
 use App\Enums\UniformSetFor;
 use App\Enums\UniformTop;
 use Database\Factories\UniformSetFactory;
@@ -104,6 +105,16 @@ class UniformSet extends Model
     public function topProductId(UniformTop $top): ?int
     {
         return $top === UniformTop::Blouse ? $this->blouse_product_id : $this->polo_product_id;
+    }
+
+    /** The product of the bottom, or null when the set has no such bottom. */
+    public function bottomProductId(UniformBottom $bottom): ?int
+    {
+        return match ($bottom) {
+            UniformBottom::Pants => $this->pants_product_id,
+            UniformBottom::LadiesPants => $this->ladies_pants_product_id,
+            UniformBottom::Skirt => $this->skirt_product_id,
+        };
     }
 
     /**

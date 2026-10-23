@@ -155,7 +155,7 @@ function PromoGroupSizeSetting({ setting }: { setting: NumberSetting }) {
         <SettingRow
             icon={<Gift size={19} className="text-emerald-600" />}
             title="Students needed for free uniforms"
-            explanation="Students who enroll together in a group of at least this many each get one uniform set for free: a blouse or polo, and pants. Record them on the Free Uniforms page."
+            explanation="Students who enroll together in a group of at least this many each get one uniform set for free: a polo and pants, or a blouse and ladies' pants or a skirt. Record them on the Free Uniforms page."
             example="Example with 5: five friends who enroll on the same day each get a set. A group of 4 does not. Groups already recorded stay as they are."
             unit="students"
             setting={setting}
