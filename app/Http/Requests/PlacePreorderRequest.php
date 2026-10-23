@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Services\Shop\Cart;
 use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -92,7 +94,20 @@ class PlacePreorderRequest extends FormRequest
 
                 $product = $this->product();
 
-                if ($product->acceptsPreorders()) {
+                // Preordering a size again adds to it: the total stays within the limit.
+                foreach ($this->items() as $index => $item) {
+                    $already = (int) $this->user()?->preorders()
+                        ->where('product_variant_id', $item['product_variant_id'])
+                        ->where('status', PreorderStatus::Active)
+                        ->value('quantity');
+
+                    if ($already > 0 && $already + $item['quantity'] > self::MAX_QUANTITY) {
+                        $variant = $product->variants()->findOrFail($item['product_variant_id'])->setRelation('product', $product);
+                        $validator->errors()->add($this->hasList() ? "items.{$index}.quantity" : 'quantity', 'You already preordered '.Units::count($already, 'Piece')." of {$variant->displayName()}. For more than ".number_format(self::MAX_QUANTITY).' in all, contact the PROWARE office.');
+                    }
+                }
+
+                if ($validator->errors()->isNotEmpty() || $product->acceptsPreorders()) {
                     return;
                 }
 

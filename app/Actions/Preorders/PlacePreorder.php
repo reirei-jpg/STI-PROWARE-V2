@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\Notification;
 /**
  * A student preorders sizes or colors (website or phone app): of a Preorder
  * product, or sold-out sizes of a product for sale. Preordering the same
- * size again changes how many, so a student has one active preorder per
- * size or color. A new preorder of a sold-out size is sent to the
- * Specialist, so she can order more.
+ * size again adds to it (keeping its place in line), so a student has one
+ * active preorder per size or color. A new preorder of a sold-out size is
+ * sent to the Specialist, so she can order more.
  */
 class PlacePreorder
 {
@@ -38,16 +38,25 @@ class PlacePreorder
             $saved = [];
 
             foreach ($items as $item) {
-                $saved[] = $student->preorders()->updateOrCreate(
-                    [
-                        'product_variant_id' => $item['product_variant_id'],
-                        'status' => PreorderStatus::Active,
-                    ],
-                    [
-                        'product_id' => $product->id,
-                        'quantity' => $item['quantity'],
-                    ],
-                );
+                $existing = $student->preorders()
+                    ->where('product_variant_id', $item['product_variant_id'])
+                    ->where('status', PreorderStatus::Active)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing !== null) {
+                    $existing->forceFill(['quantity' => $existing->quantity + $item['quantity']])->save();
+                    $saved[] = $existing;
+
+                    continue;
+                }
+
+                $saved[] = $student->preorders()->create([
+                    'product_variant_id' => $item['product_variant_id'],
+                    'status' => PreorderStatus::Active,
+                    'product_id' => $product->id,
+                    'quantity' => $item['quantity'],
+                ]);
             }
 
             EarlyBird::reallocate($product);
@@ -78,8 +87,11 @@ class PlacePreorder
     }
 
     /**
-     * One size: "Your preorder of 2 × BSIT Polo (M) has been placed. …"
+     * One size: "Your preorder of 2 × BSIT Polo (M) has been placed. …", or
+     * when it was added to an earlier preorder: "Your preorder of BSIT Polo
+     * (M) now has 4 pcs. …"
      * Several: "Your preorder of BSIT Polo has been placed: 2 × S, 3 × M. …"
+     * ("… now has: …" when one was added to).
      *
      * @param  list<Preorder>  $preorders
      */
@@ -88,12 +100,16 @@ class PlacePreorder
         $after = (LowStockAlerts::isSold($product) ? ' You will be notified when it is back in stock.' : '')
             .self::earlyBirdNote($preorders, $product)
             .' It is listed in My Preorders.';
+        $addedTo = array_filter($preorders, fn (Preorder $preorder): bool => ! $preorder->wasRecentlyCreated) !== [];
 
         if (count($preorders) === 1) {
             $preorder = $preorders[0];
             $variant = $preorder->variant;
+            $name = $product->name.($variant->choices === [] ? '' : " ({$variant->label()})");
 
-            return "Your preorder of {$preorder->quantity} × {$product->name}".($variant->choices === [] ? '' : " ({$variant->label()})").' has been placed.'.$after;
+            return ($addedTo
+                ? "Your preorder of {$name} now has ".Units::count($preorder->quantity, 'Piece').'.'
+                : "Your preorder of {$preorder->quantity} × {$name} has been placed.").$after;
         }
 
         $sizes = implode(', ', array_map(
@@ -101,7 +117,9 @@ class PlacePreorder
             $preorders,
         ));
 
-        return "Your preorder of {$product->name} has been placed: {$sizes}.".$after;
+        return ($addedTo
+            ? "Your preorder of {$product->name} now has: {$sizes}."
+            : "Your preorder of {$product->name} has been placed: {$sizes}.").$after;
     }
 
     /**

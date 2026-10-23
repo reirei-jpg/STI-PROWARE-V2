@@ -30,22 +30,36 @@ function preorderShirt(?string $closesOn = '2026-10-20', string $name = '42nd An
     return [$product, $small, $large];
 }
 
-test('a student can preorder a size, and preordering it again changes how many', function () {
+test('a student can preorder a size, and preordering it again adds to it', function () {
     [$product, $small] = preorderShirt();
     $this->actingAs($this->student);
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '2'])
         ->assertSessionHasNoErrors()
         ->assertInertiaFlash('toast.message', 'Your preorder of 2 × 42nd Anniversary Shirt (S/M) has been placed. It is listed in My Preorders.');
+    $first = Preorder::sole();
 
-    $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '3']);
+    $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '3'])
+        ->assertInertiaFlash('toast.message', 'Your preorder of 42nd Anniversary Shirt (S/M) now has 5 pcs. It is listed in My Preorders.');
 
     expect(Preorder::sole())
+        ->id->toBe($first->id)
         ->user_id->toBe($this->student->id)
         ->product_id->toBe($product->id)
         ->product_variant_id->toBe($small->id)
-        ->quantity->toBe(3)
+        ->quantity->toBe(5)
         ->status->toBe(PreorderStatus::Active);
+});
+
+test('preordering a size again cannot go past 99 in all', function () {
+    [$product, $small] = preorderShirt();
+    $this->actingAs($this->student);
+    $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '98']);
+
+    $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '2'])
+        ->assertSessionHasErrors(['quantity' => 'You already preordered 98 pcs of 42nd Anniversary Shirt (S/M). For more than 99 in all, contact the PROWARE office.']);
+
+    expect(Preorder::sole()->quantity)->toBe(98);
 });
 
 test('the preorder form explains what is wrong', function (Closure $payload, string $field, string $message) {

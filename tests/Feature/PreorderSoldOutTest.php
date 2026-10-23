@@ -46,10 +46,10 @@ test('a student can preorder a sold-out size, and the Specialist is told once', 
         ->assertSessionHasNoErrors()
         ->assertInertiaFlash('toast.message', 'Your preorder of 2 × BSIT Polo (XS) has been placed. You will be notified when it is back in stock. It is listed in My Preorders.');
 
-    // Changing how many is not a new preorder.
+    // Adding to it is not a new preorder.
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $extraSmall->id, 'quantity' => '3']);
 
-    expect(Preorder::sole())->quantity->toBe(3)->status->toBe(PreorderStatus::Active);
+    expect(Preorder::sole())->quantity->toBe(5)->status->toBe(PreorderStatus::Active);
     Notification::assertSentToTimes($this->specialist, PreorderPlaced::class, 1);
     Notification::assertSentTo($this->specialist, PreorderPlaced::class, fn (PreorderPlaced $notice) => $notice->toPush($this->specialist)['title'] === 'New preorder: BSIT Polo (XS)'
         && $notice->toPush($this->specialist)['body'] === 'Juan Dela Cruz preordered 2 pieces. It is out of stock.');
