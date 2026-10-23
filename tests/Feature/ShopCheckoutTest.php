@@ -320,6 +320,13 @@ test('a student can cancel a placed order and its hold ends', function () {
         ->and(StockMovement::query()->whereNotNull('order_item_id')->count())->toBe(0);
 
     expect($this->student->notifications()->count())->toBe(0);
+
+    // The Specialist is told, so they stop preparing it.
+    expect($this->specialist->notifications()->where('data->kind', 'order_cancelled_by_student')->sole()->data)->toMatchArray([
+        'order_number' => 'PW-0001',
+        'student_name' => $this->student->name,
+        'reason' => 'I ordered the wrong size or color',
+    ]);
 });
 
 test('once the order is ready the student can no longer cancel it', function () {

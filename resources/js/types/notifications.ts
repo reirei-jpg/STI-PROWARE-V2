@@ -132,6 +132,22 @@ export type OrderingResumedData = {
     kind: 'ordering_resumed';
 };
 
+/** Too many orders expired: the student cannot order until paused_until. */
+export type OrderingPausedData = {
+    kind: 'ordering_paused';
+    paused_until: string;
+    expired_orders: number;
+};
+
+/** A student cancelled their own order (to the Specialist). */
+export type OrderCancelledByStudentData = {
+    kind: 'order_cancelled_by_student';
+    order_id: number;
+    order_number: string | null;
+    student_name: string;
+    reason: string | null;
+};
+
 export type DeliveryRecordedData = {
     kind: 'delivery_recorded';
     delivery_id: number;
@@ -174,6 +190,8 @@ export type StaffNotification = {
         | PreorderHoldEndedData
         | PreorderPlacedData
         | OrderingResumedData
+        | OrderingPausedData
+        | OrderCancelledByStudentData
         | DeliveryRecordedData
         | PurchaseOrderClosedShortData;
     read: boolean;

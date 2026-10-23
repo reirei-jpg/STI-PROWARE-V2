@@ -353,6 +353,36 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'ordering_paused') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Ordering is paused until{' '}
+                    {formatDateOrdered(data.paused_until)}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.expired_orders} of your orders expired without being
+                    picked up, so you cannot place orders until then. Ask the
+                    PROWARE office if this is a mistake.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'order_cancelled_by_student') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Order {data.order_number} was cancelled by the student
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.student_name}: {data.reason ?? 'No reason given.'} Its
+                    items are free to sell again.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'sale_ending') {
         return (
             <>

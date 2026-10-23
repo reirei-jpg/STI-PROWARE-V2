@@ -28,6 +28,9 @@ export function noticeTarget(data: Record<string, unknown>): Href | null {
             return hasProduct ? `/stock/${productId}` : null;
         case 'ordering_resumed':
             return '/';
+        case 'ordering_paused':
+            return '/orders';
+        case 'order_cancelled_by_student':
         case 'order_placed':
             return hasOrder ? `/staff-order/${orderId}` : null;
         case 'low_stock':

@@ -99,6 +99,20 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        case 'ordering_paused':
+            return {
+                title: `Ordering is paused until ${formatDate(data.paused_until)}`,
+                body: `${data.expired_orders} of your orders expired without being picked up, so you cannot place orders until then. Ask the PROWARE office if this is a mistake.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
+        case 'order_cancelled_by_student':
+            return {
+                title: `Order ${data.order_number} was cancelled by the student`,
+                body: `${data.student_name}: ${data.reason ?? 'No reason given.'} Its items are free to sell again.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
         case 'ordering_resumed':
             return {
                 title: 'You can order again',

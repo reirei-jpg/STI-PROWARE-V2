@@ -3,14 +3,18 @@
 namespace App\Actions\Orders;
 
 use App\Enums\OrderStatus;
+use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\User;
+use App\Notifications\OrderCancelledByStudent;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
  * A student cancels their own order, from the website or the phone app,
- * only while it is still Placed, with the reason they picked. Once the PROWARE office has prepared it,
- * they are asked to talk to the office.
+ * only while it is still Placed, with the reason they picked; the
+ * Specialist is notified. Once the PROWARE office has prepared it, they are
+ * asked to talk to the office.
  */
 class CancelOrderByStudent
 {
@@ -62,5 +66,11 @@ class CancelOrderByStudent
         }
 
         $this->cancelOrder->handle($order, $student, $reason);
+
+        // The Specialist stops preparing it.
+        Notification::send(
+            User::query()->where('role', UserRole::Specialist)->get(),
+            new OrderCancelledByStudent($order->refresh()),
+        );
     }
 }

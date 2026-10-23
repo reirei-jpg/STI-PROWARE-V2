@@ -300,7 +300,16 @@ export type StudentNotificationData =
       }
     // The Specialist lifted the student's ordering pause.
     | { kind: 'ordering_resumed' }
+    // Too many orders expired: ordering is paused until paused_until.
+    | { kind: 'ordering_paused'; paused_until: string; expired_orders: number }
     // The Specialist's notices.
+    | {
+          kind: 'order_cancelled_by_student';
+          order_id: number;
+          order_number: string | null;
+          student_name: string;
+          reason: string | null;
+      }
     | {
           kind: 'order_placed';
           order_id: number;

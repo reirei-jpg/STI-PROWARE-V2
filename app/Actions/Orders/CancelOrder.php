@@ -7,6 +7,8 @@ use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderCancelled;
+use App\Notifications\OrderingPaused;
+use App\Services\Shop\OrderRules;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\RestockedPreorders;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +18,8 @@ use Illuminate\Support\Facades\DB;
  * (which never left the shelf) are free to sell again, and students waiting
  * for a sold-out size get notified. When it cancels itself for not being
  * released in time, it is marked expired (this counts towards the no-show
- * pause in OrderRules). When the student did not cancel it themselves, they
- * are told why.
+ * pause in OrderRules; when it pauses the student, they are told until
+ * when). When the student did not cancel it themselves, they are told why.
  */
 class CancelOrder
 {
@@ -56,6 +58,18 @@ class CancelOrder
 
             if ($cancelledBy?->id !== $order->user_id) {
                 $order->student->notify(new OrderCancelled($order));
+            }
+
+            // An expiry that pauses the student's ordering: they are told until when.
+            if ($cancelledBy === null) {
+                $student = $order->student;
+                DB::afterCommit(function () use ($student): void {
+                    $pausedUntil = OrderRules::pausedUntil($student);
+
+                    if ($pausedUntil !== null) {
+                        $student->notify(new OrderingPaused($pausedUntil));
+                    }
+                });
             }
         });
     }

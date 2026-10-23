@@ -85,6 +85,22 @@ test('three expired orders in a month pause ordering for a week, unless the Spec
     orderLanyards($student, $variant, 1)->assertSessionHasNoErrors();
 });
 
+test('the order that expires third pauses ordering, and the student is told until when', function () {
+    $variant = lanyard(stock: 10);
+    $student = User::factory()->student()->create();
+    foreach (['2026-09-20', '2026-10-01'] as $day) {
+        Order::factory()->for($student, 'student')->create(['status' => OrderStatus::Cancelled, 'expired_at' => "{$day} 00:30"]);
+    }
+    orderLanyards($student, $variant, 1)->assertSessionHasNoErrors();
+    expect($student->notifications()->where('data->kind', 'ordering_paused')->exists())->toBeFalse();
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-12 09:00', 'Asia/Manila'));
+    $this->artisan('orders:cancel-unclaimed');
+
+    $notice = $student->notifications()->where('data->kind', 'ordering_paused')->sole();
+    expect($notice->data)->toBe(['kind' => 'ordering_paused', 'paused_until' => '2026-10-19', 'expired_orders' => 3]);
+});
+
 test('the pause ends by itself after a week, and orders the student cancelled do not count', function () {
     $variant = lanyard(stock: 10);
     $student = User::factory()->student()->create();

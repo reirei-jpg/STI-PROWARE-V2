@@ -28,8 +28,8 @@ class NotificationController extends Controller
         return match ($notification->data['kind'] ?? null) {
             'low_stock' => to_route('products.stock', $notification->data['product_id']),
             'sale_ending', 'sale_ended' => to_route('products.index', ['search' => $notification->data['product_name']]),
-            'order_placed' => to_route('orders.index', ['show' => 'all', 'search' => $notification->data['order_number']]),
-            'order_ready', 'order_cancelled', 'order_last_day' => to_route('my-orders.index'),
+            'order_placed', 'order_cancelled_by_student' => to_route('orders.index', ['show' => 'all', 'search' => $notification->data['order_number']]),
+            'order_ready', 'order_cancelled', 'order_last_day', 'ordering_paused' => to_route('my-orders.index'),
             'preorder_arrived' => to_route('home', ['search' => $notification->data['product_name']]),
             'preorder_not_restocked', 'preorder_arrival_changed', 'preorder_held', 'preorder_hold_ended' => to_route('my-preorders.index'),
             'preorder_placed' => to_route('preorders.index', ['stage' => 'sold_out', 'search' => $notification->data['product_name']]),
