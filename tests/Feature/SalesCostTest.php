@@ -154,11 +154,13 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         // One row per price: the sale price is its own row.
         ->where('sold.data.0.price_each_centavos', 35000)
         ->where('sold.data.0.normal_each_centavos', 40000)
+        ->where('sold.data.0.lower_price_label', 'On sale')
         ->where('sold.data.0.cost_each_centavos', 20000)
         ->where('sold.data.0.quantity', 3)
         ->where('sold.data.0.profit_centavos', 3 * 15000)
         ->where('sold.data.1.price_each_centavos', 40000)
         ->where('sold.data.1.normal_each_centavos', null)
+        ->where('sold.data.1.lower_price_label', null)
         ->where('sold.data.1.profit_centavos', 2 * 20000)
         ->where('spent', null)
     );
@@ -173,7 +175,9 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         ->assertInertia(fn (Assert $page) => $page->where('summary.price_centavos', 0)->where('summary.spent_centavos', 0));
 
     $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-01-to-2026-10-09.csv')->streamedContent();
-    expect($csv)->toContain('"STI Jacket",,Piece,3,200.00,350.00,400.00,1050.00,600.00,450.00,');
+    expect($csv)->toContain('"Lower Price Because"')
+        ->toContain('"STI Jacket",,Piece,3,200.00,350.00,400.00,"On sale",1050.00,600.00,450.00,')
+        ->toContain('"STI Jacket",,Piece,2,200.00,400.00,,,800.00,400.00,400.00,');
 });
 
 test('an item put on sale below its Cost shows what was lost', function () {

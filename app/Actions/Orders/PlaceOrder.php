@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Enums\LowerPriceReason;
 use App\Enums\OrderStatus;
 use App\Enums\UserRole;
 use App\Models\CartItem;
@@ -83,6 +84,7 @@ class PlaceOrder
                 /** @var ProductVariant $variant */
                 $variant = $variants->get($line->product_variant_id);
                 $unitPrice = (int) ($line->set_key === null ? ShopPrice::perUnit($variant, $line->pack) : $setPrices[$line->id]);
+                $normalPrice = ShopPrice::normalPerUnit($variant, $line->pack) ?? $unitPrice;
                 $piecesPerUnit = $line->pack->pieces ?? 1;
 
                 $item = $order->items()->create([
@@ -99,7 +101,8 @@ class PlaceOrder
                     'quantity' => $line->quantity,
                     'unit_price_centavos' => $unitPrice,
                     // The regular price too, so a sale price shows as a discount.
-                    'normal_unit_price_centavos' => ShopPrice::normalPerUnit($variant, $line->pack) ?? $unitPrice,
+                    'normal_unit_price_centavos' => $normalPrice,
+                    'lower_price_reason' => $unitPrice < $normalPrice ? LowerPriceReason::Sale : null,
                     'line_total_centavos' => $unitPrice * $line->quantity,
                 ]);
 

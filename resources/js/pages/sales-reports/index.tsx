@@ -535,7 +535,7 @@ function SoldTableRow({ row }: { row: SoldRow }) {
                 />
                 {row.normal_each_centavos !== null && (
                     <span className="block text-[11px] font-black text-red-600">
-                        On sale ·{' '}
+                        {row.lower_price_label ?? 'On sale'} ·{' '}
                         {formatPeso(
                             row.normal_each_centavos - row.price_each_centavos,
                         )}{' '}

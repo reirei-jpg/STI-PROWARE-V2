@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\LowerPriceReason;
 use App\Enums\OrderStatus;
 use App\Enums\StockCorrectionReason;
 use App\Enums\StockMovementType;
@@ -26,7 +27,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * Sales without a Cost yet are left out of the profit and counted, so the
  * Specialist can set their price.
  *
- * @phpstan-type SoldRow array{key: string, variant_id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, price_each_centavos: int, normal_each_centavos: int|null, cost_each_centavos: int|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null, below_cost: bool, loss_centavos: int, missing_cost_lines: int}
+ * @phpstan-type SoldRow array{key: string, variant_id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, price_each_centavos: int, normal_each_centavos: int|null, lower_price_reason: string|null, lower_price_label: string|null, cost_each_centavos: int|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null, below_cost: bool, loss_centavos: int, missing_cost_lines: int}
  */
 final class SalesReport
 {
@@ -193,13 +194,17 @@ final class SalesReport
         // Sales from before the normal price was kept have none; they were
         // sold at their normal price, so they join the same row.
         $normalPrice = 'coalesce(order_items.normal_unit_price_centavos, order_items.unit_price_centavos)';
+        // A lower price from before the reason was kept was a sale: it joins the sale's row.
+        $reason = "case when {$normalPrice} > order_items.unit_price_centavos then coalesce(order_items.lower_price_reason, 'sale') end";
 
         return self::soldLines($from, $to)
             ->when($search !== null, fn (Builder $query) => $query->whereLike('order_items.product_name', "%{$search}%"))
             ->groupBy('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos')
             ->groupByRaw($normalPrice)
+            ->groupByRaw($reason)
             ->select('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos')
             ->selectRaw("{$normalPrice} as normal_unit_price_centavos")
+            ->selectRaw("{$reason} as lower_price_reason")
             ->selectRaw('max(order_items.product_name) as product_name')
             ->selectRaw('max(order_items.variant_label) as variant_label')
             ->selectRaw('sum(order_items.quantity) as quantity')
@@ -227,9 +232,14 @@ final class SalesReport
         $costTotal = (int) $number('cost_total');
         $costEach = $costedQuantity > 0 ? (int) round($costTotal / $costedQuantity) : null;
         $profit = $costedQuantity > 0 ? $priceEach * $costedQuantity - $costTotal : null;
+        $lowered = $normalEach !== null && $normalEach > $priceEach;
+        // Lines from before the reason was kept were only lowered by a sale.
+        $reason = $lowered
+            ? (LowerPriceReason::tryFrom(is_string($values['lower_price_reason'] ?? null) ? $values['lower_price_reason'] : '') ?? LowerPriceReason::Sale)
+            : null;
 
         return [
-            'key' => implode('-', [$number('product_variant_id'), $values['unit_name'] ?? '', $priceEach, $normalEach ?? 'x']),
+            'key' => implode('-', [$number('product_variant_id'), $values['unit_name'] ?? '', $priceEach, $normalEach ?? 'x', $reason->value ?? 'normal']),
             'variant_id' => (int) $number('product_variant_id'),
             'product_name' => is_string($values['product_name'] ?? null) ? $values['product_name'] : '',
             'variant_label' => is_string($values['variant_label'] ?? null) ? $values['variant_label'] : null,
@@ -237,8 +247,10 @@ final class SalesReport
             'pieces_per_unit' => (int) ($number('pieces_per_unit') ?? 1),
             'quantity' => (int) $number('quantity'),
             'price_each_centavos' => $priceEach,
-            // Shown crossed out when it was sold on sale.
-            'normal_each_centavos' => $normalEach !== null && $normalEach > $priceEach ? $normalEach : null,
+            // Shown crossed out when it was sold on sale or at the early-bird price.
+            'normal_each_centavos' => $lowered ? $normalEach : null,
+            'lower_price_reason' => $reason?->value,
+            'lower_price_label' => $reason?->label(),
             'cost_each_centavos' => $costEach,
             'price_total_centavos' => (int) $number('price_total'),
             'cost_total_centavos' => $costedQuantity > 0 ? $costTotal : null,

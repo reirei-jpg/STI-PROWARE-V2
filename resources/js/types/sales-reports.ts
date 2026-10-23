@@ -47,8 +47,12 @@ export type SoldRow = {
     pieces_per_unit: number;
     quantity: number;
     price_each_centavos: number;
-    /** The normal price, when it was sold on sale. */
+    /** The normal price, when it was sold on sale or at the early-bird price. */
     normal_each_centavos: number | null;
+    /** Why it was lower: 'sale' or 'early_bird' (null at the normal price). */
+    lower_price_reason: 'sale' | 'early_bird' | null;
+    /** "On sale" or "Early-bird price". */
+    lower_price_label: string | null;
     /** Null while its Cost is not set. */
     cost_each_centavos: number | null;
     price_total_centavos: number;

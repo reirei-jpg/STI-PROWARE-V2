@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\LowerPriceReason;
+use App\Enums\OrderStatus;
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Order;
@@ -87,10 +89,26 @@ test('Order Now orders the held pieces, charging the early-bird price for the ea
 
     $order = Order::query()->sole();
     expect($order->total_centavos)->toBe(205000)
-        ->and($order->items->map(fn ($item) => [$item->quantity, $item->unit_price_centavos, $item->normal_unit_price_centavos])->all())
-        ->toBe([[2, 65000, 75000], [1, 75000, 75000]])
+        ->and($order->items->map(fn ($item) => [$item->quantity, $item->unit_price_centavos, $item->normal_unit_price_centavos, $item->lower_price_reason])->all())
+        ->toBe([[2, 65000, 75000, LowerPriceReason::EarlyBird], [1, 75000, 75000, null]])
         ->and($this->first->refresh())->status->toBe(PreorderStatus::Ordered)->order_id->toBe($order->id)
         ->and($this->variant->refresh())->held_pieces->toBe(3)->preorder_held_pieces->toBe(6);
+});
+
+test('Sales Reports calls early-bird pieces Early-bird price, not On sale', function () {
+    hoodiesArrive($this->variant, 3);
+    $this->actingAs($this->first->student)->post(route('my-preorders.order', $this->first), ['quantity' => '3']);
+    Order::query()->sole()->forceFill(['status' => OrderStatus::PickedUp, 'picked_up_at' => now()])->save();
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->get(route('sales-reports.index', ['period' => 'today']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('sold.data.0.price_each_centavos', 65000)
+            ->where('sold.data.0.normal_each_centavos', 75000)
+            ->where('sold.data.0.lower_price_reason', 'early_bird')
+            ->where('sold.data.0.lower_price_label', 'Early-bird price')
+            ->where('sold.data.1.price_each_centavos', 75000)
+            ->where('sold.data.1.lower_price_label', null));
 });
 
 test('held pieces the student does not order go to the next student at once', function () {

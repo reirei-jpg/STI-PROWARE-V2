@@ -2,6 +2,7 @@
 
 namespace App\Actions\Preorders;
 
+use App\Enums\LowerPriceReason;
 use App\Enums\OrderStatus;
 use App\Enums\PreorderStatus;
 use App\Enums\UserRole;
@@ -66,6 +67,7 @@ class OrderHeldPreorder
 
             $earlyBirdPrice = min($normalPrice, $variant->product->early_bird_price_centavos ?? $normalPrice);
             $earlyBirdPieces = $earlyBirdPrice < $normalPrice ? min($preorder->early_bird_pieces, $quantity) : 0;
+            $regularPrice = ShopPrice::normalPerUnit($variant, null) ?? $normalPrice;
 
             $order = $student->orders()->create([
                 'student_section' => $section ?? $student->section,
@@ -76,12 +78,13 @@ class OrderHeldPreorder
             $order->forceFill(['number' => Order::numberFor($order->id)])->save();
 
             $total = 0;
+            // Today's price is below the regular one only during a sale.
             $lines = array_filter([
-                [$earlyBirdPieces, $earlyBirdPrice],
-                [$quantity - $earlyBirdPieces, $normalPrice],
+                [$earlyBirdPieces, $earlyBirdPrice, LowerPriceReason::EarlyBird],
+                [$quantity - $earlyBirdPieces, $normalPrice, $normalPrice < $regularPrice ? LowerPriceReason::Sale : null],
             ], fn (array $line): bool => $line[0] > 0);
 
-            foreach ($lines as [$pieces, $unitPrice]) {
+            foreach ($lines as [$pieces, $unitPrice, $lowerPriceReason]) {
                 $item = $order->items()->create([
                     'product_id' => $variant->product_id,
                     'product_variant_id' => $variant->id,
@@ -91,7 +94,8 @@ class OrderHeldPreorder
                     'pieces_per_unit' => 1,
                     'quantity' => $pieces,
                     'unit_price_centavos' => $unitPrice,
-                    'normal_unit_price_centavos' => ShopPrice::normalPerUnit($variant, null) ?? $unitPrice,
+                    'normal_unit_price_centavos' => $regularPrice,
+                    'lower_price_reason' => $unitPrice < $regularPrice ? $lowerPriceReason : null,
                     'line_total_centavos' => $unitPrice * $pieces,
                 ]);
 

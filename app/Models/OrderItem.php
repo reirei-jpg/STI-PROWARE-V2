@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\LowerPriceReason;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,12 +28,13 @@ use Illuminate\Support\Carbon;
  * @property int $quantity
  * @property int $unit_price_centavos
  * @property int $line_total_centavos
- * @property int|null $normal_unit_price_centavos the regular price when ordered; lower unit_price_centavos means it was on sale (null: not recorded)
+ * @property int|null $normal_unit_price_centavos the regular price when ordered; lower unit_price_centavos means it was on sale or an early-bird price (null: not recorded)
+ * @property LowerPriceReason|null $lower_price_reason why it was below the normal price (null with a lower price: on sale, from before this was kept)
  * @property int|null $cost_centavos what its pieces cost on the eStore, once released (null: unknown)
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['product_id', 'product_variant_id', 'product_name', 'variant_label', 'set_name', 'set_key', 'unit_name', 'pieces_per_unit', 'quantity', 'unit_price_centavos', 'normal_unit_price_centavos', 'line_total_centavos'])]
+#[Fillable(['product_id', 'product_variant_id', 'product_name', 'variant_label', 'set_name', 'set_key', 'unit_name', 'pieces_per_unit', 'quantity', 'unit_price_centavos', 'normal_unit_price_centavos', 'lower_price_reason', 'line_total_centavos'])]
 class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */
@@ -49,6 +51,7 @@ class OrderItem extends Model
             'unit_price_centavos' => 'integer',
             'line_total_centavos' => 'integer',
             'normal_unit_price_centavos' => 'integer',
+            'lower_price_reason' => LowerPriceReason::class,
             'cost_centavos' => 'integer',
         ];
     }
