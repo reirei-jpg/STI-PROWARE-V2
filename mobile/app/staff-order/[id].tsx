@@ -108,6 +108,7 @@ export default function StaffOrderScreen() {
                             </Text>
                             <Text className="font-sans-semibold text-base text-slate-800">
                                 {order.student_name}
+                                {order.student_id ? ` · ID ${order.student_id}` : ''}
                                 {order.student_section ? ` · ${order.student_section}` : ''}
                             </Text>
                             <Text className="font-sans text-xs text-slate-500">

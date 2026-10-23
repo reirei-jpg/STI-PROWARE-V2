@@ -193,6 +193,7 @@ export default function SlipCheckScreen() {
                             </Text>
                             <Text className="font-sans text-sm text-slate-500">
                                 <Text className="font-sans-bold text-slate-700">{order.number}</Text>
+                                {order.student_id ? ` · ID ${order.student_id}` : ''}
                                 {order.student_section ? ` · ${order.student_section}` : ''}
                             </Text>
                         </View>

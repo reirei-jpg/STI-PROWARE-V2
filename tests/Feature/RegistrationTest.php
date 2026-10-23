@@ -28,8 +28,18 @@ test('a student registers with the school email and is signed in', function () {
 
     $this->assertAuthenticatedAs($juan);
     expect($juan->role)->toBe(UserRole::Student)
+        ->and($juan->student_id)->toBe('02000123456')
         ->and($juan->section)->toBe('BSIT 1-A')
         ->and($juan->email_verified_at)->not->toBeNull();
+});
+
+test('a Student ID that already has an account cannot register again', function () {
+    User::factory()->student()->create(['student_id' => '02000123456']);
+
+    $this->post(route('register.store'), juansRegistration())
+        ->assertSessionHasErrors(['student_id' => 'An account already uses this Student ID. Log in instead.']);
+
+    $this->assertGuest();
 });
 
 test('the email must be the school email made from the last name and Student ID', function () {

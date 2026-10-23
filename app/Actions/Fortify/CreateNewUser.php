@@ -33,7 +33,7 @@ class CreateNewUser implements CreatesNewUsers
         $validator = Validator::make($input, [
             'name' => ['required', 'string', 'max:120', 'regex:'.User::NAME_PATTERN],
             'last_name' => ['required', 'string', 'max:60', 'regex:'.User::NAME_PATTERN],
-            'student_id' => ['required', 'digits:11'],
+            'student_id' => ['required', 'digits:11', 'unique:users,student_id'],
             'section' => ['nullable', 'string', 'max:40'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => $this->passwordRules(),
@@ -46,6 +46,7 @@ class CreateNewUser implements CreatesNewUsers
             'last_name.regex' => 'The last name may only contain letters, spaces, periods, hyphens and apostrophes.',
             'student_id.required' => 'Enter your Student ID.',
             'student_id.digits' => 'The Student ID must be exactly 11 digits.',
+            'student_id.unique' => 'An account already uses this Student ID. Log in instead.',
             'section.max' => 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',
             'email.required' => 'Enter your STI school email.',
             'email.email' => 'Enter a valid email address.',
@@ -75,6 +76,7 @@ class CreateNewUser implements CreatesNewUsers
         ]);
 
         $student->forceFill([
+            'student_id' => (string) $validated['student_id'],
             'section' => filled($validated['section'] ?? null) ? trim((string) $validated['section']) : null,
             // The school email's format is checked above; there is no mail to verify it with yet.
             'email_verified_at' => now(),

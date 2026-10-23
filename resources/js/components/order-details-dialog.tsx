@@ -96,6 +96,8 @@ export default function OrderDetailsDialog({
                                         <span className="font-bold text-slate-700">
                                             {order.student_name}
                                         </span>
+                                        {order.student_id &&
+                                            ` · ID ${order.student_id}`}
                                         {order.student_section &&
                                             ` · ${order.student_section}`}
                                         {' · '}

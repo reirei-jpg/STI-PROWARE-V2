@@ -159,6 +159,8 @@ export type OrderRow = {
     status: OrderStatus;
     status_label: string;
     student_name: string;
+    /** The student's 11-digit Student ID (null for older accounts). */
+    student_id: string | null;
     total_centavos: number;
     items: {
         id: number;
@@ -204,6 +206,7 @@ export type IssuanceSlipData = {
     /** The day the order was placed, "2026-10-09". */
     date: string | null;
     student_name: string;
+    student_id: string | null;
     section: string | null;
     items: {
         quantity: number;

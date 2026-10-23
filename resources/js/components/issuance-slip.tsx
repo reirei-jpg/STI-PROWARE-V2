@@ -70,6 +70,9 @@ export default function IssuanceSlip({
                         {slip.student_name}
                     </SlipField>
                     <SlipField label="Section">{slip.section ?? ''}</SlipField>
+                    <SlipField label="Student ID">
+                        {slip.student_id ?? ''}
+                    </SlipField>
                 </dl>
 
                 {slip.qr_svg && (

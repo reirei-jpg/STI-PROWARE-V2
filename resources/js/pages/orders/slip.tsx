@@ -212,6 +212,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                         <span className="font-bold text-slate-700">
                             {order.number}
                         </span>
+                        {order.student_id && ` · ID ${order.student_id}`}
                         {order.student_section && ` · ${order.student_section}`}
                     </p>
                 </div>

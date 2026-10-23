@@ -14,7 +14,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-09 10:00', 'Asia/Manila'));
-    $this->student = User::factory()->student()->create(['name' => 'Juan Dela Cruz']);
+    $this->student = User::factory()->student()->create(['name' => 'Juan Dela Cruz', 'student_id' => '02000123456']);
     $this->specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
 });
 
@@ -50,6 +50,7 @@ test('the student sees their order\'s issuance slip with its QR, as on the paper
         ->where('slip.number', 'PW-0042')
         ->where('slip.date', '2026-10-09')
         ->where('slip.student_name', 'Juan Dela Cruz')
+        ->where('slip.student_id', '02000123456')
         ->where('slip.section', 'BSIT 1-A')
         ->where('slip.items', [['quantity' => 2, 'item' => 'STI Hoodie (M)', 'unit_price_centavos' => 45000, 'amount_centavos' => 90000]])
         ->where('slip.total_centavos', 90000)
@@ -107,6 +108,7 @@ test('the Specialist finds the order by scanning its slip or typing its number, 
         ->component('orders/slip')
         ->where('result.order.id', $order->id)
         ->where('result.order.student_section', 'BSIT 1-A')
+        ->where('result.order.student_id', '02000123456')
         ->where('result.slip.number', 'PW-0042')
     );
     $this->get(route('orders.slip', ['code' => ' pw-0042 ']))->assertInertia(fn (Assert $page) => $page

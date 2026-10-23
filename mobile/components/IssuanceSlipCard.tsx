@@ -63,6 +63,7 @@ export default function IssuanceSlipCard({
                 <SlipField label="Date">{formatDate(slip.date)}</SlipField>
                 <SlipField label="Student Name">{slip.student_name}</SlipField>
                 <SlipField label="Section">{slip.section ?? ''}</SlipField>
+                <SlipField label="Student ID">{slip.student_id ?? ''}</SlipField>
             </View>
 
             <View style={{ borderColor: BLUE }} className="mt-4 border">

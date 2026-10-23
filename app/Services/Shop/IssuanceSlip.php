@@ -27,7 +27,7 @@ final class IssuanceSlip
     public const ADDRESS_LINES = ['Ormoc Centrum Bldg., Barangay South 6541', 'Ormoc City, Leyte Philippines'];
 
     /**
-     * @return array{school: string, address_lines: list<string>, order_id: int, number: string|null, date: string|null, student_name: string, section: string|null, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, pick_up_by: string, released_on: string|null, issued_by: string|null, qr_svg: string|null}
+     * @return array{school: string, address_lines: list<string>, order_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, pick_up_by: string, released_on: string|null, issued_by: string|null, qr_svg: string|null}
      */
     public static function of(Order $order): array
     {
@@ -38,6 +38,7 @@ final class IssuanceSlip
             'number' => $order->number,
             'date' => $order->created_at?->toDateString(),
             'student_name' => $order->student->name,
+            'student_id' => $order->student->student_id,
             'section' => $order->student_section,
             'items' => array_values($order->items->map(fn (OrderItem $item): array => [
                 'quantity' => $item->quantity,

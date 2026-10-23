@@ -162,6 +162,8 @@ export type StudentOrder = {
     status: 'placed' | 'ready' | 'picked_up' | 'cancelled';
     status_label: string;
     student_name: string;
+    /** The student's 11-digit Student ID (null for older accounts). */
+    student_id: string | null;
     student_section: string | null;
     total_centavos: number;
     items: {
@@ -195,6 +197,7 @@ export type IssuanceSlipData = {
     number: string | null;
     date: string | null;
     student_name: string;
+    student_id: string | null;
     section: string | null;
     items: {
         quantity: number;
