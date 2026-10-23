@@ -136,6 +136,78 @@ test('a student can give up held pieces, for the next student', function () {
         ->and($this->variant->refresh()->preorder_held_pieces)->toBe(3);
 });
 
+/**
+ * 5 Hoodies arrive: the first student's 3 are held, the second gets 2 of 4
+ * held and their other 2 keep waiting, the third (2) still waits.
+ *
+ * @return array{0: Preorder, 1: Preorder} the second student's hold and the rest still waiting
+ */
+function secondStudentHalfServed(object $test): array
+{
+    hoodiesArrive($test->variant, 5);
+
+    return [
+        Preorder::query()->where('user_id', $test->second->user_id)->where('status', PreorderStatus::Held)->sole(),
+        Preorder::query()->where('user_id', $test->second->user_id)->where('status', PreorderStatus::Active)->sole(),
+    ];
+}
+
+test('giving up held pieces also closes the rest still waiting, so they go to the next student', function () {
+    [$hold, $rest] = secondStudentHalfServed($this);
+
+    $this->actingAs($this->second->student)
+        ->delete(route('my-preorders.destroy', $hold))
+        ->assertSessionHasNoErrors();
+
+    expect($hold->refresh()->status)->toBe(PreorderStatus::Cancelled)
+        ->and($rest->refresh()->status)->toBe(PreorderStatus::Cancelled)
+        ->and(Preorder::query()->where('user_id', $this->second->user_id)->where('status', PreorderStatus::Held)->exists())->toBeFalse()
+        ->and($this->third->refresh())->status->toBe(PreorderStatus::Held)->quantity->toBe(2)
+        ->and($this->variant->refresh()->preorder_held_pieces)->toBe(5);
+});
+
+test('a hold that ends after 24 hours also closes the rest still waiting, and the student is told', function () {
+    [$hold, $rest] = secondStudentHalfServed($this);
+    $this->first->refresh()->forceFill(['held_until' => now()->addDays(2)])->save();
+    $this->travel(24)->hours();
+    $this->travel(1)->minutes();
+
+    $this->artisan('preorders:end-holds')->assertSuccessful();
+
+    expect($hold->refresh()->status)->toBe(PreorderStatus::HoldEnded)
+        ->and($rest->refresh()->status)->toBe(PreorderStatus::HoldEnded)
+        ->and($this->third->refresh())->status->toBe(PreorderStatus::Held)->quantity->toBe(2);
+    Notification::assertSentTo($this->second->student, PreorderHoldEnded::class, fn (PreorderHoldEnded $notice) => $notice->toArray($this->second->student)['rest_closed'] === 2
+        && $notice->toPush($this->second->student)['body'] === 'The 2 pcs held for you were not ordered within 24 hours, so they went to the next student. The other 2 pcs of this preorder will not be held for you either. Check the store if you still want it.');
+});
+
+test('ordering fewer than were held closes the rest still waiting', function () {
+    [$hold, $rest] = secondStudentHalfServed($this);
+
+    $this->actingAs($this->second->student)
+        ->post(route('my-preorders.order', $hold), ['quantity' => '1'])
+        ->assertSessionHasNoErrors();
+
+    expect($rest->refresh()->status)->toBe(PreorderStatus::Cancelled)
+        ->and($this->third->refresh())->status->toBe(PreorderStatus::Held)->quantity->toBe(1);
+
+    // The first student orders all 3 held: nothing of theirs was waiting, and nothing changes for others.
+    $this->actingAs($this->first->student)
+        ->post(route('my-preorders.order', $this->first), ['quantity' => '3'])
+        ->assertSessionHasNoErrors();
+    expect(Preorder::query()->where('user_id', $this->third->user_id)->where('status', PreorderStatus::Active)->sole()->quantity)->toBe(1);
+});
+
+test('ordering all held pieces after a partial arrival keeps the rest waiting', function () {
+    [$hold, $rest] = secondStudentHalfServed($this);
+
+    $this->actingAs($this->second->student)
+        ->post(route('my-preorders.order', $hold), ['quantity' => '2'])
+        ->assertSessionHasNoErrors();
+
+    expect($rest->refresh()->status)->toBe(PreorderStatus::Active);
+});
+
 test('Order Now refuses more than is held, and other students', function () {
     hoodiesArrive($this->variant, 3);
 

@@ -70,7 +70,11 @@ function describe(data: StudentNotificationData): {
         case 'preorder_hold_ended':
             return {
                 title: `Your hold has ended: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
-                body: `The ${formatUnits(data.held, 'Piece')} held for you were not ordered within 24 hours, so they went to the next student.`,
+                body:
+                    `The ${formatUnits(data.held, 'Piece')} held for you were not ordered within 24 hours, so they went to the next student.` +
+                    ((data.rest_closed ?? 0) > 0
+                        ? ` The other ${formatUnits(data.rest_closed ?? 0, 'Piece')} of this preorder will not be held for you either.`
+                        : ''),
                 titleClass: 'text-slate-700',
                 stripe: '#94a3b8',
             };

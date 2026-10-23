@@ -10,6 +10,7 @@ use App\Models\Preorder;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
+use App\Services\Preorders\PreorderHolds;
 use App\Services\Shop\OrderRules;
 use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
@@ -24,7 +25,8 @@ use Illuminate\Validation\ValidationException;
  * Order (pieces held for the order, issuance slip, the Specialist is told).
  * Its early-bird pieces are charged the early-bird price (or today's price
  * if that is lower). Held pieces the student did not order go to the next
- * student waiting at once.
+ * student waiting at once, and the rest of their preorder for that size
+ * (still waiting) closes.
  */
 class OrderHeldPreorder
 {
@@ -105,6 +107,12 @@ class OrderHeldPreorder
                 'preorder_held_pieces' => max(0, $variant->preorder_held_pieces - $preorder->quantity),
             ])->save();
             $preorder->forceFill(['status' => PreorderStatus::Ordered, 'order_id' => $order->id])->save();
+
+            // Ordering fewer than were held: the student does not want the
+            // rest, so it is not held for them again either.
+            if ($quantity < $preorder->quantity) {
+                PreorderHolds::closeWaitingRest($preorder, PreorderStatus::Cancelled);
+            }
 
             $this->restockedPreorders->check($variant);
             $this->lowStockAlerts->check($variant);

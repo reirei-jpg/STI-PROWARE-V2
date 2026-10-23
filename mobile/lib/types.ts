@@ -281,6 +281,8 @@ export type StudentNotificationData =
           product_name: string;
           variant_label: string | null;
           held: number;
+          /** The rest of the preorder that closed with it (older notices: none). */
+          rest_closed?: number;
       }
     | {
           kind: 'preorder_arrival_changed';

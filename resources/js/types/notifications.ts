@@ -113,6 +113,8 @@ export type PreorderHoldEndedData = {
     product_name: string;
     variant_label: string | null;
     held: number;
+    /** The rest of the preorder that closed with it (older notices: none). */
+    rest_closed?: number;
 };
 
 /** A student preordered a sold-out size (for the Specialist). */

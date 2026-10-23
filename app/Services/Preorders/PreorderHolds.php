@@ -62,13 +62,12 @@ final class PreorderHolds
             $variant = ProductVariant::query()->with('product')->lockForUpdate()->findOrFail($preorder->product_variant_id);
             $variant->forceFill(['preorder_held_pieces' => max(0, $variant->preorder_held_pieces - $preorder->quantity)])->save();
 
-            $preorder->forceFill($status === PreorderStatus::Cancelled
-                ? ['status' => $status, 'cancelled_at' => now()]
-                : ['status' => $status, 'hold_ended_at' => now()])->save();
+            $preorder->forceFill(self::closed($status))->save();
+            $restClosed = self::closeWaitingRest($preorder, $status);
 
             if ($status === PreorderStatus::HoldEnded) {
                 $preorder->setRelations(['product' => $variant->product, 'variant' => $variant]);
-                DB::afterCommit(fn () => $preorder->student->notify(new PreorderHoldEnded($preorder)));
+                DB::afterCommit(fn () => $preorder->student->notify(new PreorderHoldEnded($preorder, $restClosed)));
             }
 
             $this->restockedPreorders->check($variant);
@@ -76,5 +75,44 @@ final class PreorderHolds
 
             return true;
         });
+    }
+
+    /**
+     * When a student gives up held pieces, lets their 24 hours pass, or
+     * orders fewer than were held, the rest of their preorder for that size
+     * (still waiting after a partial arrival) closes with it, so the freed
+     * pieces go to the next student, not back to them. Its early-bird pieces
+     * move to the next preorders in line.
+     *
+     * @return int the waiting pieces closed
+     */
+    public static function closeWaitingRest(Preorder $preorder, PreorderStatus $status): int
+    {
+        $waiting = Preorder::query()
+            ->where('user_id', $preorder->user_id)
+            ->where('product_variant_id', $preorder->product_variant_id)
+            ->where('status', PreorderStatus::Active)
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($waiting as $rest) {
+            $rest->forceFill(self::closed($status))->save();
+        }
+
+        if ($waiting->isNotEmpty()) {
+            EarlyBird::reallocate($preorder->product()->firstOrFail());
+        }
+
+        return (int) $waiting->sum('quantity');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function closed(PreorderStatus $status): array
+    {
+        return $status === PreorderStatus::Cancelled
+            ? ['status' => $status, 'cancelled_at' => now()]
+            : ['status' => $status, 'hold_ended_at' => now()];
     }
 }
