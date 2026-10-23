@@ -75,57 +75,80 @@ test('opening a delivery notice opens that purchase order', function () {
         ->assertRedirect(route('purchase-orders.index', ['view' => $order->id]));
 });
 
-test('the school admin dashboard traces uploads, deliveries and short closes', function () {
-    $awaiting = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01', 'created_at' => now()->subDays(3)]);
-    $partial = orderWith(['PRHD01-01' => 20], ['order_number' => '30802', 'created_at' => now()->subDays(2)]);
-    $short = orderWith(['PRJK01-01' => 10], ['order_number' => '30722', 'created_at' => now()->subDays(5)]);
+test('the school admin dashboard shows the orders in Coming, Ongoing and Completed, with the date and time of each step', function () {
+    $coming = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01', 'created_at' => '2026-09-02 08:15']);
+    $ongoing = orderWith(['PRHD01-01' => 20], ['order_number' => '30802', 'date_ordered' => '2026-10-05']);
+    $complete = orderWith(['PRCP01-01' => 10], ['order_number' => '30803', 'date_ordered' => '2026-10-06']);
+    $short = orderWith(['PRJK01-01' => 10], ['order_number' => '30722', 'date_ordered' => '2026-10-01']);
 
     $this->actingAs($this->specialist);
     $this->travelTo(CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila'));
     $this->post(route('deliveries.store'), [
         'received_on' => '2026-10-08',
-        'sales_invoice_number' => '1210000031492',
-        'items' => [['purchase_order_item_id' => itemOf($partial, 'PRHD01-01'), 'quantity_received' => 12]],
+        'items' => [
+            ['purchase_order_item_id' => itemOf($ongoing, 'PRHD01-01'), 'quantity_received' => 12],
+            ['purchase_order_item_id' => itemOf($complete, 'PRCP01-01'), 'quantity_received' => 10],
+        ],
     ])->assertSessionHasNoErrors();
     $this->travelTo(CarbonImmutable::parse('2026-10-08 09:30', 'Asia/Manila'));
     $this->post(route('purchase-orders.close', $short), ['reason' => 'Head Office is out of stock.']);
 
-    $this->actingAs($this->schoolAdmin)
-        ->get(route('dashboard'))
+    $this->actingAs($this->schoolAdmin);
+    $this->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('tasks', null)
-            ->where('overview.cards', [
-                'awaiting' => 1,
-                'partially_received' => 1,
-                'partially_percent' => 60,
-                'completed' => 1,
-                'completed_short' => 1,
-                'deliveries_this_week' => 1,
-                'recorded_by' => ['Carlo Mendoza'],
-            ])
-            ->where('overview.purchase_order_activity.0.kind', 'closed_short')
-            ->where('overview.purchase_order_activity.0.title', 'Completed (some missing) · Order #30722')
-            ->where('overview.purchase_order_activity.0.by', 'Carlo Mendoza')
-            ->where('overview.purchase_order_activity.1.kind', 'upload')
-            ->has('overview.purchase_order_activity', 4)
-            ->has('overview.delivery_activity', 1)
-            ->where('overview.delivery_activity.0.title', 'Delivery recorded · Order #30802')
-            ->where('overview.delivery_activity.0.detail', 'received Oct 8, 2026 · SI # 1210000031492 · Item PRHD01-01 12 of 20')
-            ->where('overview.delivery_activity.0.purchase_order_id', $partial->id)
-            ->where('overview.follow_up', [
-                'days' => 30,
-                'count' => 1,
-                'orders' => [[
-                    'purchase_order_id' => $awaiting->id,
-                    'order_number' => '30801',
-                    'date_ordered' => '2026-09-01',
-                    'days_since_ordered' => 37,
-                    'percent_received' => 0,
-                ]],
-            ])
+            ->where('overview.deliveries.tab', 'ongoing')
+            ->where('overview.deliveries.late_days', 30)
+            ->where('overview.deliveries.counts', ['coming' => 1, 'ongoing' => 1, 'completed' => 2, 'coming_late' => 1, 'ongoing_late' => 0])
+            ->has('overview.deliveries.orders.data', 1)
+            ->where('overview.deliveries.orders.data.0.order_number', '30802')
+            ->where('overview.deliveries.orders.data.0.status', 'partially_received')
+            ->where('overview.deliveries.orders.data.0.percent_received', 60)
+            ->where('overview.deliveries.orders.data.0.last_delivery_at', CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila')->toIso8601String())
+            ->where('overview.deliveries.orders.data.0.completed_at', null)
+            ->where('overview.deliveries.orders.data.0.is_late', false)
+        );
+
+    $this->get(route('dashboard', ['tab' => 'coming']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('overview.deliveries.orders.data.0.order_number', '30801')
+            ->where('overview.deliveries.orders.data.0.days_since_ordered', 37)
+            ->where('overview.deliveries.orders.data.0.uploaded_at', CarbonImmutable::parse('2026-09-02 08:15', 'Asia/Manila')->toIso8601String())
+            ->where('overview.deliveries.orders.data.0.last_delivery_at', null)
+            ->where('overview.deliveries.orders.data.0.is_late', true)
+        );
+
+    // The most recently completed first: the short close (9:30) before the full delivery (9:00).
+    $this->get(route('dashboard', ['tab' => 'completed']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('overview.deliveries.orders.data.0.order_number', '30722')
+            ->where('overview.deliveries.orders.data.0.status_label', 'Completed (some missing)')
+            ->where('overview.deliveries.orders.data.0.completed_at', CarbonImmutable::parse('2026-10-08 09:30', 'Asia/Manila')->toIso8601String())
+            ->where('overview.deliveries.orders.data.1.order_number', '30803')
+            ->where('overview.deliveries.orders.data.1.completed_at', CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila')->toIso8601String())
+            ->where('overview.deliveries.orders.data.1.completed_after_days', 2)
         );
 
     expect($short->refresh()->delivery_status)->toBe(DeliveryStatus::CompletedShort);
+});
+
+test('the school admin dashboard shows 5 orders a page', function () {
+    foreach (range(1, 6) as $number) {
+        orderWith(['PRUM01-01' => 20], ['order_number' => "3080{$number}", 'date_ordered' => "2026-10-0{$number}"]);
+    }
+
+    $this->actingAs($this->schoolAdmin);
+    $this->get(route('dashboard', ['tab' => 'coming']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('overview.deliveries.orders.data', 5)
+            ->where('overview.deliveries.orders.data.0.order_number', '30801')
+            ->where('overview.deliveries.orders.last_page', 2)
+        );
+    $this->get(route('dashboard', ['tab' => 'coming', 'page' => 2]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('overview.deliveries.orders.data', 1)
+            ->where('overview.deliveries.orders.data.0.order_number', '30806')
+        );
 });
 
 test('the school admin sees every delivery, but cannot record one', function () {

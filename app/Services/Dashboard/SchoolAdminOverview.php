@@ -2,171 +2,128 @@
 
 namespace App\Services\Dashboard;
 
+use App\Enums\AdminDeliveryTab;
 use App\Enums\DeliveryStatus;
-use App\Models\Delivery;
-use App\Models\DeliveryItem;
 use App\Models\PurchaseOrder;
 use App\Services\Deliveries\FollowUp;
 use Carbon\CarbonInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
- * What the School Admin monitors (view only): the purchase orders the
- * Specialist uploaded and the deliveries that arrived. Every upload,
- * delivery and short close shows who did it and when, so it can be traced.
+ * What the School Admin monitors (view only): every eStore order the
+ * Specialist uploaded, in three tabs by what has arrived (Coming, Ongoing,
+ * Completed), with the dates and times of each step. 5 orders a page.
  */
 final class SchoolAdminOverview
 {
-    public const ACTIVITY_SHOWN = 10;
+    public const PER_PAGE = 5;
+
+    /** When an order's last delivery was recorded. */
+    private const LAST_DELIVERY_SQL = '(select max(deliveries.created_at) from deliveries'
+        .' join delivery_items on delivery_items.delivery_id = deliveries.id'
+        .' join purchase_order_items on purchase_order_items.id = delivery_items.purchase_order_item_id'
+        .' where purchase_order_items.purchase_order_id = purchase_orders.id)';
 
     /**
-     * Two tabs: purchase orders (uploads and short closes) and deliveries.
-     *
-     * @return array{cards: array<string, mixed>, purchase_order_activity: list<array<string, mixed>>, delivery_activity: list<array<string, mixed>>, follow_up: array{days: int, count: int, orders: list<array<string, mixed>>}}
+     * @return array{deliveries: array{tab: string, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}}
      */
-    public function all(): array
+    public function all(AdminDeliveryTab $tab): array
     {
-        $activity = collect($this->activity());
-
         return [
-            'cards' => $this->cards(),
-            'purchase_order_activity' => array_values($activity->whereIn('kind', ['upload', 'closed_short'])->values()->all()),
-            'delivery_activity' => array_values($activity->where('kind', 'delivery')->values()->all()),
-            'follow_up' => ['days' => FollowUp::days(), 'count' => FollowUp::dueOrders()->count(), 'orders' => $this->followUp()],
+            'deliveries' => [
+                'tab' => $tab->value,
+                'late_days' => FollowUp::days(),
+                'counts' => $this->counts(),
+                'orders' => $this->orders($tab),
+            ],
         ];
     }
 
     /**
-     * @return array{awaiting: int, partially_received: int, partially_percent: int, completed: int, completed_short: int, deliveries_this_week: int, recorded_by: list<string>}
+     * @return array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}
      */
-    private function cards(): array
+    private function counts(): array
     {
-        $partial = PurchaseOrder::query()->where('delivery_status', DeliveryStatus::PartiallyReceived)->get();
-        $thisWeek = Delivery::query()->with('recorder')->where('received_on', '>=', now()->startOfWeek()->toDateString())->get();
+        $byStatus = PurchaseOrder::query()
+            ->selectRaw('delivery_status, count(*) as total')
+            ->groupBy('delivery_status')
+            ->pluck('total', 'delivery_status');
+        $count = fn (AdminDeliveryTab $tab): int => (int) collect($tab->statuses())->sum(fn (DeliveryStatus $status): int => (int) ($byStatus[$status->value] ?? 0));
+
+        $late = FollowUp::dueOrders()
+            ->selectRaw('delivery_status, count(*) as total')
+            ->groupBy('delivery_status')
+            ->pluck('total', 'delivery_status');
 
         return [
-            'awaiting' => PurchaseOrder::query()->where('delivery_status', DeliveryStatus::Awaiting)->count(),
-            'partially_received' => $partial->count(),
-            'partially_percent' => $partial->isEmpty() ? 0 : (int) round($partial->avg(fn (PurchaseOrder $order): int => $order->percentReceived())),
-            'completed' => PurchaseOrder::query()->whereIn('delivery_status', [DeliveryStatus::Completed, DeliveryStatus::CompletedShort])->count(),
-            'completed_short' => PurchaseOrder::query()->where('delivery_status', DeliveryStatus::CompletedShort)->count(),
-            'deliveries_this_week' => $thisWeek->count(),
-            'recorded_by' => array_values($thisWeek->map(fn (Delivery $delivery): string => $delivery->recorder->name)->unique()->all()),
+            'coming' => $count(AdminDeliveryTab::Coming),
+            'ongoing' => $count(AdminDeliveryTab::Ongoing),
+            'completed' => $count(AdminDeliveryTab::Completed),
+            'coming_late' => (int) ($late[DeliveryStatus::Awaiting->value] ?? 0),
+            'ongoing_late' => (int) ($late[DeliveryStatus::PartiallyReceived->value] ?? 0),
         ];
     }
 
     /**
-     * The latest uploads, deliveries and short closes, newest first.
+     * Coming and Ongoing: the oldest Date Ordered first, so late orders lead.
+     * Completed: the most recently completed first.
      *
-     * @return list<array<string, mixed>>
+     * @return LengthAwarePaginator<int, array<string, mixed>>
      */
-    private function activity(): array
+    private function orders(AdminDeliveryTab $tab): LengthAwarePaginator
     {
-        $uploads = PurchaseOrder::query()
-            ->with('uploader')
+        $query = PurchaseOrder::query()
+            ->select('purchase_orders.*')
+            ->selectRaw(self::LAST_DELIVERY_SQL.' as last_delivery_at')
+            ->withCasts(['last_delivery_at' => 'datetime'])
             ->withCount('items')
-            ->latest('created_at')
-            ->limit(self::ACTIVITY_SHOWN)
-            ->get()
-            ->map(fn (PurchaseOrder $order): array => self::event(
-                kind: 'upload',
-                at: $order->created_at,
-                by: $order->uploader->name,
-                purchaseOrderId: $order->id,
-                title: 'Purchase order uploaded'.self::number($order->order_number),
-                detail: '₱'.number_format(((int) $order->total_amount_centavos) / 100, 2).' · '.$order->getAttribute('items_count').' '.((int) $order->getAttribute('items_count') === 1 ? 'item' : 'items').' · dated '.$order->date_ordered->format('M j, Y'),
-            ));
+            ->whereIn('delivery_status', $tab->statuses());
 
-        $deliveries = Delivery::query()
-            ->with(['recorder', 'items.purchaseOrderItem.purchaseOrder'])
-            ->latest('created_at')
-            ->limit(self::ACTIVITY_SHOWN)
-            ->get()
-            ->map(function (Delivery $delivery): array {
-                $orders = $delivery->items->map(fn (DeliveryItem $item): PurchaseOrder => $item->purchaseOrderItem->purchaseOrder)->unique('id')->values();
-                $lines = $delivery->items->map(fn (DeliveryItem $item): string => $item->purchaseOrderItem->description.' '.number_format($item->quantity_received).' of '.number_format($item->purchaseOrderItem->quantity_ordered));
-                $shown = $lines->take(3)->implode(', ').($lines->count() > 3 ? ' and '.($lines->count() - 3).' more' : '');
-                $numbers = $orders->pluck('order_number')->filter()->map(fn (string $number): string => "#{$number}")->implode(', ');
+        if ($tab === AdminDeliveryTab::Completed) {
+            $query->orderByRaw('coalesce(purchase_orders.closed_at, '.self::LAST_DELIVERY_SQL.') desc');
+        } else {
+            $query->orderBy('date_ordered');
+        }
 
-                return self::event(
-                    kind: 'delivery',
-                    at: $delivery->created_at,
-                    by: $delivery->recorder->name,
-                    purchaseOrderId: $orders->first()?->id,
-                    title: 'Delivery recorded'.($numbers !== '' ? " · Order {$numbers}" : ''),
-                    detail: implode(' · ', array_filter([
-                        'received '.$delivery->received_on->format('M j, Y'),
-                        $delivery->sales_invoice_number ? "SI # {$delivery->sales_invoice_number}" : null,
-                        $delivery->delivery_receipt_number ? "DR # {$delivery->delivery_receipt_number}" : null,
-                        $shown,
-                    ])),
-                );
-            });
+        $lateDays = FollowUp::days();
 
-        $shortCloses = PurchaseOrder::query()
-            ->with('closer')
-            ->whereNotNull('closed_at')
-            ->latest('closed_at')
-            ->limit(self::ACTIVITY_SHOWN)
-            ->get()
-            ->map(fn (PurchaseOrder $order): array => self::event(
-                kind: 'closed_short',
-                at: $order->closed_at,
-                by: $order->closer?->name,
-                purchaseOrderId: $order->id,
-                title: 'Completed (some missing)'.self::number($order->order_number),
-                detail: '"'.$order->closed_reason.'" · '.$order->percentReceived().'% received',
-            ));
-
-        // Each tab keeps its own newest ten.
-        return array_values($uploads
-            ->concat($shortCloses)
-            ->sortByDesc('at')
-            ->take(self::ACTIVITY_SHOWN)
-            ->concat($deliveries)
-            ->values()
-            ->all());
+        return $query->orderBy('purchase_orders.id')
+            ->paginate(self::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (PurchaseOrder $order): array => self::row($order, $lateDays));
     }
 
     /**
-     * Open purchase orders not complete after the follow-up days, the
-     * oldest first.
-     *
-     * @return list<array{purchase_order_id: int, order_number: string|null, date_ordered: string, days_since_ordered: int, percent_received: int}>
+     * @return array<string, mixed>
      */
-    private function followUp(): array
+    private static function row(PurchaseOrder $order, int $lateDays): array
     {
-        return array_values(FollowUp::dueOrders()
-            ->orderBy('date_ordered')
-            ->orderBy('id')
-            ->limit(self::ACTIVITY_SHOWN)
-            ->get()
-            ->map(fn (PurchaseOrder $order): array => [
-                'purchase_order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'date_ordered' => $order->date_ordered->toDateString(),
-                'days_since_ordered' => FollowUp::daysSinceOrdered($order),
-                'percent_received' => $order->percentReceived(),
-            ])
-            ->all());
-    }
+        /** @var CarbonInterface|null $lastDelivery */
+        $lastDelivery = $order->getAttribute('last_delivery_at');
+        $completedAt = match ($order->delivery_status) {
+            DeliveryStatus::Completed => $lastDelivery,
+            DeliveryStatus::CompletedShort => $order->closed_at,
+            default => null,
+        };
+        $daysSinceOrdered = FollowUp::daysSinceOrdered($order);
 
-    private static function number(?string $orderNumber): string
-    {
-        return $orderNumber === null ? '' : " · Order #{$orderNumber}";
-    }
-
-    /**
-     * @return array{kind: string, at: string|null, by: string|null, purchase_order_id: int|null, title: string, detail: string}
-     */
-    private static function event(string $kind, ?CarbonInterface $at, ?string $by, ?int $purchaseOrderId, string $title, string $detail): array
-    {
         return [
-            'kind' => $kind,
-            'at' => $at?->toIso8601String(),
-            'by' => $by,
-            'purchase_order_id' => $purchaseOrderId,
-            'title' => $title,
-            'detail' => $detail,
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'category' => $order->category,
+            'date_ordered' => $order->date_ordered->toDateString(),
+            'days_since_ordered' => $daysSinceOrdered,
+            'items_count' => (int) $order->getAttribute('items_count'),
+            'uploaded_at' => $order->created_at?->toIso8601String(),
+            'last_delivery_at' => $lastDelivery?->toIso8601String(),
+            'completed_at' => $completedAt?->toIso8601String(),
+            'completed_after_days' => $completedAt === null ? null : (int) $order->date_ordered->copy()->startOfDay()->diffInDays($completedAt->copy()->startOfDay()),
+            'status' => $order->delivery_status->value,
+            'status_label' => $order->delivery_status->label(),
+            'percent_received' => $order->percentReceived(),
+            'quantity_ordered' => $order->quantity_ordered_total,
+            'quantity_received' => $order->quantity_received_total,
+            'is_late' => $order->delivery_status->isOpen() && $daysSinceOrdered >= $lateDays,
         ];
     }
 }

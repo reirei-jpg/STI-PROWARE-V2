@@ -1,87 +1,107 @@
-import { Head, Link } from '@inertiajs/react';
-import {
-    CheckCircle2,
-    CircleAlert,
-    ClipboardList,
-    FileUp,
-    Timer,
-    TriangleAlert,
-    Truck,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { CircleAlert, Eye } from 'lucide-react';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
-import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
-import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PageHeader from '@/components/page-header';
+import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
+import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { dashboard } from '@/routes';
+import type { DeliveryStatus, Paginated } from '@/types';
 
-type ActivityKind = 'upload' | 'delivery' | 'closed_short';
+export type AdminDeliveryTab = 'coming' | 'ongoing' | 'completed';
 
-type ActivityEvent = {
-    kind: ActivityKind;
-    at: string | null;
-    by: string | null;
-    purchase_order_id: number | null;
-    title: string;
-    detail: string;
+/** One eStore order on the School Admin's Deliveries list. */
+export type AdminDeliveryRow = {
+    id: number;
+    order_number: string | null;
+    category: string | null;
+    date_ordered: string;
+    days_since_ordered: number;
+    items_count: number;
+    uploaded_at: string | null;
+    last_delivery_at: string | null;
+    /** When the last pieces arrived, or when it was closed with some missing. */
+    completed_at: string | null;
+    completed_after_days: number | null;
+    status: DeliveryStatus;
+    status_label: string;
+    percent_received: number;
+    quantity_ordered: number;
+    quantity_received: number;
+    /** Not complete after the days set in Maintenance. */
+    is_late: boolean;
 };
 
 export type SchoolAdminOverviewData = {
-    cards: {
-        awaiting: number;
-        partially_received: number;
-        /** Average progress of the partially received orders. */
-        partially_percent: number;
-        completed: number;
-        completed_short: number;
-        deliveries_this_week: number;
-        recorded_by: string[];
-    };
-    /** Uploads and short closes, newest first. */
-    purchase_order_activity: ActivityEvent[];
-    /** Deliveries recorded, newest first. */
-    delivery_activity: ActivityEvent[];
-    /** Purchase orders not complete after the follow-up days, oldest first. */
-    follow_up: {
-        days: number;
-        count: number;
-        orders: {
-            purchase_order_id: number;
-            order_number: string | null;
-            date_ordered: string;
-            days_since_ordered: number;
-            percent_received: number;
-        }[];
+    deliveries: {
+        tab: AdminDeliveryTab;
+        late_days: number;
+        counts: Record<
+            AdminDeliveryTab | 'coming_late' | 'ongoing_late',
+            number
+        >;
+        orders: Paginated<AdminDeliveryRow>;
     };
 };
 
-type Tab = 'purchase_orders' | 'deliveries';
+const tabs: {
+    value: AdminDeliveryTab;
+    label: string;
+    hint: string;
+    selectedClasses: string;
+    countClasses: string;
+}[] = [
+    {
+        value: 'coming',
+        label: 'Coming',
+        hint: 'Uploaded, nothing arrived yet',
+        selectedClasses: 'border-amber-400 bg-amber-50',
+        countClasses: 'bg-amber-100 text-amber-800',
+    },
+    {
+        value: 'ongoing',
+        label: 'Ongoing',
+        hint: 'Some items arrived, the rest still to come',
+        selectedClasses: 'border-[#0D6EFD] bg-blue-50',
+        countClasses: 'bg-blue-100 text-blue-800',
+    },
+    {
+        value: 'completed',
+        label: 'Completed',
+        hint: 'Everything arrived, or closed with some missing',
+        selectedClasses: 'border-emerald-500 bg-emerald-50',
+        countClasses: 'bg-emerald-100 text-emerald-800',
+    },
+];
 
-const activityIcons: Record<ActivityKind, LucideIcon> = {
-    upload: FileUp,
-    delivery: Truck,
-    closed_short: TriangleAlert,
+const statusClasses: Record<DeliveryStatus, string> = {
+    awaiting: 'bg-amber-100 text-amber-800',
+    partially_received: 'bg-blue-100 text-blue-800',
+    completed: 'bg-emerald-100 text-emerald-800',
+    completed_short: 'bg-red-100 text-red-800',
 };
 
-const activityClasses: Record<ActivityKind, string> = {
-    upload: 'bg-blue-50 text-blue-700',
-    delivery: 'bg-emerald-50 text-emerald-700',
-    closed_short: 'bg-amber-50 text-amber-700',
+const barClasses: Record<DeliveryStatus, string> = {
+    awaiting: 'bg-amber-400',
+    partially_received: 'bg-[#0D6EFD]',
+    completed: 'bg-emerald-500',
+    completed_short: 'bg-red-500',
 };
 
-const purchaseOrderUrl = (id: number | null) =>
-    id === null
-        ? PurchaseOrderController.index().url
-        : PurchaseOrderController.index({ query: { view: id } }).url;
+const emptyText: Record<AdminDeliveryTab, string> = {
+    coming: 'No order is waiting for its first delivery. An order shows here as soon as the Specialist uploads it, until its first items arrive.',
+    ongoing:
+        'No order is partly delivered right now. An order shows here once its first items arrive, until the rest arrive.',
+    completed:
+        'No order is complete yet. An order shows here once everything arrived, or when the Specialist closes it with some missing.',
+};
 
 /**
- * The School Admin's dashboard: monitoring the purchase orders the
- * Specialist uploads and the deliveries that arrive (view only), in two
- * tabs. Every line says who did what and when, and opens that purchase
- * order with its Delivery History.
+ * The School Admin's dashboard (view only): every eStore order the
+ * Specialist uploaded, in three tabs by what has arrived, with the date and
+ * time of each step. 5 orders a page; View Details opens the order.
  */
 export default function SchoolAdminOverview({
     firstName,
@@ -90,13 +110,25 @@ export default function SchoolAdminOverview({
     firstName: string;
     overview: SchoolAdminOverviewData;
 }) {
-    const [tab, setTab] = useState<Tab>('purchase_orders');
+    const [viewing, setViewing] = useState<number | null>(null);
+    const { tab, counts, late_days: lateDays, orders } = overview.deliveries;
     const today = new Intl.DateTimeFormat('en-PH', {
         weekday: 'long',
         month: 'short',
         day: 'numeric',
     }).format(new Date());
-    const cards = overview.cards;
+
+    const showTab = (next: AdminDeliveryTab) =>
+        router.get(
+            dashboard().url,
+            { tab: next },
+            {
+                only: ['overview'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
 
     return (
         <>
@@ -105,332 +137,220 @@ export default function SchoolAdminOverview({
             <div className="space-y-7">
                 <PageHeader
                     title={`Welcome, ${firstName}`}
-                    description={`${today} · the purchase orders the Specialist uploaded and what has arrived. View only.`}
+                    description={`${today} · the eStore orders the Specialist uploaded and what has arrived. View only.`}
                 />
 
-                <div
-                    role="tablist"
-                    aria-label="What to monitor"
-                    className="flex flex-wrap gap-2"
+                <Panel
+                    title="Deliveries"
+                    description="Every eStore order the Specialist uploaded, by what has arrived. Open one for its items and Delivery History."
                 >
-                    <TabButton
-                        active={tab === 'purchase_orders'}
-                        onClick={() => setTab('purchase_orders')}
-                        icon={ClipboardList}
-                        count={cards.awaiting + cards.partially_received}
+                    <div
+                        role="tablist"
+                        aria-label="Delivery status"
+                        className="grid gap-3 px-6 pt-5 pb-5 sm:grid-cols-3"
                     >
-                        Purchase Orders
-                    </TabButton>
-                    <TabButton
-                        active={tab === 'deliveries'}
-                        onClick={() => setTab('deliveries')}
-                        icon={Truck}
-                        count={cards.deliveries_this_week}
-                    >
-                        Deliveries
-                    </TabButton>
-                </div>
+                        {tabs.map((option) => {
+                            const selected = option.value === tab;
+                            const late =
+                                option.value === 'completed'
+                                    ? 0
+                                    : counts[`${option.value}_late`];
 
-                {tab === 'purchase_orders' ? (
-                    <div className="space-y-7">
-                        <section className="grid gap-5 md:grid-cols-3">
-                            <OverviewCard
-                                href={PurchaseOrderController.index().url}
-                                icon={ClipboardList}
-                                label="Awaiting delivery"
-                                value={cards.awaiting}
-                            >
-                                purchase{' '}
-                                {cards.awaiting === 1 ? 'order' : 'orders'} with
-                                nothing received yet
-                            </OverviewCard>
-                            <OverviewCard
-                                href={PurchaseOrderController.index().url}
-                                icon={Timer}
-                                label="Partially received"
-                                value={cards.partially_received}
-                            >
-                                {cards.partially_received === 0
-                                    ? 'none in progress'
-                                    : `${cards.partially_percent}% received on average`}
-                            </OverviewCard>
-                            <OverviewCard
-                                href={PurchaseOrderController.index().url}
-                                icon={CheckCircle2}
-                                label="Completed"
-                                value={cards.completed}
-                            >
-                                {cards.completed_short === 0
-                                    ? 'all fully delivered'
-                                    : `incl. ${cards.completed_short} with some missing`}
-                            </OverviewCard>
-                        </section>
-
-                        <ActivityPanel
-                            title="Recent purchase orders"
-                            description="Uploaded by the Specialist, and orders where the rest won't arrive, newest first. Open one to see its items and Delivery History."
-                            empty="No purchase order uploaded yet."
-                            events={overview.purchase_order_activity}
-                            seeAllLabel="All purchase orders"
-                            seeAllHref={PurchaseOrderController.index().url}
-                            seeAllIcon={ClipboardList}
-                        />
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={selected}
+                                    onClick={() => showTab(option.value)}
+                                    className={cn(
+                                        'rounded-2xl border-2 px-4 py-3.5 text-left transition',
+                                        selected
+                                            ? option.selectedClasses
+                                            : 'border-slate-200 bg-white hover:border-slate-300',
+                                    )}
+                                >
+                                    <span className="flex items-center justify-between gap-2">
+                                        <span className="font-black text-slate-900">
+                                            {option.label}
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                'min-w-7 rounded-full px-2 py-0.5 text-center text-sm font-black',
+                                                option.countClasses,
+                                            )}
+                                        >
+                                            {counts[
+                                                option.value
+                                            ].toLocaleString('en-PH')}
+                                        </span>
+                                    </span>
+                                    <span className="mt-1 block text-xs font-semibold text-slate-600">
+                                        {option.hint}
+                                        {late > 0 && (
+                                            <span className="font-black text-red-700">
+                                                {' '}
+                                                · {late} late
+                                            </span>
+                                        )}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
-                ) : (
-                    <div className="space-y-7">
-                        <section className="grid gap-5 md:grid-cols-2">
-                            <OverviewCard
-                                href={DeliveryController.index().url}
-                                icon={Truck}
-                                label="Deliveries this week"
-                                value={cards.deliveries_this_week}
-                            >
-                                {cards.recorded_by.length === 0
-                                    ? 'none recorded yet'
-                                    : `recorded by ${cards.recorded_by.join(', ')}`}
-                            </OverviewCard>
-                            <OverviewCard
-                                href={
-                                    DeliveryController.index({
-                                        query: { show: 'follow_up' },
-                                    }).url
-                                }
-                                icon={CircleAlert}
-                                label={`Not complete after ${overview.follow_up.days} days`}
-                                value={overview.follow_up.count}
-                            >
-                                purchase{' '}
-                                {overview.follow_up.count === 1
-                                    ? 'order'
-                                    : 'orders'}{' '}
-                                ordered {overview.follow_up.days} or more days
-                                ago, not fully delivered
-                            </OverviewCard>
-                        </section>
 
-                        <ActivityPanel
-                            title="Recent deliveries"
-                            description="What arrived, for which order, with the SI # and DR #, newest first. Open one to see the purchase order."
-                            empty="No delivery recorded yet."
-                            events={overview.delivery_activity}
-                            seeAllLabel="All deliveries"
-                            seeAllHref={DeliveryController.index().url}
-                            seeAllIcon={Truck}
-                        />
+                    {orders.data.length === 0 ? (
+                        <p className="border-t border-slate-100 px-6 py-12 text-center text-sm text-slate-500">
+                            {emptyText[tab]}
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[820px] text-sm">
+                                <thead className="bg-slate-50 text-left text-[11px] font-black tracking-wider text-slate-500 uppercase">
+                                    <tr>
+                                        <th className="px-6 py-3">Order #</th>
+                                        <th className="px-4 py-3">Dates</th>
+                                        <th className="px-4 py-3">Received</th>
+                                        <th className="px-4 py-3">Status</th>
+                                        <th className="px-6 py-3 text-right">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {orders.data.map((order) => (
+                                        <OrderRow
+                                            key={order.id}
+                                            order={order}
+                                            lateDays={lateDays}
+                                            onView={() => setViewing(order.id)}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
 
-                        <FollowUpPanel followUp={overview.follow_up} />
-                    </div>
-                )}
+                    <Pagination pagination={orders} itemName="orders" />
+                </Panel>
             </div>
+
+            <PurchaseOrderDetailsDialog
+                purchaseOrderId={viewing}
+                onClose={() => setViewing(null)}
+            />
         </>
     );
 }
 
-function TabButton({
-    active,
-    onClick,
-    icon: Icon,
-    count,
-    children,
+function OrderRow({
+    order,
+    lateDays,
+    onView,
 }: {
-    active: boolean;
-    onClick: () => void;
-    icon: LucideIcon;
-    count: number;
-    children: ReactNode;
+    order: AdminDeliveryRow;
+    lateDays: number;
+    onView: () => void;
 }) {
     return (
-        <button
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={onClick}
-            className={cn(
-                'inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-black transition',
-                active
-                    ? 'border-[#0D6EFD] bg-[#0D6EFD] text-white shadow-sm'
-                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-            )}
-        >
-            <Icon size={17} />
-            {children}
-            <span
-                className={cn(
-                    'rounded-full px-2 py-0.5 text-xs font-black',
-                    active ? 'bg-white/25' : 'bg-slate-100 text-slate-600',
+        <tr className={cn('align-top', order.is_late && 'bg-red-50/40')}>
+            <td className="px-6 py-4">
+                <p className="font-mono font-black text-[#0D6EFD]">
+                    {order.order_number
+                        ? `#${order.order_number}`
+                        : 'No Order #'}
+                </p>
+                {order.category && (
+                    <span className="mt-1.5 inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-blue-700">
+                        {order.category}
+                    </span>
                 )}
-            >
-                {count.toLocaleString('en-PH')}
-            </span>
-        </button>
-    );
-}
-
-function ActivityPanel({
-    title,
-    description,
-    empty,
-    events,
-    seeAllLabel,
-    seeAllHref,
-    seeAllIcon: SeeAllIcon,
-}: {
-    title: string;
-    description: string;
-    empty: string;
-    events: ActivityEvent[];
-    seeAllLabel: string;
-    seeAllHref: string;
-    seeAllIcon: LucideIcon;
-}) {
-    return (
-        <Panel
-            title={title}
-            description={description}
-            actions={
-                <Link
-                    href={seeAllHref}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+            </td>
+            <td className="px-4 py-4">
+                <p>
+                    <span className="text-slate-500">Ordered</span>{' '}
+                    <strong>{formatDateOrdered(order.date_ordered)}</strong>{' '}
+                    <span className="text-xs text-slate-500">
+                        · {daysAgo(order.days_since_ordered)}
+                    </span>
+                </p>
+                <p className="mt-1">
+                    <span className="text-slate-500">{stepLabel(order)}</span>{' '}
+                    <strong>{formatDateTime(stepAt(order))}</strong>
+                </p>
+                {order.completed_after_days !== null && (
+                    <p className="mt-1 text-xs text-slate-500">
+                        {order.completed_after_days === 0
+                            ? 'Arrived the same day it was ordered'
+                            : `Took ${order.completed_after_days} ${order.completed_after_days === 1 ? 'day' : 'days'} from the Date Ordered`}
+                    </p>
+                )}
+            </td>
+            <td className="min-w-48 px-4 py-4">
+                <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                        className={cn(
+                            'h-full rounded-full',
+                            barClasses[order.status],
+                        )}
+                        style={{ width: `${order.percent_received}%` }}
+                    />
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500">
+                    {order.percent_received}% ·{' '}
+                    {order.quantity_received.toLocaleString('en-PH')} of{' '}
+                    {order.quantity_ordered.toLocaleString('en-PH')} pcs
+                </p>
+            </td>
+            <td className="px-4 py-4">
+                <span
+                    className={cn(
+                        'inline-flex rounded-full px-3 py-1 text-xs font-black whitespace-nowrap',
+                        statusClasses[order.status],
+                    )}
                 >
-                    <SeeAllIcon size={15} />
-                    {seeAllLabel}
-                </Link>
-            }
-        >
-            {events.length === 0 ? (
-                <p className="px-6 py-10 text-center text-sm text-slate-500">
-                    {empty}
-                </p>
-            ) : (
-                <ul className="divide-y divide-slate-100">
-                    {events.map((event, index) => {
-                        const Icon = activityIcons[event.kind];
-
-                        return (
-                            <li key={`${event.kind}-${index}`}>
-                                <Link
-                                    href={purchaseOrderUrl(
-                                        event.purchase_order_id,
-                                    )}
-                                    className="flex items-start gap-3 px-6 py-4 transition hover:bg-slate-50"
-                                >
-                                    <span
-                                        className={cn(
-                                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                                            activityClasses[event.kind],
-                                        )}
-                                    >
-                                        <Icon size={19} />
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block font-black text-slate-900">
-                                            {event.title}
-                                        </span>
-                                        <span className="mt-0.5 block text-sm text-slate-600">
-                                            {event.detail}
-                                        </span>
-                                        <span className="mt-1 block text-xs text-slate-400">
-                                            {formatDateTime(event.at)}
-                                            {event.by && ` · by ${event.by}`}
-                                        </span>
-                                    </span>
-                                </Link>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-        </Panel>
+                    {order.status_label}
+                </span>
+                {order.is_late && (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs font-black text-red-700">
+                        <CircleAlert size={14} />
+                        Late · not complete after {lateDays} days
+                    </p>
+                )}
+            </td>
+            <td className="px-6 py-4 text-right">
+                <button
+                    type="button"
+                    onClick={onView}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                >
+                    <Eye size={16} />
+                    View Details
+                </button>
+            </td>
+        </tr>
     );
 }
 
-/**
- * Purchase orders not complete after the follow-up days: Head Office gives
- * no delivery date, so these are the ones taking long.
- */
-function FollowUpPanel({
-    followUp,
-}: {
-    followUp: SchoolAdminOverviewData['follow_up'];
-}) {
-    return (
-        <Panel
-            title={`Not complete after ${followUp.days} days`}
-            description="Purchase orders ordered long ago that have not fully arrived, the oldest first."
-        >
-            {followUp.orders.length === 0 ? (
-                <p className="px-6 py-10 text-center text-sm text-slate-500">
-                    Every purchase order ordered {followUp.days} or more days
-                    ago has arrived.
-                </p>
-            ) : (
-                <ul className="divide-y divide-slate-100">
-                    {followUp.orders.map((order) => (
-                        <li key={order.purchase_order_id}>
-                            <Link
-                                href={purchaseOrderUrl(order.purchase_order_id)}
-                                className="flex items-center justify-between gap-3 px-6 py-4 text-sm transition hover:bg-slate-50"
-                            >
-                                <span className="flex flex-wrap items-center gap-3">
-                                    <CircleAlert
-                                        size={18}
-                                        className="text-red-600"
-                                    />
-                                    <span className="font-black text-slate-900">
-                                        {order.order_number
-                                            ? `Order #${order.order_number}`
-                                            : 'Purchase order'}
-                                    </span>
-                                    <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-black text-red-700">
-                                        Ordered{' '}
-                                        {formatDateOrdered(order.date_ordered)}{' '}
-                                        · {order.days_since_ordered} days ago
-                                    </span>
-                                </span>
-                                <span className="font-bold text-slate-600">
-                                    {order.percent_received}% received
-                                </span>
-                            </Link>
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </Panel>
-    );
+/** The second date line: when it was uploaded, last delivered, or completed. */
+function stepLabel(order: AdminDeliveryRow): string {
+    if (order.completed_at !== null) {
+        return order.status === 'completed_short'
+            ? 'Completed (some missing)'
+            : 'Completed';
+    }
+
+    return order.last_delivery_at !== null ? 'Last delivery' : 'Uploaded';
 }
 
-function OverviewCard({
-    href,
-    icon: Icon,
-    label,
-    value,
-    children,
-}: {
-    href: string;
-    icon: LucideIcon;
-    label: string;
-    value: number;
-    children: ReactNode;
-}) {
-    return (
-        <Link
-            href={href}
-            className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md"
-        >
-            <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-600">{label}</p>
-                    <p className="mt-2 text-3xl font-black text-slate-950">
-                        {value.toLocaleString('en-PH')}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                        {children}
-                    </p>
-                </div>
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <Icon size={20} />
-                </div>
-            </div>
-        </Link>
-    );
+function stepAt(order: AdminDeliveryRow): string | null {
+    return order.completed_at ?? order.last_delivery_at ?? order.uploaded_at;
+}
+
+function daysAgo(days: number): string {
+    if (days === 0) {
+        return 'today';
+    }
+
+    return days === 1 ? '1 day ago' : `${days} days ago`;
 }
