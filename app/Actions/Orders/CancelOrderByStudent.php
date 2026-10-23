@@ -32,6 +32,20 @@ class CancelOrderByStudent
         return match ($order->status) {
             OrderStatus::Placed => null,
             OrderStatus::Ready => "Order {$order->number} has already been prepared, so it can no longer be cancelled here. Contact the PROWARE office.",
+            default => self::closedRefusal($order),
+        };
+    }
+
+    /**
+     * Why an order that is already closed cannot be cancelled: "Order PW-0042
+     * is already cancelled." or "… has already been released, so it can no
+     * longer be cancelled." (students and the Specialist).
+     */
+    public static function closedRefusal(Order $order): string
+    {
+        return match ($order->status) {
+            OrderStatus::Cancelled => "Order {$order->number} is already cancelled.",
+            OrderStatus::PickedUp => "Order {$order->number} has already been released, so it can no longer be cancelled.",
             default => "Order {$order->number} cannot be cancelled because its status is {$order->status->label()}.",
         };
     }

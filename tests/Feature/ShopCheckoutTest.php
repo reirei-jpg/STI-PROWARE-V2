@@ -418,7 +418,7 @@ test('an order cannot be released twice', function () {
     $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
 
     $this->post(route('orders.release', $order), ['paid' => true])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 cannot be released because its status is Released.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has already been released.');
 
     expect($variant->refresh()->stock_on_hand)->toBe(28)
         ->and(StockMovement::query()->where('type', StockMovementType::Sale)->count())->toBe(1);
@@ -451,7 +451,7 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
     $released = placedOrder($variant, 1);
     $this->actingAs($this->specialist)->post(route('orders.release', $released), ['paid' => true]);
     $this->post(route('orders.cancel', $released), ['reason' => 'student_asked'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0002 cannot be cancelled because its status is Released.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0002 has already been released, so it can no longer be cancelled.');
 });
 
 test('orders not released within the hold expire, and their items are free to sell again', function () {

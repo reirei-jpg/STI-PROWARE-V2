@@ -60,7 +60,7 @@ class AuthenticationTest extends TestCase
         $this->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'wrong-password',
-        ])->assertSessionHasErrors(['email' => 'These credentials do not match our records. Please try again.']);
+        ])->assertSessionHasErrors(['email' => 'These credentials do not match our records. Check the email and password.']);
 
         $this->assertGuest();
     }
@@ -103,7 +103,7 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('login'));
         $response->assertSessionHasErrors('email');
         $this->assertMatchesRegularExpression(
-            '/^Too many login attempts\. Please try again in \d+ seconds\.$/',
+            '/^Too many login attempts\. Try again in \d+ seconds\.$/',
             session('errors')->first('email'),
         );
         $this->assertGuest();

@@ -559,7 +559,12 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
                     <CalendarClock size={15} className="shrink-0" />
                     <div>
                         <p className="text-[10px] font-black tracking-wide uppercase opacity-70">
-                            Preorders close
+                            {preorder.preorders_close_on <
+                            new Date().toLocaleDateString('en-CA', {
+                                timeZone: 'Asia/Manila',
+                            })
+                                ? 'Preorders closed'
+                                : 'Preorders close'}
                         </p>
                         <p className="text-xs font-black">
                             {formatDateOrdered(preorder.preorders_close_on)}

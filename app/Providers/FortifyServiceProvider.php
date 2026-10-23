@@ -20,7 +20,7 @@ use Laravel\Fortify\Http\Requests\LoginRequest as FortifyLoginRequest;
 class FortifyServiceProvider extends ServiceProvider
 {
     /** A wrong email or password, on the website and the phone app. */
-    public const FAILED_LOGIN = 'These credentials do not match our records. Please try again.';
+    public const FAILED_LOGIN = 'These credentials do not match our records. Check the email and password.';
 
     /**
      * Register any application services.
@@ -94,7 +94,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($throttleKey)->response(
                 fn (Request $request, array $headers) => back()
-                    ->withErrors([Fortify::username() => 'Too many login attempts. Please try again in '.max(1, (int) ($headers['Retry-After'] ?? 60)).' seconds.'])
+                    ->withErrors([Fortify::username() => 'Too many login attempts. Try again in '.max(1, (int) ($headers['Retry-After'] ?? 60)).' seconds.'])
                     ->onlyInput(Fortify::username()),
             );
         });

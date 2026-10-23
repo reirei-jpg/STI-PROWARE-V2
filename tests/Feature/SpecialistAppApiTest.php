@@ -123,13 +123,13 @@ test('the app refuses a step that no longer fits the order, in words', function 
 
     $this->postJson(route('api.v1.specialist.orders.ready', $order))
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} cannot be marked as ready for pickup because its status is Released."]);
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released."]);
     $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} cannot be released because its status is Released."]);
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released."]);
     $this->postJson(route('api.v1.specialist.orders.undo-release', $order))
         ->assertJsonValidationErrors(['order' => "The release of Order {$order->number} can only be undone on the day it was released."]);
     $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'student_asked'])
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} cannot be cancelled because its status is Released."]);
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released, so it can no longer be cancelled."]);
 
     expect($order->refresh()->status)->toBe(OrderStatus::PickedUp);
 });

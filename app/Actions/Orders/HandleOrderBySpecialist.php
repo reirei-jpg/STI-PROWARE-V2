@@ -34,7 +34,7 @@ class HandleOrderBySpecialist
     {
         $this->refuseUnless($order->status === OrderStatus::Placed, $order->status === OrderStatus::Ready
             ? "Order {$order->number} is already ready for pickup."
-            : "Order {$order->number} cannot be marked as ready for pickup because its status is {$order->status->label()}.");
+            : self::notOpen($order, 'marked as ready for pickup'));
 
         $order->forceFill(['status' => OrderStatus::Ready, 'ready_at' => now(), 'handled_by' => $specialist->id])->save();
         $order->student->notify(new OrderReady($order));
@@ -118,7 +118,7 @@ class HandleOrderBySpecialist
      */
     public function cancel(Order $order, User $specialist, string $reason): string
     {
-        $this->refuseUnless($order->status->isOpen(), "Order {$order->number} cannot be cancelled because its status is {$order->status->label()}.");
+        $this->refuseUnless($order->status->isOpen(), CancelOrderByStudent::closedRefusal($order));
 
         $this->cancelOrder->handle($order, $specialist, trim($reason));
 
@@ -131,11 +131,16 @@ class HandleOrderBySpecialist
     }
 
     /**
-     * "Order PW-0042 cannot be released because its status is Released."
+     * "Order PW-0042 has already been released." or "Order PW-0042 is
+     * cancelled, so it cannot be released."
      */
     private static function notOpen(Order $order, string $step): string
     {
-        return "Order {$order->number} cannot be {$step} because its status is {$order->status->label()}.";
+        return match ($order->status) {
+            OrderStatus::PickedUp => "Order {$order->number} has already been released.",
+            OrderStatus::Cancelled => "Order {$order->number} is cancelled, so it cannot be {$step}.",
+            default => "Order {$order->number} cannot be {$step} because its status is {$order->status->label()}.",
+        };
     }
 
     private function record(ProductVariant $variant, StockMovementType $type, int $pieces, int $balance, OrderItem $item, User $specialist): void
