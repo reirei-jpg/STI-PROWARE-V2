@@ -71,7 +71,7 @@ export default function OrdersScreen() {
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
                     {show === 'orders'
-                        ? 'Show the issuance slip at the PROWARE office by the pick-up date, and pay there.'
+                        ? 'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office by the pick-up date.'
                         : 'Reserved items. Nothing to pay now.'}
                 </Text>
             </View>

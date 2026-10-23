@@ -45,7 +45,7 @@ class OrderLastDay extends Notification implements PushesToPhones
     {
         return [
             'title' => "Last day to get order {$this->order->number}",
-            'body' => 'Show its issuance slip at the PROWARE office today. After today it expires and the items go back on sale.',
+            'body' => 'Pay at the cashier and show the receipt and the issuance slip at the PROWARE office today. After today it expires and the items go back on sale.',
             'data' => ['kind' => 'order_last_day', 'order_id' => $this->order->id],
         ];
     }

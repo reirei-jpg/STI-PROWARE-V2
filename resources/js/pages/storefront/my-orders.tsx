@@ -91,9 +91,9 @@ export default function MyOrders({
                         My Orders
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                        Track your orders. Show the issuance slip at the PROWARE
-                        office by the pick-up date, pay there, and get your
-                        items.
+                        Track your orders. Pay at the cashier, then show the
+                        receipt and the issuance slip at the PROWARE office by
+                        the pick-up date to get your items.
                     </p>
                 </div>
 
@@ -101,7 +101,7 @@ export default function MyOrders({
                     <SummaryCard
                         title="Placed"
                         value={statusCounts.placed}
-                        description="Set aside for you, waiting for you to pay"
+                        description="Set aside for you, waiting for you to pay at the cashier"
                         icon={Clock3}
                         tone="amber"
                         href={tabHref('waiting')}
@@ -376,12 +376,12 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
         case 'placed':
             return {
                 label: 'Placed',
-                description: `Your items are set aside for you. Show the issuance slip and pay at the PROWARE office by ${pickUpBy}.`,
+                description: `Your items are set aside for you. Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office by ${pickUpBy}.`,
             };
         case 'ready':
             return {
                 label: 'Ready for Pickup',
-                description: `PROWARE prepared your items. Show the issuance slip and pay at the office by ${pickUpBy}.`,
+                description: `PROWARE prepared your items. Pay at the cashier, then show the receipt and the issuance slip at the office by ${pickUpBy}.`,
             };
         case 'picked_up':
             return {
@@ -497,7 +497,9 @@ function OrderCard({ order }: { order: MyOrder }) {
             {open && <PickUpBy date={order.pick_up_by} />}
 
             <div className="mt-5 flex items-end justify-between gap-4 border-t border-slate-100 pt-5">
-                <p className="text-xs text-slate-400">Total to pay</p>
+                <p className="text-xs text-slate-400">
+                    Total to pay at the cashier
+                </p>
                 <p className="text-xl font-black text-slate-900">
                     {formatPeso(order.total_centavos)}
                 </p>

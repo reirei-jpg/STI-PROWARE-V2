@@ -150,7 +150,7 @@ test('placing an order holds the stock, keeps today\'s prices, notes the section
 
     $placed = $this->actingAs($this->student)
         ->post(route('my-orders.store'), ['section' => ' BSIT 1-A '])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been placed. Show its issuance slip at the PROWARE office by Oct 5, 2026 to pay and collect your items.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office by Oct 5, 2026 to collect your items.');
 
     $order = Order::sole();
     $placed->assertRedirect(route('my-orders.slip', $order));
@@ -361,11 +361,11 @@ test('the specialist marks an order ready, then releases it once paid, and the i
     expect($this->student->notifications()->count())->toBe(1);
 
     $this->post(route('orders.release', $order))
-        ->assertSessionHasErrors(['paid' => 'Confirm that the student has paid before releasing the items.']);
+        ->assertSessionHasErrors(['paid' => "Check the student's cashier receipt and tick the box before releasing the items."]);
     expect($order->refresh()->status)->toBe(OrderStatus::Ready);
 
     $this->post(route('orders.release', $order), ['paid' => true])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been released to Juan Dela Cruz. Payment received: ₱30.00.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been released to Juan Dela Cruz. Paid at the cashier: ₱30.00.');
     expect($order->refresh())
         ->status->toBe(OrderStatus::PickedUp)
         ->handled_by->toBe($this->specialist->id)

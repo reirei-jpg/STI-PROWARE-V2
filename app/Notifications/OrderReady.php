@@ -44,7 +44,7 @@ class OrderReady extends Notification implements PushesToPhones
     {
         return [
             'title' => "Order {$this->order->number} is ready for pickup",
-            'body' => 'Show its issuance slip at the PROWARE office and pay ₱'.number_format($this->order->total_centavos / 100, 2)." by {$this->order->pick_up_by->format('M j, Y')}.",
+            'body' => 'Pay ₱'.number_format($this->order->total_centavos / 100, 2)." at the cashier, then show the receipt and the issuance slip at the PROWARE office by {$this->order->pick_up_by->format('M j, Y')}.",
             'data' => ['kind' => 'order_ready', 'order_id' => $this->order->id],
         ];
     }

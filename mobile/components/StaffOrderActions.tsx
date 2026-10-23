@@ -55,7 +55,7 @@ export function ActionButton({
 
 /**
  * Release, like the website's order popup: one green box where the
- * Specialist ticks "The student has paid" and only then releases the items
+ * Specialist ticks "I checked the cashier's receipt" and only then releases the items
  * (they leave the shelf only now). The tick clears after each release.
  */
 export function ReleaseBox({
@@ -88,7 +88,7 @@ export function ReleaseBox({
                     {paid && <Check size={16} color="#ffffff" strokeWidth={3} />}
                 </View>
                 <Text className="flex-1 font-sans-bold text-sm text-slate-800">
-                    The student has paid {formatPeso(order.total_centavos)}.
+                    I checked the cashier&apos;s receipt for {formatPeso(order.total_centavos)}.
                 </Text>
             </Pressable>
             <ActionButton
@@ -102,7 +102,7 @@ export function ReleaseBox({
             </ActionButton>
             {!paid && (
                 <Text className="font-sans-semibold text-xs text-emerald-900/70">
-                    Tick the box above once the student has paid.
+                    Tick the box above after checking the student&apos;s cashier receipt.
                 </Text>
             )}
         </View>
@@ -155,7 +155,7 @@ export function ReadySheet({
             }
         >
             <Text className="font-sans text-sm leading-5 text-slate-700">
-                {order.student_name} will be notified to collect and pay for the order. This cannot be undone.
+                {order.student_name} will be notified to pay at the cashier and collect the order. This cannot be undone.
             </Text>
         </BottomSheet>
     );

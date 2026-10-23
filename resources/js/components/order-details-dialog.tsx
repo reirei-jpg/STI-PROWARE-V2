@@ -188,7 +188,7 @@ export default function OrderDetailsDialog({
                                             }
                                             className="mt-0.5 size-5 accent-emerald-600"
                                         />
-                                        The student has paid{' '}
+                                        I checked the cashier&apos;s receipt for{' '}
                                         {formatPeso(order.total_centavos)}.
                                     </label>
                                     <button
@@ -216,8 +216,8 @@ export default function OrderDetailsDialog({
                                     </button>
                                     {!paid && (
                                         <p className="text-xs font-semibold text-emerald-900/70">
-                                            Tick the box above once the student
-                                            has paid.
+                                            Tick the box above after checking
+                                            the student&apos;s cashier receipt.
                                         </p>
                                     )}
                                 </section>
@@ -318,7 +318,7 @@ export function ConfirmReadyDialog({
         <ConfirmDialog
             open={order !== null}
             title={`Mark Order ${order?.number ?? ''} as ready for pickup?`}
-            description={`${order?.student_name ?? 'The student'} will be notified to collect and pay for the order. This cannot be undone.`}
+            description={`${order?.student_name ?? 'The student'} will be notified to pay at the cashier and collect the order. This cannot be undone.`}
             cancelLabel="Not yet"
             confirmLabel="Mark as ready"
             busy={busy}

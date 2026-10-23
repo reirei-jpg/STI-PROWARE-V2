@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
 /**
  * An order as the student's My Orders and the Specialist's Orders page show
  * it: number, status, dates, each item with its unit and price when ordered,
- * and the total to pay in cash. Expects the items and student to be loaded.
+ * and the total to pay at the cashier. Expects the items and student to be loaded.
  */
 final class OrderRow
 {

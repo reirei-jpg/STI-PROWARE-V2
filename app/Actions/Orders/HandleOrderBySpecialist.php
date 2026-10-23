@@ -74,7 +74,7 @@ class HandleOrderBySpecialist
             $order->forceFill(['status' => OrderStatus::PickedUp, 'picked_up_at' => now(), 'handled_by' => $specialist->id])->save();
         });
 
-        return "Order {$order->number} has been released to {$order->student->name}. Payment received: ₱".number_format($order->total_centavos / 100, 2).'.';
+        return "Order {$order->number} has been released to {$order->student->name}. Paid at the cashier: ₱".number_format($order->total_centavos / 100, 2).'.';
     }
 
     /**

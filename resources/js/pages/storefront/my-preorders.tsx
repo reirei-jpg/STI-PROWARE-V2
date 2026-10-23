@@ -489,8 +489,9 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
     if (preorder.status === 'ordered') {
         return (
             <p className="mt-1 text-xs leading-5 font-medium">
-                You ordered it in order {preorder.order_number}. Show its
-                issuance slip at the PROWARE office to pay and collect it.
+                You ordered it in order {preorder.order_number}. Pay at the
+                cashier, then show the receipt and its issuance slip at the
+                PROWARE office to collect it.
             </p>
         );
     }

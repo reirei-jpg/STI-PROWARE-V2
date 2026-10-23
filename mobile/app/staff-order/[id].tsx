@@ -214,7 +214,7 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
         order.status === 'placed'
             ? 'New order: prepare it, then mark it Ready for pickup. The student is notified.'
             : order.status === 'ready'
-              ? `Waiting for ${order.student_name} to show the issuance slip and pay ${formatPeso(order.total_centavos)}.`
+              ? `Waiting for ${order.student_name} to pay ${formatPeso(order.total_centavos)} at the cashier and show the receipt and the issuance slip.`
               : order.status === 'picked_up'
                 ? `Released ${formatDateTime(order.picked_up_at)}.`
                 : order.expired

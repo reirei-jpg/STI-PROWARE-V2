@@ -188,8 +188,8 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.student_name} · {data.items_count}{' '}
                     {data.items_count === 1 ? 'item' : 'items'} ·{' '}
-                    {formatPeso(data.total_centavos)} to pay. Prepare it, then
-                    mark it Ready for pickup.
+                    {formatPeso(data.total_centavos)} to pay at the cashier.
+                    Prepare it, then mark it Ready for pickup.
                 </span>
             </>
         );
@@ -202,8 +202,8 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Order {data.order_number} is ready for pickup
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    Show its issuance slip at the PROWARE office and pay{' '}
-                    {formatPeso(data.total_centavos)}
+                    Pay {formatPeso(data.total_centavos)} at the cashier, then
+                    show the receipt and the issuance slip at the PROWARE office
                     {data.pick_up_by
                         ? ` by ${formatDateOrdered(data.pick_up_by)}`
                         : ''}
@@ -220,9 +220,9 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Last day to get order {data.order_number}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    Show its issuance slip at the PROWARE office today and pay{' '}
-                    {formatPeso(data.total_centavos)}. After today it expires
-                    and the items go back on sale.
+                    Pay {formatPeso(data.total_centavos)} at the cashier and
+                    show the receipt and the issuance slip at the PROWARE office
+                    today. After today it expires and the items go back on sale.
                 </span>
             </>
         );

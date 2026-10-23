@@ -95,7 +95,7 @@ function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
         <SettingRow
             icon={<Clock size={19} className="text-amber-600" />}
             title="Days an order holds its items"
-            explanation="When a student places an order, its items are set aside so no one else can buy them. The student must show the issuance slip and pay within this many days; otherwise the order expires and the items go back on sale."
+            explanation="When a student places an order, its items are set aside so no one else can buy them. The student must pay at the cashier and show the receipt and the issuance slip within this many days; otherwise the order expires and the items go back on sale."
             example="Example with 2 days: an order placed on Monday must be picked up by the end of Wednesday. Changing this affects new orders only; orders already placed keep their pick-up date."
             setting={setting}
             choices={choices}

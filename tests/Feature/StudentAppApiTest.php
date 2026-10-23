@@ -152,7 +152,7 @@ test('placing (with the section), seeing and cancelling an order on the app', fu
 
     $order = $this->postJson(route('api.v1.orders.store'), ['section' => 'BSHM 2-B'])
         ->assertCreated()
-        ->assertJsonPath('message', 'Order PW-0001 has been placed. Show its issuance slip at the PROWARE office by Oct 6, 2026 to pay and collect your items.')
+        ->assertJsonPath('message', 'Order PW-0001 has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office by Oct 6, 2026 to collect your items.')
         ->assertJsonPath('order.student_section', 'BSHM 2-B')
         ->assertJsonPath('order.can_cancel', true)
         ->json('order');

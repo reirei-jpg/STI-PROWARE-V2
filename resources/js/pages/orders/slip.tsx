@@ -257,9 +257,13 @@ function ReleaseCard({ result }: { result: SlipResult }) {
 
             {isOpen && (
                 <ol className="space-y-3">
-                    <ReleaseStep number={1} title="Collect the payment">
+                    <ReleaseStep number={1} title="Check the cashier's receipt">
                         <p className="text-3xl font-black tracking-tight text-emerald-700">
                             {formatPeso(order.total_centavos)}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-500">
+                            The student pays this at the cashier and shows you
+                            the official receipt.
                         </p>
                     </ReleaseStep>
                     <ReleaseStep number={2} title="Confirm it">
@@ -272,7 +276,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                                 }
                                 className="mt-0.5 size-5 accent-emerald-600"
                             />
-                            The student has paid{' '}
+                            I checked the cashier&apos;s receipt for{' '}
                             {formatPeso(order.total_centavos)}.
                         </label>
                     </ReleaseStep>

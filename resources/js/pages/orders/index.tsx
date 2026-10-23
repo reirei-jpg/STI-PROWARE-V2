@@ -34,7 +34,7 @@ const chips: { value: Show; label: string }[] = [
 
 const descriptions: Record<Show, string> = {
     placed: 'Orders to prepare. The nearest pick-up date first.',
-    ready: 'Waiting for the student to show the slip and pay. The nearest pick-up date first.',
+    ready: 'Waiting for the student to pay at the cashier and show the receipt and slip. The nearest pick-up date first.',
     picked_up: 'Paid and handed over. Newest first.',
     cancelled: 'Their items are free to sell again. Newest first.',
     all: 'Every order, newest first.',
@@ -118,7 +118,7 @@ export default function OrdersIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Student Orders"
-                    description="Orders students placed on the storefront. Scan the student's issuance slip to release the items once paid, or open any order below. Orders not released by their pick-up date expire, and their items are free to sell again."
+                    description="Orders students placed on the storefront. Scan the student's issuance slip and check the cashier's receipt to release the items, or open any order below. Orders not released by their pick-up date expire, and their items are free to sell again."
                 />
 
                 <SlipScanBox />

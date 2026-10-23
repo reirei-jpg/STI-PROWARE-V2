@@ -6,8 +6,8 @@ import { formatDate } from '@/lib/format';
 
 /**
  * What happens after Place Order, as three numbered steps (cart and the
- * "Order placed" screen): place it, show the issuance slip at the PROWARE
- * office by the pick-up date, pay there and get the items.
+ * "Order placed" screen): place it, pay at the cashier, then show the
+ * receipt and the issuance slip at the PROWARE office by the pick-up date.
  */
 export default function OrderSteps({ pickUpBy, placed = false }: { pickUpBy: string; placed?: boolean }) {
     return (
@@ -15,14 +15,14 @@ export default function OrderSteps({ pickUpBy, placed = false }: { pickUpBy: str
             <Step number={1} done={placed}>
                 {placed ? 'Order placed' : 'Place your order'}
             </Step>
-            <Step number={2}>Show your issuance slip at the PROWARE office by</Step>
+            <Step number={2}>Pay at the cashier and keep the official receipt</Step>
+            <Step number={3}>Show the receipt and your issuance slip at the PROWARE office by</Step>
             <View className="-mt-2 ml-10 flex-row">
                 <View className="flex-row items-center gap-1 rounded-lg bg-blue-50 px-2 py-1">
                     <CalendarDays size={14} color="#1d4ed8" />
                     <Text className="font-sans-bold text-sm text-blue-700">{formatDate(pickUpBy)}</Text>
                 </View>
             </View>
-            <Step number={3}>Pay there and get your items</Step>
             <Text className="ml-10 font-sans text-xs text-slate-500">
                 Not picked up by then? The order is cancelled.
             </Text>

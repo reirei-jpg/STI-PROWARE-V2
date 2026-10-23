@@ -45,9 +45,9 @@ function selectLines(ids: number[], selected: boolean): void {
 
 /**
  * The student's cart at today's prices, and Place Order for the ticked
- * items (the rest stay in the cart for later). They show the issuance slip
- * and pay at the PROWARE office; the
- * items are held for them until the pick-up date.
+ * items (the rest stay in the cart for later). They pay at the cashier, then
+ * show the receipt and the issuance slip at the PROWARE office; the items are
+ * held for them until the pick-up date.
  */
 export default function Cart({
     lines,
@@ -156,15 +156,17 @@ export default function Cart({
                                 <ol className="space-y-3">
                                     <Step number={1}>Place your order</Step>
                                     <Step number={2}>
-                                        Show your issuance slip at the PROWARE
-                                        office by{' '}
+                                        Pay at the cashier and keep the official
+                                        receipt
+                                    </Step>
+                                    <Step number={3}>
+                                        Show the receipt and your issuance slip
+                                        at the PROWARE office by{' '}
                                         <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 font-black text-blue-700">
                                             <CalendarDays size={14} />
                                             {formatDateOrdered(pickUpBy)}
-                                        </span>
-                                    </Step>
-                                    <Step number={3}>
-                                        Pay there and get your items
+                                        </span>{' '}
+                                        to get your items
                                     </Step>
                                 </ol>
                                 <p className="-mt-2 pl-10 text-xs text-slate-500">

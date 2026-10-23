@@ -3,8 +3,8 @@
 namespace App\Enums;
 
 /**
- * Where a student's order is. Students pay in cash at the PROWARE office
- * when they pick it up.
+ * Where a student's order is. Students pay at the cashier and show the
+ * receipt at the PROWARE office when they pick it up.
  */
 enum OrderStatus: string
 {

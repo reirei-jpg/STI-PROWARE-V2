@@ -101,11 +101,11 @@ test('the Specialist prepares, releases once paid, and can undo a release the sa
     $variant = $order->items()->sole()->variant;
 
     $this->postJson(route('api.v1.specialist.orders.release', $order))
-        ->assertJsonValidationErrors(['paid' => 'Confirm that the student has paid before releasing the items.']);
+        ->assertJsonValidationErrors(['paid' => "Check the student's cashier receipt and tick the box before releasing the items."]);
 
     $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
         ->assertOk()
-        ->assertJsonPath('message', "Order {$order->number} has been released to Juan Dela Cruz. Payment received: ₱700.00.")
+        ->assertJsonPath('message', "Order {$order->number} has been released to Juan Dela Cruz. Paid at the cashier: ₱700.00.")
         ->assertJsonPath('order.status_label', 'Released')
         ->assertJsonPath('order.can_undo_release', true);
     expect($variant->refresh())->stock_on_hand->toBe(9)->held_pieces->toBe(0);

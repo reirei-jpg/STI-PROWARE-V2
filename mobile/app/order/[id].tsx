@@ -208,11 +208,12 @@ function NextStep({ order }: { order: StudentOrder }) {
                     {ready
                         ? 'Ready at the PROWARE office. '
                         : 'The PROWARE office is preparing it. '}
-                    Show its issuance slip there by{' '}
+                    Pay <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> at the
+                    cashier, then show the receipt and the issuance slip there by{' '}
                     <Text className={dateTierClasses[tier]}>
                         {tier === 'today' ? 'today' : formatDate(order.pick_up_by)}
-                    </Text>{' '}
-                    and pay <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text>.
+                    </Text>
+                    .
                 </Text>
             </View>
         );

@@ -229,7 +229,7 @@ test('an order that is ready is pushed through Firebase with the bell\'s words',
         'token' => 'fcm-token-1',
         'notification' => [
             'title' => "Order {$order->number} is ready for pickup",
-            'body' => 'Show its issuance slip at the PROWARE office and pay ₱1,050.00 by Oct 6, 2026.',
+            'body' => 'Pay ₱1,050.00 at the cashier, then show the receipt and the issuance slip at the PROWARE office by Oct 6, 2026.',
         ],
         'android' => ['priority' => 'HIGH', 'notification' => ['channel_id' => 'orders']],
         'data' => ['kind' => 'order_ready', 'order_id' => (string) $order->id],
@@ -304,7 +304,7 @@ test('the Specialist\'s notices are pushed with the bell\'s words', function (Cl
             return new OrderPlaced($order);
         },
         'New order PW-0007',
-        'Juan Dela Cruz · 1 item · ₱700.00 to pay. Prepare it, then mark it Ready for pickup.',
+        'Juan Dela Cruz · 1 item · ₱700.00 to pay at the cashier. Prepare it, then mark it Ready for pickup.',
         'order_placed',
     ],
     'low stock' => [

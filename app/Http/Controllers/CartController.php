@@ -18,7 +18,8 @@ use Inertia\Response;
 
 /**
  * A student's cart: what they chose, at today's prices, and Place Order.
- * They pay in cash at the PROWARE office when they pick the order up. The
+ * They pay at the cashier and show the receipt at the PROWARE office when
+ * they pick the order up. The
  * phone app shows the same cart (see Api\V1\CartController).
  */
 class CartController extends Controller

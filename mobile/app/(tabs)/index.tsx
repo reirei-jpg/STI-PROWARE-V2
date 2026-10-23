@@ -219,8 +219,8 @@ export default function HomeScreen() {
                     </Pressable>
                 </View>
                 <Text className="mt-1 font-sans text-sm leading-5 text-blue-50">
-                    Official STI merchandise. Pay in cash when you pick it
-                    up at the PROWARE office.
+                    Official STI merchandise. Pay at the cashier, then get
+                    your items at the PROWARE office with your receipt.
                 </Text>
             </View>
 

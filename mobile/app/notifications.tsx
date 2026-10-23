@@ -33,14 +33,14 @@ function describe(data: StudentNotificationData): {
         case 'order_ready':
             return {
                 title: `Order ${data.order_number} is ready for pickup`,
-                body: `Show its issuance slip at the PROWARE office and pay ${formatPeso(data.total_centavos)}${data.pick_up_by ? ` by ${formatDate(data.pick_up_by)}` : ''}.`,
+                body: `Pay ${formatPeso(data.total_centavos)} at the cashier, then show the receipt and the issuance slip at the PROWARE office${data.pick_up_by ? ` by ${formatDate(data.pick_up_by)}` : ''}.`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
         case 'order_last_day':
             return {
                 title: `Last day to get order ${data.order_number}`,
-                body: `Show its issuance slip at the PROWARE office today and pay ${formatPeso(data.total_centavos)}. After today it expires and the items go back on sale.`,
+                body: `Pay ${formatPeso(data.total_centavos)} at the cashier and show the receipt and the issuance slip at the PROWARE office today. After today it expires and the items go back on sale.`,
                 titleClass: 'text-red-700',
                 stripe: '#f87171',
             };
@@ -110,7 +110,7 @@ function describe(data: StudentNotificationData): {
         case 'order_placed':
             return {
                 title: `New order ${data.order_number}`,
-                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay in cash. Prepare it, then mark it Ready for pickup.`,
+                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay at the cashier. Prepare it, then mark it Ready for pickup.`,
                 titleClass: 'text-blue-800',
                 stripe: '#3b82f6',
             };

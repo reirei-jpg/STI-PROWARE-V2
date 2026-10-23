@@ -95,19 +95,19 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
         case 'placed':
             return (
                 <Notice tone="amber" icon={<Clock size={20} color="#b45309" />}>
-                    The PROWARE office is preparing your order. Show this slip there by{' '}
-                    <Text className="font-sans-bold">{formatDate(slip.pick_up_by)}</Text>, pay{' '}
-                    <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text>, and get
-                    your items.
+                    The PROWARE office is preparing your order. Pay{' '}
+                    <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at the cashier,
+                    then show the receipt and this slip at the PROWARE office by{' '}
+                    <Text className="font-sans-bold">{formatDate(slip.pick_up_by)}</Text> to get your items.
                 </Notice>
             );
         case 'ready':
             return (
                 <Notice tone="green" icon={<PackageCheck size={20} color="#047857" />}>
-                    Your order is ready. Show this slip at the PROWARE office by{' '}
-                    <Text className="font-sans-bold">{formatDate(slip.pick_up_by)}</Text>, pay{' '}
-                    <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text>, and get
-                    your items.
+                    Your order is ready. Pay{' '}
+                    <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at the cashier,
+                    then show the receipt and this slip at the PROWARE office by{' '}
+                    <Text className="font-sans-bold">{formatDate(slip.pick_up_by)}</Text> to get your items.
                 </Notice>
             );
         case 'picked_up':

@@ -214,19 +214,22 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
         case 'placed':
             return (
                 <Notice tone="amber" icon={<Clock size={20} />}>
-                    The PROWARE office is preparing your order. Show this slip
-                    there by{' '}
-                    <strong>{formatDateOrdered(slip.pick_up_by)}</strong>, pay{' '}
-                    <strong>{formatPeso(slip.total_centavos)}</strong>, and get
-                    your items. You can show it on your phone or print it.
+                    The PROWARE office is preparing your order. Pay{' '}
+                    <strong>{formatPeso(slip.total_centavos)}</strong> at the
+                    cashier, then show the receipt and this slip at the PROWARE
+                    office by{' '}
+                    <strong>{formatDateOrdered(slip.pick_up_by)}</strong> to get
+                    your items. You can show the slip on your phone or print it.
                 </Notice>
             );
         case 'ready':
             return (
                 <Notice tone="green" icon={<PackageCheck size={20} />}>
-                    Your order is ready. Show this slip at the PROWARE office by{' '}
-                    <strong>{formatDateOrdered(slip.pick_up_by)}</strong>, pay{' '}
-                    <strong>{formatPeso(slip.total_centavos)}</strong>, and get
+                    Your order is ready. Pay{' '}
+                    <strong>{formatPeso(slip.total_centavos)}</strong> at the
+                    cashier, then show the receipt and this slip at the PROWARE
+                    office by{' '}
+                    <strong>{formatDateOrdered(slip.pick_up_by)}</strong> to get
                     your items.
                 </Notice>
             );

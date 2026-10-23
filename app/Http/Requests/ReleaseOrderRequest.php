@@ -6,8 +6,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Releasing an order (website and phone app): the Specialist must confirm
- * the student has paid before the items leave the shelf.
+ * Releasing an order (website and phone app): the student paid at the
+ * cashier, and the Specialist must confirm she checked the cashier's
+ * receipt before the items leave the shelf.
  */
 class ReleaseOrderRequest extends FormRequest
 {
@@ -27,7 +28,7 @@ class ReleaseOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'paid.accepted' => 'Confirm that the student has paid before releasing the items.',
+            'paid.accepted' => "Check the student's cashier receipt and tick the box before releasing the items.",
         ];
     }
 }
