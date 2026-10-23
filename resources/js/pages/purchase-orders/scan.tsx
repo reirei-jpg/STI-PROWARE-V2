@@ -81,7 +81,7 @@ export default function ScanPurchaseOrder({
                         <div
                             role="tablist"
                             aria-label="How to add the order"
-                            className="flex rounded-xl bg-slate-100 p-1"
+                            className="flex shrink-0 rounded-xl bg-slate-100 p-1"
                         >
                             {(
                                 [
@@ -95,7 +95,7 @@ export default function ScanPurchaseOrder({
                                     role="tab"
                                     aria-selected={inputMode === value}
                                     onClick={() => setInputMode(value)}
-                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${
+                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-black whitespace-nowrap transition ${
                                         inputMode === value
                                             ? 'bg-white text-blue-700 shadow-sm'
                                             : 'text-slate-600 hover:text-slate-900'

@@ -462,7 +462,10 @@ function PreorderTableRow({
                             <ImageIcon size={18} />
                         )}
                     </div>
-                    <p className="max-w-52 truncate font-black text-slate-900">
+                    <p
+                        className="max-w-36 truncate font-black text-slate-900"
+                        title={product.name}
+                    >
                         {product.name}
                     </p>
                 </div>
@@ -470,7 +473,7 @@ function PreorderTableRow({
             <td className="px-5 py-4">
                 <PreorderStageBadge stage={product.stage} />
             </td>
-            <td className="px-5 py-4 whitespace-nowrap">
+            <td className="min-w-36 px-5 py-4">
                 <PreorderWhen product={product} today={today} />
             </td>
             <td className="px-5 py-4">
@@ -479,7 +482,7 @@ function PreorderTableRow({
                 ) : oneSize ? (
                     <span className="text-slate-600">One size</span>
                 ) : (
-                    <div className="flex max-w-64 flex-wrap gap-1.5">
+                    <div className="flex max-w-48 flex-wrap gap-1.5">
                         {withPreorders.map((variant) => (
                             <span
                                 key={variant.id}

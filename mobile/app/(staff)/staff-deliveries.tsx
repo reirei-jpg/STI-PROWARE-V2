@@ -150,14 +150,12 @@ function DeliveryRow({ delivery }: { delivery: RecordedDelivery }) {
             }}
             className="gap-1 rounded-2xl border border-slate-200 bg-white px-4 py-3"
         >
-            <View className="flex-row items-center justify-between gap-2">
-                <Text className="font-sans-bold text-base text-slate-900">
-                    Received {formatDate(delivery.received_on)}
-                </Text>
-                {numbers.length > 0 && (
-                    <Text className="font-sans-semibold text-xs text-slate-500">{numbers.join(' · ')}</Text>
-                )}
-            </View>
+            <Text className="font-sans-bold text-base text-slate-900">
+                Received {formatDate(delivery.received_on)}
+            </Text>
+            {numbers.length > 0 && (
+                <Text className="font-sans-semibold text-xs text-slate-500">{numbers.join(' · ')}</Text>
+            )}
             {delivery.order_numbers.length > 0 && (
                 <Text className="font-sans text-sm text-slate-700">
                     Order #{delivery.order_numbers.join(', #')}
