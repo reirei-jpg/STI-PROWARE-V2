@@ -75,6 +75,29 @@ test('after a delivery brings the stock back up, the next drop warns again', fun
     expect($this->specialist->notifications()->get()->pluck('data.stock_on_hand')->sort()->values()->all())->toBe([2, 4]);
 });
 
+test('orders taking and freeing the last pieces warn only once, until more pieces come in', function () {
+    $variant = stockedVariant(6);
+    $alerts = app(LowStockAlerts::class);
+    $holdFor = function (int $pieces) use ($variant, $alerts): void {
+        $variant->refresh()->forceFill(['held_pieces' => $pieces])->save();
+        $alerts->check($variant);
+    };
+
+    // Orders placed, cancelled and placed again: the free pieces go 3, 6, 3, 6, 3.
+    foreach ([3, 0, 3, 0, 3] as $held) {
+        $holdFor($held);
+    }
+
+    expect($this->specialist->notifications()->count())->toBe(1);
+
+    // A delivery adds pieces: the next drop warns again.
+    $variant->refresh()->forceFill(['stock_on_hand' => 16])->save();
+    $holdFor(0);
+    $holdFor(12);
+
+    expect($this->specialist->notifications()->count())->toBe(2);
+});
+
 test('a product warned at 0 is only warned when it runs out', function () {
     $variant = stockedVariant(3, ['low_stock_alert_at' => 0]);
     $this->actingAs($this->specialist);
