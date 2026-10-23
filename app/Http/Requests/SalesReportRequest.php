@@ -16,7 +16,7 @@ class SalesReportRequest extends FormRequest
 {
     public const PERIODS = ['today', 'week', 'month', 'custom'];
 
-    public const TABS = ['spent', 'sold', 'free'];
+    public const TABS = ['spent', 'sold', 'best', 'free'];
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

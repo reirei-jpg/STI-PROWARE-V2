@@ -1,6 +1,6 @@
 export type SalesPeriod = 'today' | 'week' | 'month' | 'custom';
 
-export type SalesTab = 'spent' | 'sold' | 'free';
+export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
 
 /** The numbers at the top for the period. */
 export type SalesSummary = {
@@ -64,6 +64,21 @@ export type SoldRow = {
 };
 
 /** One free uniform given (promo). */
+/** One product among the best sellers of the period. */
+export type BestSellerRow = {
+    rank: number;
+    product_id: number;
+    product_name: string;
+    /** All sizes, colors and packs together, in pieces. */
+    pieces: number;
+    price_total_centavos: number;
+    /** Null while none of its sales has a Cost. */
+    profit_centavos: number | null;
+    /** The size or color that sold the most (null: one size). */
+    top_variant_label: string | null;
+    top_variant_pieces: number;
+};
+
 export type FreeRow = {
     id: number;
     given_at: string | null;

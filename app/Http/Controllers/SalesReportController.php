@@ -15,8 +15,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The Specialist's Sales Reports for a period: what was spent on eStore
- * orders, what was sold (Cost, Price, Profit), what was sold below cost,
- * and what free uniforms (promo) were worth; setting the Cost of items
+ * orders, what was sold (Cost, Price, Profit), the best sellers, what was
+ * sold below cost, and what free uniforms (promo) were worth; setting the Cost of items
  * that have none; and a CSV of the items sold.
  */
 class SalesReportController extends Controller
@@ -30,6 +30,7 @@ class SalesReportController extends Controller
             'summary' => SalesReport::summary($from, $to),
             'spent' => $tab === 'spent' ? SalesReport::spent($from, $to) : null,
             'sold' => $tab === 'sold' ? SalesReport::sold($from, $to, $request->search()) : null,
+            'best' => $tab === 'best' ? SalesReport::bestSellers($from, $to) : null,
             'free' => $tab === 'free' ? SalesReport::free($from, $to) : null,
             'filters' => [
                 'tab' => $tab,

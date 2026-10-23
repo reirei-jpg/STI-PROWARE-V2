@@ -128,6 +128,65 @@ final class SalesReport
     }
 
     /**
+     * Best sellers: the products that sold the most pieces in the period
+     * (all sizes, colors and prices together), most pieces first, with what
+     * they sold for, the Profit of the part with a Cost, and the size or
+     * color that sold the most.
+     *
+     * @return LengthAwarePaginator<int, array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, profit_centavos: int|null, top_variant_label: string|null, top_variant_pieces: int}>
+     */
+    public static function bestSellers(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
+    {
+        $pieces = 'order_items.quantity * order_items.pieces_per_unit';
+
+        $page = self::soldLines($from, $to)
+            ->groupBy('order_items.product_id')
+            ->select('order_items.product_id')
+            ->selectRaw('max(order_items.product_name) as product_name')
+            ->selectRaw("sum({$pieces}) as pieces")
+            ->selectRaw('sum(order_items.line_total_centavos) as price_total')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.line_total_centavos else 0 end), 0) as costed_price')
+            ->selectRaw('coalesce(sum(order_items.cost_centavos), 0) as cost_total')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then 1 else 0 end), 0) as costed_lines')
+            ->orderByRaw("sum({$pieces}) desc")
+            ->orderByRaw('sum(order_items.line_total_centavos) desc')
+            ->orderByRaw('max(order_items.product_name)')
+            ->paginate(20)
+            ->withQueryString();
+
+        $topVariants = self::soldLines($from, $to)
+            ->whereIn('order_items.product_id', collect($page->items())->pluck('product_id'))
+            ->groupBy('order_items.product_id', 'order_items.variant_label')
+            ->select('order_items.product_id', 'order_items.variant_label')
+            ->selectRaw("sum({$pieces}) as pieces")
+            ->orderByRaw("sum({$pieces}) desc")
+            ->get()
+            ->groupBy('product_id')
+            ->map(fn ($variants) => $variants->first());
+
+        $firstRank = ($page->currentPage() - 1) * $page->perPage() + 1;
+
+        return $page->through(function (OrderItem $row, int $index) use ($topVariants, $firstRank): array {
+            /** @var array<string, mixed> $values */
+            $values = $row->getAttributes();
+            $top = $topVariants->get($row->product_id);
+            $topLabel = $top?->getAttribute('variant_label');
+            $costed = (int) ($values['costed_lines'] ?? 0) > 0;
+
+            return [
+                'rank' => $firstRank + $index,
+                'product_id' => (int) $row->product_id,
+                'product_name' => (string) ($values['product_name'] ?? ''),
+                'pieces' => (int) ($values['pieces'] ?? 0),
+                'price_total_centavos' => (int) ($values['price_total'] ?? 0),
+                'profit_centavos' => $costed ? (int) ($values['costed_price'] ?? 0) - (int) ($values['cost_total'] ?? 0) : null,
+                'top_variant_label' => is_string($topLabel) ? $topLabel : null,
+                'top_variant_pieces' => (int) ($top?->getAttribute('pieces') ?? 0),
+            ];
+        });
+    }
+
+    /**
      * 4. Free uniforms given in the period (promo), the newest first.
      *
      * @return LengthAwarePaginator<int, array{id: int, given_at: string|null, product_name: string, variant_label: string|null, pieces: int, recipient_name: string|null, enrollment_form_number: string|null, cost_centavos: int|null, price_centavos: int, recorded_by: string|null}>

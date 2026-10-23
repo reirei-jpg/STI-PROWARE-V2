@@ -170,6 +170,16 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         ->where('spent.data.0.items_count', 1)
         ->where('sold', null));
 
+    // Best sellers: the Jacket's sales at both prices are one product, counted in pieces.
+    $this->get(route('sales-reports.index', ['tab' => 'best']))->assertInertia(fn (Assert $page) => $page
+        ->has('best.data', 1)
+        ->where('best.data.0.rank', 1)
+        ->where('best.data.0.product_name', 'STI Jacket')
+        ->where('best.data.0.pieces', 5)
+        ->where('best.data.0.price_total_centavos', 185000)
+        ->where('best.data.0.profit_centavos', 185000 - 100000)
+        ->where('sold', null));
+
     // A period with nothing.
     $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-09-01', 'date_to' => '2026-09-30']))
         ->assertInertia(fn (Assert $page) => $page->where('summary.price_centavos', 0)->where('summary.spent_centavos', 0));

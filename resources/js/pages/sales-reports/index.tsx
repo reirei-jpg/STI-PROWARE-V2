@@ -9,6 +9,7 @@ import {
     Tag,
     TrendingDown,
     TrendingUp,
+    Trophy,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -23,6 +24,7 @@ import { priceInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
+    BestSellerRow,
     FreeRow,
     Paginated,
     SalesPeriod,
@@ -43,6 +45,7 @@ const periods: { value: SalesPeriod; label: string }[] = [
 const tabs: { value: SalesTab; label: string }[] = [
     { value: 'spent', label: 'What we spent' },
     { value: 'sold', label: 'What we sold' },
+    { value: 'best', label: 'Best sellers' },
     { value: 'free', label: 'Given free' },
 ];
 
@@ -50,19 +53,21 @@ const tabs: { value: SalesTab; label: string }[] = [
  * The Specialist's Sales Reports, in plain words. For a period: what was
  * spent on eStore orders; what was sold, each item with its Cost (what
  * PROWARE paid on the eStore order), its Price (what the student paid) and
- * the Profit; what was sold below its Cost; and what free uniforms (promo)
- * were worth. Three tabs list the details.
+ * the Profit; the best sellers; what was sold below its Cost; and what free
+ * uniforms (promo) were worth. Four tabs list the details.
  */
 export default function SalesReportsIndex({
     summary,
     spent,
     sold,
+    best,
     free,
     filters,
 }: {
     summary: SalesSummary;
     spent: Paginated<SpentRow> | null;
     sold: Paginated<SoldRow> | null;
+    best: Paginated<BestSellerRow> | null;
     free: Paginated<FreeRow> | null;
     filters: SalesReportFilters;
 }) {
@@ -139,7 +144,7 @@ export default function SalesReportsIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Sales Reports"
-                    description="What we spent on eStore orders, what we sold and the profit, what we sold below cost, and what free uniforms were worth."
+                    description="What we spent on eStore orders, what we sold and the profit, our best sellers, what we sold below cost, and what free uniforms were worth."
                 />
 
                 <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -316,6 +321,7 @@ export default function SalesReportsIndex({
 
                     {spent && <SpentTable rows={spent} />}
                     {sold && <SoldTable rows={sold} />}
+                    {best && <BestSellersTable rows={best} />}
                     {free && <FreeTable rows={free} />}
                 </Panel>
             </div>
@@ -445,6 +451,89 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                 </table>
             </TableScroll>
             <Pagination pagination={rows} itemName="orders" />
+        </>
+    );
+}
+
+/**
+ * The best sellers: products ranked by pieces sold in the period (all sizes,
+ * colors and prices together), with their sales, profit and top size.
+ */
+function BestSellersTable({ rows }: { rows: Paginated<BestSellerRow> }) {
+    if (rows.data.length === 0) {
+        return <Empty icon={Trophy} text="Nothing sold in this period" />;
+    }
+
+    return (
+        <>
+            <TableScroll>
+                <table className="w-full min-w-200">
+                    <thead className="bg-slate-50">
+                        <tr>
+                            <TableHeading>Rank</TableHeading>
+                            <TableHeading>Item</TableHeading>
+                            <TableHeading align="right">
+                                Pieces Sold
+                            </TableHeading>
+                            <TableHeading>Sold the Most</TableHeading>
+                            <TableHeading align="right">
+                                Total Price
+                            </TableHeading>
+                            <TableHeading align="right">Profit</TableHeading>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.data.map((row) => (
+                            <tr
+                                key={row.product_id}
+                                className="border-t border-slate-100 text-sm"
+                            >
+                                <td className="px-5 py-4">
+                                    <span
+                                        className={cn(
+                                            'inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm font-black',
+                                            row.rank <= 3
+                                                ? 'bg-amber-100 text-amber-800'
+                                                : 'bg-slate-100 text-slate-600',
+                                        )}
+                                    >
+                                        #{row.rank}
+                                    </span>
+                                </td>
+                                <td className="px-5 py-4 font-black text-slate-900">
+                                    {row.product_name}
+                                </td>
+                                <td className="px-5 py-4 text-right text-base font-black whitespace-nowrap text-slate-900">
+                                    {formatUnits(row.pieces, 'Piece')}
+                                </td>
+                                <td className="px-5 py-4 whitespace-nowrap text-slate-700">
+                                    {row.top_variant_label === null
+                                        ? '—'
+                                        : `${row.top_variant_label} · ${formatUnits(row.top_variant_pieces, 'Piece')}`}
+                                </td>
+                                <td className="px-5 py-4 text-right font-black whitespace-nowrap text-slate-900">
+                                    {formatPeso(row.price_total_centavos)}
+                                </td>
+                                <td
+                                    className={cn(
+                                        'px-5 py-4 text-right font-black whitespace-nowrap',
+                                        row.profit_centavos === null
+                                            ? 'text-slate-400'
+                                            : row.profit_centavos < 0
+                                              ? 'text-red-600'
+                                              : 'text-emerald-700',
+                                    )}
+                                >
+                                    {row.profit_centavos === null
+                                        ? 'No Cost yet'
+                                        : formatPeso(row.profit_centavos)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </TableScroll>
+            <Pagination pagination={rows} itemName="products" />
         </>
     );
 }
