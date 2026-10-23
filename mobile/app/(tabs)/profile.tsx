@@ -48,7 +48,12 @@ function ProfileScreen() {
     );
 
     const confirmSignOut = (): void => {
-        Alert.alert('Log out?', 'You can still browse the store; sign in again to order.', [
+        const afterwards =
+            user?.role === 'specialist'
+                ? 'You will need to sign in again to see your To-do on this phone.'
+                : 'You can still browse the store; sign in again to order.';
+
+        Alert.alert('Log out?', afterwards, [
             { text: 'Stay signed in', style: 'cancel' },
             {
                 text: 'Log out',

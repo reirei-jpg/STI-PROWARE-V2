@@ -34,7 +34,7 @@ export default function SignInPrompt({
                 <Pressable
                     onPress={() => router.push('/login')}
                     accessibilityRole="button"
-                    className="mt-2 flex-row items-center justify-center gap-2 self-stretch rounded-2xl bg-brand py-4"
+                    className="mt-2 w-full flex-row items-center justify-center gap-2 rounded-2xl bg-brand px-6 py-4"
                 >
                     <LogIn size={18} color="#ffffff" />
                     <Text className="font-sans-bold text-base text-white">Sign in</Text>
