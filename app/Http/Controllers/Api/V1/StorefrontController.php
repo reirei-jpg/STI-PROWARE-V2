@@ -17,14 +17,17 @@ use Illuminate\Http\JsonResponse;
 class StorefrontController extends Controller
 {
     /**
-     * Coming Soon, On Sale and Uniform Sets, for the top of the Home screen.
+     * Coming Soon, On Sale and Uniform Sets, for the top of the Home screen,
+     * only what matches the search when there is one.
      */
-    public function home(): JsonResponse
+    public function home(FilterStorefrontRequest $request): JsonResponse
     {
+        $search = $request->search();
+
         return response()->json([
-            'coming_soon' => StorefrontFeed::comingSoon(),
-            'on_sale' => StorefrontFeed::onSale(),
-            'uniform_sets' => StorefrontUniformSets::all(),
+            'coming_soon' => StorefrontFeed::comingSoon($search),
+            'on_sale' => StorefrontFeed::onSale($search),
+            'uniform_sets' => StorefrontUniformSets::all($search),
         ]);
     }
 

@@ -38,8 +38,9 @@ const GAP = 12;
  * Home: the storefront, like the website. Coming Soon (open preorders
  * first) and On Sale as swipeable rows of full tiles, Uniform Sets (Buy
  * the Set opens its picker), and All Merchandise (newest first, out of
- * stock last) with a search and Available / Out of Stock. More loads as the
- * student scrolls.
+ * stock last) with Available / Out of Stock. More loads as the student
+ * scrolls. The search at the top covers every section; while searching,
+ * sections with no match are hidden.
  */
 export default function HomeScreen() {
     const insets = useSafeAreaInsets();
@@ -62,6 +63,21 @@ export default function HomeScreen() {
     const [buyingSet, setBuyingSet] = useState<StorefrontUniformSet | null>(null);
     const [setNotice, setSetNotice] = useState<string | null>(null);
     const latestRequest = useRef(0);
+    const latestSections = useRef(0);
+
+    // Coming Soon, On Sale and Uniform Sets, only what matches the search.
+    const loadSections = useCallback(
+        async (term: string) => {
+            const requestNumber = ++latestSections.current;
+            const query = term.trim() !== '' ? `?${new URLSearchParams({ search: term.trim() }).toString()}` : '';
+            const sections = await request<StorefrontHome>(`/storefront${query}`);
+
+            if (requestNumber === latestSections.current) {
+                setHome(sections);
+            }
+        },
+        [request],
+    );
 
     const loadMerchandise = useCallback(
         async (pageToLoad: number, term: string, filter: Show) => {
@@ -98,12 +114,7 @@ export default function HomeScreen() {
         setError(null);
 
         try {
-            const [sections] = await Promise.all([
-                request<StorefrontHome>('/storefront'),
-                loadMerchandise(1, search, show),
-            ]);
-
-            setHome(sections);
+            await Promise.all([loadSections(search), loadMerchandise(1, search, show)]);
         } catch (caught) {
             setError(
                 caught instanceof ApiError
@@ -113,7 +124,7 @@ export default function HomeScreen() {
         }
         // Reloading everything uses the search and filter of the moment.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [request, loadMerchandise]);
+    }, [loadSections, loadMerchandise]);
 
     useEffect(() => {
         void loadAll();
@@ -123,6 +134,8 @@ export default function HomeScreen() {
     // Soon and On Sale as they are now on the website, without losing the
     // student's place in All Merchandise. The first visit is loadAll's.
     const firstFocus = useRef(true);
+    const searchNow = useRef(search);
+    searchNow.current = search;
 
     useFocusEffect(
         useCallback(() => {
@@ -132,15 +145,15 @@ export default function HomeScreen() {
                 return;
             }
 
-            request<StorefrontHome>('/storefront')
-                .then(setHome)
-                .catch(() => undefined);
+            loadSections(searchNow.current).catch(() => undefined);
             refreshNotifications().catch(() => undefined);
-        }, [request, refreshNotifications]),
+        }, [loadSections, refreshNotifications]),
     );
 
-    // Search as the student types, after a short pause.
+    // Search every section as the student types, after a short pause.
+    // Available / Out of Stock is only for All Merchandise.
     const firstSearch = useRef(true);
+    const searchedSections = useRef(search);
 
     useEffect(() => {
         if (firstSearch.current) {
@@ -150,13 +163,20 @@ export default function HomeScreen() {
         }
 
         const timer = setTimeout(() => {
-            loadMerchandise(1, search, show).catch(() =>
+            const loads = [loadMerchandise(1, search, show)];
+
+            if (searchedSections.current !== search) {
+                searchedSections.current = search;
+                loads.push(loadSections(search));
+            }
+
+            Promise.all(loads).catch(() =>
                 setError('The search could not be done. Try again.'),
             );
         }, 400);
 
         return () => clearTimeout(timer);
-    }, [search, show, loadMerchandise]);
+    }, [search, show, loadMerchandise, loadSections]);
 
     const refresh = async (): Promise<void> => {
         setRefreshing(true);
@@ -184,7 +204,10 @@ export default function HomeScreen() {
         router.push(`/product/${product.id}`);
     };
 
-    const isFiltered = search.trim() !== '' || show !== null;
+    const isSearching = search.trim() !== '';
+    const isFiltered = isSearching || show !== null;
+    const otherSectionsMatch =
+        home !== null && home.coming_soon.length + home.on_sale.length + home.uniform_sets.length > 0;
 
     const header = (
         <View className="gap-6 pb-4">
@@ -224,6 +247,29 @@ export default function HomeScreen() {
                 </Text>
             </View>
 
+            {/* The search covers every section, so it sits above them. */}
+            <View className="flex-row items-center gap-2 rounded-full border border-slate-200 bg-white px-4">
+                <Search size={17} color="#94a3b8" />
+                <TextInput
+                    value={search}
+                    onChangeText={setSearch} maxLength={120}
+                    placeholder="Search merchandise"
+                    placeholderTextColor="#94a3b8"
+                    autoCorrect={false}
+                    returnKeyType="search"
+                    className="flex-1 py-3 font-sans-medium text-sm text-slate-900"
+                />
+                {search !== '' && (
+                    <Pressable
+                        onPress={() => setSearch('')}
+                        accessibilityLabel="Clear search"
+                        hitSlop={10}
+                    >
+                        <X size={17} color="#64748b" />
+                    </Pressable>
+                )}
+            </View>
+
             {error && (
                 <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
                     <Text className="font-sans-semibold text-sm text-red-700">
@@ -232,6 +278,7 @@ export default function HomeScreen() {
                 </View>
             )}
 
+            {!(isSearching && home !== null && home.coming_soon.length === 0) && (
             <View>
                 <SectionTitle
                     icon={<Clock size={18} color="#d97706" />}
@@ -258,7 +305,9 @@ export default function HomeScreen() {
                     />
                 )}
             </View>
+            )}
 
+            {!(isSearching && home !== null && home.on_sale.length === 0) && (
             <View className="rounded-3xl border border-red-100 bg-red-50/60 p-3">
                 <SectionTitle
                     icon={<Flame size={18} color="#ffffff" />}
@@ -283,6 +332,7 @@ export default function HomeScreen() {
                     />
                 )}
             </View>
+            )}
 
             {home !== null && home.uniform_sets.length > 0 && (
                 <View className="rounded-3xl border border-blue-100 bg-blue-50/60 p-3">
@@ -369,28 +419,6 @@ export default function HomeScreen() {
                     description="Everything available at the PROWARE store."
                 />
 
-                <View className="flex-row items-center gap-2 rounded-full border border-slate-200 bg-white px-4">
-                    <Search size={17} color="#94a3b8" />
-                    <TextInput
-                        value={search}
-                        onChangeText={setSearch} maxLength={120}
-                        placeholder="Search merchandise"
-                        placeholderTextColor="#94a3b8"
-                        autoCorrect={false}
-                        returnKeyType="search"
-                        className="flex-1 py-3 font-sans-medium text-sm text-slate-900"
-                    />
-                    {search !== '' && (
-                        <Pressable
-                            onPress={() => setSearch('')}
-                            accessibilityLabel="Clear search"
-                            hitSlop={10}
-                        >
-                            <X size={17} color="#64748b" />
-                        </Pressable>
-                    )}
-                </View>
-
                 {/* Equal widths with room to spare: Android can measure a
                     label a little short and drop its last word ("Out of"). */}
                 <View className="flex-row gap-2">
@@ -436,7 +464,9 @@ export default function HomeScreen() {
             ListEmptyComponent={
                 home === null ? null : (
                     <EmptyNote>
-                        {isFiltered
+                        {isSearching && show === null && otherSectionsMatch
+                            ? `No other merchandise matches “${search.trim()}”. The matches are above.`
+                            : isFiltered
                             ? 'No merchandise matches your search. Try another name, or choose All.'
                             : 'No merchandise yet. New items appear here as soon as they arrive at the PROWARE store.'}
                     </EmptyNote>

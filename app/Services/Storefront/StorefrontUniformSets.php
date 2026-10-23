@@ -23,10 +23,11 @@ final class StorefrontUniformSets
     /**
      * Sets sold as a set whose pieces can be bought now, by name, with the
      * lowest price a set comes to (price_from when sizes or bottoms differ).
+     * With a search, only sets whose name or one of whose pieces matches.
      *
      * @return list<array{id: int, name: string, price_centavos: int, price_from: bool, photo_url: string|null, options: list<array{for: string, label: string, top: SetPiece, bottoms: list<SetPiece>}>}>
      */
-    public static function all(): array
+    public static function all(?string $search = null): array
     {
         $sets = UniformSet::query()
             ->where('sold_as_set', true)
@@ -53,7 +54,7 @@ final class StorefrontUniformSets
                 }
             }
 
-            if ($options === []) {
+            if ($options === [] || ($search !== null && ! self::matches($set, $options, $search))) {
                 continue;
             }
 
@@ -106,6 +107,30 @@ final class StorefrontUniformSets
                 default => 'Pants',
             }), $bottoms),
         ];
+    }
+
+    /**
+     * Whether the set's name or one of its pieces' names has the search in
+     * it (any letter case).
+     *
+     * @param  list<array{for: string, label: string, top: SetPiece, bottoms: list<SetPiece>}>  $options
+     */
+    private static function matches(UniformSet $set, array $options, string $search): bool
+    {
+        $names = [$set->displayName()];
+
+        foreach ($options as $option) {
+            $names[] = $option['top']['name'];
+            array_push($names, ...array_column($option['bottoms'], 'name'));
+        }
+
+        foreach ($names as $name) {
+            if (mb_stripos($name, $search) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

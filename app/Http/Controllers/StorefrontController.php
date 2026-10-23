@@ -24,9 +24,9 @@ class StorefrontController extends Controller
         $show = $request->show();
 
         return Inertia::render('storefront/home', [
-            'comingSoon' => StorefrontFeed::comingSoon(),
-            'onSale' => StorefrontFeed::onSale(),
-            'uniformSets' => StorefrontUniformSets::all(),
+            'comingSoon' => StorefrontFeed::comingSoon($search),
+            'onSale' => StorefrontFeed::onSale($search),
+            'uniformSets' => StorefrontUniformSets::all($search),
             'merchandise' => Inertia::scroll(fn () => StorefrontFeed::merchandise($search, $show)
                 ->paginate(20)
                 ->withQueryString()

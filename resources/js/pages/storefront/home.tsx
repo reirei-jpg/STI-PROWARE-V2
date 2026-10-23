@@ -50,6 +50,9 @@ const gridClasses =
  * All three sections always show, as in the approved layout: a section
  * with no products yet keeps its empty tiles and says so. Coming Soon and
  * On Sale are carousels, so many items never make the page long.
+ *
+ * A search covers every section: the banner makes way for a results line,
+ * and only the sections with a match show.
  */
 export default function StorefrontHome({
     comingSoon,
@@ -65,27 +68,43 @@ export default function StorefrontHome({
     filters: StorefrontFilters;
 }) {
     const [viewing, setViewing] = useState<StorefrontTileProduct | null>(null);
+    const isSearching = filters.search !== null;
 
     return (
         <>
             <Head title="Official STI Merchandise" />
 
             <div className="space-y-8 md:space-y-10">
-                <WelcomeBanner
-                    comingSoon={comingSoon.length}
-                    onSale={onSale.length}
-                    uniformSets={uniformSets.length}
-                />
+                {isSearching ? (
+                    <SearchResultsLine filters={filters} />
+                ) : (
+                    <WelcomeBanner
+                        comingSoon={comingSoon.length}
+                        onSale={onSale.length}
+                        uniformSets={uniformSets.length}
+                    />
+                )}
 
-                <ComingSoonCarousel products={comingSoon} onView={setViewing} />
+                {(!isSearching || comingSoon.length > 0) && (
+                    <ComingSoonCarousel
+                        products={comingSoon}
+                        onView={setViewing}
+                    />
+                )}
 
-                <OnSaleSection products={onSale} onView={setViewing} />
+                {(!isSearching || onSale.length > 0) && (
+                    <OnSaleSection products={onSale} onView={setViewing} />
+                )}
 
                 <UniformSetSection sets={uniformSets} />
 
                 <MerchandiseFeed
                     merchandise={merchandise}
                     filters={filters}
+                    otherSectionsMatch={
+                        comingSoon.length + onSale.length + uniformSets.length >
+                        0
+                    }
                     onView={setViewing}
                 />
             </div>
@@ -201,6 +220,55 @@ function WelcomeBanner({
                 </nav>
             </div>
         </section>
+    );
+}
+
+/**
+ * Reloads the storefront with a search and an All / Available / Out of
+ * Stock choice. Every section follows the search.
+ */
+function showStorefront(next: StorefrontFilters) {
+    const query: Record<string, string> = {};
+
+    if (next.search) {
+        query.search = next.search;
+    }
+
+    if (next.show) {
+        query.show = next.show;
+    }
+
+    router.get(StorefrontController.home().url, query, {
+        only: ['comingSoon', 'onSale', 'uniformSets', 'merchandise', 'filters'],
+        reset: ['merchandise'],
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+}
+
+/**
+ * In place of the banner while searching: what was searched, and a way
+ * back to the whole store.
+ */
+function SearchResultsLine({ filters }: { filters: StorefrontFilters }) {
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-blue-100 bg-white px-5 py-4 shadow-sm">
+            <h1 className="flex min-w-0 items-center gap-2 text-lg font-black text-slate-900 md:text-xl">
+                <Search size={20} className="shrink-0 text-blue-600" />
+                <span className="truncate">
+                    Results for &ldquo;{filters.search}&rdquo;
+                </span>
+            </h1>
+            <button
+                type="button"
+                onClick={() => showStorefront({ ...filters, search: null })}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+            >
+                <X size={16} />
+                Clear search
+            </button>
+        </div>
     );
 }
 
@@ -382,34 +450,17 @@ function OnSaleSection({
 function MerchandiseFeed({
     merchandise,
     filters,
+    otherSectionsMatch,
     onView,
 }: {
     merchandise: { data: StorefrontTileProduct[] };
     filters: StorefrontFilters;
+    /** While searching: Coming Soon, On Sale or Uniform Sets has a match. */
+    otherSectionsMatch: boolean;
     onView: (product: StorefrontTileProduct) => void;
 }) {
     const isFiltered = filters.search !== null || filters.show !== null;
     const grid = useRef<HTMLDivElement>(null);
-
-    const showFeed = (next: StorefrontFilters) => {
-        const query: Record<string, string> = {};
-
-        if (next.search) {
-            query.search = next.search;
-        }
-
-        if (next.show) {
-            query.show = next.show;
-        }
-
-        router.get(StorefrontController.home().url, query, {
-            only: ['merchandise', 'filters'],
-            reset: ['merchandise'],
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        });
-    };
 
     return (
         <section
@@ -433,7 +484,7 @@ function MerchandiseFeed({
                         key={choice.label}
                         type="button"
                         onClick={() =>
-                            showFeed({ ...filters, show: choice.value })
+                            showStorefront({ ...filters, show: choice.value })
                         }
                         aria-pressed={filters.show === choice.value}
                         className={cn(
@@ -450,7 +501,9 @@ function MerchandiseFeed({
                 {filters.search && (
                     <button
                         type="button"
-                        onClick={() => showFeed({ ...filters, search: null })}
+                        onClick={() =>
+                            showStorefront({ ...filters, search: null })
+                        }
                         className="inline-flex h-10 items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                     >
                         <Search size={15} />
@@ -476,6 +529,14 @@ function MerchandiseFeed({
                         they arrive at the PROWARE store.
                     </EmptyNote>
                 </>
+            ) : merchandise.data.length === 0 &&
+              filters.search !== null &&
+              filters.show === null &&
+              otherSectionsMatch ? (
+                <EmptyNote>
+                    No other merchandise matches &ldquo;{filters.search}
+                    &rdquo;. The matches are above.
+                </EmptyNote>
             ) : merchandise.data.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
                     <Store size={40} className="mx-auto text-slate-300" />
@@ -487,7 +548,9 @@ function MerchandiseFeed({
                     </p>
                     <button
                         type="button"
-                        onClick={() => showFeed({ search: null, show: null })}
+                        onClick={() =>
+                            showStorefront({ search: null, show: null })
+                        }
                         className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700"
                     >
                         <X size={16} />

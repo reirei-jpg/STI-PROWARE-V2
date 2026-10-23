@@ -107,6 +107,23 @@ test('the storefront shows the sets that are for sale, with what boys and girls 
     );
 });
 
+test('a search shows the sets whose name or pieces match', function () {
+    bsitSaleSet();
+    UniformSet::factory()->create([
+        'name' => 'Senior High',
+        'polo_product_id' => uniformPiece('Senior High Polo', 550)->id,
+        'pants_product_id' => uniformPiece('Senior High Pants', 580)->id,
+        'sold_as_set' => true,
+    ]);
+
+    $names = fn (string $search): array => collect($this->get(route('home', ['search' => $search]))->inertiaProps('uniformSets'))->pluck('name')->all();
+
+    expect($names('bsit'))->toBe(['BSIT Uniform Set'])
+        ->and($names('skirt'))->toBe(['BSIT Uniform Set'])
+        ->and($names('pants'))->toBe(['BSIT Uniform Set', 'Senior High Uniform Set'])
+        ->and($names('hoodie'))->toBe([]);
+});
+
 test('a student adds a set: its top and bottom go in as one, at what the two cost', function () {
     $set = bsitSaleSet();
     $this->actingAs($this->student);

@@ -175,7 +175,7 @@ function StorefrontTopBar() {
 
 /**
  * The one merchandise search, in the top bar. On the storefront it filters
- * All Merchandise as the visitor types; on other pages (Cart, My Orders)
+ * every section as the visitor types; on other pages (Cart, My Orders)
  * pressing Enter opens the storefront with the results.
  */
 function StorefrontSearch() {
@@ -200,13 +200,22 @@ function StorefrontSearch() {
         }
 
         router.get(home().url, query, {
-            only: ['merchandise', 'filters'],
+            only: [
+                'comingSoon',
+                'onSale',
+                'uniformSets',
+                'merchandise',
+                'filters',
+            ],
             reset: ['merchandise'],
             preserveState: true,
             preserveScroll: true,
             replace: true,
             onSuccess: () => {
-                if (options.scroll) {
+                // The results start at the top of the page.
+                if (trimmed !== '') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else if (options.scroll) {
                     document
                         .getElementById('all-merchandise')
                         ?.scrollIntoView({ behavior: 'smooth' });

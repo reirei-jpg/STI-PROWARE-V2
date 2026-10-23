@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
  * - All Merchandise: Available and On Sale products that were ever
  *   received, newest first, sold-out ones last. Products never received
  *   stay hidden, and Draft products are never shown.
+ *
+ * The search covers every section: only products whose name matches show.
  */
 final class StorefrontFeed
 {
@@ -23,10 +25,11 @@ final class StorefrontFeed
     /**
      * @return list<array<string, mixed>>
      */
-    public static function comingSoon(): array
+    public static function comingSoon(?string $search = null): array
     {
         return array_values(Product::query()
             ->where('status', ProductStatus::Preorder)
+            ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->with(self::RELATIONS)
             ->latest('created_at')
             ->latest('id')
@@ -39,11 +42,12 @@ final class StorefrontFeed
     /**
      * @return list<array<string, mixed>>
      */
-    public static function onSale(): array
+    public static function onSale(?string $search = null): array
     {
         return array_values(Product::query()
             ->where('status', ProductStatus::OnSale)
             ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0'))
+            ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->with(self::RELATIONS)
             ->orderBy('sale_ends_at')
             ->latest('id')

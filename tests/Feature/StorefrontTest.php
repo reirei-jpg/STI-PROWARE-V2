@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 /**
  * A product with one variant holding $stock pieces. When $received, the
@@ -95,6 +96,34 @@ test('the feed can be searched and narrowed to in stock or sold out', function (
             ->has('merchandise.data', 1)
             ->where('merchandise.data.0.name', 'Chibi Pin')
         );
+});
+
+test('a search covers every section on the website and the phone', function () {
+    shopProduct('Chibi Hoodie', 0, ['status' => ProductStatus::Preorder], received: false);
+    shopProduct('Anniversary Shirt', 0, ['status' => ProductStatus::Preorder], received: false);
+    shopProduct('Chibi Lanyard', 30, ['status' => ProductStatus::OnSale, 'sale_price_centavos' => 30000]);
+    shopProduct('Old Tumbler', 30, ['status' => ProductStatus::OnSale, 'sale_price_centavos' => 20000]);
+    shopProduct('Chibi Keychain', 45);
+    shopProduct('Ballpen', 45);
+
+    $this->get('/?search=CHIBI')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('comingSoon', fn ($products) => collect($products)->pluck('name')->all() === ['Chibi Hoodie'])
+            ->where('onSale', fn ($products) => collect($products)->pluck('name')->all() === ['Chibi Lanyard'])
+            ->where('merchandise.data', fn ($products) => collect($products)->pluck('name')->sort()->values()->all() === ['Chibi Keychain', 'Chibi Lanyard'])
+        );
+
+    Sanctum::actingAs(User::factory()->student()->create());
+
+    $this->getJson(route('api.v1.storefront.home', ['search' => 'chibi']))
+        ->assertOk()
+        ->assertJsonCount(1, 'coming_soon')
+        ->assertJsonPath('coming_soon.0.name', 'Chibi Hoodie')
+        ->assertJsonCount(1, 'on_sale')
+        ->assertJsonPath('on_sale.0.name', 'Chibi Lanyard');
+    $this->getJson(route('api.v1.storefront.home'))
+        ->assertJsonCount(2, 'coming_soon')
+        ->assertJsonCount(2, 'on_sale');
 });
 
 test('the feed loads 20 products at a time as the visitor scrolls', function () {
