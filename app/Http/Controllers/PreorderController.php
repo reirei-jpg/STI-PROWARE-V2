@@ -347,33 +347,45 @@ class PreorderController extends Controller
 
     /**
      * The product's preorders that count (waiting, or arrived once it is
-     * for sale), the newest first.
+     * for sale), the newest first. Once it arrived, also the students who
+     * gave up the pieces held for them, so the Specialist sees what became
+     * of every hold.
      *
      * @return HasMany<Preorder, Product>
      */
     private function preordersOf(Product $product, string $tab = 'all'): HasMany
     {
+        $status = $this->countedStatus($product, $tab);
+
         return $product->preorders()
-            ->countedAs($this->countedStatus($product, $tab))
-            ->with(['student', 'variant'])
+            ->where(fn (Builder $query) => $query
+                ->countedAs($status)
+                ->when($status === PreorderStatus::Arrived, fn (Builder $gaveUp) => $gaveUp->orWhere(fn (Builder $held) => $held
+                    ->where('status', PreorderStatus::Cancelled)
+                    ->whereNotNull('arrived_at'))))
+            ->with(['student', 'variant', 'order'])
             ->latest('id');
     }
 
     /**
-     * @return array{id: int, student_name: string, student_email: string, variant_label: string|null, quantity: int, status: string, status_label: string, created_at: string|null, arrived_at: string|null}
+     * @return array{id: int, student_name: string, student_email: string, variant_label: string|null, quantity: int, status: string, status_label: string, created_at: string|null, arrived_at: string|null, held_until: string|null, order_number: string|null}
      */
     private function preorderRow(Preorder $preorder): array
     {
+        $gaveUp = $preorder->status === PreorderStatus::Cancelled && $preorder->arrived_at !== null;
+
         return [
             'id' => $preorder->id,
             'student_name' => $preorder->student->name,
             'student_email' => $preorder->student->email,
             'variant_label' => $preorder->variant->choices === [] ? null : $preorder->variant->label(),
             'quantity' => $preorder->quantity,
-            'status' => $preorder->status->value,
-            'status_label' => $preorder->status->staffLabel(),
+            'status' => $gaveUp ? 'gave_up' : $preorder->status->value,
+            'status_label' => $gaveUp ? 'Gave up the pieces' : $preorder->status->staffLabel(),
             'created_at' => $preorder->created_at?->toIso8601String(),
             'arrived_at' => $preorder->arrived_at?->toIso8601String(),
+            'held_until' => $preorder->held_until?->toIso8601String(),
+            'order_number' => $preorder->order?->number,
         ];
     }
 

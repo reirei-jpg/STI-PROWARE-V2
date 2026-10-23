@@ -1,6 +1,10 @@
-import { formatDateOrdered } from '@/lib/format';
+import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { PreorderProductSummary, PreorderStage } from '@/types';
+import type {
+    PreorderProductSummary,
+    PreorderRow,
+    PreorderStage,
+} from '@/types';
 
 /** V1's colors: blue in progress, amber needs action, green good news. */
 const stages: Record<PreorderStage, { label: string; className: string }> = {
@@ -37,6 +41,55 @@ export default function PreorderStageBadge({
             )}
         >
             {stages[stage].label}
+        </span>
+    );
+}
+
+/**
+ * What became of one student's preorder, in V1's colors: still waiting
+ * (blue), held until when (amber), ordered and in which order (green), the
+ * hold ended or the pieces were given up (grey, red).
+ */
+export function PreorderOutcome({ preorder }: { preorder: PreorderRow }) {
+    const outcome: { text: string; className: string } = (() => {
+        switch (preorder.status) {
+            case 'active':
+                return { text: 'Waiting', className: 'text-blue-700' };
+            case 'held':
+                return {
+                    text: `Held until ${formatDateTime(preorder.held_until)}`,
+                    className: 'text-amber-700',
+                };
+            case 'ordered':
+                return {
+                    text: preorder.order_number
+                        ? `Ordered · ${preorder.order_number}`
+                        : 'Ordered',
+                    className: 'text-emerald-700',
+                };
+            case 'arrived':
+                return { text: 'Notified', className: 'text-emerald-700' };
+            case 'hold_ended':
+                return {
+                    text: 'Hold ended · not ordered in 24 hours',
+                    className: 'text-slate-500',
+                };
+            case 'gave_up':
+                return {
+                    text: 'Gave up the pieces',
+                    className: 'text-red-600',
+                };
+            default:
+                return {
+                    text: preorder.status_label,
+                    className: 'text-slate-500',
+                };
+        }
+    })();
+
+    return (
+        <span className={cn('text-xs font-black', outcome.className)}>
+            {outcome.text}
         </span>
     );
 }

@@ -7,6 +7,7 @@ import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PreorderCloseDateDialog from '@/components/preorder-close-date-dialog';
 import { CloseDate, VariantCounts } from '@/components/preorder-counts';
+import { PreorderOutcome } from '@/components/preorder-stage-badge';
 import SummaryCard from '@/components/summary-card';
 import { formatDateTime } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
@@ -26,6 +27,7 @@ export default function PreorderShow({
     today: string;
 }) {
     const [changing, setChanging] = useState(false);
+    const arrived = product.stage === 'arrived';
 
     return (
         <>
@@ -34,7 +36,11 @@ export default function PreorderShow({
             <div className="space-y-7">
                 <PageHeader
                     title={product.name}
-                    description="Every student who preordered it. Cancelled preorders are not listed."
+                    description={
+                        arrived
+                            ? 'Every student who preordered it and what became of the pieces held for them. Preorders cancelled before the pieces arrived are not listed.'
+                            : 'Every student who preordered it. Cancelled preorders are not listed.'
+                    }
                     actions={
                         <Link
                             href={PreorderController.index()}
@@ -99,6 +105,11 @@ export default function PreorderShow({
                                             <TableHeading>
                                                 Preordered On
                                             </TableHeading>
+                                            {arrived && (
+                                                <TableHeading>
+                                                    What Happened
+                                                </TableHeading>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -130,6 +141,13 @@ export default function PreorderShow({
                                                         preorder.created_at,
                                                     )}
                                                 </td>
+                                                {arrived && (
+                                                    <td className="px-5 py-4">
+                                                        <PreorderOutcome
+                                                            preorder={preorder}
+                                                        />
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>

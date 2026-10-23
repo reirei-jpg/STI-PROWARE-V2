@@ -14,6 +14,7 @@ import PreorderRestockController from '@/actions/App/Http/Controllers/PreorderRe
 import type { NotRestockedTarget } from '@/components/not-restocked-dialog';
 import { TableHeading } from '@/components/panel';
 import PreorderStageBadge, {
+    PreorderOutcome,
     PreorderWhen,
 } from '@/components/preorder-stage-badge';
 import {
@@ -364,6 +365,11 @@ export default function PreorderDetailsDialog({
                                                             preorder.created_at,
                                                         )}
                                                     </p>
+                                                    {arrived && (
+                                                        <PreorderOutcome
+                                                            preorder={preorder}
+                                                        />
+                                                    )}
                                                 </div>
                                             </li>
                                         ))}

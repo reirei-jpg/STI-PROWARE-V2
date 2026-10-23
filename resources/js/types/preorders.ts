@@ -43,10 +43,23 @@ export type PreorderRow = {
     student_email: string;
     variant_label: string | null;
     quantity: number;
-    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked';
+    /** gave_up: the student gave up the pieces held for them. */
+    status:
+        | 'active'
+        | 'arrived'
+        | 'cancelled'
+        | 'not_restocked'
+        | 'held'
+        | 'ordered'
+        | 'hold_ended'
+        | 'gave_up';
     status_label: string;
     created_at: string | null;
     arrived_at: string | null;
+    /** While held: until when. */
+    held_until: string | null;
+    /** Once ordered: the order it went into. */
+    order_number: string | null;
 };
 
 /** One product in the details popup: what to order and who preordered. */

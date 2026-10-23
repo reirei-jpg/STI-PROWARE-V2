@@ -6,11 +6,13 @@ use App\Models\Order;
 use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\User;
 use App\Notifications\PreorderHeld;
 use App\Notifications\PreorderHoldEnded;
 use App\Services\Stock\RestockedPreorders;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
@@ -206,6 +208,24 @@ test('ordering all held pieces after a partial arrival keeps the rest waiting', 
         ->assertSessionHasNoErrors();
 
     expect($rest->refresh()->status)->toBe(PreorderStatus::Active);
+});
+
+test('the Specialist sees what became of each arrived preorder', function () {
+    [$hold] = secondStudentHalfServed($this);
+    $this->actingAs($this->first->student)->post(route('my-preorders.order', $this->first), ['quantity' => '3']);
+    $this->actingAs($this->second->student)->delete(route('my-preorders.destroy', $hold));
+    $this->travel(25)->hours();
+    $this->artisan('preorders:end-holds');
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->get(route('preorders.index', ['details' => $this->product->id]))
+        ->assertInertia(fn (Assert $page) => $page->reloadOnly('details', fn (Assert $reload) => $reload
+            ->where('details.stage', 'arrived')
+            ->where('details.preorders', fn ($rows) => collect($rows)->mapWithKeys(fn (array $row): array => [$row['student_name'] => [$row['status'], $row['order_number']]])->all() === [
+                $this->third->student->name => ['hold_ended', null],
+                $this->second->student->name => ['gave_up', null],
+                $this->first->student->name => ['ordered', Order::query()->sole()->number],
+            ])));
 });
 
 test('Order Now refuses more than is held, and other students', function () {
