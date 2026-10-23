@@ -5,6 +5,8 @@ export type User = {
     name: string;
     email: string;
     role: UserRole;
+    /** A student's 11-digit Student ID (null for staff and older accounts). */
+    student_id?: string | null;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;

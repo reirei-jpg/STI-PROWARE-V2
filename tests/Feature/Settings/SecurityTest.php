@@ -26,6 +26,28 @@ class SecurityTest extends TestCase
             );
     }
 
+    public function test_a_student_changes_the_password_on_the_my_account_page()
+    {
+        $student = User::factory()->student()->create();
+
+        $this->actingAs($student)
+            ->get(route('security.edit'))
+            ->assertRedirect(route('profile.edit'));
+
+        $this->actingAs($student)
+            ->from(route('profile.edit'))
+            ->put(route('user-password.update'), [
+                'current_password' => 'password',
+                'password' => 'New@Pass2026',
+                'password_confirmation' => 'New@Pass2026',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'))
+            ->assertInertiaFlash('toast.message', 'Your password has been changed.');
+
+        $this->assertTrue(Hash::check('New@Pass2026', $student->refresh()->password));
+    }
+
     public function test_two_step_login_and_passkeys_are_not_offered()
     {
         $user = User::factory()->create();

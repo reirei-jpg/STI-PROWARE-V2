@@ -4,6 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
@@ -89,6 +90,36 @@ class ProfileUpdateTest extends TestCase
         $user->refresh();
         $this->assertSame($email, $user->email);
         $this->assertNotNull($user->email_verified_at);
+    }
+
+    public function test_a_student_gets_the_my_account_page_in_the_store()
+    {
+        $student = User::factory()->student()->create(['student_id' => '02000123456']);
+
+        $this->actingAs($student)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('storefront/account')
+                ->has('passwordRules')
+                ->where('auth.user.student_id', '02000123456'),
+            );
+    }
+
+    public function test_a_student_can_change_their_name_but_not_with_numbers()
+    {
+        $student = User::factory()->student()->create(['name' => 'Juan Dela Cruz']);
+
+        $this->actingAs($student)
+            ->patch(route('profile.update'), ['name' => 'Juan123'])
+            ->assertSessionHasErrors(['name' => 'The name may only contain letters, spaces, periods, hyphens and apostrophes.']);
+
+        $this->actingAs($student)
+            ->patch(route('profile.update'), ['name' => 'Juan P. Dela Cruz'])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'));
+
+        $this->assertSame('Juan P. Dela Cruz', $student->refresh()->name);
     }
 
     public function test_staff_accounts_cannot_be_deleted_from_settings()

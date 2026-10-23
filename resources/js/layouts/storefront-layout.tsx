@@ -6,10 +6,12 @@ import {
     Package,
     Search,
     ShoppingCart,
+    UserRound,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
+import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import { AddToCartProvider } from '@/components/add-to-cart-dialog';
@@ -128,6 +130,14 @@ function StorefrontTopBar() {
                             <span className="hidden sm:inline">
                                 My Preorders
                             </span>
+                        </Link>
+                        <Link
+                            href={ProfileController.edit()}
+                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                            title="Your name and password"
+                        >
+                            <UserRound size={17} />
+                            <span className="hidden lg:inline">My Account</span>
                         </Link>
                         <Link
                             href={logout()}

@@ -18,11 +18,12 @@ const inputClasses =
 /**
  * Your profile: who you are in PROWARE. The name can be changed; the email
  * is shown only (changing it needs it verified by email, so the system
- * administrator does it).
+ * administrator does it). A student also sees their Student ID.
  */
 export default function Profile() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const getInitials = useInitials();
+    const isStudent = auth.user.role === 'student';
 
     return (
         <>
@@ -30,7 +31,11 @@ export default function Profile() {
 
             <Panel
                 title="Profile"
-                description="Your name is shown on what you record, e.g. deliveries and released orders."
+                description={
+                    isStudent
+                        ? 'Your name is printed on your issuance slips. Use your full name, e.g. Juan Dela Cruz.'
+                        : 'Your name is shown on what you record, e.g. deliveries and released orders.'
+                }
             >
                 <div className="flex items-center gap-4 border-b border-slate-100 px-6 py-5">
                     <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#0D6EFD] text-lg font-black text-white">
@@ -84,10 +89,33 @@ export default function Profile() {
                                     </span>
                                 </p>
                                 <span className="text-xs text-slate-500">
-                                    Contact the system administrator to change
-                                    your email.
+                                    {isStudent
+                                        ? 'Contact the PROWARE office to change your email.'
+                                        : 'Contact the system administrator to change your email.'}
                                 </span>
                             </div>
+
+                            {isStudent && (
+                                <div className="grid gap-1.5">
+                                    <span className="text-sm font-black text-slate-700">
+                                        Student ID
+                                    </span>
+                                    <p className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600">
+                                        <Lock
+                                            size={15}
+                                            className="shrink-0 text-slate-400"
+                                        />
+                                        <span className="truncate">
+                                            {auth.user.student_id ??
+                                                'Not recorded'}
+                                        </span>
+                                    </p>
+                                    <span className="text-xs text-slate-500">
+                                        Contact the PROWARE office to change
+                                        your Student ID.
+                                    </span>
+                                </div>
+                            )}
 
                             <div className="flex justify-end border-t border-slate-100 pt-5">
                                 <button

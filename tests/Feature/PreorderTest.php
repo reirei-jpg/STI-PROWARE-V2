@@ -376,5 +376,4 @@ test('students land on the storefront and cannot open staff pages', function () 
     $this->get(route('products.index'))->assertForbidden();
     $this->get(route('preorders.index'))->assertForbidden();
     $this->get(route('purchase-orders.index'))->assertForbidden();
-    $this->get(route('profile.edit'))->assertForbidden();
 });
