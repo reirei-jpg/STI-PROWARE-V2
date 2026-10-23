@@ -204,6 +204,22 @@ test('the specialist is told the day before a sale ends, from 7 AM, once', funct
     ]);
 });
 
+test('the dashboard says when a sale ends, and that it ended if the hourly check has not run yet', function () {
+    $product = saleProduct();
+    $this->actingAs($this->specialist)->post(route('products.sale.store', $product), ['sale_price' => '50', 'days' => '1'])->assertSessionHasNoErrors();
+    $saleTitle = fn (): ?string => collect($this->get(route('dashboard'))->viewData('page')['props']['tasks']['today'])
+        ->firstWhere('kind', 'sale_ending')['title'] ?? null;
+
+    expect($saleTitle())->toBe('Sale of Lanyard ends tomorrow');
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-04 09:00', 'Asia/Manila'));
+    expect($saleTitle())->toBe('Sale of Lanyard ends today');
+
+    // The laptop was off overnight, so sales:check did not end it at midnight.
+    $this->travelTo(CarbonImmutable::parse('2026-10-05 09:00', 'Asia/Manila'));
+    expect($saleTitle())->toBe('Sale of Lanyard ended Oct 4');
+});
+
 test('opening a sale notice shows the product on the products list', function () {
     $product = saleProduct();
     $this->actingAs($this->specialist)->post(route('products.sale.store', $product), ['sale_price' => '50', 'days' => '1']);

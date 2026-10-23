@@ -252,12 +252,30 @@ final class SpecialistTasks
             ->map(fn (Product $product): array => self::task(
                 key: "sale-{$product->id}",
                 kind: 'sale_ending',
-                title: "Sale of {$product->name} ends ".($product->sale_ends_at?->isToday() ? 'today' : 'tomorrow'),
-                detail: 'Extend it, or let it go back to its normal price.',
+                title: self::saleEndingTitle($product),
+                detail: $product->sale_ends_at?->isPast()
+                    ? 'It goes back to its normal price within the hour. Extend it if the sale should go on.'
+                    : 'Extend it, or let it go back to its normal price.',
                 label: 'Change sale',
                 url: route('products.index', ['search' => $product->name]),
             ))
             ->all());
+    }
+
+    /**
+     * "Sale of BSIT Polo ends today", "… ends tomorrow", or "… ended Oct 22"
+     * when its last day has passed but the hourly check has not ended it yet
+     * (for example, the laptop was off overnight).
+     */
+    private static function saleEndingTitle(Product $product): string
+    {
+        $endsAt = $product->sale_ends_at;
+
+        return "Sale of {$product->name} ".match (true) {
+            $endsAt === null, $endsAt->isToday() && $endsAt->isFuture() => 'ends today',
+            $endsAt->isPast() => 'ended '.$endsAt->format('M j'),
+            default => 'ends tomorrow',
+        };
     }
 
     /**
