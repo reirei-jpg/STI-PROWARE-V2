@@ -11,8 +11,11 @@ import { NotificationsProvider } from '@/lib/notifications';
 import PushHandler from '@/lib/push';
 
 /**
- * A signed-in student sees the shop; the PROWARE Specialist sees their
- * To-do, Orders and Stock; everyone else sees the login.
+ * The app opens on the store: anyone can browse, and signing in is asked
+ * for at Add to Cart, Preorder, Cart, Orders and Profile (the login opens
+ * on top and closes back to where the student was). A signed-in student
+ * also has their orders and slips; the PROWARE Specialist sees their
+ * To-do, Orders and Stock instead of the store.
  */
 function RootNavigator() {
     const { user, restoring } = useAuth();
@@ -31,9 +34,12 @@ function RootNavigator() {
                 contentStyle: { backgroundColor: '#F3F7FA' },
             }}
         >
-            <Stack.Protected guard={isStudent}>
+            <Stack.Protected guard={!isSpecialist}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="product/[id]" />
+            </Stack.Protected>
+
+            <Stack.Protected guard={isStudent}>
                 <Stack.Screen name="order/[id]" />
                 <Stack.Screen name="slip/[id]" />
             </Stack.Protected>
@@ -52,7 +58,7 @@ function RootNavigator() {
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>
-                <Stack.Screen name="login" />
+                <Stack.Screen name="login" options={{ presentation: 'modal' }} />
             </Stack.Protected>
         </Stack>
     );

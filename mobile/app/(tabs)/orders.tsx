@@ -21,11 +21,28 @@ import OrderStatusPill, {
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import HeldOrderSheet from '@/components/HeldOrderSheet';
+import SignInPrompt from '@/components/SignInPrompt';
 import { dueDateTier, formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
 type Show = 'orders' | 'preorders';
+
+/**
+ * The Orders tab: the student's orders and preorders, or Sign in while
+ * browsing without an account.
+ */
+export default function OrdersTab() {
+    const { user } = useAuth();
+
+    return user ? (
+        <OrdersScreen />
+    ) : (
+        <SignInPrompt title="Orders" icon={<Package size={28} color="#2563eb" />}>
+            Sign in with your STI email to see your orders, issuance slips and preorders.
+        </SignInPrompt>
+    );
+}
 
 /**
  * My Orders and My Preorders, with a switch between them. My Orders shows
@@ -34,7 +51,7 @@ type Show = 'orders' | 'preorders';
  * one short row (number, status, total, pick-up date); tapping it opens the
  * order with its issuance slip, items and Cancel.
  */
-export default function OrdersScreen() {
+function OrdersScreen() {
     const insets = useSafeAreaInsets();
     // Kept in the address, so "See My Preorders" elsewhere opens that side.
     const params = useLocalSearchParams<{ show?: Show }>();

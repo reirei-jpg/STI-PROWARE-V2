@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Bell, CircleCheck, Clock, Flame, Search, Shirt, Store, X } from 'lucide-react-native';
+import { Bell, CircleCheck, Clock, Flame, LogIn, Search, Shirt, Store, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -146,8 +146,11 @@ export default function HomeScreen() {
             }
 
             loadSections(searchNow.current).catch(() => undefined);
-            refreshNotifications().catch(() => undefined);
-        }, [loadSections, refreshNotifications]),
+
+            if (user) {
+                refreshNotifications().catch(() => undefined);
+            }
+        }, [user, loadSections, refreshNotifications]),
     );
 
     // Search every section as the student types, after a short pause.
@@ -218,9 +221,19 @@ export default function HomeScreen() {
                             STI PROWARE
                         </Text>
                         <Text className="mt-1 font-sans-bold text-2xl text-white">
-                            Hi, {firstName}
+                            {user ? `Hi, ${firstName}` : 'Official STI merchandise'}
                         </Text>
                     </View>
+                    {user === null ? (
+                        <Pressable
+                            onPress={() => router.push('/login')}
+                            accessibilityRole="button"
+                            className="flex-row items-center gap-1.5 rounded-2xl bg-white px-3.5 py-2.5"
+                        >
+                            <LogIn size={16} color="#0D6EFD" />
+                            <Text className="font-sans-bold text-sm text-brand">Sign in</Text>
+                        </Pressable>
+                    ) : (
                     <Pressable
                         onPress={() => router.push('/notifications')}
                         accessibilityRole="button"
@@ -240,10 +253,12 @@ export default function HomeScreen() {
                             </View>
                         )}
                     </Pressable>
+                    )}
                 </View>
                 <Text className="mt-1 font-sans text-sm leading-5 text-blue-50">
-                    Official STI merchandise. Pay at the cashier, then get
-                    your items at the PROWARE office with your receipt.
+                    {user
+                        ? 'Official STI merchandise. Pay at the cashier, then get your items at the PROWARE office with your receipt.'
+                        : 'Browse freely. Sign in with your STI email when you add something to your cart.'}
                 </Text>
             </View>
 
@@ -396,6 +411,12 @@ export default function HomeScreen() {
                                 </View>
                                 <Pressable
                                     onPress={() => {
+                                        if (user === null) {
+                                            router.push('/login');
+
+                                            return;
+                                        }
+
                                         setSetNotice(null);
                                         setBuyingSet(set);
                                     }}

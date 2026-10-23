@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderSteps from '@/components/OrderSteps';
 import QuantityStepper from '@/components/QuantityStepper';
+import SignInPrompt from '@/components/SignInPrompt';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
@@ -32,11 +33,27 @@ import { formatPeso, formatUnits, unitWord } from '@/lib/format';
 import type { CartLine, CartView, StudentOrder } from '@/lib/types';
 
 /**
- * The cart at today's prices, and Place Order, like the website. The
- * student shows the issuance slip and pays
- * at the PROWARE office; the items are held for them until the pick-up date.
+ * The Cart tab: the student's cart, or Sign in while browsing without an
+ * account.
  */
-export default function CartScreen() {
+export default function CartTab() {
+    const { user } = useAuth();
+
+    return user ? (
+        <CartScreen />
+    ) : (
+        <SignInPrompt title="Cart" icon={<ShoppingCart size={28} color="#2563eb" />}>
+            Sign in with your STI email to add items to your cart and order.
+        </SignInPrompt>
+    );
+}
+
+/**
+ * The cart at today's prices, and Place Order, like the website. The
+ * student pays at the cashier and gets the items at the PROWARE office;
+ * the items are held for them until the pick-up date.
+ */
+function CartScreen() {
     const insets = useSafeAreaInsets();
     const { request } = useAuth();
     const { cart, refresh, replace } = useCart();

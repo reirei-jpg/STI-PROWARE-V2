@@ -42,7 +42,7 @@ export default function ProductScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
-    const { request } = useAuth();
+    const { user, request } = useAuth();
     const [product, setProduct] = useState<StorefrontProductDetails | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [photoIndex, setPhotoIndex] = useState(0);
@@ -284,7 +284,9 @@ export default function ProductScreen() {
                         <ClosedBar>Preorders closed</ClosedBar>
                     ) : (
                         <Pressable
-                            onPress={() => setPicking(true)}
+                            // Browsing needs no account; adding or preordering does.
+                            // After signing in, the student is back on this item.
+                            onPress={() => (user ? setPicking(true) : router.push('/login'))}
                             accessibilityRole="button"
                             className={`flex-row items-center justify-center gap-2 rounded-2xl py-4 ${preorderOnly ? 'bg-amber-400' : 'bg-brand'}`}
                         >

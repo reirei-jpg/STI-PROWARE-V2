@@ -23,6 +23,11 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('auth.login');
 
+    // Browsing the store needs no sign-in, as on the website.
+    Route::get('storefront', [StorefrontController::class, 'home'])->name('storefront.home');
+    Route::get('merchandise', [StorefrontController::class, 'merchandise'])->name('storefront.merchandise');
+    Route::get('products/{product}', [StorefrontController::class, 'show'])->name('storefront.product');
+
     // Both students and the Specialist.
     Route::middleware(['auth:sanctum', 'role:student,specialist'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
@@ -36,12 +41,8 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     });
 
-    // The student's shop.
+    // The student's cart, orders and preorders.
     Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
-        Route::get('storefront', [StorefrontController::class, 'home'])->name('storefront.home');
-        Route::get('merchandise', [StorefrontController::class, 'merchandise'])->name('storefront.merchandise');
-        Route::get('products/{product}', [StorefrontController::class, 'show'])->name('storefront.product');
-
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');
         Route::post('products/{product}/cart', [CartController::class, 'store'])->name('cart.store');
         Route::post('uniform-sets/{uniformSet}/cart', [CartController::class, 'storeSet'])->name('cart.store-set');

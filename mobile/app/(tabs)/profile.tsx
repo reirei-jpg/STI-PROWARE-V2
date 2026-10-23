@@ -5,15 +5,33 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import SignInPrompt from '@/components/SignInPrompt';
 import { useAuth } from '@/lib/auth';
 import { notificationsAllowed } from '@/lib/push';
+
+/**
+ * The Profile tab: the student's account, or Sign in while browsing
+ * without an account.
+ */
+export default function ProfileTab() {
+    const { user } = useAuth();
+
+    return user ? (
+        <ProfileScreen />
+    ) : (
+        <SignInPrompt title="Profile" icon={<UserRound size={28} color="#2563eb" />}>
+            Sign in with your STI email (the same account as the website) to order and get
+            notified when your items are ready.
+        </SignInPrompt>
+    );
+}
 
 /**
  * The student's account on this phone, whether notifications are on (with
  * a way to turn them on), and Log out. Logging out also stops this phone's
  * notifications.
  */
-export default function ProfileScreen() {
+function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const { user, signOut } = useAuth();
     const [signingOut, setSigningOut] = useState(false);
@@ -30,7 +48,7 @@ export default function ProfileScreen() {
     );
 
     const confirmSignOut = (): void => {
-        Alert.alert('Log out?', 'You will need to sign in again on this phone.', [
+        Alert.alert('Log out?', 'You can still browse the store; sign in again to order.', [
             { text: 'Stay signed in', style: 'cancel' },
             {
                 text: 'Log out',

@@ -67,11 +67,26 @@ test('signing in on the app explains what is wrong', function (Closure $makeUser
     'email not verified' => [fn () => User::factory()->student()->unverified()->create(['password' => 'Demo@2026!']), 'Demo@2026!', 'Verify your email on the PROWARE website first, then sign in here.'],
 ]);
 
-test('the app needs a signed-in student', function () {
+test('the cart, orders and preorders need a signed-in student', function () {
     $this->getJson(route('api.v1.cart.index'))->assertUnauthorized();
+    $this->getJson(route('api.v1.orders.index'))->assertUnauthorized();
+    $this->getJson(route('api.v1.preorders.index'))->assertUnauthorized();
 
     Sanctum::actingAs(User::factory()->specialist()->create());
     $this->getJson(route('api.v1.cart.index'))->assertForbidden();
+});
+
+test('anyone can browse the store on the app without signing in', function () {
+    [$ballpen] = appBallpen();
+
+    $this->getJson(route('api.v1.storefront.home'))->assertOk();
+    $this->getJson(route('api.v1.storefront.merchandise'))
+        ->assertOk()
+        ->assertJsonPath('data.0.name', 'STI Ballpen');
+    $this->getJson(route('api.v1.storefront.product', $ballpen))
+        ->assertOk()
+        ->assertJsonPath('name', 'STI Ballpen');
+    $this->postJson(route('api.v1.cart.store', $ballpen))->assertUnauthorized();
 });
 
 test('signing out on the app ends only that phone\'s login', function () {

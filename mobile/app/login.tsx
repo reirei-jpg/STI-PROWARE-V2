@@ -1,4 +1,5 @@
-import { Check, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { ArrowLeft, Check, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -19,11 +20,13 @@ import { useAuth } from '@/lib/auth';
 
 /**
  * Signing in with the student's STI email and password (the same account as
- * the website). Microsoft 365 sign-in comes later.
+ * the website). Microsoft 365 sign-in comes later. It opens on top of the
+ * store, so Back to the store closes it without signing in.
  */
 export default function Login() {
     const insets = useSafeAreaInsets();
     const { signIn } = useAuth();
+    const canGoBack = router.canGoBack();
 
     const passwordInput = useRef<TextInput>(null);
 
@@ -78,6 +81,17 @@ export default function Login() {
                     paddingHorizontal: 20,
                 }}
             >
+                {canGoBack && (
+                    <Pressable
+                        onPress={() => router.back()}
+                        accessibilityRole="button"
+                        className="mb-4 flex-row items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5"
+                    >
+                        <ArrowLeft size={18} color="#334155" />
+                        <Text className="font-sans-bold text-sm text-slate-700">Back to the store</Text>
+                    </Pressable>
+                )}
+
                 <View className="rounded-[2.5rem] border border-slate-100 bg-white px-6 py-10 shadow-xl shadow-slate-300/40">
                     <View className="items-center">
                         <Image
