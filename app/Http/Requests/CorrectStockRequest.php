@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\StockCorrectionReason;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -106,13 +107,13 @@ class CorrectStockRequest extends FormRequest
                 $after = $this->reason()->removesPieces() ? $stock - $this->integer('pieces_to_remove') : $this->integer('actual_count');
 
                 if ($this->reason()->removesPieces() && $this->integer('pieces_to_remove') > $stock) {
-                    $validator->errors()->add('pieces_to_remove', "Only {$stock} pcs are in stock.");
+                    $validator->errors()->add('pieces_to_remove', 'Only '.Units::count($stock, 'Piece').($stock === 1 ? ' is' : ' are').' in stock.');
                 } elseif (! $this->reason()->removesPieces() && $after === $stock) {
-                    $validator->errors()->add('actual_count', "The stock is already {$stock} pcs, so nothing would change.");
+                    $validator->errors()->add('actual_count', 'The stock is already '.Units::count($stock, 'Piece').', so nothing would change.');
                 } elseif ($after < $variant->held_pieces) {
-                    $validator->errors()->add($field, "{$variant->held_pieces} pcs are held for students' orders, so the shelf cannot have fewer. Cancel those orders first, or count again.");
+                    $validator->errors()->add($field, Units::count($variant->held_pieces, 'Piece').($variant->held_pieces === 1 ? ' is' : ' are')." held for students' orders, so the shelf cannot have fewer. Cancel those orders first, or count again.");
                 } elseif ($after > $stock && $this->centavosPerPiece() === null) {
-                    $validator->errors()->add('unit_cost', 'Enter the eStore price per piece of the '.($after - $stock).' pcs you are adding, so every piece has a cost.');
+                    $validator->errors()->add('unit_cost', 'Enter the eStore price per piece of the '.Units::count($after - $stock, 'Piece').' you are adding, so every piece has a cost.');
                 }
             },
         ];

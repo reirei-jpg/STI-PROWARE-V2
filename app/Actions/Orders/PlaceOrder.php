@@ -13,6 +13,7 @@ use App\Services\Shop\OrderRules;
 use App\Services\Shop\ShopPrice;
 use App\Services\Shop\UniformSetPrice;
 use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\Units;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -169,7 +170,7 @@ class PlaceOrder
             if ($pieces > $free) {
                 throw ValidationException::withMessages(['cart' => $free === 0
                     ? "{$variant->displayName()} is out of stock. Remove it from your cart."
-                    : "Only {$free} pcs of {$variant->displayName()} are left. Change your cart."]);
+                    : 'Only '.Units::count($free, 'Piece')." of {$variant->displayName()} ".($free === 1 ? 'is' : 'are').' left. Change your cart.']);
             }
         }
     }

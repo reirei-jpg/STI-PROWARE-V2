@@ -108,6 +108,24 @@ test('the correct stock form explains what is wrong', function (array $payload, 
     'other with a one-letter note' => [['reason' => 'other', 'actual_count' => '4', 'note' => 'x'], 'note', 'Write at least 5 characters.'],
 ]);
 
+test('one piece is counted as 1 pc in the correct stock messages', function () {
+    $variant = variantWithStock(1);
+
+    $this->actingAs($this->specialist)
+        ->post(route('products.stock.correct', $variant->product_id), [
+            'product_variant_id' => $variant->id,
+            'reason' => 'damaged',
+            'pieces_to_remove' => '5',
+        ])
+        ->assertSessionHasErrors(['pieces_to_remove' => 'Only 1 pc is in stock.']);
+
+    $this->post(route('products.stock.correct', $variant->product_id), [
+        'product_variant_id' => $variant->id,
+        'reason' => 'recount',
+        'actual_count' => '2',
+    ])->assertSessionHasErrors(['unit_cost' => 'Enter the eStore price per piece of the 1 pc you are adding, so every piece has a cost.']);
+});
+
 test('a variant of another product cannot be corrected from this product', function () {
     $variant = variantWithStock(10);
     $other = variantWithStock(20, 'Lanyard');
