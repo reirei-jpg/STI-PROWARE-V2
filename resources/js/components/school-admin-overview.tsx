@@ -5,6 +5,7 @@ import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
+import RemindSpecialist from '@/components/remind-specialist';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { cn, isSameSearch } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -32,6 +33,10 @@ export type AdminDeliveryRow = {
     quantity_received: number;
     /** Not complete after the days set in Maintenance. */
     is_late: boolean;
+    reminded_at: string | null;
+    reminded_by: string | null;
+    can_remind: boolean;
+    remind_again_on: string | null;
 };
 
 export type SchoolAdminOverviewData = {
@@ -422,14 +427,21 @@ function OrderRow({
                 )}
             </td>
             <td className="px-6 py-4 text-right">
-                <button
-                    type="button"
-                    onClick={onView}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
-                >
-                    <Eye size={16} />
-                    View Details
-                </button>
+                <div className="flex flex-col items-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onView}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                    >
+                        <Eye size={16} />
+                        View Details
+                    </button>
+                    {order.is_late && (
+                        <RemindSpecialist
+                            order={{ ...order, late_days: lateDays }}
+                        />
+                    )}
+                </div>
             </td>
         </tr>
     );

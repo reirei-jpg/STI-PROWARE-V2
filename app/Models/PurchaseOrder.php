@@ -37,6 +37,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $closed_at
  * @property int|null $closed_by
  * @property Carbon|null $late_notified_at
+ * @property Carbon|null $specialist_reminded_at
+ * @property int|null $specialist_reminded_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -63,6 +65,7 @@ class PurchaseOrder extends Model
             'delivery_status' => DeliveryStatus::class,
             'closed_at' => 'datetime',
             'late_notified_at' => 'datetime',
+            'specialist_reminded_at' => 'datetime',
         ];
     }
 
@@ -80,6 +83,16 @@ class PurchaseOrder extends Model
     public function closer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    /**
+     * The School Admin who last reminded the Specialist about this order.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function reminder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'specialist_reminded_by');
     }
 
     /**

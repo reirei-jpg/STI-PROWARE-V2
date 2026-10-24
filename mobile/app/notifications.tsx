@@ -149,6 +149,13 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-slate-900',
                 stripe: '#cbd5e1',
             };
+        case 'purchase_order_reminder':
+            return {
+                title: `Reminder from the School Admin${data.order_number ? `: Order #${data.order_number}` : ''}`,
+                body: `Not complete after ${data.late_days} days (ordered ${formatDate(data.date_ordered)}): ${data.quantity_remaining} of ${data.quantity_ordered} still to come. Why is it not delivered yet? Ask Head Office and record the delivery when it arrives. From ${data.reminded_by}.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
         default:
             return {
                 title: 'Notice from the PROWARE office',

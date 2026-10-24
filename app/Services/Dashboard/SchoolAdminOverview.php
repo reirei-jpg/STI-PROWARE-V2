@@ -91,6 +91,7 @@ final class SchoolAdminOverview
             ->select('purchase_orders.*')
             ->selectRaw(self::LAST_DELIVERY_SQL.' as last_delivery_at')
             ->withCasts(['last_delivery_at' => 'datetime'])
+            ->with('reminder')
             ->withCount('items')
             ->whereIn('delivery_status', $tab->statuses());
 
@@ -139,6 +140,23 @@ final class SchoolAdminOverview
             'quantity_ordered' => $order->quantity_ordered_total,
             'quantity_received' => $order->quantity_received_total,
             'is_late' => $order->delivery_status->isOpen() && $daysSinceOrdered >= $lateDays,
+            ...self::reminder($order),
+        ];
+    }
+
+    /**
+     * When the Specialist was last reminded about the order, and whether the
+     * School Admin may remind them now (a late order, once a week).
+     *
+     * @return array{reminded_at: string|null, reminded_by: string|null, can_remind: bool, remind_again_on: string|null}
+     */
+    public static function reminder(PurchaseOrder $order): array
+    {
+        return [
+            'reminded_at' => $order->specialist_reminded_at?->toIso8601String(),
+            'reminded_by' => $order->reminder?->name,
+            'can_remind' => FollowUp::canRemind($order),
+            'remind_again_on' => FollowUp::remindAgainOn($order)?->toDateString(),
         ];
     }
 }

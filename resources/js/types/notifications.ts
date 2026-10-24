@@ -188,6 +188,19 @@ export type PurchaseOrderLateData = {
     percent_received: number;
 };
 
+/** The School Admin's reminder about a late eStore order (to the Specialist). */
+export type PurchaseOrderReminderData = {
+    kind: 'purchase_order_reminder';
+    purchase_order_id: number;
+    order_number: string | null;
+    date_ordered: string;
+    days_since_ordered: number;
+    late_days: number;
+    quantity_remaining: number;
+    quantity_ordered: number;
+    reminded_by: string;
+};
+
 export type PurchaseOrderClosedShortData = {
     kind: 'purchase_order_closed_short';
     purchase_order_id: number;
@@ -221,6 +234,7 @@ export type StaffNotification = {
         | DeliveryRecordedData
         | PurchaseOrderCompletedData
         | PurchaseOrderLateData
+        | PurchaseOrderReminderData
         | PurchaseOrderClosedShortData;
     read: boolean;
     created_at: string | null;

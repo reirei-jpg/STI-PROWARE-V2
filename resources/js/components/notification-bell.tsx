@@ -204,6 +204,26 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'purchase_order_reminder') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Reminder from the School Admin
+                    {data.order_number ? `: Order #${data.order_number}` : ''}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Not complete after {data.late_days} days (ordered{' '}
+                    {formatDateOrdered(data.date_ordered)}):{' '}
+                    {data.quantity_remaining.toLocaleString('en-PH')} of{' '}
+                    {data.quantity_ordered.toLocaleString('en-PH')} still to
+                    come. Why is it not delivered yet? Ask Head Office and
+                    record the delivery when it arrives. · from{' '}
+                    {data.reminded_by}
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'purchase_order_closed_short') {
         return (
             <>

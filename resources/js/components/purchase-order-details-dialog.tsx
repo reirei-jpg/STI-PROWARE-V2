@@ -16,6 +16,7 @@ import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/Purc
 import DeliveryProgress from '@/components/delivery-progress';
 import InputError from '@/components/input-error';
 import RecordDeliveryDialog from '@/components/record-delivery-dialog';
+import RemindSpecialist from '@/components/remind-specialist';
 import {
     Dialog,
     DialogClose,
@@ -49,6 +50,7 @@ export default function PurchaseOrderDetailsDialog({
 }) {
     const { auth } = usePage().props;
     const isSpecialist = auth.user.role === 'specialist';
+    const isSchoolAdmin = auth.user.role === 'school_admin';
     const http = useHttp<Record<string, never>, PurchaseOrderDetails>({});
     const [details, setDetails] = useState<PurchaseOrderDetails | null>(null);
     const [failed, setFailed] = useState(false);
@@ -259,7 +261,50 @@ export default function PurchaseOrderDetailsDialog({
                                 </dl>
 
                                 <div className="space-y-3 px-6 pt-5">
-                                    {isOpen && (
+                                    {isOpen && details.is_late && (
+                                        <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between">
+                                            <p className="flex items-start gap-2">
+                                                <CircleAlert
+                                                    size={16}
+                                                    className="mt-0.5 shrink-0"
+                                                />
+                                                <span>
+                                                    <b>
+                                                        Late · not complete
+                                                        after{' '}
+                                                        {details.late_days} days
+                                                        (ordered{' '}
+                                                        {
+                                                            details.days_since_ordered
+                                                        }{' '}
+                                                        days ago).
+                                                    </b>{' '}
+                                                    Head Office gives no
+                                                    delivery date.
+                                                </span>
+                                            </p>
+                                            {isSchoolAdmin && (
+                                                <RemindSpecialist
+                                                    order={{
+                                                        ...details,
+                                                        quantity_ordered:
+                                                            details.quantity_ordered_total,
+                                                        quantity_received:
+                                                            details.quantity_received_total,
+                                                    }}
+                                                    onSent={() =>
+                                                        setReloads(
+                                                            (count) =>
+                                                                count + 1,
+                                                        )
+                                                    }
+                                                    className="shrink-0"
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {isOpen && !details.is_late && (
                                         <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
                                             <CircleAlert
                                                 size={16}

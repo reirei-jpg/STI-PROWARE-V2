@@ -235,6 +235,12 @@ test('the details window gets every detail of the order, items in document order
             'last_delivery_at' => null,
             'completed_at' => null,
             'completed_after_days' => null,
+            'is_late' => false,
+            'late_days' => 30,
+            'reminded_at' => null,
+            'reminded_by' => null,
+            'can_remind' => false,
+            'remind_again_on' => null,
             'items' => [
                 [
                     'row_number' => 1, 'item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain Culinary',

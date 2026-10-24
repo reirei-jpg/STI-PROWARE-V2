@@ -12,6 +12,7 @@ use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\PurchaseOrderUploaded;
+use App\Services\Dashboard\SchoolAdminOverview;
 use App\Services\Deliveries\FollowUp;
 use App\Services\EstorePo\EstorePoParser;
 use App\Services\EstorePo\PendingPurchaseOrderScan;
@@ -204,7 +205,7 @@ class PurchaseOrderController extends Controller
      */
     public function show(PurchaseOrder $purchaseOrder): JsonResponse
     {
-        $purchaseOrder->load(['uploader', 'closer', 'items']);
+        $purchaseOrder->load(['uploader', 'closer', 'reminder', 'items']);
 
         $deliveries = Delivery::query()
             ->with('recorder')
@@ -248,6 +249,9 @@ class PurchaseOrderController extends Controller
             // When the last pieces arrived, or when it was closed with some missing.
             'completed_at' => $completedAt?->toIso8601String(),
             'completed_after_days' => $completedAt === null ? null : (int) $purchaseOrder->date_ordered->copy()->startOfDay()->diffInDays($completedAt->copy()->startOfDay()),
+            'is_late' => FollowUp::isLate($purchaseOrder),
+            'late_days' => FollowUp::days(),
+            ...SchoolAdminOverview::reminder($purchaseOrder),
             'items' => $purchaseOrder->items->map(fn (PurchaseOrderItem $item): array => [
                 'row_number' => $item->row_number,
                 'item_code' => $item->item_code,

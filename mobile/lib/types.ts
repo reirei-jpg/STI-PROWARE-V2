@@ -337,7 +337,18 @@ export type StudentNotificationData =
           quantity: number;
       }
     | { kind: 'sale_ending'; product_id: number; product_name: string; ends_at: string | null }
-    | { kind: 'sale_ended'; product_id: number; product_name: string; normal_price: string };
+    | { kind: 'sale_ended'; product_id: number; product_name: string; normal_price: string }
+    | {
+          kind: 'purchase_order_reminder';
+          purchase_order_id: number;
+          order_number: string | null;
+          date_ordered: string;
+          days_since_ordered: number;
+          late_days: number;
+          quantity_remaining: number;
+          quantity_ordered: number;
+          reminded_by: string;
+      };
 
 export type StudentNotification = {
     id: string;

@@ -15,6 +15,7 @@ use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\ProductStockController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseOrderDeliveryController;
+use App\Http\Controllers\PurchaseOrderReminderController;
 use App\Http\Controllers\PurchaseOrderScanController;
 use App\Http\Controllers\SalesReportController;
 use App\Http\Controllers\StorefrontController;
@@ -56,6 +57,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
         Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
+    });
+
+    Route::middleware('role:school_admin')->group(function () {
+        Route::post('purchase-orders/{purchaseOrder}/remind-specialist', [PurchaseOrderReminderController::class, 'store'])->name('purchase-orders.remind-specialist');
     });
 
     Route::middleware('role:specialist')->group(function () {

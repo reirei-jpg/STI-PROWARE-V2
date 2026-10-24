@@ -3,8 +3,9 @@ import type { Href } from 'expo-router';
 /**
  * The screen a notice opens, for both a tapped push and a notice tapped in
  * Notifications. Push data arrives as strings, so ids are read as numbers.
- * Null means there is nothing to open on the phone (sales and deliveries
- * are handled on the website).
+ * Null means there is nothing to open on the phone (sales are handled on
+ * the website). A School Admin's reminder about a late order opens
+ * Deliveries, where the Specialist records it when it arrives.
  */
 export function noticeTarget(data: Record<string, unknown>): Href | null {
     const orderId = Number(data.order_id);
@@ -35,6 +36,8 @@ export function noticeTarget(data: Record<string, unknown>): Href | null {
             return hasOrder ? `/staff-order/${orderId}` : null;
         case 'low_stock':
             return hasProduct ? `/stock/${productId}` : null;
+        case 'purchase_order_reminder':
+            return '/staff-deliveries';
         default:
             return null;
     }

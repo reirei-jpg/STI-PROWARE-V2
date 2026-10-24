@@ -3,10 +3,12 @@
 use App\Enums\DeliveryStatus;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Notifications\Channels\PushChannel;
 use App\Notifications\DeliveryRecorded;
 use App\Notifications\PurchaseOrderClosedShort;
 use App\Notifications\PurchaseOrderCompleted;
 use App\Notifications\PurchaseOrderLate;
+use App\Notifications\PurchaseOrderReminder;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -243,6 +245,72 @@ test('an order\'s details give the date and time of each delivery and of its com
     $this->getJson(route('purchase-orders.show', $short))
         ->assertJsonPath('completed_at', CarbonImmutable::parse('2026-10-09 14:30', 'Asia/Manila')->toIso8601String())
         ->assertJsonPath('last_delivery_at', null);
+});
+
+test('the school admin reminds the Specialist about a late order, then waits a week', function () {
+    Notification::fake();
+    $late = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01', 'uploaded_by' => $this->specialist->id]);
+    $this->actingAs($this->schoolAdmin);
+
+    $this->get(route('dashboard', ['tab' => 'coming']))->assertInertia(fn (Assert $page) => $page
+        ->where('overview.deliveries.orders.data.0.can_remind', true));
+
+    $this->from(route('dashboard'))
+        ->post(route('purchase-orders.remind-specialist', $late))
+        ->assertRedirect(route('dashboard'))
+        ->assertSessionHasNoErrors()
+        ->assertInertiaFlash('toast.message', 'The reminder has been sent to Carlo Mendoza.');
+
+    Notification::assertSentTo($this->specialist, PurchaseOrderReminder::class, fn (PurchaseOrderReminder $notice) => $notice->toArray($this->specialist) === [
+        'kind' => 'purchase_order_reminder',
+        'purchase_order_id' => $late->id,
+        'order_number' => '30801',
+        'date_ordered' => '2026-09-01',
+        'days_since_ordered' => 37,
+        'late_days' => 30,
+        'quantity_remaining' => 20,
+        'quantity_ordered' => 20,
+        'reminded_by' => 'Liza Garcia',
+    ] && $notice->via($this->specialist) === ['database', PushChannel::class]);
+    Notification::assertNotSentTo($this->schoolAdmin, PurchaseOrderReminder::class);
+
+    $this->get(route('dashboard', ['tab' => 'coming']))->assertInertia(fn (Assert $page) => $page
+        ->where('overview.deliveries.orders.data.0.can_remind', false)
+        ->where('overview.deliveries.orders.data.0.reminded_by', 'Liza Garcia')
+        ->where('overview.deliveries.orders.data.0.remind_again_on', '2026-10-15'));
+
+    $this->from(route('dashboard'))
+        ->post(route('purchase-orders.remind-specialist', $late))
+        ->assertSessionHasErrors(['reminder' => 'The Specialist was already reminded about Order #30801. The next reminder can be sent on Oct 15, 2026.']);
+    Notification::assertSentToTimes($this->specialist, PurchaseOrderReminder::class, 1);
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-15 08:00', 'Asia/Manila'));
+    $this->post(route('purchase-orders.remind-specialist', $late))->assertSessionHasNoErrors();
+    Notification::assertSentToTimes($this->specialist, PurchaseOrderReminder::class, 2);
+});
+
+test('only a late order can be reminded about, and only by the school admin', function () {
+    $recent = orderWith(['PRUM01-01' => 20], ['order_number' => '30802', 'date_ordered' => '2026-10-01']);
+    $late = orderWith(['PRHD01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01']);
+
+    $this->actingAs($this->schoolAdmin)
+        ->post(route('purchase-orders.remind-specialist', $recent))
+        ->assertSessionHasErrors(['reminder' => 'Order #30802 is not late, so there is nothing to remind the Specialist about.']);
+    $this->actingAs($this->specialist)
+        ->post(route('purchase-orders.remind-specialist', $late))
+        ->assertForbidden();
+
+    expect($recent->refresh()->specialist_reminded_at)->toBeNull()
+        ->and($late->refresh()->specialist_reminded_at)->toBeNull();
+});
+
+test('opening a reminder notice opens that purchase order for the Specialist', function () {
+    $late = orderWith(['PRHD01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01']);
+    $this->actingAs($this->schoolAdmin)->post(route('purchase-orders.remind-specialist', $late));
+
+    $this->actingAs($this->specialist)
+        ->post(route('notifications.open', $this->specialist->notifications()->sole()->id))
+        ->assertRedirect(route('purchase-orders.index', ['view' => $late->id]));
 });
 
 test('the school admin sees every delivery, but cannot record one', function () {

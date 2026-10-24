@@ -80,6 +80,14 @@ export type PurchaseOrderDetails = {
     completed_at: string | null;
     /** Days from the Date Ordered to completed_at (0 = the same day). */
     completed_after_days: number | null;
+    /** Still open and not complete after late_days (set in Maintenance). */
+    is_late: boolean;
+    late_days: number;
+    /** The School Admin's last reminder to the Specialist about it. */
+    reminded_at: string | null;
+    reminded_by: string | null;
+    can_remind: boolean;
+    remind_again_on: string | null;
     deliveries: OrderDeliveryRecord[];
 } & DeliveryProgress;
 
