@@ -30,8 +30,8 @@ class DeliveryController extends Controller
         $waiting = $request->showsWaiting();
 
         return Inertia::render('deliveries/index', [
-            'deliveries' => $waiting ? null : DeliveryScreens::recorded($request->search(), $request->dateFrom(), $request->dateTo(), $show),
-            'waitingOrders' => $waiting ? DeliveryScreens::waitingOrders($request->search(), $show) : null,
+            'deliveries' => $waiting ? null : DeliveryScreens::recorded($request->search(), $request->dateFrom(), $request->dateTo(), $show, DeliveryScreens::WEB_PER_PAGE),
+            'waitingOrders' => $waiting ? DeliveryScreens::waitingOrders($request->search(), $show, DeliveryScreens::WEB_PER_PAGE) : null,
             'summary' => DeliveryScreens::summary(),
             'details' => Inertia::optional(fn (): ?array => $request->filled('details') ? DeliveryScreens::details($request->integer('details')) : null),
             'filters' => [

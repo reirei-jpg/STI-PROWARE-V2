@@ -359,6 +359,25 @@ test('the deliveries page shows what arrived, what is still to come, and a deliv
             ->where('details.orders.0.delivery_status', 'completed')));
 });
 
+test('the deliveries page shows 5 deliveries or waiting orders a page', function () {
+    Delivery::factory()->count(6)->sequence(fn ($sequence) => ['received_on' => '2026-10-0'.($sequence->index + 1)])->create();
+    foreach (range(1, 6) as $number) {
+        orderWith(['UTMP02-03' => 10], ['order_number' => "3065{$number}", 'date_ordered' => "2026-10-0{$number}"]);
+    }
+
+    $this->actingAs($this->specialist);
+    $this->get(route('deliveries.index'))->assertInertia(fn (Assert $page) => $page
+        ->has('deliveries.data', 5)
+        ->where('deliveries.data.0.received_on', '2026-10-06')
+        ->where('deliveries.last_page', 2));
+    $this->get(route('deliveries.index', ['page' => 2]))->assertInertia(fn (Assert $page) => $page
+        ->has('deliveries.data', 1)
+        ->where('deliveries.data.0.received_on', '2026-10-01'));
+    $this->get(route('deliveries.index', ['show' => 'waiting', 'page' => 2]))->assertInertia(fn (Assert $page) => $page
+        ->has('waitingOrders.data', 1)
+        ->where('waitingOrders.data.0.order_number', '30656'));
+});
+
 test('the school admin can only watch deliveries, not record them', function () {
     $order = orderWith(['UTMP02-03' => 10]);
     $this->actingAs(User::factory()->schoolAdmin()->create());

@@ -24,14 +24,19 @@ use Illuminate\Support\Collection;
  */
 final class DeliveryScreens
 {
+    /** Deliveries or orders a page on the website's Deliveries page. */
+    public const WEB_PER_PAGE = 5;
+
     /**
      * Recorded deliveries, newest first, searchable by SI #, DR # or Order #;
      * this month's only, or only those with items not in stock yet, when
-     * asked. Each with its first item and how many items it had.
+     * asked. Each with its first item and how many items it had. The
+     * website shows WEB_PER_PAGE at a time; the phone app loads 20 as the
+     * Specialist scrolls.
      *
      * @return LengthAwarePaginator<int, RecordedDelivery>
      */
-    public static function recorded(?string $search, ?string $dateFrom = null, ?string $dateTo = null, ?string $only = null): LengthAwarePaginator
+    public static function recorded(?string $search, ?string $dateFrom = null, ?string $dateTo = null, ?string $only = null, int $perPage = 20): LengthAwarePaginator
     {
         return Delivery::query()
             ->with(['recorder', 'items.purchaseOrderItem.purchaseOrder', 'items.stockMovements.variant.product'])
@@ -52,7 +57,7 @@ final class DeliveryScreens
             ->when($dateTo, fn (Builder $query, string $date) => $query->whereDate('received_on', '<=', $date))
             ->latest('received_on')
             ->latest('id')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString()
             ->through(fn (Delivery $delivery): array => [
                 'id' => $delivery->id,
@@ -147,14 +152,14 @@ final class DeliveryScreens
      *
      * @return LengthAwarePaginator<int, WaitingOrder>
      */
-    public static function waitingOrders(?string $search, ?string $only = null): LengthAwarePaginator
+    public static function waitingOrders(?string $search, ?string $only = null, int $perPage = 20): LengthAwarePaginator
     {
         return ($only === 'follow_up' ? FollowUp::dueOrders() : FollowUp::openOrders())
             ->withCount('items')
             ->when($search, fn (Builder $query, string $term) => $query->whereLike('order_number', "%{$term}%"))
             ->orderBy('date_ordered')
             ->orderBy('id')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString()
             ->through(fn (PurchaseOrder $order): array => [
                 'id' => $order->id,
