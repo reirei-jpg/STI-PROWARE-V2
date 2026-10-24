@@ -34,7 +34,9 @@ export default function Profile() {
                 description={
                     isStudent
                         ? 'Your name is printed on your issuance slips. Use your full name, e.g. Juan Dela Cruz.'
-                        : 'Your name is shown on what you record, e.g. deliveries and released orders.'
+                        : auth.user.role === 'school_admin'
+                          ? 'Your name is shown on the reminders you send to the Specialist about late orders.'
+                          : 'Your name is shown on what you record, e.g. deliveries and released orders.'
                 }
             >
                 <div className="flex items-center gap-4 border-b border-slate-100 px-6 py-5">

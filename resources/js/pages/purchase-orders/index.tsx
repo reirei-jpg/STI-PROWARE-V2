@@ -197,7 +197,11 @@ export default function PurchaseOrdersIndex({
             <div className="space-y-7">
                 <PageHeader
                     title="Purchase Orders"
-                    description="eStore orders approved by the School Admin and uploaded to PROWARE."
+                    description={
+                        isSpecialist
+                            ? 'eStore orders approved by the School Admin and uploaded to PROWARE.'
+                            : 'The eStore orders you approved, uploaded by the Specialist. View only.'
+                    }
                     actions={
                         isSpecialist && (
                             <Link
