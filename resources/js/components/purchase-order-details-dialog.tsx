@@ -13,7 +13,6 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/PurchaseOrderDeliveryController';
-import DeliveryProgress from '@/components/delivery-progress';
 import InputError from '@/components/input-error';
 import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import RemindSpecialist from '@/components/remind-specialist';
@@ -194,7 +193,31 @@ export default function PurchaseOrderDetailsDialog({
                             </div>
                         ) : (
                             <>
-                                <dl className="grid grid-cols-2 divide-slate-100 border-b border-slate-200 bg-slate-50/60 lg:grid-cols-4 lg:divide-x">
+                                <dl className="grid border-b border-slate-200 sm:grid-cols-2 sm:gap-x-8 sm:px-6">
+                                    <Fact label="Status">
+                                        <span className="inline-flex items-center gap-2">
+                                            <span
+                                                className={cn(
+                                                    'rounded-full px-2.5 py-0.5 text-xs font-black',
+                                                    statusClasses[
+                                                        details.delivery_status
+                                                    ],
+                                                )}
+                                            >
+                                                {details.delivery_status_label}
+                                            </span>
+                                            <span>
+                                                {details.quantity_received_total.toLocaleString(
+                                                    'en-PH',
+                                                )}{' '}
+                                                of{' '}
+                                                {details.quantity_ordered_total.toLocaleString(
+                                                    'en-PH',
+                                                )}{' '}
+                                                ({details.percent_received}%)
+                                            </span>
+                                        </span>
+                                    </Fact>
                                     <Fact label="Date Ordered">
                                         {formatDateOrdered(
                                             details.date_ordered,
@@ -242,12 +265,6 @@ export default function PurchaseOrderDetailsDialog({
                                             )}
                                         </Fact>
                                     )}
-                                    <Fact label="Delivery">
-                                        <DeliveryProgress
-                                            progress={details}
-                                            className="w-full max-w-56"
-                                        />
-                                    </Fact>
                                     {details.school && (
                                         <Fact label="School">
                                             {details.school}
@@ -597,83 +614,78 @@ function completedAfter(days: number | null): string | undefined {
     return `${days} ${days === 1 ? 'day' : 'days'} after the Date Ordered`;
 }
 
-type TimelineStep = {
+type HistoryRow = {
     key: string;
     at: string | null;
-    tone: 'slate' | 'blue' | 'green' | 'red';
-    title: string;
+    tone: 'plain' | 'green' | 'red';
+    what: string;
     detail: string | null;
+    by: string | null;
     delivery?: OrderDeliveryRecord;
 };
 
-const dotClasses: Record<TimelineStep['tone'], string> = {
-    slate: 'bg-slate-400',
-    blue: 'bg-[#0D6EFD]',
-    green: 'bg-emerald-500',
-    red: 'bg-red-500',
-};
-
 /**
- * Everything that happened to this order, oldest first, each with its date
- * and time: the upload, every delivery recorded, and when it was completed
- * (or closed with some missing). An order still open ends with what is
- * still to come.
+ * Everything that happened to this order as a table, oldest first, each
+ * with its date and time: the upload, every delivery recorded, and when it
+ * was completed (or closed with some missing). An order still open ends
+ * with what is still to come.
  */
 function DeliveryHistory({ details }: { details: PurchaseOrderDetails }) {
-    const steps: TimelineStep[] = [
+    const deliveries = [...details.deliveries].sort((a, b) =>
+        (a.recorded_at ?? '').localeCompare(b.recorded_at ?? ''),
+    );
+    const rows: HistoryRow[] = [
         {
             key: 'uploaded',
             at: details.uploaded_at,
-            tone: 'slate',
-            title: 'Purchase order uploaded',
-            detail: `${details.items.length} ${details.items.length === 1 ? 'item' : 'items'} · ${details.quantity_ordered_total.toLocaleString('en-PH')} as ordered on the eStore · ${formatPeso(details.total_amount_centavos)} · by ${details.uploaded_by}`,
+            tone: 'plain',
+            what: 'Purchase order uploaded',
+            detail: `${details.items.length} ${details.items.length === 1 ? 'item' : 'items'} · ${details.quantity_ordered_total.toLocaleString('en-PH')} as ordered on the eStore · ${formatPeso(details.total_amount_centavos)}`,
+            by: details.uploaded_by,
         },
-        ...[...details.deliveries]
-            .sort((a, b) =>
-                (a.recorded_at ?? '').localeCompare(b.recorded_at ?? ''),
-            )
-            .map((delivery): TimelineStep => ({
-                key: `delivery-${delivery.id}`,
-                at: delivery.recorded_at,
-                tone: 'blue',
-                title: 'Delivery recorded',
-                detail: [
-                    `Received ${formatDateOrdered(delivery.received_on)}`,
-                    delivery.sales_invoice_number &&
-                        `SI # ${delivery.sales_invoice_number}`,
-                    delivery.delivery_receipt_number &&
-                        `DR # ${delivery.delivery_receipt_number}`,
-                    `by ${delivery.recorded_by}`,
-                ]
-                    .filter(Boolean)
-                    .join(' · '),
-                delivery,
-            })),
+        ...deliveries.map((delivery): HistoryRow => ({
+            key: `delivery-${delivery.id}`,
+            at: delivery.recorded_at,
+            tone: 'plain',
+            what: 'Delivery recorded',
+            detail: [
+                `Received ${formatDateOrdered(delivery.received_on)}`,
+                delivery.sales_invoice_number &&
+                    `SI # ${delivery.sales_invoice_number}`,
+                delivery.delivery_receipt_number &&
+                    `DR # ${delivery.delivery_receipt_number}`,
+            ]
+                .filter(Boolean)
+                .join(' · '),
+            by: delivery.recorded_by,
+            delivery,
+        })),
     ];
 
     if (details.delivery_status === 'completed') {
-        steps.push({
+        rows.push({
             key: 'completed',
             at: details.completed_at,
             tone: 'green',
-            title: 'Completed · everything arrived',
-            detail: `${details.quantity_received_total.toLocaleString('en-PH')} of ${details.quantity_ordered_total.toLocaleString('en-PH')} as ordered on the eStore`,
+            what: 'Completed',
+            detail: `Everything arrived: ${details.quantity_received_total.toLocaleString('en-PH')} of ${details.quantity_ordered_total.toLocaleString('en-PH')} as ordered on the eStore`,
+            by: deliveries.at(-1)?.recorded_by ?? null,
         });
     }
 
     if (details.delivery_status === 'completed_short') {
-        steps.push({
+        rows.push({
             key: 'closed',
             at: details.closed_at,
             tone: 'red',
-            title: 'Completed (some missing)',
+            what: 'Completed (some missing)',
             detail: [
                 details.closed_reason && `“${details.closed_reason}”`,
                 `${details.percent_received}% received`,
-                details.closed_by && `by ${details.closed_by}`,
             ]
                 .filter(Boolean)
                 .join(' · '),
+            by: details.closed_by,
         });
     }
 
@@ -685,83 +697,81 @@ function DeliveryHistory({ details }: { details: PurchaseOrderDetails }) {
         details.delivery_status === 'partially_received';
 
     return (
-        <ol className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200">
-            {steps.map((step) => (
-                <li key={step.key} className="flex gap-3 px-4 py-3">
-                    <span
-                        aria-hidden="true"
-                        className={cn(
-                            'mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full',
-                            dotClasses[step.tone],
-                        )}
-                    />
-                    <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                            <p
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full min-w-200 text-sm">
+                <thead className="bg-slate-50">
+                    <tr>
+                        <Heading>Date &amp; time</Heading>
+                        <Heading>What happened</Heading>
+                        <Heading>Details</Heading>
+                        <Heading>By</Heading>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                    {rows.map((row) => (
+                        <tr key={row.key} className="align-top">
+                            <td className="px-4 py-3 font-semibold whitespace-nowrap text-slate-800">
+                                {formatDateTime(row.at)}
+                            </td>
+                            <td
                                 className={cn(
-                                    'text-sm font-black',
-                                    step.tone === 'green'
+                                    'px-4 py-3 font-black whitespace-nowrap',
+                                    row.tone === 'green'
                                         ? 'text-emerald-700'
-                                        : step.tone === 'red'
+                                        : row.tone === 'red'
                                           ? 'text-red-700'
                                           : 'text-slate-900',
                                 )}
                             >
-                                {step.title}
-                            </p>
-                            <p className="text-sm font-bold whitespace-nowrap text-slate-700">
-                                {formatDateTime(step.at)}
-                            </p>
-                        </div>
-                        {step.detail && (
-                            <p className="mt-0.5 text-xs text-slate-500">
-                                {step.detail}
-                            </p>
-                        )}
-                        {step.delivery && (
-                            <DeliveredItems delivery={step.delivery} />
-                        )}
-                    </div>
-                </li>
-            ))}
+                                {row.what}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                                {row.detail}
+                                {row.delivery && (
+                                    <DeliveredItems delivery={row.delivery} />
+                                )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-slate-700">
+                                {row.by ?? '—'}
+                            </td>
+                        </tr>
+                    ))}
 
-            {isOpen && stillToCome.length > 0 && (
-                <li className="flex gap-3 bg-amber-50/50 px-4 py-3">
-                    <span
-                        aria-hidden="true"
-                        className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-dashed border-amber-500"
-                    />
-                    <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                            <p className="text-sm font-black text-amber-800">
+                    {isOpen && stillToCome.length > 0 && (
+                        <tr className="bg-amber-50/50 align-top">
+                            <td className="px-4 py-3 text-slate-400">—</td>
+                            <td className="px-4 py-3 font-black whitespace-nowrap text-amber-800">
                                 Still to come
-                            </p>
-                            <p className="text-xs font-bold text-amber-700">
-                                Not delivered yet
-                            </p>
-                        </div>
-                        <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
-                            {stillToCome.map((item) => (
-                                <li key={item.row_number}>
-                                    <span className="font-mono text-xs font-bold text-blue-700">
-                                        {item.item_code}
-                                    </span>{' '}
-                                    {item.description} ·{' '}
-                                    <b>
-                                        <Quantity
-                                            value={item.quantity_remaining}
-                                            unitName={
-                                                item.stock_target?.unit_name
-                                            }
-                                        />
-                                    </b>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </li>
-            )}
-        </ol>
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">
+                                <ul className="space-y-0.5">
+                                    {stillToCome.map((item) => (
+                                        <li key={item.row_number}>
+                                            <span className="font-mono text-xs font-bold text-blue-700">
+                                                {item.item_code}
+                                            </span>{' '}
+                                            {item.description} ·{' '}
+                                            <b>
+                                                <Quantity
+                                                    value={
+                                                        item.quantity_remaining
+                                                    }
+                                                    unitName={
+                                                        item.stock_target
+                                                            ?.unit_name
+                                                    }
+                                                />
+                                            </b>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </td>
+                            <td className="px-4 py-3 text-slate-400">—</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
     );
 }
 
@@ -805,7 +815,7 @@ function DeliveredItems({ delivery }: { delivery: OrderDeliveryRecord }) {
     );
 }
 
-/** One fact in the row under the header. */
+/** One label and value in the grid under the header. */
 function Fact({
     label,
     note,
@@ -816,17 +826,26 @@ function Fact({
     children: ReactNode;
 }) {
     return (
-        <div className="px-6 py-4">
-            <dt className="text-xs font-black tracking-wide text-slate-400 uppercase">
-                {label}
-            </dt>
-            <dd className="mt-1 text-sm font-black text-slate-900">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-2.5 text-sm sm:px-0">
+            <dt className="shrink-0 font-semibold text-slate-500">{label}</dt>
+            <dd className="text-right font-black text-slate-900">
                 {children}
+                {note && (
+                    <span className="block text-xs font-medium text-slate-500">
+                        {note}
+                    </span>
+                )}
             </dd>
-            {note && <dd className="mt-0.5 text-xs text-slate-500">{note}</dd>}
         </div>
     );
 }
+
+const statusClasses: Record<PurchaseOrderDetails['delivery_status'], string> = {
+    awaiting: 'bg-amber-100 text-amber-800',
+    partially_received: 'bg-blue-100 text-blue-800',
+    completed: 'bg-emerald-100 text-emerald-800',
+    completed_short: 'bg-red-100 text-red-800',
+};
 
 function TabButton({
     active,

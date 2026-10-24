@@ -149,8 +149,9 @@ const emptyText: Record<AdminDeliveryTab, string> = {
 
 /**
  * The School Admin's dashboard (view only): every eStore order the
- * Specialist uploaded, in three tabs by what has arrived, with the date and
- * time of each step. 5 orders a page; View Details opens the order. The
+ * Specialist uploaded, in three tabs by what has arrived, with its Date
+ * Ordered. 5 orders a page; View Details opens the order with the date and
+ * time of each step. The
  * search by Order # narrows every tab, and the tab counts show where the
  * order is.
  */
@@ -365,7 +366,9 @@ export default function SchoolAdminOverview({
                                 <thead className="bg-slate-50 text-left text-[11px] font-black tracking-wider text-slate-500 uppercase">
                                     <tr>
                                         <th className="px-6 py-3">Order #</th>
-                                        <th className="px-4 py-3">Dates</th>
+                                        <th className="px-4 py-3">
+                                            Date Ordered
+                                        </th>
                                         <th className="px-4 py-3">Received</th>
                                         <th className="px-4 py-3">Status</th>
                                         <th className="px-6 py-3 text-right">
@@ -427,25 +430,8 @@ function OrderRow({
                     </span>
                 )}
             </td>
-            <td className="px-4 py-4">
-                <p>
-                    <span className="text-slate-500">Ordered</span>{' '}
-                    <strong>{formatDateOrdered(order.date_ordered)}</strong>{' '}
-                    <span className="text-xs text-slate-500">
-                        · {daysAgo(order.days_since_ordered)}
-                    </span>
-                </p>
-                <p className="mt-1">
-                    <span className="text-slate-500">{stepLabel(order)}</span>{' '}
-                    <strong>{formatDateTime(stepAt(order))}</strong>
-                </p>
-                {order.completed_after_days !== null && (
-                    <p className="mt-1 text-xs text-slate-500">
-                        {order.completed_after_days === 0
-                            ? 'Arrived the same day it was ordered'
-                            : `Took ${order.completed_after_days} ${order.completed_after_days === 1 ? 'day' : 'days'} from the Date Ordered`}
-                    </p>
-                )}
+            <td className="px-4 py-4 font-semibold whitespace-nowrap text-slate-800">
+                {formatDateOrdered(order.date_ordered)}
             </td>
             <td className="min-w-48 px-4 py-4">
                 <div className="h-2 overflow-hidden rounded-full bg-slate-200">
@@ -796,27 +782,4 @@ function SalesNumber({
             </p>
         </div>
     );
-}
-
-/** The second date line: when it was uploaded, last delivered, or completed. */
-function stepLabel(order: AdminDeliveryRow): string {
-    if (order.completed_at !== null) {
-        return order.status === 'completed_short'
-            ? 'Completed (some missing)'
-            : 'Completed';
-    }
-
-    return order.last_delivery_at !== null ? 'Last delivery' : 'Uploaded';
-}
-
-function stepAt(order: AdminDeliveryRow): string | null {
-    return order.completed_at ?? order.last_delivery_at ?? order.uploaded_at;
-}
-
-function daysAgo(days: number): string {
-    if (days === 0) {
-        return 'today';
-    }
-
-    return days === 1 ? '1 day ago' : `${days} days ago`;
 }
