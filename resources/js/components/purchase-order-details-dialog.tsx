@@ -1,14 +1,5 @@
 import { Form, useHttp, usePage } from '@inertiajs/react';
-import {
-    Ban,
-    CircleAlert,
-    ClipboardList,
-    History,
-    LoaderCircle,
-    Package,
-    Truck,
-    X,
-} from 'lucide-react';
+import { Ban, ClipboardList, LoaderCircle, Truck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
@@ -116,23 +107,17 @@ export default function PurchaseOrderDetailsDialog({
                 <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-5xl [&>button:last-child]:hidden">
                     <header className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
-                            <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
+                            <p className="text-xs font-semibold text-slate-500">
                                 eStore Purchase Order
+                                {details?.category && ` · ${details.category}`}
                             </p>
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                                <DialogTitle className="text-xl font-black text-slate-900">
-                                    {details
-                                        ? details.order_number
-                                            ? `Order #${details.order_number}`
-                                            : `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
-                                        : 'Purchase Order Details'}
-                                </DialogTitle>
-                                {details?.category && (
-                                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">
-                                        {details.category}
-                                    </span>
-                                )}
-                            </div>
+                            <DialogTitle className="mt-0.5 text-xl font-bold text-slate-900">
+                                {details
+                                    ? details.order_number
+                                        ? `Order #${details.order_number}`
+                                        : `Ordered ${formatDateOrdered(details.date_ordered, details.time_ordered)}`
+                                    : 'Purchase Order Details'}
+                            </DialogTitle>
                             <DialogDescription className="sr-only">
                                 Every detail of this purchase order
                             </DialogDescription>
@@ -195,27 +180,25 @@ export default function PurchaseOrderDetailsDialog({
                             <>
                                 <dl className="grid border-b border-slate-200 sm:grid-cols-2 sm:gap-x-8 sm:px-6">
                                     <Fact label="Status">
-                                        <span className="inline-flex items-center gap-2">
-                                            <span
-                                                className={cn(
-                                                    'rounded-full px-2.5 py-0.5 text-xs font-black',
-                                                    statusClasses[
-                                                        details.delivery_status
-                                                    ],
-                                                )}
-                                            >
-                                                {details.delivery_status_label}
-                                            </span>
-                                            <span>
-                                                {details.quantity_received_total.toLocaleString(
-                                                    'en-PH',
-                                                )}{' '}
-                                                of{' '}
-                                                {details.quantity_ordered_total.toLocaleString(
-                                                    'en-PH',
-                                                )}{' '}
-                                                ({details.percent_received}%)
-                                            </span>
+                                        <span
+                                            className={cn(
+                                                details.delivery_status ===
+                                                    'completed_short' &&
+                                                    'text-red-700',
+                                            )}
+                                        >
+                                            {details.delivery_status_label}
+                                        </span>{' '}
+                                        <span className="font-normal text-slate-500">
+                                            (
+                                            {details.quantity_received_total.toLocaleString(
+                                                'en-PH',
+                                            )}{' '}
+                                            of{' '}
+                                            {details.quantity_ordered_total.toLocaleString(
+                                                'en-PH',
+                                            )}
+                                            , {details.percent_received}%)
                                         </span>
                                     </Fact>
                                     <Fact label="Date Ordered">
@@ -279,26 +262,16 @@ export default function PurchaseOrderDetailsDialog({
 
                                 <div className="space-y-3 px-6 pt-5">
                                     {isOpen && details.is_late && (
-                                        <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between">
-                                            <p className="flex items-start gap-2">
-                                                <CircleAlert
-                                                    size={16}
-                                                    className="mt-0.5 shrink-0"
-                                                />
-                                                <span>
-                                                    <b>
-                                                        Late · not complete
-                                                        after{' '}
-                                                        {details.late_days} days
-                                                        (ordered{' '}
-                                                        {
-                                                            details.days_since_ordered
-                                                        }{' '}
-                                                        days ago).
-                                                    </b>{' '}
-                                                    Head Office gives no
-                                                    delivery date.
-                                                </span>
+                                        <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                                            <p className="text-red-700">
+                                                <b>
+                                                    Late: not complete after{' '}
+                                                    {details.late_days} days
+                                                </b>{' '}
+                                                (ordered{' '}
+                                                {details.days_since_ordered}{' '}
+                                                days ago). Head Office gives no
+                                                delivery date.
                                             </p>
                                             {isSchoolAdmin && (
                                                 <RemindSpecialist
@@ -322,41 +295,22 @@ export default function PurchaseOrderDetailsDialog({
                                     )}
 
                                     {isOpen && !details.is_late && (
-                                        <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
-                                            <CircleAlert
-                                                size={16}
-                                                className="mt-0.5 shrink-0"
-                                            />
-                                            <span>
-                                                <b>
-                                                    Not complete yet · ordered{' '}
-                                                    {details.days_since_ordered}{' '}
-                                                    {details.days_since_ordered ===
-                                                    1
-                                                        ? 'day'
-                                                        : 'days'}{' '}
-                                                    ago.
-                                                </b>{' '}
-                                                Head Office gives no delivery
-                                                date; ask them if it takes too
-                                                long.
-                                            </span>
+                                        <p className="text-sm text-slate-600">
+                                            Not complete yet (ordered{' '}
+                                            {details.days_since_ordered}{' '}
+                                            {details.days_since_ordered === 1
+                                                ? 'day'
+                                                : 'days'}{' '}
+                                            ago). Head Office gives no delivery
+                                            date; ask them if it takes too long.
                                         </p>
                                     )}
 
                                     {details.closed_reason && (
-                                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                                            <p className="font-black">
-                                                Completed (some missing)
-                                                {details.closed_by &&
-                                                    ` by ${details.closed_by}`}
-                                                {details.closed_at &&
-                                                    ` on ${formatDateTime(details.closed_at)}`}
-                                            </p>
-                                            <p className="mt-0.5">
-                                                Reason: {details.closed_reason}
-                                            </p>
-                                        </div>
+                                        <p className="text-sm text-red-700">
+                                            <b>Some items will not arrive.</b>{' '}
+                                            Reason: {details.closed_reason}
+                                        </p>
                                     )}
 
                                     {closing && (
@@ -368,10 +322,9 @@ export default function PurchaseOrderDetailsDialog({
                                 </div>
 
                                 <div className="px-6 pt-5">
-                                    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                                    <div className="flex gap-6 border-b border-slate-200">
                                         <TabButton
                                             active={tab === 'items'}
-                                            icon={<Package size={16} />}
                                             count={details.items.length}
                                             onClick={() => setTab('items')}
                                         >
@@ -379,7 +332,6 @@ export default function PurchaseOrderDetailsDialog({
                                         </TabButton>
                                         <TabButton
                                             active={tab === 'deliveries'}
-                                            icon={<History size={16} />}
                                             count={details.deliveries.length}
                                             onClick={() => setTab('deliveries')}
                                         >
@@ -417,9 +369,9 @@ export default function PurchaseOrderDetailsDialog({
  */
 function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
     return (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <div className="overflow-x-auto">
             <table className="w-full min-w-200 text-sm">
-                <thead className="bg-slate-50">
+                <thead className="border-b border-slate-300">
                     <tr>
                         <Heading>Item</Heading>
                         <Heading right>Ordered</Heading>
@@ -429,25 +381,25 @@ function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
                         <Heading right>Amount</Heading>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 text-slate-800">
                     {details.items.map((item) => (
                         <tr key={item.row_number} className="align-top">
                             <td className="px-4 py-3">
-                                <p className="font-mono text-xs font-black text-blue-700">
-                                    {item.item_code}
-                                </p>
-                                <p className="font-semibold text-slate-900">
+                                <p className="font-medium text-slate-900">
                                     {item.description}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    {item.item_code}
                                 </p>
                                 <StockTarget item={item} />
                             </td>
-                            <NumberCell className="font-black text-slate-800">
+                            <NumberCell>
                                 <Quantity
                                     value={item.quantity_ordered}
                                     unitName={item.stock_target?.unit_name}
                                 />
                             </NumberCell>
-                            <NumberCell className="font-black text-emerald-700">
+                            <NumberCell>
                                 <Quantity
                                     value={item.quantity_received}
                                     unitName={item.stock_target?.unit_name}
@@ -455,10 +407,8 @@ function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
                             </NumberCell>
                             <NumberCell
                                 className={cn(
-                                    'font-black',
-                                    item.quantity_remaining > 0
-                                        ? 'text-amber-700'
-                                        : 'text-slate-400',
+                                    item.quantity_remaining === 0 &&
+                                        'text-slate-400',
                                 )}
                             >
                                 <Quantity
@@ -466,24 +416,24 @@ function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
                                     unitName={item.stock_target?.unit_name}
                                 />
                             </NumberCell>
-                            <NumberCell className="text-slate-600">
+                            <NumberCell>
                                 {formatPeso(item.unit_price_centavos)}
                             </NumberCell>
-                            <NumberCell className="font-black text-slate-900">
+                            <NumberCell>
                                 {formatPeso(item.amount_centavos)}
                             </NumberCell>
                         </tr>
                     ))}
                 </tbody>
-                <tfoot className="border-t border-slate-200 bg-slate-50">
+                <tfoot className="border-t border-slate-300">
                     <tr>
                         <td
                             colSpan={5}
-                            className="px-4 py-3 text-right text-xs font-black tracking-wide text-slate-500 uppercase"
+                            className="px-4 py-3 text-right font-semibold text-slate-600"
                         >
                             Total Amount
                         </td>
-                        <td className="px-4 py-3 text-right font-black whitespace-nowrap text-slate-900">
+                        <td className="px-4 py-3 text-right font-bold whitespace-nowrap text-slate-900">
                             {formatPeso(details.total_amount_centavos)}
                         </td>
                     </tr>
@@ -507,7 +457,7 @@ function StockTarget({ item }: { item: PurchaseOrderItemDetails }) {
 
     if (!target) {
         return (
-            <p className="mt-0.5 text-xs font-semibold text-amber-700">
+            <p className="text-xs text-slate-500">
                 Not linked to a product yet{schoolStock}
             </p>
         );
@@ -519,10 +469,10 @@ function StockTarget({ item }: { item: PurchaseOrderItemDetails }) {
             : 'by the piece';
 
     return (
-        <p className="mt-0.5 text-xs font-semibold text-emerald-700">
-            → {target.product_name}
+        <p className="text-xs text-slate-500">
+            Stock of {target.product_name}
             {target.has_options && ` (${target.variant_label})`} · {sentAs}
-            <span className="font-medium text-slate-500">{schoolStock}</span>
+            {schoolStock}
         </p>
     );
 }
@@ -697,9 +647,9 @@ function DeliveryHistory({ details }: { details: PurchaseOrderDetails }) {
         details.delivery_status === 'partially_received';
 
     return (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <div className="overflow-x-auto">
             <table className="w-full min-w-200 text-sm">
-                <thead className="bg-slate-50">
+                <thead className="border-b border-slate-300">
                     <tr>
                         <Heading>Date &amp; time</Heading>
                         <Heading>What happened</Heading>
@@ -710,17 +660,15 @@ function DeliveryHistory({ details }: { details: PurchaseOrderDetails }) {
                 <tbody className="divide-y divide-slate-100">
                     {rows.map((row) => (
                         <tr key={row.key} className="align-top">
-                            <td className="px-4 py-3 font-semibold whitespace-nowrap text-slate-800">
+                            <td className="px-4 py-3 whitespace-nowrap text-slate-800">
                                 {formatDateTime(row.at)}
                             </td>
                             <td
                                 className={cn(
-                                    'px-4 py-3 font-black whitespace-nowrap',
-                                    row.tone === 'green'
-                                        ? 'text-emerald-700'
-                                        : row.tone === 'red'
-                                          ? 'text-red-700'
-                                          : 'text-slate-900',
+                                    'px-4 py-3 font-semibold whitespace-nowrap',
+                                    row.tone === 'red'
+                                        ? 'text-red-700'
+                                        : 'text-slate-900',
                                 )}
                             >
                                 {row.what}
@@ -738,19 +686,16 @@ function DeliveryHistory({ details }: { details: PurchaseOrderDetails }) {
                     ))}
 
                     {isOpen && stillToCome.length > 0 && (
-                        <tr className="bg-amber-50/50 align-top">
+                        <tr className="align-top">
                             <td className="px-4 py-3 text-slate-400">—</td>
-                            <td className="px-4 py-3 font-black whitespace-nowrap text-amber-800">
+                            <td className="px-4 py-3 font-semibold whitespace-nowrap text-slate-900">
                                 Still to come
                             </td>
                             <td className="px-4 py-3 text-slate-700">
                                 <ul className="space-y-0.5">
                                     {stillToCome.map((item) => (
                                         <li key={item.row_number}>
-                                            <span className="font-mono text-xs font-bold text-blue-700">
-                                                {item.item_code}
-                                            </span>{' '}
-                                            {item.description} ·{' '}
+                                            {item.description}:{' '}
                                             <b>
                                                 <Quantity
                                                     value={
@@ -778,32 +723,26 @@ function DeliveryHistory({ details }: { details: PurchaseOrderDetails }) {
 /** What one delivery brought, and what went into stock. */
 function DeliveredItems({ delivery }: { delivery: OrderDeliveryRecord }) {
     return (
-        <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
+        <ul className="mt-1 space-y-1 text-sm text-slate-800">
             {delivery.items.map((item) => (
                 <li key={item.item_code}>
-                    <span className="font-mono text-xs font-bold text-blue-700">
-                        {item.item_code}
-                    </span>{' '}
                     {item.description}
                     {item.added_to_stock.length > 0 ? (
                         item.added_to_stock.map((added) => (
                             <span
                                 key={added.product_name}
-                                className="block text-xs text-emerald-700"
+                                className="block text-xs text-slate-500"
                             >
-                                +
-                                <b>
-                                    {formatConversion(
-                                        added.units_received,
-                                        added.unit_name,
-                                        added.pieces_per_unit,
-                                    )}
-                                </b>{' '}
+                                {formatConversion(
+                                    added.units_received,
+                                    added.unit_name,
+                                    added.pieces_per_unit,
+                                )}{' '}
                                 to the stock of {added.product_name}
                             </span>
                         ))
                     ) : (
-                        <span className="block text-xs text-amber-700">
+                        <span className="block text-xs text-slate-500">
                             {item.quantity_received.toLocaleString('en-PH')}{' '}
                             received (as ordered on the eStore) · not in stock
                             yet: not linked to a product
@@ -828,7 +767,7 @@ function Fact({
     return (
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-2.5 text-sm sm:px-0">
             <dt className="shrink-0 font-semibold text-slate-500">{label}</dt>
-            <dd className="text-right font-black text-slate-900">
+            <dd className="text-right font-semibold text-slate-900">
                 {children}
                 {note && (
                     <span className="block text-xs font-medium text-slate-500">
@@ -840,22 +779,13 @@ function Fact({
     );
 }
 
-const statusClasses: Record<PurchaseOrderDetails['delivery_status'], string> = {
-    awaiting: 'bg-amber-100 text-amber-800',
-    partially_received: 'bg-blue-100 text-blue-800',
-    completed: 'bg-emerald-100 text-emerald-800',
-    completed_short: 'bg-red-100 text-red-800',
-};
-
 function TabButton({
     active,
-    icon,
     count,
     onClick,
     children,
 }: {
     active: boolean;
-    icon: ReactNode;
     count: number;
     onClick: () => void;
     children: string;
@@ -864,23 +794,15 @@ function TabButton({
         <button
             type="button"
             onClick={onClick}
+            aria-pressed={active}
             className={cn(
-                'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition',
+                '-mb-px border-b-2 pb-2.5 text-sm transition',
                 active
-                    ? 'bg-[#0D6EFD] text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-white',
+                    ? 'border-slate-900 font-bold text-slate-900'
+                    : 'border-transparent text-slate-500 hover:text-slate-800',
             )}
         >
-            {icon}
-            {children}
-            <span
-                className={cn(
-                    'rounded-full px-2 py-0.5 text-xs',
-                    active ? 'bg-white/25' : 'bg-white text-slate-600',
-                )}
-            >
-                {count}
-            </span>
+            {children} ({count})
         </button>
     );
 }
@@ -912,7 +834,7 @@ function Heading({
     return (
         <th
             className={cn(
-                'px-4 py-2.5 text-xs font-black tracking-wide whitespace-nowrap text-slate-500 uppercase',
+                'px-4 py-2.5 text-xs font-semibold whitespace-nowrap text-slate-500',
                 right ? 'text-right' : 'text-left',
             )}
         >
