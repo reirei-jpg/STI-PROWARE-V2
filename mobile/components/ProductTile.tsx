@@ -111,7 +111,10 @@ export default function ProductTile({
                 )}
             </View>
 
-            <View className="flex-1 gap-2 p-3">
+            {/* grow, not flex-1: in the sideways Coming Soon / On Sale rows a
+                zero starting height let some phones squeeze the price and
+                button out of sight under the photo. */}
+            <View className="grow gap-2 p-3">
                 <Text
                     numberOfLines={2}
                     className="font-sans-semibold text-sm text-slate-900"
