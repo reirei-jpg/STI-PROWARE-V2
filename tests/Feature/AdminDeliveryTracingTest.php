@@ -1,7 +1,15 @@
 <?php
 
 use App\Enums\DeliveryStatus;
+use App\Enums\OrderStatus;
+use App\Enums\ProductStatus;
+use App\Enums\StockMovementType;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\Channels\PushChannel;
 use App\Notifications\DeliveryRecorded;
@@ -311,6 +319,63 @@ test('opening a reminder notice opens that purchase order for the Specialist', f
     $this->actingAs($this->specialist)
         ->post(route('notifications.open', $this->specialist->notifications()->sole()->id))
         ->assertRedirect(route('purchase-orders.index', ['view' => $late->id]));
+});
+
+test('the school admin sees the top sellers of the week, month or year and what is not selling', function () {
+    $polo = ProductVariant::factory()->for(Product::factory()->create(['name' => 'BSIT Polo', 'status' => ProductStatus::Available]))->create(['stock_on_hand' => 7]);
+    $cap = ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Cap', 'status' => ProductStatus::Available]))->create(['stock_on_hand' => 4]);
+    $umbrella = ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Umbrella', 'status' => ProductStatus::Available]))->create(['stock_on_hand' => 10]);
+
+    foreach ([$polo, $cap, $umbrella] as $variant) {
+        StockMovement::factory()->for($variant, 'variant')->create(['type' => StockMovementType::Delivery, 'created_at' => '2026-09-01 09:00']);
+    }
+
+    // Released this week (Tue Oct 6): 3 polos; earlier this month (Fri Oct 2): 5 caps.
+    $sold = function (ProductVariant $variant, int $pieces, string $releasedAt): void {
+        $item = OrderItem::factory()
+            ->for(Order::factory()->create(['status' => OrderStatus::PickedUp, 'picked_up_at' => $releasedAt]))
+            ->create(['product_variant_id' => $variant->id, 'product_name' => $variant->product->name, 'quantity' => $pieces, 'line_total_centavos' => $pieces * 55000]);
+        StockMovement::factory()->for($variant, 'variant')->create(['type' => StockMovementType::Sale, 'quantity' => -$pieces, 'order_item_id' => $item->id, 'created_at' => $releasedAt]);
+    };
+    $sold($polo, 3, '2026-10-06 10:00');
+    $sold($cap, 5, '2026-10-02 10:00');
+
+    $this->actingAs($this->schoolAdmin);
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('overview.sales.period', 'month')
+        ->where('overview.sales.top_sellers.data.0.product_name', 'STI Cap')
+        ->where('overview.sales.top_sellers.data.0.pieces', 5)
+        ->where('overview.sales.top_sellers.data.1.product_name', 'BSIT Polo')
+        ->where('overview.sales.slow_days', 18)
+        ->has('overview.sales.not_selling.data', 1)
+        ->where('overview.sales.not_selling.data.0.product_name', 'STI Umbrella')
+        ->where('overview.sales.not_selling.data.0.stock_pieces', 10)
+        ->where('overview.sales.not_selling.data.0.last_sold_at', null)
+        ->where('overview.sales.not_selling.data.0.days_without_sale', 37));
+
+    $this->get(route('dashboard', ['period' => 'week']))->assertInertia(fn (Assert $page) => $page
+        ->where('overview.sales.from', '2026-10-05')
+        ->has('overview.sales.top_sellers.data', 1)
+        ->where('overview.sales.top_sellers.data.0.product_name', 'BSIT Polo'));
+
+    $this->get(route('dashboard', ['period' => 'decade']))->assertSessionHasErrors('period');
+});
+
+test('the top sellers show 5 products a page', function () {
+    foreach (range(1, 6) as $number) {
+        $variant = ProductVariant::factory()->for(Product::factory()->create(['name' => "Item {$number}"]))->create();
+        OrderItem::factory()
+            ->for(Order::factory()->create(['status' => OrderStatus::PickedUp, 'picked_up_at' => '2026-10-06 10:00']))
+            ->create(['product_variant_id' => $variant->id, 'product_name' => "Item {$number}", 'quantity' => 10 - $number]);
+    }
+
+    $this->actingAs($this->schoolAdmin);
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->has('overview.sales.top_sellers.data', 5)
+        ->where('overview.sales.top_sellers.last_page', 2));
+    $this->get(route('dashboard', ['top_page' => 2]))->assertInertia(fn (Assert $page) => $page
+        ->where('overview.sales.top_sellers.data.0.rank', 6)
+        ->where('overview.sales.top_sellers.data.0.product_name', 'Item 6'));
 });
 
 test('the school admin sees every delivery, but cannot record one', function () {

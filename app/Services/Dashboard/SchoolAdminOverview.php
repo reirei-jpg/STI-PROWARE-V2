@@ -4,18 +4,28 @@ namespace App\Services\Dashboard;
 
 use App\Enums\AdminDeliveryTab;
 use App\Enums\DeliveryStatus;
+use App\Enums\OrderStatus;
+use App\Enums\StockMovementType;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Services\Deliveries\FollowUp;
+use App\Services\Reports\SalesReport;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 
 /**
  * What the School Admin monitors (view only): every eStore order the
  * Specialist uploaded, in three tabs by what has arrived (Coming, Ongoing,
  * Completed), with the dates and times of each step. 5 orders a page. A
  * search by Order # narrows the list and the tab counts alike, so the
- * counts show which tab the order is in.
+ * counts show which tab the order is in. Below: what sells (Top sellers in
+ * a week, month or year) and what does not (slow-moving items), 5 a page.
+ *
+ * @phpstan-type TopSellerRow array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, profit_centavos: int|null, top_variant_label: string|null, top_variant_pieces: int}
+ * @phpstan-type NotSellingRow array{product_id: int, product_name: string, stock_pieces: int, first_arrived_at: string|null, last_sold_at: string|null, days_without_sale: int}
  */
 final class SchoolAdminOverview
 {
@@ -28,10 +38,17 @@ final class SchoolAdminOverview
         .' where purchase_order_items.purchase_order_id = purchase_orders.id)';
 
     /**
-     * @return array{deliveries: array{tab: string, search: string|null, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}}
+     * @return array{deliveries: array{tab: string, search: string|null, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}, sales: array{period: string, from: string, to: string, top_sellers: Paginator<int, TopSellerRow>, slow_days: int, not_selling: Paginator<int, NotSellingRow>}}
      */
-    public function all(AdminDeliveryTab $tab, ?string $search = null): array
+    public function all(AdminDeliveryTab $tab, ?string $search = null, string $period = 'month'): array
     {
+        $from = match ($period) {
+            'week' => CarbonImmutable::now()->startOfWeek(),
+            'year' => CarbonImmutable::now()->startOfYear(),
+            default => CarbonImmutable::now()->startOfMonth(),
+        };
+        $to = CarbonImmutable::now()->endOfDay();
+
         return [
             'deliveries' => [
                 'tab' => $tab->value,
@@ -40,7 +57,65 @@ final class SchoolAdminOverview
                 'counts' => $this->counts($search),
                 'orders' => $this->orders($tab, $search),
             ],
+            'sales' => [
+                'period' => $period,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                // The Specialist's Best sellers (Sales Reports), 5 a page.
+                'top_sellers' => SalesReport::bestSellers($from, $to, self::PER_PAGE, 'top_page'),
+                'slow_days' => SpecialistTasks::SLOW_MOVING_DAYS,
+                'not_selling' => $this->notSelling(),
+            ],
         ];
+    }
+
+    /**
+     * Products not selling: in stock, first arrived at least the slow-moving
+     * days ago, and nothing sold in those days (the same rule as the
+     * Specialist's slow-moving items). Never sold first, then the longest
+     * without a sale.
+     *
+     * @return Paginator<int, NotSellingRow>
+     */
+    private function notSelling(): Paginator
+    {
+        $lastSale = '(select max(sm.created_at) from stock_movements sm'
+            .' join product_variants pv on pv.id = sm.product_variant_id'
+            .' left join order_items oi on oi.id = sm.order_item_id'
+            .' left join orders o on o.id = oi.order_id'
+            ." where pv.product_id = products.id and sm.type = '".StockMovementType::Sale->value."'"
+            ." and (o.status is null or o.status <> '".OrderStatus::Cancelled->value."'))";
+        $firstArrival = '(select min(sm.created_at) from stock_movements sm'
+            .' join product_variants pv on pv.id = sm.product_variant_id'
+            .' where pv.product_id = products.id)';
+
+        return Product::query()
+            ->slowMoving(SpecialistTasks::SLOW_MOVING_DAYS)
+            ->select('products.*')
+            ->selectRaw("{$lastSale} as last_sold_at")
+            ->selectRaw("{$firstArrival} as first_arrived_at")
+            ->withCasts(['last_sold_at' => 'datetime', 'first_arrived_at' => 'datetime'])
+            ->withSum('variants as stock_pieces', 'stock_on_hand')
+            ->orderByRaw("case when {$lastSale} is null then 0 else 1 end")
+            ->orderByRaw($lastSale)
+            ->orderBy('products.name')
+            ->paginate(self::PER_PAGE, ['*'], 'slow_page')
+            ->withQueryString()
+            ->through(function (Product $product): array {
+                /** @var CarbonInterface|null $lastSold */
+                $lastSold = $product->getAttribute('last_sold_at');
+                /** @var CarbonInterface|null $firstArrived */
+                $firstArrived = $product->getAttribute('first_arrived_at');
+
+                return [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'stock_pieces' => (int) $product->getAttribute('stock_pieces'),
+                    'first_arrived_at' => $firstArrived?->toIso8601String(),
+                    'last_sold_at' => $lastSold?->toIso8601String(),
+                    'days_without_sale' => (int) ($lastSold ?? $firstArrived ?? now())->copy()->startOfDay()->diffInDays(now()->startOfDay()),
+                ];
+            });
     }
 
     /**

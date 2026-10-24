@@ -135,7 +135,7 @@ final class SalesReport
      *
      * @return LengthAwarePaginator<int, array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, profit_centavos: int|null, top_variant_label: string|null, top_variant_pieces: int}>
      */
-    public static function bestSellers(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
+    public static function bestSellers(CarbonImmutable $from, CarbonImmutable $to, int $perPage = 20, string $pageName = 'page'): LengthAwarePaginator
     {
         $pieces = 'order_items.quantity * order_items.pieces_per_unit';
 
@@ -151,7 +151,7 @@ final class SalesReport
             ->orderByRaw("sum({$pieces}) desc")
             ->orderByRaw('sum(order_items.line_total_centavos) desc')
             ->orderByRaw('max(order_items.product_name)')
-            ->paginate(20)
+            ->paginate($perPage, ['*'], $pageName)
             ->withQueryString();
 
         $topVariants = self::soldLines($from, $to)

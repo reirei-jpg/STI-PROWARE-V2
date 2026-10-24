@@ -6,7 +6,7 @@ import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import RemindSpecialist from '@/components/remind-specialist';
-import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn, isSameSearch } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { DeliveryStatus, Paginated } from '@/types';
@@ -51,7 +51,40 @@ export type SchoolAdminOverviewData = {
         >;
         orders: Paginated<AdminDeliveryRow>;
     };
+    sales: {
+        period: SalesPeriod;
+        from: string;
+        to: string;
+        /** The Specialist's Best sellers for the period, most pieces first. */
+        top_sellers: Paginated<{
+            rank: number;
+            product_id: number;
+            product_name: string;
+            pieces: number;
+            price_total_centavos: number;
+            top_variant_label: string | null;
+            top_variant_pieces: number;
+        }>;
+        /** No sale in this many days counts as not selling (slow-moving). */
+        slow_days: number;
+        not_selling: Paginated<{
+            product_id: number;
+            product_name: string;
+            stock_pieces: number;
+            first_arrived_at: string | null;
+            last_sold_at: string | null;
+            days_without_sale: number;
+        }>;
+    };
 };
+
+export type SalesPeriod = 'week' | 'month' | 'year';
+
+const periods: { value: SalesPeriod; label: string; words: string }[] = [
+    { value: 'week', label: 'This week', words: 'this week' },
+    { value: 'month', label: 'This month', words: 'this month' },
+    { value: 'year', label: 'This year', words: 'this year' },
+];
 
 const tabs: {
     value: AdminDeliveryTab;
@@ -135,12 +168,18 @@ export default function SchoolAdminOverview({
         day: 'numeric',
     }).format(new Date());
 
-    const showList = (next: { tab: AdminDeliveryTab; search: string | null }) =>
+    const period = overview.sales.period;
+    const showList = (next: {
+        tab: AdminDeliveryTab;
+        search: string | null;
+        period?: SalesPeriod;
+    }) =>
         router.get(
             dashboard().url,
             {
                 tab: next.tab,
                 ...(next.search ? { search: next.search } : {}),
+                period: next.period ?? period,
             },
             {
                 only: ['overview'],
@@ -341,6 +380,11 @@ export default function SchoolAdminOverview({
 
                     <Pagination pagination={orders} itemName="orders" />
                 </Panel>
+
+                <SalesLists
+                    sales={overview.sales}
+                    onPeriod={(next) => showList({ tab, search, period: next })}
+                />
             </div>
 
             <PurchaseOrderDetailsDialog
@@ -444,6 +488,150 @@ function OrderRow({
                 </div>
             </td>
         </tr>
+    );
+}
+
+/**
+ * What sells and what does not, side by side: the Top sellers of the week,
+ * month or year (pieces released to students) and the products not selling
+ * (slow-moving), 5 a page each.
+ */
+function SalesLists({
+    sales,
+    onPeriod,
+}: {
+    sales: SchoolAdminOverviewData['sales'];
+    onPeriod: (period: SalesPeriod) => void;
+}) {
+    const periodWords =
+        periods.find((option) => option.value === sales.period)?.words ?? '';
+
+    return (
+        <section className="grid gap-7 xl:grid-cols-2">
+            <Panel
+                title="Top sellers"
+                description={`Pieces released to students ${periodWords} (${formatDateOrdered(sales.from)} to ${formatDateOrdered(sales.to)}), the most first.`}
+                actions={
+                    <div
+                        role="group"
+                        aria-label="Period"
+                        className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1"
+                    >
+                        {periods.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                aria-pressed={option.value === sales.period}
+                                onClick={() => onPeriod(option.value)}
+                                className={cn(
+                                    'rounded-lg px-3 py-1.5 text-sm font-black whitespace-nowrap transition',
+                                    option.value === sales.period
+                                        ? 'bg-[#0D6EFD] text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-white',
+                                )}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                }
+            >
+                {sales.top_sellers.data.length === 0 ? (
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">
+                        Nothing was released to students {periodWords}.
+                    </p>
+                ) : (
+                    <ol className="divide-y divide-slate-100">
+                        {sales.top_sellers.data.map((row) => (
+                            <li
+                                key={row.product_id}
+                                className="flex items-center gap-4 px-6 py-3.5"
+                            >
+                                <span
+                                    className={cn(
+                                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black',
+                                        row.rank === 1
+                                            ? 'bg-amber-100 text-amber-800'
+                                            : 'bg-slate-100 text-slate-600',
+                                    )}
+                                >
+                                    {row.rank}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-black text-slate-900">
+                                        {row.product_name}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        {formatPeso(row.price_total_centavos)}{' '}
+                                        sold
+                                        {row.top_variant_label &&
+                                            ` · most sold: ${row.top_variant_label} (${row.top_variant_pieces})`}
+                                    </p>
+                                </div>
+                                <p className="shrink-0 text-right">
+                                    <span className="text-lg font-black text-emerald-700">
+                                        {row.pieces.toLocaleString('en-PH')}
+                                    </span>{' '}
+                                    <span className="text-xs font-bold text-slate-500">
+                                        {row.pieces === 1 ? 'pc' : 'pcs'}
+                                    </span>
+                                </p>
+                            </li>
+                        ))}
+                    </ol>
+                )}
+                <Pagination
+                    pagination={sales.top_sellers}
+                    itemName="products"
+                />
+            </Panel>
+
+            <Panel
+                title="Not selling"
+                description={`In stock, arrived at least ${sales.slow_days} days ago, and nothing sold in the last ${sales.slow_days} days (the Specialist's slow-moving items). The longest without a sale first.`}
+            >
+                {sales.not_selling.data.length === 0 ? (
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">
+                        Every product in stock sold something in the last{' '}
+                        {sales.slow_days} days.
+                    </p>
+                ) : (
+                    <ul className="divide-y divide-slate-100">
+                        {sales.not_selling.data.map((row) => (
+                            <li
+                                key={row.product_id}
+                                className="flex items-center gap-4 px-6 py-3.5"
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-black text-slate-900">
+                                        {row.product_name}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        {row.stock_pieces.toLocaleString(
+                                            'en-PH',
+                                        )}{' '}
+                                        {row.stock_pieces === 1 ? 'pc' : 'pcs'}{' '}
+                                        in stock ·{' '}
+                                        {row.last_sold_at
+                                            ? `last sold ${formatDateTime(row.last_sold_at)}`
+                                            : `arrived ${formatDateTime(row.first_arrived_at)}`}
+                                    </p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-black whitespace-nowrap text-amber-800">
+                                    {row.last_sold_at
+                                        ? `${row.days_without_sale} days, no sale`
+                                        : 'Never sold'}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <Pagination
+                    pagination={sales.not_selling}
+                    itemName="products"
+                />
+            </Panel>
+        </section>
     );
 }
 

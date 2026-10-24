@@ -16,7 +16,7 @@ use Inertia\Response;
  * student (students have no staff pages). The Specialist's dashboard has
  * the student order cards and a to-do list for today; the School Admin's
  * monitors the eStore orders in Coming / Ongoing / Completed (?tab=), with
- * a search by Order # (?search=).
+ * a search by Order # (?search=), and what sells (?period=).
  */
 class DashboardController extends Controller
 {
@@ -31,7 +31,7 @@ class DashboardController extends Controller
         return Inertia::render('dashboard', [
             'tasks' => $user?->role === UserRole::Specialist ? $tasks->all() : null,
             'orderCards' => $user?->role === UserRole::Specialist ? SpecialistOrders::dashboardCards() : null,
-            'overview' => $user?->role === UserRole::SchoolAdmin ? $overview->all($request->tab(), $request->search()) : null,
+            'overview' => $user?->role === UserRole::SchoolAdmin ? $overview->all($request->tab(), $request->search(), $request->period()) : null,
         ]);
     }
 }
