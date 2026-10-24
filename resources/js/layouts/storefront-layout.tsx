@@ -100,15 +100,18 @@ function StorefrontTopBar() {
                         )}
                     </Link>
                 ) : (
-                    <button
-                        type="button"
-                        onClick={auth.user ? undefined : openSignIn}
-                        className="relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
-                        aria-label="Cart"
-                    >
-                        <ShoppingCart size={18} />
-                        <span className="hidden sm:inline">Cart</span>
-                    </button>
+                    // Staff do not buy, so they get no Cart (My Dashboard instead).
+                    auth.user === null && (
+                        <button
+                            type="button"
+                            onClick={openSignIn}
+                            className="relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
+                            aria-label="Cart"
+                        >
+                            <ShoppingCart size={18} />
+                            <span className="hidden sm:inline">Cart</span>
+                        </button>
+                    )
                 )}
 
                 {isStudent && <NotificationBell />}

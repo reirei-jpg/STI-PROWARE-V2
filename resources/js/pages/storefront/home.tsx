@@ -134,6 +134,7 @@ function WelcomeBanner({
     const { auth } = usePage().props;
     const firstName =
         auth.user?.role === 'student' ? auth.user.name.split(' ')[0] : null;
+    const isStaff = auth.user !== null && auth.user.role !== 'student';
 
     const shortcuts = [
         {
@@ -195,7 +196,9 @@ function WelcomeBanner({
                 <p className="mt-2 max-w-xl text-sm leading-6 text-blue-50 md:text-base">
                     {firstName
                         ? 'Order here, pay at the cashier, then pick up at the PROWARE office with your receipt and issuance slip.'
-                        : 'Browse freely. You only need to sign in with your STI Microsoft 365 account when you add something to your cart.'}
+                        : isStaff
+                          ? 'You are signed in with a staff account, so you can browse the store as students see it. Buying is for students.'
+                          : 'Browse freely. You only need to sign in with your STI Microsoft 365 account when you add something to your cart.'}
                 </p>
 
                 <nav
