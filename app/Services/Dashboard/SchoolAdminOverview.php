@@ -38,7 +38,7 @@ final class SchoolAdminOverview
         .' where purchase_order_items.purchase_order_id = purchase_orders.id)';
 
     /**
-     * @return array{deliveries: array{tab: string, search: string|null, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}, sales: array{period: string, from: string, to: string, top_sellers: Paginator<int, TopSellerRow>, slow_days: int, not_selling: Paginator<int, NotSellingRow>}}
+     * @return array{deliveries: array{tab: string, search: string|null, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}, sales: array{period: string, from: string, to: string, totals: array{pieces: int, price_centavos: int, best: TopSellerRow|null, not_selling_pieces: int}, top_sellers: Paginator<int, TopSellerRow>, slow_days: int, not_selling: Paginator<int, NotSellingRow>}}
      */
     public function all(AdminDeliveryTab $tab, ?string $search = null, string $period = 'month'): array
     {
@@ -61,11 +61,35 @@ final class SchoolAdminOverview
                 'period' => $period,
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
+                'totals' => $this->salesTotals($from, $to),
                 // The Specialist's Best sellers (Sales Reports), 5 a page.
                 'top_sellers' => SalesReport::bestSellers($from, $to, self::PER_PAGE, 'top_page'),
                 'slow_days' => SpecialistTasks::SLOW_MOVING_DAYS,
                 'not_selling' => $this->notSelling(),
             ],
+        ];
+    }
+
+    /**
+     * The numbers above the lists: pieces sold and what they sold for in the
+     * period, the top seller, and how many pieces sit unsold in stock.
+     *
+     * @return array{pieces: int, price_centavos: int, best: TopSellerRow|null, not_selling_pieces: int}
+     */
+    private function salesTotals(CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $summary = SalesReport::summary($from, $to);
+        $best = SalesReport::bestSellers($from, $to, 1, 'best_page')->first();
+
+        return [
+            'pieces' => $summary['pieces'],
+            'price_centavos' => $summary['price_centavos'],
+            'best' => $best,
+            'not_selling_pieces' => (int) Product::query()
+                ->slowMoving(SpecialistTasks::SLOW_MOVING_DAYS)
+                ->withSum('variants as stock_pieces', 'stock_on_hand')
+                ->get()
+                ->sum('stock_pieces'),
         ];
     }
 

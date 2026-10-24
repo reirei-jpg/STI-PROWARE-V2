@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { CircleAlert, Eye, Search, SearchX, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import PageHeader from '@/components/page-header';
@@ -55,16 +55,15 @@ export type SchoolAdminOverviewData = {
         period: SalesPeriod;
         from: string;
         to: string;
-        /** The Specialist's Best sellers for the period, most pieces first. */
-        top_sellers: Paginated<{
-            rank: number;
-            product_id: number;
-            product_name: string;
+        /** The numbers at the top of the Sales box. */
+        totals: {
             pieces: number;
-            price_total_centavos: number;
-            top_variant_label: string | null;
-            top_variant_pieces: number;
-        }>;
+            price_centavos: number;
+            best: TopSeller | null;
+            not_selling_pieces: number;
+        };
+        /** The Specialist's Best sellers for the period, most pieces first. */
+        top_sellers: Paginated<TopSeller>;
         /** No sale in this many days counts as not selling (slow-moving). */
         slow_days: number;
         not_selling: Paginated<{
@@ -79,6 +78,16 @@ export type SchoolAdminOverviewData = {
 };
 
 export type SalesPeriod = 'week' | 'month' | 'year';
+
+type TopSeller = {
+    rank: number;
+    product_id: number;
+    product_name: string;
+    pieces: number;
+    price_total_centavos: number;
+    top_variant_label: string | null;
+    top_variant_pieces: number;
+};
 
 const periods: { value: SalesPeriod; label: string; words: string }[] = [
     { value: 'week', label: 'This week', words: 'this week' },
@@ -492,9 +501,10 @@ function OrderRow({
 }
 
 /**
- * What sells and what does not, side by side: the Top sellers of the week,
- * month or year (pieces released to students) and the products not selling
- * (slow-moving), 5 a page each.
+ * What sells and what does not, in one Sales box: four numbers at a glance
+ * (pieces sold, what they sold for, the top seller, what is not selling),
+ * then the Top sellers of the week, month or year or the products not
+ * selling (slow-moving) in two tabs, 5 a page each.
  */
 function SalesLists({
     sales,
@@ -503,40 +513,122 @@ function SalesLists({
     sales: SchoolAdminOverviewData['sales'];
     onPeriod: (period: SalesPeriod) => void;
 }) {
+    const { url } = usePage();
+    // Paging Not selling reloads the page; it stays on that tab.
+    const [list, setList] = useState<'top' | 'slow'>(
+        url.includes('slow_page=') ? 'slow' : 'top',
+    );
     const periodWords =
         periods.find((option) => option.value === sales.period)?.words ?? '';
+    const { totals } = sales;
+    const listTabs = [
+        {
+            value: 'top' as const,
+            label: 'Top sellers',
+            count: sales.top_sellers.total,
+            countClasses: 'bg-blue-100 text-blue-800',
+        },
+        {
+            value: 'slow' as const,
+            label: 'Not selling',
+            count: sales.not_selling.total,
+            countClasses: 'bg-amber-100 text-amber-800',
+        },
+    ];
 
     return (
-        <section className="grid gap-7 xl:grid-cols-2">
-            <Panel
-                title="Top sellers"
-                description={`Pieces released to students ${periodWords} (${formatDateOrdered(sales.from)} to ${formatDateOrdered(sales.to)}), the most first.`}
-                actions={
-                    <div
-                        role="group"
-                        aria-label="Period"
-                        className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1"
-                    >
-                        {periods.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                aria-pressed={option.value === sales.period}
-                                onClick={() => onPeriod(option.value)}
-                                className={cn(
-                                    'rounded-lg px-3 py-1.5 text-sm font-black whitespace-nowrap transition',
-                                    option.value === sales.period
-                                        ? 'bg-[#0D6EFD] text-white shadow-sm'
-                                        : 'text-slate-600 hover:bg-white',
-                                )}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-                }
+        <Panel
+            title="Sales"
+            description={`What students are buying, and what is sitting in stock · ${formatDateOrdered(sales.from)} to ${formatDateOrdered(sales.to)}.`}
+            actions={
+                <div
+                    role="group"
+                    aria-label="Period"
+                    className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1"
+                >
+                    {periods.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            aria-pressed={option.value === sales.period}
+                            onClick={() => onPeriod(option.value)}
+                            className={cn(
+                                'rounded-lg px-3 py-1.5 text-sm font-black whitespace-nowrap transition',
+                                option.value === sales.period
+                                    ? 'bg-[#0D6EFD] text-white shadow-sm'
+                                    : 'text-slate-600 hover:bg-white',
+                            )}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+            }
+        >
+            <div className="grid gap-3 px-6 pt-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
+                <SalesNumber
+                    label="Pieces sold"
+                    value={totals.pieces.toLocaleString('en-PH')}
+                    note={`released to students ${periodWords}`}
+                />
+                <SalesNumber
+                    label="Sold for"
+                    value={formatPeso(totals.price_centavos)}
+                    note="paid at the cashier"
+                />
+                <SalesNumber
+                    label="Top seller"
+                    value={totals.best?.product_name ?? 'None yet'}
+                    note={
+                        totals.best
+                            ? `${totals.best.pieces.toLocaleString('en-PH')} ${totals.best.pieces === 1 ? 'pc' : 'pcs'}${totals.best.top_variant_label ? ` · most sold: ${totals.best.top_variant_label}` : ''}`
+                            : `nothing released ${periodWords}`
+                    }
+                    tone="green"
+                    small
+                />
+                <SalesNumber
+                    label="Not selling"
+                    value={`${sales.not_selling.total} ${sales.not_selling.total === 1 ? 'product' : 'products'}`}
+                    note={`${totals.not_selling_pieces.toLocaleString('en-PH')} pcs in stock, no sale in ${sales.slow_days} days`}
+                    tone="amber"
+                />
+            </div>
+
+            <div
+                role="tablist"
+                aria-label="Sales lists"
+                className="flex gap-1 border-b border-slate-200 px-6"
             >
-                {sales.top_sellers.data.length === 0 ? (
+                {listTabs.map((option) => (
+                    <button
+                        key={option.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={list === option.value}
+                        onClick={() => setList(option.value)}
+                        className={cn(
+                            '-mb-px inline-flex items-center gap-2 border-b-[3px] px-3.5 py-3 text-sm font-black transition',
+                            list === option.value
+                                ? 'border-[#0D6EFD] text-[#0D6EFD]'
+                                : 'border-transparent text-slate-500 hover:text-slate-800',
+                        )}
+                    >
+                        {option.label}
+                        <span
+                            className={cn(
+                                'rounded-full px-2 py-0.5 text-xs',
+                                option.countClasses,
+                            )}
+                        >
+                            {option.count.toLocaleString('en-PH')}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {list === 'top' &&
+                (sales.top_sellers.data.length === 0 ? (
                     <p className="px-6 py-12 text-center text-sm text-slate-500">
                         Nothing was released to students {periodWords}.
                     </p>
@@ -579,19 +671,25 @@ function SalesLists({
                             </li>
                         ))}
                     </ol>
-                )}
+                ))}
+            {list === 'top' && (
                 <Pagination
                     pagination={sales.top_sellers}
                     itemName="products"
                 />
-            </Panel>
+            )}
 
-            <Panel
-                title="Not selling"
-                description={`In stock, arrived at least ${sales.slow_days} days ago, and nothing sold in the last ${sales.slow_days} days (the Specialist's slow-moving items). The longest without a sale first.`}
-            >
-                {sales.not_selling.data.length === 0 ? (
-                    <p className="px-6 py-12 text-center text-sm text-slate-500">
+            {list === 'slow' && (
+                <p className="px-6 pt-4 text-xs text-slate-500">
+                    In stock, arrived at least {sales.slow_days} days ago, and
+                    nothing sold in the last {sales.slow_days} days (the
+                    Specialist&apos;s slow-moving items). The longest without a
+                    sale first.
+                </p>
+            )}
+            {list === 'slow' &&
+                (sales.not_selling.data.length === 0 ? (
+                    <p className="px-6 py-12 text-center text-sm font-semibold text-emerald-700">
                         Every product in stock sold something in the last{' '}
                         {sales.slow_days} days.
                     </p>
@@ -625,13 +723,78 @@ function SalesLists({
                             </li>
                         ))}
                     </ul>
-                )}
+                ))}
+            {list === 'slow' && (
                 <Pagination
                     pagination={sales.not_selling}
                     itemName="products"
                 />
-            </Panel>
-        </section>
+            )}
+        </Panel>
+    );
+}
+
+/** One of the four numbers at the top of the Sales box. */
+function SalesNumber({
+    label,
+    value,
+    note,
+    tone = 'plain',
+    small = false,
+}: {
+    label: string;
+    value: string;
+    note: string;
+    tone?: 'plain' | 'green' | 'amber';
+    small?: boolean;
+}) {
+    return (
+        <div
+            className={cn(
+                'min-w-0 rounded-2xl border px-4 py-3.5',
+                tone === 'green' && 'border-emerald-200 bg-emerald-50',
+                tone === 'amber' && 'border-amber-200 bg-amber-50',
+                tone === 'plain' && 'border-slate-200 bg-white',
+            )}
+        >
+            <p
+                className={cn(
+                    'text-xs font-black',
+                    tone === 'green'
+                        ? 'text-emerald-700'
+                        : tone === 'amber'
+                          ? 'text-amber-700'
+                          : 'text-slate-500',
+                )}
+            >
+                {label}
+            </p>
+            <p
+                className={cn(
+                    'mt-1 truncate font-black',
+                    small ? 'text-xl' : 'text-2xl',
+                    tone === 'green'
+                        ? 'text-emerald-800'
+                        : tone === 'amber'
+                          ? 'text-amber-900'
+                          : 'text-slate-900',
+                )}
+            >
+                {value}
+            </p>
+            <p
+                className={cn(
+                    'mt-0.5 truncate text-xs',
+                    tone === 'green'
+                        ? 'text-emerald-700'
+                        : tone === 'amber'
+                          ? 'text-amber-700'
+                          : 'text-slate-500',
+                )}
+            >
+                {note}
+            </p>
+        </div>
     );
 }
 
