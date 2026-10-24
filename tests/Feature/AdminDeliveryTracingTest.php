@@ -382,6 +382,29 @@ test('the top sellers show 5 products a page', function () {
         ->where('overview.sales.top_sellers.data.0.product_name', 'Item 6'));
 });
 
+test('a page the account cannot open shows PROWARE\'s error page with a way back, and the phone app still gets JSON', function () {
+    $this->actingAs($this->schoolAdmin)
+        ->get(route('products.index'))
+        ->assertForbidden()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('error')
+            ->where('status', 403)
+            ->where('auth.user.role', 'school_admin'));
+
+    $this->get('/no-such-page')
+        ->assertNotFound()
+        ->assertInertia(fn (Assert $page) => $page->component('error')->where('status', 404));
+
+    // Letters where a record id goes are "not found", never a database error.
+    $this->get('/merchandise/12x')->assertNotFound();
+    $this->get(route('purchase-orders.index').'/12x')->assertNotFound();
+
+    $this->actingAs($this->schoolAdmin)
+        ->getJson(route('api.v1.cart.index'))
+        ->assertForbidden()
+        ->assertJsonStructure(['message']);
+});
+
 test('the school admin sees every delivery, but cannot record one', function () {
     $order = orderWith(['PRUM01-01' => 20], ['order_number' => '30801']);
     $this->actingAs($this->specialist)->post(route('deliveries.store'), [
