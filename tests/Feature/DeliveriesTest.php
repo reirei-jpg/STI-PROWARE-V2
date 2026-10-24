@@ -359,6 +359,19 @@ test('the deliveries page shows what arrived, what is still to come, and a deliv
             ->where('details.orders.0.delivery_status', 'completed')));
 });
 
+test('the percentage received rounds the usual way, but not to 100 or 0 too early', function (int $received, int $ordered, int $percent) {
+    $order = PurchaseOrder::factory()->make(['quantity_received_total' => $received, 'quantity_ordered_total' => $ordered]);
+
+    expect($order->percentReceived())->toBe($percent);
+})->with([
+    '288 of 432' => [288, 432, 67],
+    '42 of 57' => [42, 57, 74],
+    '199 of 200 is not complete' => [199, 200, 99],
+    '1 of 1,000 arrived something' => [1, 1000, 1],
+    'nothing yet' => [0, 20, 0],
+    'all of it' => [20, 20, 100],
+]);
+
 test('the deliveries page shows 5 deliveries or waiting orders a page', function () {
     Delivery::factory()->count(6)->sequence(fn ($sequence) => ['received_on' => '2026-10-0'.($sequence->index + 1)])->create();
     foreach (range(1, 6) as $number) {

@@ -109,13 +109,23 @@ class PurchaseOrder extends Model
     }
 
     /**
-     * Whole-number percentage received, e.g. 60.
+     * Whole-number percentage received, rounded the usual way (288 of 432 is
+     * 67), but never 100 while something is missing and never 0 once
+     * something arrived.
      */
     public function percentReceived(): int
     {
-        return $this->quantity_ordered_total === 0
-            ? 0
-            : (int) floor($this->quantity_received_total * 100 / $this->quantity_ordered_total);
+        if ($this->quantity_ordered_total === 0 || $this->quantity_received_total === 0) {
+            return 0;
+        }
+
+        if ($this->quantity_received_total >= $this->quantity_ordered_total) {
+            return 100;
+        }
+
+        $percent = (int) round($this->quantity_received_total * 100 / $this->quantity_ordered_total);
+
+        return min(99, max(1, $percent));
     }
 
     /**
