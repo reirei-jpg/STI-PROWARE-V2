@@ -22,7 +22,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { priceInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
-import { cn } from '@/lib/utils';
+import { cn, isSameSearch } from '@/lib/utils';
 import type {
     BestSellerRow,
     FreeRow,
@@ -115,6 +115,10 @@ export default function SalesReportsIndex({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 

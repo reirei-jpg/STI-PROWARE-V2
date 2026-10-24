@@ -22,6 +22,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { isSameSearch } from '@/lib/utils';
 import type {
     Auth,
     DeliveryStatus,
@@ -147,6 +148,10 @@ export default function PurchaseOrdersIndex({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 

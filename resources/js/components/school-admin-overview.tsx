@@ -6,7 +6,7 @@ import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { cn, isSameSearch } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { DeliveryStatus, Paginated } from '@/types';
 
@@ -155,6 +155,10 @@ export default function SchoolAdminOverview({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(searchText, search)) {
             return;
         }
 

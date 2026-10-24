@@ -22,6 +22,7 @@ import ProductStatusBadge from '@/components/product-status-badge';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { isSameSearch } from '@/lib/utils';
 import type {
     Paginated,
     ProductDetails,
@@ -107,6 +108,10 @@ export default function ProductsIndex({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 

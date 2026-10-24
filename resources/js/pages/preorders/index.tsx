@@ -24,7 +24,7 @@ import PreorderStageBadge, {
     PreorderWhen,
 } from '@/components/preorder-stage-badge';
 import { formatUnits } from '@/lib/units';
-import { cn } from '@/lib/utils';
+import { cn, isSameSearch } from '@/lib/utils';
 import type {
     Paginated,
     PreorderDetails,
@@ -100,6 +100,10 @@ export default function PreordersIndex({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 

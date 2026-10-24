@@ -12,7 +12,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import SlipScanBox from '@/components/slip-scan-box';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
-import { cn } from '@/lib/utils';
+import { cn, isSameSearch } from '@/lib/utils';
 import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
 
 type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
@@ -98,6 +98,10 @@ export default function OrdersIndex({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 

@@ -24,7 +24,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
-import { cn } from '@/lib/utils';
+import { cn, isSameSearch } from '@/lib/utils';
 import type {
     Auth,
     DeliveriesShow,
@@ -124,6 +124,10 @@ export default function DeliveriesIndex({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 

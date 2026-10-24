@@ -19,6 +19,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import SplitDeliveredDialog from '@/components/split-delivered-dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { formatConversion } from '@/lib/units';
+import { isSameSearch } from '@/lib/utils';
 import type {
     ItemsToLinkFilters,
     ItemToLink,
@@ -61,6 +62,10 @@ export default function ItemsToLink({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 

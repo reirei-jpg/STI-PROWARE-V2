@@ -16,7 +16,7 @@ import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import { formatDateOrdered } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { cn, isSameSearch } from '@/lib/utils';
 import type { Paginated, WaitingOrderRow } from '@/types';
 
 /**
@@ -44,6 +44,10 @@ export default function RecordDelivery({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, initialSearch)) {
             return;
         }
 

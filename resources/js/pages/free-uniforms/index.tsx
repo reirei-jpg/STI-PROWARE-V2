@@ -21,7 +21,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import RecordFreeUniformGroupDialog from '@/components/record-free-uniform-group-dialog';
 import UniformSetsDialog from '@/components/uniform-sets-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { cn, isSameSearch } from '@/lib/utils';
 import type {
     FreeUniformFilters,
     FreeUniformGroupDetails,
@@ -93,6 +93,10 @@ export default function FreeUniformsIndex({
         if (firstRender.current) {
             firstRender.current = false;
 
+            return;
+        }
+
+        if (isSameSearch(search, filters.search)) {
             return;
         }
 
