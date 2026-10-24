@@ -74,6 +74,12 @@ export type PurchaseOrderDetails = {
     closed_reason: string | null;
     closed_at: string | null;
     closed_by: string | null;
+    /** When the latest delivery for this order was recorded. */
+    last_delivery_at: string | null;
+    /** When the last pieces arrived, or when it was closed with some missing. */
+    completed_at: string | null;
+    /** Days from the Date Ordered to completed_at (0 = the same day). */
+    completed_after_days: number | null;
     deliveries: OrderDeliveryRecord[];
 } & DeliveryProgress;
 
@@ -128,6 +134,8 @@ export type OrderDeliveryRecord = {
     sales_invoice_number: string | null;
     delivery_receipt_number: string | null;
     recorded_by: string;
+    /** When it was recorded in PROWARE (date and time). */
+    recorded_at: string | null;
     items: {
         item_code: string;
         description: string;

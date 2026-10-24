@@ -232,6 +232,9 @@ test('the details window gets every detail of the order, items in document order
             'closed_reason' => null,
             'closed_at' => null,
             'closed_by' => null,
+            'last_delivery_at' => null,
+            'completed_at' => null,
+            'completed_after_days' => null,
             'items' => [
                 [
                     'row_number' => 1, 'item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain Culinary',

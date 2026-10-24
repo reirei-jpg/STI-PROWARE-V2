@@ -178,6 +178,40 @@ test('the school admin searches by Order #, and the tab counts show which tab it
     $this->get(route('dashboard', ['search' => str_repeat('9', 41)]))->assertSessionHasErrors('search');
 });
 
+test('an order\'s details give the date and time of each delivery and of its completion', function () {
+    $order = orderWith(['PRUM01-01' => 20, 'PRHD01-01' => 10], ['order_number' => '30801', 'date_ordered' => '2026-10-05']);
+    $short = orderWith(['PRJK01-01' => 10], ['order_number' => '30722', 'date_ordered' => '2026-10-01']);
+    $this->actingAs($this->specialist);
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila'));
+    $this->post(route('deliveries.store'), [
+        'received_on' => '2026-10-08',
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 20]],
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($this->schoolAdmin)
+        ->getJson(route('purchase-orders.show', $order))
+        ->assertJsonPath('deliveries.0.recorded_at', CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila')->toIso8601String())
+        ->assertJsonPath('last_delivery_at', CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila')->toIso8601String())
+        ->assertJsonPath('completed_at', null);
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-09 14:30', 'Asia/Manila'));
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+        'received_on' => '2026-10-09',
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRHD01-01'), 'quantity_received' => 10]],
+    ])->assertSessionHasNoErrors();
+    $this->post(route('purchase-orders.close', $short), ['reason' => 'Head Office is out of stock.']);
+
+    $this->actingAs($this->schoolAdmin)
+        ->getJson(route('purchase-orders.show', $order))
+        ->assertJsonPath('delivery_status', 'completed')
+        ->assertJsonPath('completed_at', CarbonImmutable::parse('2026-10-09 14:30', 'Asia/Manila')->toIso8601String())
+        ->assertJsonPath('completed_after_days', 4);
+    $this->getJson(route('purchase-orders.show', $short))
+        ->assertJsonPath('completed_at', CarbonImmutable::parse('2026-10-09 14:30', 'Asia/Manila')->toIso8601String())
+        ->assertJsonPath('last_delivery_at', null);
+});
+
 test('the school admin sees every delivery, but cannot record one', function () {
     $order = orderWith(['PRUM01-01' => 20], ['order_number' => '30801']);
     $this->actingAs($this->specialist)->post(route('deliveries.store'), [

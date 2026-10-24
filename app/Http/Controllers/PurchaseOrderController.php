@@ -217,6 +217,12 @@ class PurchaseOrderController extends Controller
             ->get();
 
         $linkedVariants = LinkedItems::variantsByCode($purchaseOrder->items->pluck('item_code')->all());
+        $lastDeliveryAt = $deliveries->max('created_at');
+        $completedAt = match ($purchaseOrder->delivery_status) {
+            DeliveryStatus::Completed => $lastDeliveryAt,
+            DeliveryStatus::CompletedShort => $purchaseOrder->closed_at,
+            default => null,
+        };
 
         return response()->json([
             'id' => $purchaseOrder->id,
@@ -238,6 +244,10 @@ class PurchaseOrderController extends Controller
             'closed_reason' => $purchaseOrder->closed_reason,
             'closed_at' => $purchaseOrder->closed_at?->toIso8601String(),
             'closed_by' => $purchaseOrder->closer?->name,
+            'last_delivery_at' => $lastDeliveryAt?->toIso8601String(),
+            // When the last pieces arrived, or when it was closed with some missing.
+            'completed_at' => $completedAt?->toIso8601String(),
+            'completed_after_days' => $completedAt === null ? null : (int) $purchaseOrder->date_ordered->copy()->startOfDay()->diffInDays($completedAt->copy()->startOfDay()),
             'items' => $purchaseOrder->items->map(fn (PurchaseOrderItem $item): array => [
                 'row_number' => $item->row_number,
                 'item_code' => $item->item_code,
@@ -256,6 +266,7 @@ class PurchaseOrderController extends Controller
                 'sales_invoice_number' => $delivery->sales_invoice_number,
                 'delivery_receipt_number' => $delivery->delivery_receipt_number,
                 'recorded_by' => $delivery->recorder->name,
+                'recorded_at' => $delivery->created_at?->toIso8601String(),
                 'items' => $delivery->items->map(fn (DeliveryItem $item): array => [
                     'item_code' => $item->purchaseOrderItem->item_code,
                     'description' => $item->purchaseOrderItem->description,

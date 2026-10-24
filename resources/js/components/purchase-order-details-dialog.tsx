@@ -205,13 +205,41 @@ export default function PurchaseOrderDetailsDialog({
                                         )}
                                     </Fact>
                                     <Fact
-                                        label="Uploaded by"
-                                        note={formatDateTime(
-                                            details.uploaded_at,
-                                        )}
+                                        label="Uploaded"
+                                        note={`by ${details.uploaded_by}`}
                                     >
-                                        {details.uploaded_by}
+                                        {formatDateTime(details.uploaded_at)}
                                     </Fact>
+                                    {details.completed_at !== null ? (
+                                        <Fact
+                                            label={
+                                                details.delivery_status ===
+                                                'completed_short'
+                                                    ? 'Completed (some missing)'
+                                                    : 'Completed'
+                                            }
+                                            note={completedAfter(
+                                                details.completed_after_days,
+                                            )}
+                                        >
+                                            {formatDateTime(
+                                                details.completed_at,
+                                            )}
+                                        </Fact>
+                                    ) : (
+                                        <Fact
+                                            label="Last delivery"
+                                            note={
+                                                details.deliveries.length === 0
+                                                    ? 'Nothing has arrived yet'
+                                                    : `${details.deliveries.length} ${details.deliveries.length === 1 ? 'delivery' : 'deliveries'} so far`
+                                            }
+                                        >
+                                            {formatDateTime(
+                                                details.last_delivery_at,
+                                            )}
+                                        </Fact>
+                                    )}
                                     <Fact label="Delivery">
                                         <DeliveryProgress
                                             progress={details}
@@ -302,9 +330,7 @@ export default function PurchaseOrderDetailsDialog({
                                     {tab === 'items' ? (
                                         <ItemsTable details={details} />
                                     ) : (
-                                        <DeliveryHistory
-                                            deliveries={details.deliveries}
-                                        />
+                                        <DeliveryHistory details={details} />
                                     )}
                                 </div>
                             </>
@@ -513,83 +539,224 @@ function CloseShortForm({
     );
 }
 
-/**
- * Every delivery that brought items of this order, newest first, as a
- * compact list.
- */
-function DeliveryHistory({
-    deliveries,
-}: {
-    deliveries: OrderDeliveryRecord[];
-}) {
-    if (deliveries.length === 0) {
-        return (
-            <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
-                Nothing has arrived for this order yet.
-            </p>
-        );
+/** "Arrived the same day it was ordered" or "Took 2 days from the Date Ordered". */
+function completedAfter(days: number | null): string | undefined {
+    if (days === null) {
+        return undefined;
     }
+
+    if (days === 0) {
+        return 'The same day it was ordered';
+    }
+
+    return `${days} ${days === 1 ? 'day' : 'days'} after the Date Ordered`;
+}
+
+type TimelineStep = {
+    key: string;
+    at: string | null;
+    tone: 'slate' | 'blue' | 'green' | 'red';
+    title: string;
+    detail: string | null;
+    delivery?: OrderDeliveryRecord;
+};
+
+const dotClasses: Record<TimelineStep['tone'], string> = {
+    slate: 'bg-slate-400',
+    blue: 'bg-[#0D6EFD]',
+    green: 'bg-emerald-500',
+    red: 'bg-red-500',
+};
+
+/**
+ * Everything that happened to this order, oldest first, each with its date
+ * and time: the upload, every delivery recorded, and when it was completed
+ * (or closed with some missing). An order still open ends with what is
+ * still to come.
+ */
+function DeliveryHistory({ details }: { details: PurchaseOrderDetails }) {
+    const steps: TimelineStep[] = [
+        {
+            key: 'uploaded',
+            at: details.uploaded_at,
+            tone: 'slate',
+            title: 'Purchase order uploaded',
+            detail: `${details.items.length} ${details.items.length === 1 ? 'item' : 'items'} · ${details.quantity_ordered_total.toLocaleString('en-PH')} as ordered on the eStore · ${formatPeso(details.total_amount_centavos)} · by ${details.uploaded_by}`,
+        },
+        ...[...details.deliveries]
+            .sort((a, b) =>
+                (a.recorded_at ?? '').localeCompare(b.recorded_at ?? ''),
+            )
+            .map((delivery): TimelineStep => ({
+                key: `delivery-${delivery.id}`,
+                at: delivery.recorded_at,
+                tone: 'blue',
+                title: 'Delivery recorded',
+                detail: [
+                    `Received ${formatDateOrdered(delivery.received_on)}`,
+                    delivery.sales_invoice_number &&
+                        `SI # ${delivery.sales_invoice_number}`,
+                    delivery.delivery_receipt_number &&
+                        `DR # ${delivery.delivery_receipt_number}`,
+                    `by ${delivery.recorded_by}`,
+                ]
+                    .filter(Boolean)
+                    .join(' · '),
+                delivery,
+            })),
+    ];
+
+    if (details.delivery_status === 'completed') {
+        steps.push({
+            key: 'completed',
+            at: details.completed_at,
+            tone: 'green',
+            title: 'Completed · everything arrived',
+            detail: `${details.quantity_received_total.toLocaleString('en-PH')} of ${details.quantity_ordered_total.toLocaleString('en-PH')} as ordered on the eStore`,
+        });
+    }
+
+    if (details.delivery_status === 'completed_short') {
+        steps.push({
+            key: 'closed',
+            at: details.closed_at,
+            tone: 'red',
+            title: 'Completed (some missing)',
+            detail: [
+                details.closed_reason && `“${details.closed_reason}”`,
+                `${details.percent_received}% received`,
+                details.closed_by && `by ${details.closed_by}`,
+            ]
+                .filter(Boolean)
+                .join(' · '),
+        });
+    }
+
+    const stillToCome = details.items.filter(
+        (item) => item.quantity_remaining > 0,
+    );
+    const isOpen =
+        details.delivery_status === 'awaiting' ||
+        details.delivery_status === 'partially_received';
 
     return (
         <ol className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200">
-            {deliveries.map((delivery) => (
-                <li key={delivery.id} className="px-4 py-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="text-sm font-black text-slate-900">
-                            Received {formatDateOrdered(delivery.received_on)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                            {[
-                                delivery.sales_invoice_number &&
-                                    `SI # ${delivery.sales_invoice_number}`,
-                                delivery.delivery_receipt_number &&
-                                    `DR # ${delivery.delivery_receipt_number}`,
-                                `Recorded by ${delivery.recorded_by}`,
-                            ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                        </p>
-                    </div>
-                    <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
-                        {delivery.items.map((item) => (
-                            <li key={item.item_code}>
-                                <span className="font-mono text-xs font-bold text-blue-700">
-                                    {item.item_code}
-                                </span>{' '}
-                                {item.description}
-                                {item.added_to_stock.length > 0 ? (
-                                    item.added_to_stock.map((added) => (
-                                        <span
-                                            key={added.product_name}
-                                            className="block text-xs text-emerald-700"
-                                        >
-                                            +
-                                            <b>
-                                                {formatConversion(
-                                                    added.units_received,
-                                                    added.unit_name,
-                                                    added.pieces_per_unit,
-                                                )}
-                                            </b>{' '}
-                                            to the stock of {added.product_name}
-                                        </span>
-                                    ))
-                                ) : (
-                                    <span className="block text-xs text-amber-700">
-                                        {item.quantity_received.toLocaleString(
-                                            'en-PH',
-                                        )}{' '}
-                                        received (as ordered on the eStore) ·
-                                        not in stock yet: not linked to a
-                                        product
-                                    </span>
+            {steps.map((step) => (
+                <li key={step.key} className="flex gap-3 px-4 py-3">
+                    <span
+                        aria-hidden="true"
+                        className={cn(
+                            'mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full',
+                            dotClasses[step.tone],
+                        )}
+                    />
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                            <p
+                                className={cn(
+                                    'text-sm font-black',
+                                    step.tone === 'green'
+                                        ? 'text-emerald-700'
+                                        : step.tone === 'red'
+                                          ? 'text-red-700'
+                                          : 'text-slate-900',
                                 )}
-                            </li>
-                        ))}
-                    </ul>
+                            >
+                                {step.title}
+                            </p>
+                            <p className="text-sm font-bold whitespace-nowrap text-slate-700">
+                                {formatDateTime(step.at)}
+                            </p>
+                        </div>
+                        {step.detail && (
+                            <p className="mt-0.5 text-xs text-slate-500">
+                                {step.detail}
+                            </p>
+                        )}
+                        {step.delivery && (
+                            <DeliveredItems delivery={step.delivery} />
+                        )}
+                    </div>
                 </li>
             ))}
+
+            {isOpen && stillToCome.length > 0 && (
+                <li className="flex gap-3 bg-amber-50/50 px-4 py-3">
+                    <span
+                        aria-hidden="true"
+                        className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-dashed border-amber-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                            <p className="text-sm font-black text-amber-800">
+                                Still to come
+                            </p>
+                            <p className="text-xs font-bold text-amber-700">
+                                Not delivered yet
+                            </p>
+                        </div>
+                        <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
+                            {stillToCome.map((item) => (
+                                <li key={item.row_number}>
+                                    <span className="font-mono text-xs font-bold text-blue-700">
+                                        {item.item_code}
+                                    </span>{' '}
+                                    {item.description} ·{' '}
+                                    <b>
+                                        <Quantity
+                                            value={item.quantity_remaining}
+                                            unitName={
+                                                item.stock_target?.unit_name
+                                            }
+                                        />
+                                    </b>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </li>
+            )}
         </ol>
+    );
+}
+
+/** What one delivery brought, and what went into stock. */
+function DeliveredItems({ delivery }: { delivery: OrderDeliveryRecord }) {
+    return (
+        <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
+            {delivery.items.map((item) => (
+                <li key={item.item_code}>
+                    <span className="font-mono text-xs font-bold text-blue-700">
+                        {item.item_code}
+                    </span>{' '}
+                    {item.description}
+                    {item.added_to_stock.length > 0 ? (
+                        item.added_to_stock.map((added) => (
+                            <span
+                                key={added.product_name}
+                                className="block text-xs text-emerald-700"
+                            >
+                                +
+                                <b>
+                                    {formatConversion(
+                                        added.units_received,
+                                        added.unit_name,
+                                        added.pieces_per_unit,
+                                    )}
+                                </b>{' '}
+                                to the stock of {added.product_name}
+                            </span>
+                        ))
+                    ) : (
+                        <span className="block text-xs text-amber-700">
+                            {item.quantity_received.toLocaleString('en-PH')}{' '}
+                            received (as ordered on the eStore) · not in stock
+                            yet: not linked to a product
+                        </span>
+                    )}
+                </li>
+            ))}
+        </ul>
     );
 }
 
