@@ -76,7 +76,7 @@ test('opening a delivery notice opens that purchase order', function () {
 });
 
 test('the school admin dashboard shows the orders in Coming, Ongoing and Completed, with the date and time of each step', function () {
-    $coming = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01', 'created_at' => '2026-09-02 08:15']);
+    orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-01', 'created_at' => '2026-09-02 08:15']);
     $ongoing = orderWith(['PRHD01-01' => 20], ['order_number' => '30802', 'date_ordered' => '2026-10-05']);
     $complete = orderWith(['PRCP01-01' => 10], ['order_number' => '30803', 'date_ordered' => '2026-10-06']);
     $short = orderWith(['PRJK01-01' => 10], ['order_number' => '30722', 'date_ordered' => '2026-10-01']);
@@ -149,6 +149,33 @@ test('the school admin dashboard shows 5 orders a page', function () {
             ->has('overview.deliveries.orders.data', 1)
             ->where('overview.deliveries.orders.data.0.order_number', '30806')
         );
+});
+
+test('the school admin searches by Order #, and the tab counts show which tab it is in', function () {
+    orderWith(['PRUM01-01' => 20], ['order_number' => '30801']);
+    $partial = orderWith(['PRHD01-01' => 20], ['order_number' => '30802']);
+    orderWith(['PRJK01-01' => 20], ['order_number' => '30912']);
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+        'received_on' => '2026-10-08',
+        'items' => [['purchase_order_item_id' => itemOf($partial, 'PRHD01-01'), 'quantity_received' => 5]],
+    ]);
+
+    $this->actingAs($this->schoolAdmin);
+    $this->get(route('dashboard', ['tab' => 'coming', 'search' => '#3080']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('overview.deliveries.search', '3080')
+            ->where('overview.deliveries.counts', ['coming' => 1, 'ongoing' => 1, 'completed' => 0, 'coming_late' => 0, 'ongoing_late' => 0])
+            ->has('overview.deliveries.orders.data', 1)
+            ->where('overview.deliveries.orders.data.0.order_number', '30801')
+        );
+
+    $this->get(route('dashboard', ['tab' => 'coming', 'search' => '30802']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('overview.deliveries.orders.data', 0)
+            ->where('overview.deliveries.counts.ongoing', 1)
+        );
+
+    $this->get(route('dashboard', ['search' => str_repeat('9', 41)]))->assertSessionHasErrors('search');
 });
 
 test('the school admin sees every delivery, but cannot record one', function () {

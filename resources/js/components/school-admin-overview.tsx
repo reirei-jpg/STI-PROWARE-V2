@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
-import { CircleAlert, Eye } from 'lucide-react';
-import { useState } from 'react';
+import { CircleAlert, Eye, Search, SearchX, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
@@ -37,6 +37,8 @@ export type AdminDeliveryRow = {
 export type SchoolAdminOverviewData = {
     deliveries: {
         tab: AdminDeliveryTab;
+        /** The Order # searched for; the counts follow it too. */
+        search: string | null;
         late_days: number;
         counts: Record<
             AdminDeliveryTab | 'coming_late' | 'ongoing_late',
@@ -101,7 +103,9 @@ const emptyText: Record<AdminDeliveryTab, string> = {
 /**
  * The School Admin's dashboard (view only): every eStore order the
  * Specialist uploaded, in three tabs by what has arrived, with the date and
- * time of each step. 5 orders a page; View Details opens the order.
+ * time of each step. 5 orders a page; View Details opens the order. The
+ * search by Order # narrows every tab, and the tab counts show where the
+ * order is.
  */
 export default function SchoolAdminOverview({
     firstName,
@@ -111,17 +115,28 @@ export default function SchoolAdminOverview({
     overview: SchoolAdminOverviewData;
 }) {
     const [viewing, setViewing] = useState<number | null>(null);
-    const { tab, counts, late_days: lateDays, orders } = overview.deliveries;
+    const {
+        tab,
+        search,
+        counts,
+        late_days: lateDays,
+        orders,
+    } = overview.deliveries;
+    const [searchText, setSearchText] = useState(search ?? '');
+    const firstRender = useRef(true);
     const today = new Intl.DateTimeFormat('en-PH', {
         weekday: 'long',
         month: 'short',
         day: 'numeric',
     }).format(new Date());
 
-    const showTab = (next: AdminDeliveryTab) =>
+    const showList = (next: { tab: AdminDeliveryTab; search: string | null }) =>
         router.get(
             dashboard().url,
-            { tab: next },
+            {
+                tab: next.tab,
+                ...(next.search ? { search: next.search } : {}),
+            },
             {
                 only: ['overview'],
                 preserveState: true,
@@ -129,6 +144,38 @@ export default function SchoolAdminOverview({
                 replace: true,
             },
         );
+    const showTab = (next: AdminDeliveryTab) => showList({ tab: next, search });
+    const clearSearch = () => {
+        setSearchText('');
+        showList({ tab, search: null });
+    };
+
+    // Search by Order # as the Admin types, after a short pause.
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
+
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () =>
+                showList({
+                    tab,
+                    search: searchText.trim() === '' ? null : searchText.trim(),
+                }),
+            400,
+        );
+
+        return () => window.clearTimeout(timer);
+        // Only the typed text should trigger a search.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchText]);
+
+    const otherTabsWithMatches = tabs.filter(
+        (option) => option.value !== tab && counts[option.value] > 0,
+    );
+    const currentLabel = tabs.find((option) => option.value === tab)?.label;
 
     return (
         <>
@@ -143,6 +190,23 @@ export default function SchoolAdminOverview({
                 <Panel
                     title="Deliveries"
                     description="Every eStore order the Specialist uploaded, by what has arrived. Open one for its items and Delivery History."
+                    actions={
+                        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:w-72">
+                            <Search size={18} className="shrink-0" />
+                            <input
+                                type="search"
+                                maxLength={40}
+                                value={searchText}
+                                onChange={(event) =>
+                                    setSearchText(event.target.value)
+                                }
+                                inputMode="numeric"
+                                placeholder="Search by Order #"
+                                className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                aria-label="Search by Order #"
+                            />
+                        </label>
+                    }
                 >
                     <div
                         role="tablist"
@@ -199,13 +263,48 @@ export default function SchoolAdminOverview({
                         })}
                     </div>
 
-                    {orders.data.length === 0 ? (
+                    {orders.data.length === 0 && search !== null ? (
+                        <div className="border-t border-slate-100 px-6 py-12 text-center">
+                            <SearchX
+                                size={36}
+                                className="mx-auto text-slate-300"
+                            />
+                            <p className="mt-3 font-black text-slate-800">
+                                No {currentLabel} order matches #{search}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                                {otherTabsWithMatches.length > 0
+                                    ? `It is in ${otherTabsWithMatches.map((option) => option.label).join(' and ')}.`
+                                    : 'Check the Order #, or clear the search to see every order.'}
+                            </p>
+                            <div className="mt-4 flex flex-wrap justify-center gap-2">
+                                {otherTabsWithMatches.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => showTab(option.value)}
+                                        className="inline-flex h-10 items-center rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white transition hover:bg-blue-700"
+                                    >
+                                        Show {option.label}
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={clearSearch}
+                                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    <X size={15} />
+                                    Clear search
+                                </button>
+                            </div>
+                        </div>
+                    ) : orders.data.length === 0 ? (
                         <p className="border-t border-slate-100 px-6 py-12 text-center text-sm text-slate-500">
                             {emptyText[tab]}
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[820px] text-sm">
+                            <table className="w-full min-w-205 text-sm">
                                 <thead className="bg-slate-50 text-left text-[11px] font-black tracking-wider text-slate-500 uppercase">
                                     <tr>
                                         <th className="px-6 py-3">Order #</th>

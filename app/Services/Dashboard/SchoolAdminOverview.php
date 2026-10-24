@@ -8,11 +8,14 @@ use App\Models\PurchaseOrder;
 use App\Services\Deliveries\FollowUp;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * What the School Admin monitors (view only): every eStore order the
  * Specialist uploaded, in three tabs by what has arrived (Coming, Ongoing,
- * Completed), with the dates and times of each step. 5 orders a page.
+ * Completed), with the dates and times of each step. 5 orders a page. A
+ * search by Order # narrows the list and the tab counts alike, so the
+ * counts show which tab the order is in.
  */
 final class SchoolAdminOverview
 {
@@ -25,32 +28,44 @@ final class SchoolAdminOverview
         .' where purchase_order_items.purchase_order_id = purchase_orders.id)';
 
     /**
-     * @return array{deliveries: array{tab: string, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}}
+     * @return array{deliveries: array{tab: string, search: string|null, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}}
      */
-    public function all(AdminDeliveryTab $tab): array
+    public function all(AdminDeliveryTab $tab, ?string $search = null): array
     {
         return [
             'deliveries' => [
                 'tab' => $tab->value,
+                'search' => $search,
                 'late_days' => FollowUp::days(),
-                'counts' => $this->counts(),
-                'orders' => $this->orders($tab),
+                'counts' => $this->counts($search),
+                'orders' => $this->orders($tab, $search),
             ],
         ];
     }
 
     /**
+     * Orders whose Order # has the search in it.
+     *
+     * @param  Builder<PurchaseOrder>  $query
+     * @return Builder<PurchaseOrder>
+     */
+    private static function matching(Builder $query, ?string $search): Builder
+    {
+        return $query->when($search, fn (Builder $orders, string $orderNumber) => $orders->whereLike('order_number', "%{$orderNumber}%"));
+    }
+
+    /**
      * @return array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}
      */
-    private function counts(): array
+    private function counts(?string $search): array
     {
-        $byStatus = PurchaseOrder::query()
+        $byStatus = self::matching(PurchaseOrder::query(), $search)
             ->selectRaw('delivery_status, count(*) as total')
             ->groupBy('delivery_status')
             ->pluck('total', 'delivery_status');
         $count = fn (AdminDeliveryTab $tab): int => (int) collect($tab->statuses())->sum(fn (DeliveryStatus $status): int => (int) ($byStatus[$status->value] ?? 0));
 
-        $late = FollowUp::dueOrders()
+        $late = self::matching(FollowUp::dueOrders(), $search)
             ->selectRaw('delivery_status, count(*) as total')
             ->groupBy('delivery_status')
             ->pluck('total', 'delivery_status');
@@ -70,9 +85,9 @@ final class SchoolAdminOverview
      *
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
-    private function orders(AdminDeliveryTab $tab): LengthAwarePaginator
+    private function orders(AdminDeliveryTab $tab, ?string $search): LengthAwarePaginator
     {
-        $query = PurchaseOrder::query()
+        $query = self::matching(PurchaseOrder::query(), $search)
             ->select('purchase_orders.*')
             ->selectRaw(self::LAST_DELIVERY_SQL.' as last_delivery_at')
             ->withCasts(['last_delivery_at' => 'datetime'])
