@@ -1,11 +1,12 @@
 <?php
 
 use App\Enums\DeliveryStatus;
-use App\Models\Delivery;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Notifications\DeliveryRecorded;
 use App\Notifications\PurchaseOrderClosedShort;
+use App\Notifications\PurchaseOrderCompleted;
+use App\Notifications\PurchaseOrderLate;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -16,33 +17,65 @@ beforeEach(function () {
     $this->schoolAdmin = User::factory()->schoolAdmin()->create(['name' => 'Liza Garcia']);
 });
 
-test('the school admin is told about every delivery recorded, and nobody else is', function () {
+test('the school admin is told when a delivery completes an order, not about every delivery', function () {
     Notification::fake();
-    $order = orderWith(['PRUM01-01' => 20, 'PRHD01-01' => 20], ['order_number' => '30801']);
+    $order = orderWith(['PRUM01-01' => 20, 'PRHD01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-10-05']);
 
     $this->actingAs($this->specialist)->post(route('deliveries.store'), [
         'received_on' => '2026-10-08',
-        'sales_invoice_number' => '1210000031492',
-        'delivery_receipt_number' => 'DR-778',
         'items' => [
             ['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 20],
             ['purchase_order_item_id' => itemOf($order, 'PRHD01-01'), 'quantity_received' => 12],
         ],
     ])->assertSessionHasNoErrors();
 
-    Notification::assertSentTo($this->schoolAdmin, DeliveryRecorded::class, fn (DeliveryRecorded $notice) => $notice->toArray($this->schoolAdmin) === [
-        'kind' => 'delivery_recorded',
-        'delivery_id' => Delivery::sole()->id,
-        'purchase_order_id' => $order->id,
-        'order_numbers' => ['30801'],
+    Notification::assertNothingSent();
+
+    $this->post(route('deliveries.store'), [
         'received_on' => '2026-10-08',
-        'sales_invoice_number' => '1210000031492',
-        'delivery_receipt_number' => 'DR-778',
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRHD01-01'), 'quantity_received' => 8]],
+    ])->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($this->schoolAdmin, PurchaseOrderCompleted::class, fn (PurchaseOrderCompleted $notice) => $notice->toArray($this->schoolAdmin) === [
+        'kind' => 'purchase_order_completed',
+        'purchase_order_id' => $order->id,
+        'order_number' => '30801',
+        'date_ordered' => '2026-10-05',
+        'completed_at' => now()->toIso8601String(),
+        'completed_after_days' => 3,
+        'quantity_received' => 40,
         'recorded_by' => 'Carlo Mendoza',
-        'items_count' => 2,
-        'quantity_received' => 32,
     ]);
-    Notification::assertNotSentTo($this->specialist, DeliveryRecorded::class);
+    Notification::assertNotSentTo($this->specialist, PurchaseOrderCompleted::class);
+    Notification::assertNotSentTo($this->schoolAdmin, DeliveryRecorded::class);
+});
+
+test('the school admin is told once when an order is not complete after the follow-up days', function () {
+    Notification::fake();
+    $late = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-08']);
+    orderWith(['PRHD01-01' => 20], ['order_number' => '30802', 'date_ordered' => '2026-09-09']);
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+        'received_on' => '2026-10-08',
+        'items' => [['purchase_order_item_id' => itemOf($late, 'PRUM01-01'), 'quantity_received' => 5]],
+    ]);
+
+    $this->artisan('purchase-orders:notify-late')->assertSuccessful();
+    $this->artisan('purchase-orders:notify-late')->assertSuccessful();
+
+    Notification::assertSentToTimes($this->schoolAdmin, PurchaseOrderLate::class, 1);
+    Notification::assertSentTo($this->schoolAdmin, PurchaseOrderLate::class, fn (PurchaseOrderLate $notice) => $notice->toArray($this->schoolAdmin) === [
+        'kind' => 'purchase_order_late',
+        'purchase_order_id' => $late->id,
+        'order_number' => '30801',
+        'date_ordered' => '2026-09-08',
+        'days_since_ordered' => 30,
+        'late_days' => 30,
+        'quantity_received' => 5,
+        'quantity_ordered' => 20,
+        'percent_received' => 25,
+    ]);
+    Notification::assertNotSentTo($this->specialist, PurchaseOrderLate::class);
+    expect($late->refresh()->late_notified_at)->not->toBeNull();
 });
 
 test('the school admin is told when an order is closed short, with the reason', function () {
@@ -63,11 +96,11 @@ test('the school admin is told when an order is closed short, with the reason', 
     ]);
 });
 
-test('opening a delivery notice opens that purchase order', function () {
+test('opening an order completed notice opens that purchase order', function () {
     $order = orderWith(['PRUM01-01' => 20]);
     $this->actingAs($this->specialist)->post(route('deliveries.store'), [
         'received_on' => '2026-10-08',
-        'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 5]],
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 20]],
     ]);
 
     $this->actingAs($this->schoolAdmin)

@@ -10,6 +10,9 @@ use Illuminate\Notifications\Notification;
  * Tells the School Admin that the Specialist recorded a delivery from Head
  * Office: which orders it was for, how much arrived, the SI # and DR #, and
  * who recorded it, so every arrival can be traced.
+ *
+ * No longer sent (since Oct 24, 2026 the School Admin is told when an order
+ * is completed or late instead); kept so earlier notices still show.
  */
 class DeliveryRecorded extends Notification
 {

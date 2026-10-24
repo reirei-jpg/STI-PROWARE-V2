@@ -164,6 +164,46 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'purchase_order_completed') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Order completed
+                    {data.order_number ? `: Order #${data.order_number}` : ''}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Everything arrived (
+                    {data.quantity_received.toLocaleString('en-PH')} as ordered
+                    on the eStore) · ordered{' '}
+                    {formatDateOrdered(data.date_ordered)}, completed{' '}
+                    {formatDateTime(data.completed_at)}
+                    {data.completed_after_days === 0
+                        ? ' (the same day)'
+                        : ` (${data.completed_after_days} ${data.completed_after_days === 1 ? 'day' : 'days'})`}{' '}
+                    · by {data.recorded_by}
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'purchase_order_late') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Order late
+                    {data.order_number ? `: Order #${data.order_number}` : ''}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Not complete after {data.late_days} days · ordered{' '}
+                    {formatDateOrdered(data.date_ordered)} ·{' '}
+                    {data.quantity_received.toLocaleString('en-PH')} of{' '}
+                    {data.quantity_ordered.toLocaleString('en-PH')} received (
+                    {data.percent_received}%)
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'purchase_order_closed_short') {
         return (
             <>

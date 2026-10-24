@@ -2,13 +2,14 @@
 
 namespace App\Actions\Deliveries;
 
+use App\Enums\DeliveryStatus;
 use App\Enums\UserRole;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
-use App\Notifications\DeliveryRecorded;
+use App\Notifications\PurchaseOrderCompleted;
 use App\Services\Stock\DeliveredStock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -20,8 +21,9 @@ use Illuminate\Validation\ValidationException;
  *
  * Items whose eStore Item Code is linked to a product are added to stock
  * right away; the others wait until the Specialist links them. An item
- * shared by several variants goes into each variant as counted. The School
- * Admin is told about every delivery recorded.
+ * shared by several variants goes into each variant as counted. When the
+ * delivery brings an order's last pieces, the School Admin is told the
+ * order is completed.
  */
 class RecordDelivery
 {
@@ -34,12 +36,17 @@ class RecordDelivery
      */
     public function handle(User $recordedBy, array $details, array $quantities, array $splitsByCode = []): Delivery
     {
-        $delivery = $this->record($recordedBy, $details, $quantities, $splitsByCode);
+        $completed = [];
+        $delivery = $this->record($recordedBy, $details, $quantities, $splitsByCode, $completed);
 
-        Notification::send(
-            User::query()->where('role', UserRole::SchoolAdmin)->get(),
-            new DeliveryRecorded($delivery->load('recorder')),
-        );
+        if ($completed !== []) {
+            $schoolAdmins = User::query()->where('role', UserRole::SchoolAdmin)->get();
+            $delivery->load('recorder');
+
+            foreach ($completed as $order) {
+                Notification::send($schoolAdmins, new PurchaseOrderCompleted($order, $delivery));
+            }
+        }
 
         return $delivery;
     }
@@ -48,10 +55,11 @@ class RecordDelivery
      * @param  array{received_on: string, sales_invoice_number?: ?string, delivery_receipt_number?: ?string, note?: ?string}  $details
      * @param  array<int, int>  $quantities
      * @param  array<string, array<int, int>>  $splitsByCode
+     * @param  list<PurchaseOrder>  $completed  filled with the orders this delivery completed
      */
-    private function record(User $recordedBy, array $details, array $quantities, array $splitsByCode): Delivery
+    private function record(User $recordedBy, array $details, array $quantities, array $splitsByCode, array &$completed): Delivery
     {
-        return DB::transaction(function () use ($recordedBy, $details, $quantities, $splitsByCode): Delivery {
+        return DB::transaction(function () use ($recordedBy, $details, $quantities, $splitsByCode, &$completed): Delivery {
             // Lock the items so two people recording at once cannot both
             // receive the same remaining quantity.
             $items = PurchaseOrderItem::query()
@@ -92,6 +100,10 @@ class RecordDelivery
 
             foreach (PurchaseOrder::query()->whereKey($orderIds)->get() as $order) {
                 $order->refreshDeliveryProgress();
+
+                if ($order->delivery_status === DeliveryStatus::Completed) {
+                    $completed[] = $order;
+                }
             }
 
             $deliveryItems = $delivery->items()->with('purchaseOrderItem')->orderBy('id')->get();

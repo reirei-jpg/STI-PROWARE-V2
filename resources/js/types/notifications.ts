@@ -162,6 +162,32 @@ export type DeliveryRecordedData = {
     quantity_received: number;
 };
 
+/** Everything an eStore order asked for has arrived (to the School Admin). */
+export type PurchaseOrderCompletedData = {
+    kind: 'purchase_order_completed';
+    purchase_order_id: number;
+    order_number: string | null;
+    date_ordered: string;
+    completed_at: string | null;
+    completed_after_days: number;
+    /** Received, as counted on the eStore. */
+    quantity_received: number;
+    recorded_by: string;
+};
+
+/** An eStore order not complete after the follow-up days (to the School Admin). */
+export type PurchaseOrderLateData = {
+    kind: 'purchase_order_late';
+    purchase_order_id: number;
+    order_number: string | null;
+    date_ordered: string;
+    days_since_ordered: number;
+    late_days: number;
+    quantity_received: number;
+    quantity_ordered: number;
+    percent_received: number;
+};
+
 export type PurchaseOrderClosedShortData = {
     kind: 'purchase_order_closed_short';
     purchase_order_id: number;
@@ -193,6 +219,8 @@ export type StaffNotification = {
         | OrderingPausedData
         | OrderCancelledByStudentData
         | DeliveryRecordedData
+        | PurchaseOrderCompletedData
+        | PurchaseOrderLateData
         | PurchaseOrderClosedShortData;
     read: boolean;
     created_at: string | null;

@@ -36,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $closed_reason
  * @property Carbon|null $closed_at
  * @property int|null $closed_by
+ * @property Carbon|null $late_notified_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -61,6 +62,7 @@ class PurchaseOrder extends Model
             'quantity_received_total' => 'integer',
             'delivery_status' => DeliveryStatus::class,
             'closed_at' => 'datetime',
+            'late_notified_at' => 'datetime',
         ];
     }
 
