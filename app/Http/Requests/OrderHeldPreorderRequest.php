@@ -41,7 +41,7 @@ class OrderHeldPreorderRequest extends FormRequest
             'quantity.required' => 'Enter how many you want to order.',
             'quantity.integer' => 'Enter a whole number.',
             'quantity.min' => 'The quantity must be at least 1.',
-            'quantity.max' => 'Only '.Units::count($this->preorder()->quantity, 'Piece').' are held for you.',
+            'quantity.max' => 'Only '.Units::count($this->preorder()->quantity, 'Piece').($this->preorder()->quantity === 1 ? ' is' : ' are').' held for you.',
             'section.max' => 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',
         ];
     }

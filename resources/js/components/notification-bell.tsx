@@ -342,7 +342,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.held === data.preordered
                         ? `${formatUnits(data.held, 'Piece')} held for you`
-                        : `${data.held} of your ${formatUnits(data.preordered, 'Piece')} arrived and are held for you`}{' '}
+                        : `${data.held} of your ${formatUnits(data.preordered, 'Piece')} arrived and ${data.held === 1 ? 'is' : 'are'} held for you`}{' '}
                     until {formatDateTime(data.held_until)}. Order in My
                     Preorders before then.
                 </span>

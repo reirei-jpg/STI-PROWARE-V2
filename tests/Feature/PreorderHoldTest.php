@@ -260,6 +260,17 @@ test('Order Now refuses more than is held, and other students', function () {
     expect(Order::count())->toBe(0);
 });
 
+test('one held piece is worded in the singular', function () {
+    hoodiesArrive($this->variant, 1);
+
+    $this->actingAs($this->first->student)
+        ->post(route('my-preorders.order', $this->first), ['quantity' => '2'])
+        ->assertSessionHasErrors(['quantity' => 'Only 1 pc is held for you.']);
+
+    expect(PreorderHeld::body(1, 3, 'Nov 21, 9:00 AM'))
+        ->toStartWith('1 of your 3 pcs has arrived and is held for you until Nov 21, 9:00 AM.');
+});
+
 test('the phone app can order held pieces', function () {
     hoodiesArrive($this->variant, 3);
     Sanctum::actingAs($this->first->student);

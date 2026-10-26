@@ -70,7 +70,7 @@ class PreorderHeld extends Notification implements PushesToPhones
     {
         $start = $held === $preordered
             ? Units::count($held, 'Piece').' '.($held === 1 ? 'is' : 'are').' held for you'
-            : "{$held} of your ".Units::count($preordered, 'Piece').' have arrived and are held for you';
+            : "{$held} of your ".Units::count($preordered, 'Piece').($held === 1 ? ' has arrived and is' : ' have arrived and are').' held for you';
 
         return "{$start} until {$until}. Order ".($held === 1 ? 'it' : 'them').' in My Preorders before then, or '.($held === 1 ? 'it goes' : 'they go').' to the next student.'
             .($held === $preordered ? '' : ' You will be notified when the other '.($preordered - $held).' arrive.');
