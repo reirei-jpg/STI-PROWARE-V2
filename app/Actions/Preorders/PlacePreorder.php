@@ -8,6 +8,7 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\PreorderPlaced;
+use App\Notifications\PreorderReceived;
 use App\Services\Preorders\EarlyBird;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
@@ -18,8 +19,9 @@ use Illuminate\Support\Facades\Notification;
  * A student preorders sizes or colors (website or phone app): of a Preorder
  * product, or sold-out sizes of a product for sale. Preordering the same
  * size again adds to it (keeping its place in line), so a student has one
- * active preorder per size or color. A new preorder of a sold-out size is
- * sent to the Specialist, so she can order more.
+ * active preorder per size or color. The student is told it was received;
+ * a new preorder of a sold-out size is sent to the Specialist, so she can
+ * order more.
  */
 class PlacePreorder
 {
@@ -64,7 +66,10 @@ class PlacePreorder
             return array_map(fn (Preorder $preorder): Preorder => $preorder->refresh(), $saved);
         });
 
-        if (LowStockAlerts::isSold($product)) {
+        $soldOut = LowStockAlerts::isSold($product);
+        $student->notify(new PreorderReceived($product, $preorders, $soldOut));
+
+        if ($soldOut) {
             $specialists = User::query()->where('role', UserRole::Specialist)->get();
 
             foreach ($preorders as $preorder) {

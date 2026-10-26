@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\PreorderHeld;
+use App\Notifications\PreorderReceived;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -49,6 +50,27 @@ test('a student can preorder a size, and preordering it again adds to it', funct
         ->product_variant_id->toBe($small->id)
         ->quantity->toBe(5)
         ->status->toBe(PreorderStatus::Active);
+});
+
+test('the student is told their preorder was received, with each size', function () {
+    Notification::fake();
+    [$product, $small, $large] = preorderShirt();
+
+    $this->actingAs($this->student)
+        ->post(route('my-preorders.store', $product), ['items' => [
+            ['product_variant_id' => $small->id, 'quantity' => '2'],
+            ['product_variant_id' => $large->id, 'quantity' => '1'],
+        ]])
+        ->assertSessionHasNoErrors();
+
+    Notification::assertSentToTimes($this->student, PreorderReceived::class, 1);
+    Notification::assertSentTo($this->student, PreorderReceived::class, function (PreorderReceived $notice) {
+        $push = $notice->toPush($this->student);
+
+        return $push['title'] === 'Preorder received: 42nd Anniversary Shirt'
+            && $push['body'] === '2 × S/M, 1 × M/L are in My Preorders. You will be notified when they are here.'
+            && $notice->toArray($this->student)['lines'] === [['variant_label' => 'S/M', 'quantity' => 2], ['variant_label' => 'M/L', 'quantity' => 1]];
+    });
 });
 
 test('preordering a size again cannot go past 99 in all', function () {

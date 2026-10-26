@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ProductRow from '@/components/ProductRow';
 import ProductTile from '@/components/ProductTile';
+import StoreSpotlight from '@/components/StoreSpotlight';
 import UniformSetSheet from '@/components/UniformSetSheet';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -40,7 +41,8 @@ const GAP = 12;
  * the Set opens its picker), and All Merchandise (newest first, out of
  * stock last) with Available / Out of Stock. More loads as the student
  * scrolls. The search at the top covers every section; while searching,
- * sections with no match are hidden.
+ * sections with no match are hidden. When the app opens, the store pop-up
+ * shows what came back in stock or is on sale (StoreSpotlight).
  */
 export default function HomeScreen() {
     const insets = useSafeAreaInsets();
@@ -507,6 +509,7 @@ export default function HomeScreen() {
             }
             keyboardShouldPersistTaps="handled"
         />
+        <StoreSpotlight items={home?.spotlight ?? null} onOpen={open} />
         <UniformSetSheet
             set={buyingSet}
             onClose={() => setBuyingSet(null)}

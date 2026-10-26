@@ -18,7 +18,8 @@ class StorefrontController extends Controller
 {
     /**
      * Coming Soon, On Sale and Uniform Sets, for the top of the Home screen,
-     * only what matches the search when there is one.
+     * only what matches the search when there is one, and the store pop-up
+     * (back in stock and on sale, never searched).
      */
     public function home(FilterStorefrontRequest $request): JsonResponse
     {
@@ -28,6 +29,7 @@ class StorefrontController extends Controller
             'coming_soon' => StorefrontFeed::comingSoon($search),
             'on_sale' => StorefrontFeed::onSale($search),
             'uniform_sets' => StorefrontUniformSets::all($search),
+            'spotlight' => StorefrontFeed::spotlight(),
         ]);
     }
 

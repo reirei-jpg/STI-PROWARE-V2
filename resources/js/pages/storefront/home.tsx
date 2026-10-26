@@ -11,6 +11,7 @@ import {
 import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
+import StoreSpotlight from '@/components/store-spotlight';
 import StorefrontProductDialog from '@/components/storefront-product-dialog';
 import StorefrontTile, { PlaceholderTile } from '@/components/storefront-tile';
 import TileCarousel from '@/components/tile-carousel';
@@ -18,6 +19,7 @@ import UniformSetSection from '@/components/uniform-set-section';
 import { cn } from '@/lib/utils';
 import type {
     StorefrontFilters,
+    StorefrontSpotlightItem,
     StorefrontTileProduct,
     StorefrontUniformSet,
 } from '@/types';
@@ -53,17 +55,22 @@ const gridClasses =
  *
  * A search covers every section: the banner makes way for a results line,
  * and only the sections with a match show.
+ *
+ * On the first page of a visit, the store pop-up shows what came back in
+ * stock or is on sale (StoreSpotlight).
  */
 export default function StorefrontHome({
     comingSoon,
     onSale,
     uniformSets,
+    spotlight,
     merchandise,
     filters,
 }: {
     comingSoon: StorefrontTileProduct[];
     onSale: StorefrontTileProduct[];
     uniformSets: StorefrontUniformSet[];
+    spotlight: StorefrontSpotlightItem[];
     merchandise: { data: StorefrontTileProduct[] };
     filters: StorefrontFilters;
 }) {
@@ -113,6 +120,8 @@ export default function StorefrontHome({
                 product={viewing}
                 onClose={() => setViewing(null)}
             />
+
+            <StoreSpotlight items={spotlight} onView={setViewing} />
         </>
     );
 }

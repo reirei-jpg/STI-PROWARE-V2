@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Notifications\PreorderHeld;
 use App\Notifications\PreorderNotRestocked;
 use App\Notifications\PreorderPlaced;
+use App\Notifications\PreorderReceived;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -50,6 +51,9 @@ test('a student can preorder a sold-out size, and the Specialist is told once', 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $extraSmall->id, 'quantity' => '3']);
 
     expect(Preorder::sole())->quantity->toBe(5)->status->toBe(PreorderStatus::Active);
+    // The student is told each time, with the size's new total the second time.
+    Notification::assertSentToTimes($this->student, PreorderReceived::class, 2);
+    Notification::assertSentTo($this->student, PreorderReceived::class, fn (PreorderReceived $notice) => $notice->toPush($this->student)['body'] === '5 × XS are in My Preorders. You will be notified when they are back in stock.');
     Notification::assertSentToTimes($this->specialist, PreorderPlaced::class, 1);
     Notification::assertSentTo($this->specialist, PreorderPlaced::class, fn (PreorderPlaced $notice) => $notice->toPush($this->specialist)['title'] === 'New preorder: BSIT Polo (XS)'
         && $notice->toPush($this->specialist)['body'] === 'Juan Dela Cruz preordered 2 pieces. It is out of stock.');

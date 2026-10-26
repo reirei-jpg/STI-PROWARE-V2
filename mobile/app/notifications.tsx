@@ -60,6 +60,22 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        case 'preorder_received': {
+            const many = data.lines.length > 1 || (data.lines[0]?.quantity ?? 0) > 1;
+
+            return {
+                title: `Preorder received: ${data.product_name}`,
+                body: `${data.lines
+                    .map((line) =>
+                        line.variant_label === null
+                            ? formatUnits(line.quantity, 'Piece')
+                            : `${line.quantity} × ${line.variant_label}`,
+                    )
+                    .join(', ')} ${many ? 'are' : 'is'} in My Preorders. You will be notified when ${many ? 'they are' : 'it is'}${data.sold_out ? ' back in stock.' : ' here.'}`,
+                titleClass: 'text-amber-800',
+                stripe: '#f59e0b',
+            };
+        }
         case 'preorder_held':
             return {
                 title: `Your preorder has arrived: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,

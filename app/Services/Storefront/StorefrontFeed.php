@@ -3,9 +3,12 @@
 namespace App\Services\Storefront;
 
 use App\Enums\ProductStatus;
+use App\Enums\StockMovementType;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StockMovement;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * The storefront's three sections, for the website and the phone app:
@@ -17,10 +20,17 @@ use Illuminate\Database\Eloquent\Builder;
  *   stay hidden, and Draft products are never shown.
  *
  * The search covers every section: only products whose name matches show.
+ * The store pop-up (spotlight) ignores it.
  */
 final class StorefrontFeed
 {
     public const RELATIONS = ['mainPhoto', 'packs', 'variants'];
+
+    /** How long a size that came back stays in the store pop-up. */
+    public const BACK_IN_STOCK_DAYS = 7;
+
+    /** The most products the store pop-up shows. */
+    public const SPOTLIGHT_LIMIT = 10;
 
     /**
      * @return list<array<string, mixed>>
@@ -55,6 +65,66 @@ final class StorefrontFeed
             ->get()
             ->map(StorefrontProduct::tile(...))
             ->all());
+    }
+
+    /**
+     * The store pop-up, shown once per visit like an ad: products with a
+     * size that was sold out and came back with a delivery in the last
+     * BACK_IN_STOCK_DAYS days (newest first, with those sizes), then what is
+     * on sale. Each product shows once, and only while it can be bought.
+     *
+     * @return list<array{reason: 'back_in_stock'|'on_sale', back_in_stock: list<string>, product: array<string, mixed>}>
+     */
+    public static function spotlight(): array
+    {
+        // A delivery that found the shelf empty (nothing was left before it
+        // came in) for a size that had stock before: not its first arrival.
+        $restocks = StockMovement::query()
+            ->where('stock_movements.type', StockMovementType::Delivery)
+            ->where('stock_movements.created_at', '>=', now()->subDays(self::BACK_IN_STOCK_DAYS))
+            ->whereColumn('stock_movements.balance_after', '<=', 'stock_movements.quantity')
+            ->whereExists(fn (QueryBuilder $earlier) => $earlier->from('stock_movements as earlier')
+                ->whereColumn('earlier.product_variant_id', 'stock_movements.product_variant_id')
+                ->whereColumn('earlier.id', '<', 'stock_movements.id')
+                ->where('earlier.balance_after', '>', 0))
+            ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
+            ->latest('stock_movements.id')
+            ->get(['stock_movements.product_variant_id', 'product_variants.product_id']);
+
+        $products = Product::query()
+            ->whereIn('id', $restocks->pluck('product_id')->unique())
+            ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
+            ->with(self::RELATIONS)
+            ->get()
+            ->keyBy('id');
+
+        $items = [];
+
+        foreach ($restocks->groupBy('product_id') as $productId => $movements) {
+            $product = $products->get($productId);
+            $restockedIds = $movements->pluck('product_variant_id')->all();
+            $backNow = $product?->variants->filter(
+                fn (ProductVariant $variant): bool => in_array($variant->id, $restockedIds, true) && $variant->freeToSell() > 0,
+            );
+
+            if ($product === null || $backNow->isEmpty()) {
+                continue;
+            }
+
+            $items[$product->id] = [
+                'reason' => 'back_in_stock',
+                'back_in_stock' => array_values($backNow->filter(fn (ProductVariant $variant): bool => $variant->choices !== [])
+                    ->map(fn (ProductVariant $variant): string => $variant->label())
+                    ->all()),
+                'product' => StorefrontProduct::tile($product),
+            ];
+        }
+
+        foreach (self::onSale() as $tile) {
+            $items[$tile['id']] ??= ['reason' => 'on_sale', 'back_in_stock' => [], 'product' => $tile];
+        }
+
+        return array_slice(array_values($items), 0, self::SPOTLIGHT_LIMIT);
     }
 
     /**

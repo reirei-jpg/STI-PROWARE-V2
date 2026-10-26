@@ -268,6 +268,14 @@ export type StudentNotificationData =
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
     | {
+          kind: 'preorder_received';
+          product_id: number;
+          product_name: string;
+          lines: { variant_label: string | null; quantity: number }[];
+          /** A sold-out size (back in stock) rather than a Coming Soon item (here). */
+          sold_out: boolean;
+      }
+    | {
           kind: 'preorder_held';
           preorder_id: number;
           product_id: number;
@@ -486,8 +494,18 @@ export type ProductStockView = {
     }>;
 };
 
+/** One product in the store pop-up: a size that came back in stock, or a sale. */
+export type StorefrontSpotlightItem = {
+    reason: 'back_in_stock' | 'on_sale';
+    /** The sizes or colors that came back; empty for a product without options. */
+    back_in_stock: string[];
+    product: StorefrontTileProduct;
+};
+
 export type StorefrontHome = {
     coming_soon: StorefrontTileProduct[];
     on_sale: StorefrontTileProduct[];
     uniform_sets: StorefrontUniformSet[];
+    /** The store pop-up, never narrowed by the search. */
+    spotlight: StorefrontSpotlightItem[];
 };

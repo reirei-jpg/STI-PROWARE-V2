@@ -27,6 +27,7 @@ class StorefrontController extends Controller
             'comingSoon' => StorefrontFeed::comingSoon($search),
             'onSale' => StorefrontFeed::onSale($search),
             'uniformSets' => StorefrontUniformSets::all($search),
+            'spotlight' => StorefrontFeed::spotlight(),
             'merchandise' => Inertia::scroll(fn () => StorefrontFeed::merchandise($search, $show)
                 ->paginate(20)
                 ->withQueryString()

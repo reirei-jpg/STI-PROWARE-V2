@@ -382,6 +382,31 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'preorder_received') {
+        const many =
+            data.lines.length > 1 || (data.lines[0]?.quantity ?? 0) > 1;
+
+        return (
+            <>
+                <span className="block text-sm font-bold text-amber-800">
+                    Preorder received: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {data.lines
+                        .map((line) =>
+                            line.variant_label === null
+                                ? formatUnits(line.quantity, 'Piece')
+                                : `${line.quantity} × ${line.variant_label}`,
+                        )
+                        .join(', ')}{' '}
+                    {many ? 'are' : 'is'} in My Preorders. You will be notified
+                    when {many ? 'they are' : 'it is'}
+                    {data.sold_out ? ' back in stock.' : ' here.'}
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'preorder_placed') {
         return (
             <>

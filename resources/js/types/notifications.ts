@@ -117,6 +117,16 @@ export type PreorderHoldEndedData = {
     rest_closed?: number;
 };
 
+/** The student's own preorder was received: each size and its total. */
+export type PreorderReceivedData = {
+    kind: 'preorder_received';
+    product_id: number;
+    product_name: string;
+    lines: { variant_label: string | null; quantity: number }[];
+    /** A sold-out size (back in stock) rather than a Coming Soon item (here). */
+    sold_out: boolean;
+};
+
 /** A student preordered a sold-out size (for the Specialist). */
 export type PreorderPlacedData = {
     kind: 'preorder_placed';
@@ -227,6 +237,7 @@ export type StaffNotification = {
         | PreorderArrivalChangedData
         | PreorderHeldData
         | PreorderHoldEndedData
+        | PreorderReceivedData
         | PreorderPlacedData
         | OrderingResumedData
         | OrderingPausedData

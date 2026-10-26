@@ -41,6 +41,14 @@ export type StorefrontTileProduct = {
     accepts_preorders: boolean;
 };
 
+/** One product in the store pop-up: a size that came back in stock, or a sale. */
+export type StorefrontSpotlightItem = {
+    reason: 'back_in_stock' | 'on_sale';
+    /** The sizes or colors that came back; empty for a product without options. */
+    back_in_stock: string[];
+    product: StorefrontTileProduct;
+};
+
 export type StorefrontVariantAvailability =
     | 'coming_soon'
     | 'in_stock'
