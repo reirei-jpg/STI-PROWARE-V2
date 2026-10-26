@@ -16,7 +16,7 @@ let shownThisLaunch = false;
  * time Home loads after the app opens, it shows the products that came back
  * in stock or are on sale, one at a time with a big photo, sliding to the
  * next by itself (the dots and arrows switch too). View opens the product;
- * X, Close or Back hides it until the app is opened again. Nothing shows
+ * X, Back or tapping outside hides it until the app is opened again. Nothing shows
  * when there is nothing back in stock or on sale.
  */
 export default function StoreSpotlight({
@@ -65,8 +65,19 @@ export default function StoreSpotlight({
     const go = (step: number): void => setIndex((current) => (current + step + count) % count);
 
     return (
-        <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-            <View className="flex-1 items-center justify-center bg-slate-900/60 px-5">
+        <Modal
+            visible={open}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setOpen(false)}
+            statusBarTranslucent
+        >
+            <View className="flex-1 items-center justify-center px-5">
+                <Pressable
+                    onPress={() => setOpen(false)}
+                    accessibilityLabel="Close"
+                    className="absolute inset-0 bg-black/60"
+                />
                 <View style={{ width: cardWidth }} className="overflow-hidden rounded-3xl bg-white">
                     <View className="flex-row items-center justify-between gap-3 px-5 pb-3 pt-4">
                         <View className="flex-1">
