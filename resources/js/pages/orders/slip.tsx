@@ -39,8 +39,8 @@ type SlipResult = {
 /**
  * A scanned issuance slip: first a large banner that answers "can I
  * release this?" (green OK, red stop), then the order beside its slip with
- * the student, the checks, and the release as numbered steps: collect the
- * amount, tick that the student has paid, release the items (they leave
+ * the student, the checks, and the release as numbered steps: check the
+ * cashier's receipt, tick that it was checked, release the items (they leave
  * the shelf only then). Ready for pickup, Undo release (same day), Print
  * and Cancel sit below, smaller. Not a PROWARE slip: says so.
  */
@@ -64,7 +64,7 @@ export default function OrderSlip({
             <div className="space-y-6">
                 <PageHeader
                     title="Issuance Slip"
-                    description="Check the slip, collect the payment, and release the items."
+                    description="Check the slip and the student's cashier receipt, then release the items."
                     actions={
                         <Link
                             href={OrderController.index()}
