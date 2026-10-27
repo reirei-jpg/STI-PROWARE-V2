@@ -100,6 +100,21 @@ test('only available products with stock can be put on sale', function (array $a
     'nothing in stock' => [[], 0, 'There is nothing in stock to put on sale.'],
 ]);
 
+test('a product whose every piece is held for orders cannot be put on sale', function () {
+    $product = saleProduct(stock: 4);
+    $product->variants()->update(['held_pieces' => 3, 'preorder_held_pieces' => 1]);
+
+    $this->actingAs($this->specialist)
+        ->post(route('products.sale.store', $product), ['sale_price' => '50', 'days' => '7'])
+        ->assertSessionHasErrors(['days' => 'Every piece in stock is held for orders, so there is nothing to sell at a sale price.']);
+
+    expect($product->refresh()->status)->toBe(ProductStatus::Available);
+
+    $product->variants()->update(['held_pieces' => 2]);
+    $this->post(route('products.sale.store', $product), ['sale_price' => '50', 'days' => '7'])
+        ->assertSessionHasNoErrors();
+});
+
 test('a sale price cannot go below the Cost, and the pop-up gets the Cost to show it', function () {
     $product = saleProduct();
     orderWith(['PRLY01-01' => 10])->items()->update(['unit_price_centavos' => 6000]);

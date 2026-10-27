@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Services\Sales\HeadOfficeCost;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Validator;
 
 /**
@@ -87,6 +88,13 @@ class PutOnSaleRequest extends FormRequest
 
                 if ((int) $product->variants()->sum('stock_on_hand') === 0) {
                     $validator->errors()->add('days', 'There is nothing in stock to put on sale.');
+
+                    return;
+                }
+
+                // Pieces held for orders are already sold at their price.
+                if ((int) $product->variants()->sum(DB::raw(ProductVariant::FREE_TO_SELL_SQL)) <= 0) {
+                    $validator->errors()->add('days', 'Every piece in stock is held for orders, so there is nothing to sell at a sale price.');
 
                     return;
                 }
