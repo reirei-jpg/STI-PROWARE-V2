@@ -57,7 +57,7 @@ export default function Maintenance({
 
                 <Panel
                     title="Orders"
-                    description="How students' orders are handled."
+                    description="How orders are handled."
                 >
                     <HoldDaysSetting setting={holdDays} />
                 </Panel>

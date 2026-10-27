@@ -149,7 +149,7 @@ export default function ProductStock({
 
                 {holds.length > 0 && (
                     <Panel
-                        title="Held for Students' Orders"
+                        title="Held for Orders"
                         description={`${formatUnits(product.held_pieces, 'Piece')} on the shelf are kept for these orders until they are released or expire. The nearest pick-up date first.`}
                         className="border-l-4 border-l-amber-500"
                     >

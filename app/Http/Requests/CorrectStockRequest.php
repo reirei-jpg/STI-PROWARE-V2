@@ -111,7 +111,7 @@ class CorrectStockRequest extends FormRequest
                 } elseif (! $this->reason()->removesPieces() && $after === $stock) {
                     $validator->errors()->add('actual_count', 'The stock is already '.Units::count($stock, 'Piece').', so nothing would change.');
                 } elseif ($after < $variant->held_pieces) {
-                    $validator->errors()->add($field, Units::count($variant->held_pieces, 'Piece').($variant->held_pieces === 1 ? ' is' : ' are')." held for students' orders, so the shelf cannot have fewer. Cancel those orders first, or count again.");
+                    $validator->errors()->add($field, Units::count($variant->held_pieces, 'Piece').($variant->held_pieces === 1 ? ' is' : ' are')." held for orders, so the shelf cannot have fewer. Cancel those orders first, or count again.");
                 } elseif ($after > $stock && $this->centavosPerPiece() === null) {
                     $validator->errors()->add('unit_cost', 'Enter the eStore price per piece of the '.Units::count($after - $stock, 'Piece').' you are adding, so every piece has a cost.');
                 }
