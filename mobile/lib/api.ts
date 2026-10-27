@@ -69,8 +69,11 @@ export async function apiRequest<T>(
         ? Object.values(error.errors)[0]?.[0]
         : undefined;
 
-    throw new ApiError(
-        fieldMessage ?? error.message ?? 'Something went wrong. Try again.',
-        response.status,
-    );
+    // A refusal without words (e.g. a 403) still says what happened.
+    const fallback =
+        response.status === 403
+            ? 'Your account cannot open this.'
+            : 'Something went wrong. Try again.';
+
+    throw new ApiError(fieldMessage || error.message || fallback, response.status);
 }
