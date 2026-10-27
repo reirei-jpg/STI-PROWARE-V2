@@ -64,6 +64,7 @@ final class DeliveredStock
             );
 
             $piecesAdded = 0;
+            $restockedIds = [];
 
             foreach ($waiting as $item) {
                 $variants = $variantsByCode->get($item->purchaseOrderItem->item_code);
@@ -77,6 +78,7 @@ final class DeliveredStock
                     $variant = $variants->first();
                     $piecesPerUnit = $variant->estorePack->pieces ?? 1;
                     $piecesAdded += $this->addToVariant($variant, $item, $item->quantity_received, $variant->estorePack->name ?? 'Piece', $piecesPerUnit, $piecesPerUnit, $recordedBy);
+                    $restockedIds[] = $variant->id;
 
                     continue;
                 }
@@ -89,13 +91,14 @@ final class DeliveredStock
 
                     if ($pieces > 0) {
                         $piecesAdded += $this->addToVariant($variant, $item, $pieces, 'Piece', 1, $estoreUnitPieces, $recordedBy);
+                        $restockedIds[] = $variant->id;
                     }
                 }
             }
 
             // Stock went up, so a variant warned before may be warned again.
             foreach ($variantsByCode->flatten(1) as $variant) {
-                $this->lowStockAlerts->check($variant);
+                $this->lowStockAlerts->check($variant, restocked: in_array($variant->id, $restockedIds, true));
                 $this->restockedPreorders->check($variant);
             }
 

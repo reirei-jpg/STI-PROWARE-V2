@@ -11,7 +11,7 @@ use App\Notifications\LowStockAlert;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * Warns the Specialist when a variant of a product students can buy
+ * Warns the Specialist when a variant of a product buyers can buy
  * (Available or On Sale) falls to the product's low-stock number, counting
  * what is free to sell (pieces held for orders are as good as gone). Each
  * variant is warned once; it can be warned again only after more pieces
@@ -21,15 +21,19 @@ use Illuminate\Support\Facades\Notification;
 final class LowStockAlerts
 {
     /**
-     * Run after a variant's stock changed.
+     * Run after a variant's stock changed. $restocked is true when pieces
+     * came in (a delivery, or a recount that found more): the variant can
+     * then be warned again once it is above the number. Without it, only a
+     * shelf fuller than when it was warned counts, since the sold pieces
+     * have left the shelf by then.
      */
-    public function check(ProductVariant $variant): void
+    public function check(ProductVariant $variant, bool $restocked = false): void
     {
         $variant->loadMissing('product');
         $product = $variant->product;
 
         if ($variant->freeToSell() > $product->low_stock_alert_at) {
-            if ($variant->low_stock_notified_at !== null && $variant->stock_on_hand > (int) $variant->low_stock_notified_stock) {
+            if ($variant->low_stock_notified_at !== null && ($restocked || $variant->stock_on_hand > (int) $variant->low_stock_notified_stock)) {
                 $variant->forceFill(['low_stock_notified_at' => null, 'low_stock_notified_stock' => null])->save();
             }
 

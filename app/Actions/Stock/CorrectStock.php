@@ -68,7 +68,7 @@ class CorrectStock
             // Pieces taken out are the oldest on the shelf; later sales cost the next.
             StockCost::replay($locked->id);
 
-            $this->lowStockAlerts->check($locked);
+            $this->lowStockAlerts->check($locked, restocked: $change > 0);
             $this->restockedPreorders->check($locked);
 
             return $correction;
