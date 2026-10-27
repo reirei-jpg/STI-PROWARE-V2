@@ -24,6 +24,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { SpecialistOrderRow } from '@/types';
@@ -389,6 +390,12 @@ function OrderList({
                                             {order.number}
                                         </span>{' '}
                                         {order.student_name}
+                                        {order.is_staff && (
+                                            <>
+                                                {' '}
+                                                <StaffTag />
+                                            </>
+                                        )}
                                         {order.student_section && (
                                             <span className="font-semibold text-slate-500">
                                                 {' '}

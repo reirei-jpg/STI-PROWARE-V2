@@ -10,6 +10,7 @@ import {
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import type { StaffNotification } from '@/types';
+import { isBuyer } from '@/lib/roles';
 
 /**
  * The bell (as in V1): a red count of unread notifications and a list of
@@ -91,7 +92,7 @@ export default function NotificationBell() {
                         <p className="mt-1 text-xs text-slate-400">
                             {auth.user.role === 'specialist'
                                 ? 'You will be notified here when stock runs low or a sale is ending.'
-                                : auth.user.role === 'student'
+                                : isBuyer(auth.user)
                                   ? 'You will be notified here when your order is ready for pickup, or when an item you preordered arrives.'
                                   : 'You will be notified here when the Specialist uploads a purchase order, records a delivery, or closes an order short.'}
                         </p>

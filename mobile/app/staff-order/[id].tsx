@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
 import { ActionButton, CancelSheet, ReadySheet, ReleaseBox } from '@/components/StaffOrderActions';
+import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
@@ -106,6 +107,11 @@ export default function StaffOrderScreen() {
                             <Text className="font-sans-bold text-2xl text-slate-900">
                                 Order {order.number}
                             </Text>
+                            {order.is_staff && (
+                                <View className="mt-1 flex-row">
+                                    <StaffTag />
+                                </View>
+                            )}
                             <Text className="font-sans-semibold text-base text-slate-800">
                                 {order.student_name}
                                 {order.student_id ? ` · ID ${order.student_id}` : ''}

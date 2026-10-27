@@ -22,6 +22,7 @@ import { ConfirmReadyDialog } from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import SlipScanBox from '@/components/slip-scan-box';
+import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { IssuanceSlipData, SpecialistOrderRow } from '@/types';
@@ -205,8 +206,9 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                     {initials(order.student_name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <p className="truncate font-black text-slate-900">
-                        {order.student_name}
+                    <p className="flex items-center gap-2 font-black text-slate-900">
+                        <span className="truncate">{order.student_name}</span>
+                        {order.is_staff && <StaffTag />}
                     </p>
                     <p className="text-sm text-slate-500">
                         <span className="font-bold text-slate-700">

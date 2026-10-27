@@ -162,9 +162,12 @@ export type StudentOrder = {
     status: 'placed' | 'ready' | 'picked_up' | 'cancelled';
     status_label: string;
     student_name: string;
-    /** The student's 11-digit Student ID (null for older accounts). */
+    /** The student's 11-digit Student ID, or an STI staff buyer's Employee ID (null for older accounts). */
     student_id: string | null;
+    /** The course/section, or an STI staff buyer's office/department. */
     student_section: string | null;
+    /** True when the buyer is STI staff (a teacher or employee), not a student. */
+    is_staff: boolean;
     total_centavos: number;
     items: {
         id: number;
@@ -197,8 +200,11 @@ export type IssuanceSlipData = {
     number: string | null;
     date: string | null;
     student_name: string;
+    /** The Student ID, or an STI staff buyer's Employee ID. */
     student_id: string | null;
     section: string | null;
+    /** True when the buyer is STI staff: the slip says Employee instead of Student. */
+    is_staff: boolean;
     items: {
         quantity: number;
         item: string;

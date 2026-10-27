@@ -28,8 +28,8 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
     Route::get('merchandise', [StorefrontController::class, 'merchandise'])->name('storefront.merchandise');
     Route::get('products/{product}', [StorefrontController::class, 'show'])->name('storefront.product');
 
-    // Both students and the Specialist.
-    Route::middleware(['auth:sanctum', 'role:student,specialist'])->group(function () {
+    // Buyers (students and STI staff) and the Specialist.
+    Route::middleware(['auth:sanctum', 'role:student,employee,specialist'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
@@ -41,8 +41,8 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     });
 
-    // The student's cart, orders and preorders.
-    Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
+    // The buyer's (student or STI staff) cart, orders and preorders.
+    Route::middleware(['auth:sanctum', 'role:student,employee'])->group(function () {
         Route::get('cart', [CartController::class, 'index'])->name('cart.index');
         Route::post('products/{product}/cart', [CartController::class, 'store'])->name('cart.store');
         Route::post('uniform-sets/{uniformSet}/cart', [CartController::class, 'storeSet'])->name('cart.store-set');

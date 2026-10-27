@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Signing in and out of the phone app, for students and the PROWARE
- * Specialist (the School Admin uses the website). Each phone gets its own
+ * Signing in and out of the phone app, for students, STI staff and the
+ * PROWARE Specialist (the School Admin uses the website). Each phone gets its own
  * token, which lasts 30 days.
  */
 class AuthController extends Controller
@@ -26,8 +26,8 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => FortifyServiceProvider::FAILED_LOGIN]);
         }
 
-        if (! $user->isStudent() && ! $user->isSpecialist()) {
-            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students and the PROWARE Specialist. Use the website.']);
+        if (! $user->isBuyer() && ! $user->isSpecialist()) {
+            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students, STI staff and the PROWARE Specialist. Use the website.']);
         }
 
         if (! $user->hasVerifiedEmail()) {

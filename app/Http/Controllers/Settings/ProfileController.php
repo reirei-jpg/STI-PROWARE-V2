@@ -19,7 +19,7 @@ class ProfileController extends Controller
 {
     public function edit(Request $request): Response
     {
-        return $request->user()->isStudent()
+        return $request->user()->isBuyer()
             ? Inertia::render('storefront/account', ['passwordRules' => Password::defaults()->toPasswordRulesString()])
             : Inertia::render('settings/profile');
     }

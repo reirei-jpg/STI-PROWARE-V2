@@ -3,9 +3,9 @@ import Profile from '@/pages/settings/profile';
 import Security from '@/pages/settings/security';
 
 /**
- * A student's My Account page in the store: their name (printed on the
- * issuance slip), email and Student ID (shown only), and their password.
- * Students sign in with a PROWARE password until Microsoft 365 sign-in is
+ * A buyer's (student or STI staff) My Account page in the store: their name
+ * (printed on the issuance slip), email and Student ID or Employee ID (shown
+ * only), and their password. Buyers sign in with a PROWARE password until Microsoft 365 sign-in is
  * connected.
  */
 export default function Account({ passwordRules }: { passwordRules: string }) {

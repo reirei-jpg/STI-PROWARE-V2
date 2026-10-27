@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
+import StaffTag from '@/components/StaffTag';
 import { formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
 
@@ -39,9 +40,12 @@ export default function StaffOrderRow({
                     <Text className="font-sans-bold text-base text-slate-900">{order.number}</Text>
                     <OrderStatusPill order={order} />
                 </View>
-                <Text numberOfLines={1} className="font-sans-semibold text-sm text-slate-800">
-                    {order.student_name}
-                </Text>
+                <View className="flex-row items-center gap-2">
+                    <Text numberOfLines={1} className="shrink font-sans-semibold text-sm text-slate-800">
+                        {order.student_name}
+                    </Text>
+                    {order.is_staff && <StaffTag />}
+                </View>
                 <Text className="font-sans text-sm text-slate-600">
                     {itemCount} {itemCount === 1 ? 'item' : 'items'} ·{' '}
                     <Text className="font-sans-bold text-slate-900">{formatPeso(order.total_centavos)}</Text>

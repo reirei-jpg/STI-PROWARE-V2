@@ -95,7 +95,7 @@ class OrderController extends Controller
      */
     public function liftPause(User $student): RedirectResponse
     {
-        abort_unless($student->isStudent(), 404);
+        abort_unless($student->isBuyer(), 404);
 
         OrderRules::liftPause($student);
 

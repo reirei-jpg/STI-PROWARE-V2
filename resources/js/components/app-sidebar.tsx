@@ -30,6 +30,7 @@ const workspaceNames: Record<UserRole, string> = {
     specialist: 'Specialist Workspace',
     school_admin: 'School Admin Workspace',
     student: 'Student',
+    employee: 'STI Staff',
 };
 
 /**

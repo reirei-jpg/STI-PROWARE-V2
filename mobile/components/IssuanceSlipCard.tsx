@@ -61,9 +61,9 @@ export default function IssuanceSlipCard({
                     <Text className="font-sans-bold text-base text-red-700">{slip.number}</Text>
                 </SlipField>
                 <SlipField label="Date">{formatDate(slip.date)}</SlipField>
-                <SlipField label="Student Name">{slip.student_name}</SlipField>
-                <SlipField label="Section">{slip.section ?? ''}</SlipField>
-                <SlipField label="Student ID">{slip.student_id ?? ''}</SlipField>
+                <SlipField label={slip.is_staff ? 'Employee Name' : 'Student Name'}>{slip.student_name}</SlipField>
+                <SlipField label={slip.is_staff ? 'Office/Department' : 'Section'}>{slip.section ?? ''}</SlipField>
+                <SlipField label={slip.is_staff ? 'Employee ID' : 'Student ID'}>{slip.student_id ?? ''}</SlipField>
             </View>
 
             <View style={{ borderColor: BLUE }} className="mt-4 border">

@@ -53,7 +53,7 @@ class CancelOrder
                 'cancelled_at' => now(),
                 'expired_at' => $cancelledBy === null ? now() : null,
                 'cancel_reason' => $reason,
-                'handled_by' => $cancelledBy?->isStudent() ? null : $cancelledBy?->id,
+                'handled_by' => $cancelledBy?->isBuyer() ? null : $cancelledBy?->id,
             ])->save();
 
             if ($cancelledBy?->id !== $order->user_id) {

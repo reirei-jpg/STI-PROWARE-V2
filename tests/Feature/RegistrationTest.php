@@ -69,3 +69,57 @@ test('an email that already has an account cannot register again', function () {
     $this->post(route('register.store'), juansRegistration())
         ->assertSessionHasErrors(['email' => 'An account already uses this email. Log in instead.']);
 });
+
+/**
+ * @return array<string, string>
+ */
+function teachersRegistration(array $changes = []): array
+{
+    return array_merge([
+        'account_type' => 'employee',
+        'name' => 'Ana Lopez',
+        'employee_id' => 'emp-0421',
+        'section' => 'Faculty - IT',
+        'email' => 'ana.lopez@ormoc.sti.edu.ph',
+        'password' => 'Demo@2026!',
+        'password_confirmation' => 'Demo@2026!',
+        'terms' => '1',
+    ], $changes);
+}
+
+test('an STI teacher or employee registers as STI Staff with an Employee ID and is signed in', function () {
+    $this->post(route('register.store'), teachersRegistration())
+        ->assertRedirect(config('fortify.home'));
+
+    $ana = User::query()->where('email', 'ana.lopez@ormoc.sti.edu.ph')->sole();
+
+    $this->assertAuthenticatedAs($ana);
+    expect($ana->role)->toBe(UserRole::Employee)
+        ->and($ana->employee_id)->toBe('EMP-0421')
+        ->and($ana->student_id)->toBeNull()
+        ->and($ana->section)->toBe('Faculty - IT')
+        ->and($ana->email_verified_at)->not->toBeNull();
+});
+
+test('STI Staff registration refuses wrong details with plain messages', function (array $changes, string $field, string $message) {
+    $this->post(route('register.store'), teachersRegistration($changes))
+        ->assertSessionHasErrors([$field => $message]);
+
+    $this->assertGuest();
+})->with([
+    'no Employee ID' => [['employee_id' => ''], 'employee_id', 'Enter your Employee ID.'],
+    'Employee ID with symbols' => [['employee_id' => 'EMP#04'], 'employee_id', 'Use 3 to 20 letters, numbers or hyphens, as on your STI ID.'],
+    'no office or department' => [['section' => ''], 'section', 'Enter your office or department, e.g. Faculty - IT or Registrar.'],
+    'email outside STI' => [['email' => 'ana.lopez@gmail.com'], 'email', 'Use your STI email, ending in sti.edu.ph.'],
+    'email that only looks like STI' => [['email' => 'ana@fakesti.edu.ph'], 'email', 'Use your STI email, ending in sti.edu.ph.'],
+    'not Student or STI Staff' => [['account_type' => 'specialist'], 'account_type', 'Choose Student or STI Staff.'],
+]);
+
+test('an Employee ID that already has an account cannot register again', function () {
+    User::factory()->employee()->create()->forceFill(['employee_id' => 'EMP-0421'])->save();
+
+    $this->post(route('register.store'), teachersRegistration())
+        ->assertSessionHasErrors(['employee_id' => 'An account already uses this Employee ID. Log in instead.']);
+
+    $this->assertGuest();
+});

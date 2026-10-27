@@ -19,7 +19,7 @@ class SecurityController extends Controller
 {
     public function edit(Request $request): Response|RedirectResponse
     {
-        if ($request->user()->isStudent()) {
+        if ($request->user()->isBuyer()) {
             return to_route('profile.edit');
         }
 

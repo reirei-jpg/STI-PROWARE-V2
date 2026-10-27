@@ -23,6 +23,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { SpecialistOrderRow } from '@/types';
@@ -96,6 +97,12 @@ export default function OrderDetailsDialog({
                                         <span className="font-bold text-slate-700">
                                             {order.student_name}
                                         </span>
+                                        {order.is_staff && (
+                                            <>
+                                                {' '}
+                                                <StaffTag />
+                                            </>
+                                        )}
                                         {order.student_id &&
                                             ` · ID ${order.student_id}`}
                                         {order.student_section &&

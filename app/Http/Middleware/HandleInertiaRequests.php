@@ -44,7 +44,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'notifications' => fn (): ?array => $this->notifications($request),
             // A uniform set's two lines count as one.
-            'cart_count' => fn (): ?int => $request->user()?->isStudent()
+            'cart_count' => fn (): ?int => $request->user()?->isBuyer()
                 ? $request->user()->cartItems()->whereNull('set_key')->count() + $request->user()->cartItems()->whereNotNull('set_key')->distinct()->count('set_key')
                 : null,
         ];

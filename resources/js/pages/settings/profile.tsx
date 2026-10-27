@@ -5,11 +5,13 @@ import InputError from '@/components/input-error';
 import Panel from '@/components/panel';
 import { useInitials } from '@/hooks/use-initials';
 import type { Auth, UserRole } from '@/types';
+import { isBuyer } from '@/lib/roles';
 
 const roleLabels: Record<UserRole, string> = {
     specialist: 'PROWARE Specialist',
     school_admin: 'School Admin',
     student: 'Student',
+    employee: 'STI Staff',
 };
 
 const inputClasses =
@@ -18,12 +20,14 @@ const inputClasses =
 /**
  * Your profile: who you are in PROWARE. The name can be changed; the email
  * is shown only (changing it needs it verified by email, so the system
- * administrator does it). A student also sees their Student ID.
+ * administrator does it). A buyer also sees their Student ID or, for STI
+ * staff, their Employee ID.
  */
 export default function Profile() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const getInitials = useInitials();
-    const isStudent = auth.user.role === 'student';
+    const isStudent = isBuyer(auth.user);
+    const isEmployee = auth.user.role === 'employee';
 
     return (
         <>
@@ -100,7 +104,9 @@ export default function Profile() {
                             {isStudent && (
                                 <div className="grid gap-1.5">
                                     <span className="text-sm font-black text-slate-700">
-                                        Student ID
+                                        {isEmployee
+                                            ? 'Employee ID'
+                                            : 'Student ID'}
                                     </span>
                                     <p className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600">
                                         <Lock
@@ -108,13 +114,19 @@ export default function Profile() {
                                             className="shrink-0 text-slate-400"
                                         />
                                         <span className="truncate">
-                                            {auth.user.student_id ??
+                                            {(isEmployee
+                                                ? auth.user.employee_id
+                                                : auth.user.student_id) ??
                                                 'Not recorded'}
                                         </span>
                                     </p>
                                     <span className="text-xs text-slate-500">
                                         Contact the PROWARE office to change
-                                        your Student ID.
+                                        your{' '}
+                                        {isEmployee
+                                            ? 'Employee ID'
+                                            : 'Student ID'}
+                                        .
                                     </span>
                                 </div>
                             )}

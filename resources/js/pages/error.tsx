@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Lock, SearchX, ServerCrash, Wrench } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { dashboard, home } from '@/routes';
+import { isBuyer } from '@/lib/roles';
 
 const messages: Record<
     number,
@@ -38,7 +39,7 @@ export default function ErrorPage({ status }: { status: number }) {
     const { auth } = usePage().props;
     const message = messages[status] ?? messages[500];
     const Icon = message.icon;
-    const isStaff = auth.user !== null && auth.user.role !== 'student';
+    const isStaff = auth.user !== null && !isBuyer(auth.user);
 
     return (
         <>

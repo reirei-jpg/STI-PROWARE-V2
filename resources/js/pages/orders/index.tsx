@@ -10,6 +10,7 @@ import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import SlipScanBox from '@/components/slip-scan-box';
+import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
@@ -294,8 +295,9 @@ function OrderTableRow({
                 </p>
             </td>
             <td className="px-5 py-4">
-                <p className="text-sm font-bold text-slate-800">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800">
                     {order.student_name}
+                    {order.is_staff && <StaffTag />}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                     {order.student_section ?? '—'}
