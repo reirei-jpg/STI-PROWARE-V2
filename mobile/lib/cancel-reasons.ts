@@ -19,8 +19,8 @@ export const STUDENT_CANCEL_REASONS: CancelReasonOption[] = [
 export const STAFF_CANCEL_REASONS: CancelReasonOption[] = [
     { value: 'item_damaged', label: 'The item is damaged' },
     { value: 'not_enough_stock', label: 'Not enough stock (the count was wrong)' },
-    { value: 'student_asked', label: 'The student asked to cancel' },
-    { value: 'duplicate_order', label: 'The student ordered the same thing twice' },
+    { value: 'student_asked', label: 'The buyer asked to cancel' },
+    { value: 'duplicate_order', label: 'The same order was placed twice' },
     { value: 'other', label: 'Other' },
 ];
 

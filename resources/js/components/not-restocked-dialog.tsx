@@ -99,7 +99,7 @@ function NotRestockedForm({
                         </p>
                         <label className="grid gap-1.5">
                             <span className="text-sm font-black text-slate-700">
-                                Reason the students see{' '}
+                                Reason the buyers see{' '}
                                 <span className="font-semibold text-slate-400">
                                     (optional)
                                 </span>

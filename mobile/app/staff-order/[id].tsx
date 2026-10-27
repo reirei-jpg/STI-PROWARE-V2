@@ -219,7 +219,7 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
     const note = orderNote(order);
     const text =
         order.status === 'placed'
-            ? 'New order: prepare it, then mark it Ready for pickup. The student is notified.'
+            ? 'New order: prepare it, then mark it Ready for pickup. The buyer is notified.'
             : order.status === 'ready'
               ? `Waiting for ${order.student_name} to pay ${formatPeso(order.total_centavos)} at the cashier and show the receipt and the issuance slip.`
               : order.status === 'picked_up'

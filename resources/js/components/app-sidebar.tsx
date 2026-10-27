@@ -66,7 +66,7 @@ function useStaffMenuItems(): NavItem[] {
     if (auth.user.role === 'specialist') {
         items.push(
             {
-                title: 'Student Orders',
+                title: 'Orders',
                 href: OrderController.index(),
                 icon: ShoppingBag,
             },

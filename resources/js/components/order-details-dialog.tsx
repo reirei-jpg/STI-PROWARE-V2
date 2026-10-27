@@ -226,7 +226,7 @@ export default function OrderDetailsDialog({
                                     {!paid && (
                                         <p className="text-xs font-semibold text-emerald-900/70">
                                             Tick the box above after checking
-                                            the student&apos;s cashier receipt.
+                                            the cashier receipt.
                                         </p>
                                     )}
                                 </section>
@@ -327,7 +327,7 @@ export function ConfirmReadyDialog({
         <ConfirmDialog
             open={order !== null}
             title={`Mark Order ${order?.number ?? ''} as ready for pickup?`}
-            description={`${order?.student_name ?? 'The student'} will be notified to pay at the cashier and collect the order. This cannot be undone.`}
+            description={`${order?.student_name ?? 'The buyer'} will be notified to pay at the cashier and collect the order. This cannot be undone.`}
             cancelLabel="Not yet"
             confirmLabel="Mark as ready"
             busy={busy}

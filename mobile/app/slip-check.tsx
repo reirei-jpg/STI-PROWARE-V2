@@ -139,7 +139,7 @@ export default function SlipCheckScreen() {
                         <Text className="text-center font-sans text-sm leading-5 text-slate-500">
                             No order has the code{' '}
                             <Text className="font-sans-bold text-slate-700">{code}</Text>. Scan the slip
-                            again, or type its order number (PW-0042). The student can also open the slip
+                            again, or type its order number (PW-0042). The buyer can also open the slip
                             from My Orders.
                         </Text>
                     </View>

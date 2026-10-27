@@ -459,7 +459,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-red-700">
-                    Order {data.order_number} was cancelled by the student
+                    Order {data.order_number} was cancelled by the buyer
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.student_name}: {data.reason ?? 'No reason given.'} Its

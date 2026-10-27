@@ -33,7 +33,7 @@ class PreorderRestockController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Students can preorder {$variant->load('product')->displayName()} again while it is out of stock.",
+            'message' => "{$variant->load('product')->displayName()} can be preordered again while it is out of stock.",
         ]);
 
         return back();

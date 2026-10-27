@@ -64,9 +64,9 @@ enum PreorderStatus: string
         return [self::Arrived, self::Held, self::Ordered, self::HoldEnded];
     }
 
-    /** The label on the Specialist's screens ("Held for the student"). */
+    /** The label on the Specialist's screens ("Held for the buyer"). */
     public function staffLabel(): string
     {
-        return $this === self::Held ? 'Held for the student' : $this->label();
+        return $this === self::Held ? 'Held for the buyer' : $this->label();
     }
 }

@@ -43,7 +43,7 @@ class OrderCancelledByStudent extends Notification implements PushesToPhones
     public function toPush(object $notifiable): array
     {
         return [
-            'title' => "Order {$this->order->number} was cancelled by the student",
+            'title' => "Order {$this->order->number} was cancelled by the buyer",
             'body' => "{$this->order->student->name}: ".($this->order->cancel_reason ?? 'No reason given.').' Its items are free to sell again.',
             'data' => ['kind' => 'order_cancelled_by_student', 'order_id' => $this->order->id],
         ];

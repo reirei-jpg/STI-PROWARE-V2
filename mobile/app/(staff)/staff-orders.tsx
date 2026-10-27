@@ -78,7 +78,7 @@ export default function StaffOrdersScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    Prepare, mark ready, and release when the student pays.
+                    Prepare, mark ready, and release when the buyer pays.
                 </Text>
             </View>
 

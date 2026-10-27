@@ -40,7 +40,7 @@ export default function SlipScanBox({
                 Scan an issuance slip
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-                Use Scan with camera to read the QR on the student's slip (on
+                Use Scan with camera to read the QR on the buyer's slip (on
                 their phone or paper), or type the order number.
             </p>
             <form

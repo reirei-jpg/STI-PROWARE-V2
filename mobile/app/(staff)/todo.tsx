@@ -43,7 +43,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /** The website dashboard's four student order cards, in its V1 colors. */
 const orderCards: { key: OrderCardKey; label: string; detail: string; icon: LucideIcon; box: string; color: string }[] = [
     { key: 'new', label: 'New', detail: 'to prepare', icon: ShoppingBag, box: 'bg-amber-50', color: '#b45309' },
-    { key: 'ready', label: 'Ready for pickup', detail: 'waiting for the student', icon: PackageCheck, box: 'bg-blue-50', color: '#1d4ed8' },
+    { key: 'ready', label: 'Ready for pickup', detail: 'waiting for the buyer', icon: PackageCheck, box: 'bg-blue-50', color: '#1d4ed8' },
     { key: 'last_day', label: 'Last day today', detail: 'cancels tonight if not picked up', icon: Hourglass, box: 'bg-red-50', color: '#b91c1c' },
     { key: 'released_today', label: 'Released today', detail: 'paid and handed over', icon: CircleCheck, box: 'bg-emerald-50', color: '#047857' },
 ];
@@ -224,7 +224,7 @@ export default function TodoScreen() {
                 ) : (
                     <>
                         <View className="gap-2.5">
-                            <SectionTitle title="Student orders" hint="Tap a card to see its orders." />
+                            <SectionTitle title="Orders" hint="Tap a card to see its orders." />
                             <View className="flex-row flex-wrap gap-3">
                                 {orderCards.map((one) => (
                                     <Pressable
