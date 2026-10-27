@@ -267,6 +267,30 @@ test('the Selling Price cannot be set below the Cost on the eStore order', funct
         ->assertSessionHasNoErrors();
 });
 
+test('a price below the Cost and a taken name show together with the other mistakes', function () {
+    $variant = costedJacket();
+    receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200 a piece
+    Product::factory()->create(['name' => 'STI Lanyard']);
+    $pack = $variant->estorePack;
+    $form = fn (string $name) => [
+        'name' => $name, 'sold_by_piece' => '1', 'price' => '150', 'status' => 'draft', 'sale_price' => '',
+        'low_stock_alert_at' => '-1', 'photos' => [], 'options' => [],
+        'packs' => [['key' => (string) $pack->id, 'id' => $pack->id, 'name' => 'Pack', 'pieces' => '5', 'sold_to_students' => '0', 'price' => '']],
+        'variants' => [['combination' => '', 'estore_item_code' => 'UJKT01-02', 'estore_pack_key' => (string) $pack->id, 'price' => '']],
+    ];
+
+    $this->actingAs($this->specialist)
+        ->put(route('products.update', $variant->product), $form('STI Lanyard'))
+        ->assertSessionHasErrors([
+            'low_stock_alert_at' => 'The number cannot be below 0.',
+            'name' => 'There is already a product named "STI Lanyard". Use another name, or edit that product.',
+            'price' => 'The Selling Price (₱150.00) is below the Cost on the eStore order (₱200.00 per piece). Check the price from Head Office.',
+        ]);
+
+    $this->put(route('products.update', $variant->product), $form(''))
+        ->assertSessionHasErrors(['name' => 'Enter the product name.', 'price']);
+});
+
 test('free uniform sets count in Given free at Cost and at Price, never as a sale', function () {
     $variant = costedJacket();
     receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200

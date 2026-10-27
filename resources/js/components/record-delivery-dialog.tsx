@@ -468,11 +468,12 @@ function DeliveryForm({
 
             <footer className="flex flex-col gap-3 border-t border-slate-200 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 space-y-1 text-sm">
+                    {/* What saving adds shows only once the numbers can be saved. */}
                     {totalReceived === 0 ? (
                         <p className="text-slate-500">
                             Type how many arrived in Received now.
                         </p>
-                    ) : (
+                    ) : hasProblems ? null : (
                         <>
                             {additions.length > 0 && (
                                 <p className="font-bold text-slate-800">

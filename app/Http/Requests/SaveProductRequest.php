@@ -226,6 +226,16 @@ class SaveProductRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 if ($validator->errors()->isNotEmpty()) {
+                    // A taken name and a price below the Cost still show with
+                    // the other mistakes, so they are all fixed in one go.
+                    if (! $validator->errors()->has('name')) {
+                        $this->validateUniqueName($validator);
+                    }
+
+                    if (! $validator->errors()->hasAny(['price', 'sold_by_piece', 'packs', 'packs.*', 'variants', 'variants.*'])) {
+                        $this->validateSellingPricesCoverCost($validator);
+                    }
+
                     return;
                 }
 

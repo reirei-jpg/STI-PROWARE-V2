@@ -31,7 +31,10 @@ function wholeNumber(text: string | undefined): number | null {
     return /^\d+$/.test(trimmed) ? Number(trimmed) : null;
 }
 
-/** Digits only, never above `most` (what is left to receive). */
+/** The most one box takes, as on the server (RecordDeliveryRequest). */
+const MOST_RECEIVED = 1_000_000;
+
+/** Digits only, never above `most`. */
 const upTo = (value: string, most: number): string => {
     const digits = value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 7);
 
@@ -393,7 +396,8 @@ export default function RecordDeliveryScreen() {
                     className="gap-2 border-t border-slate-200 bg-white px-4 pt-3"
                 >
                     {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
-                    {receiving.length > 0 && (
+                    {/* What saving adds shows only once the numbers can be saved. */}
+                    {receiving.length > 0 && problems.length === 0 && (
                         <Text className="font-sans text-xs text-slate-600">
                             {receiving.length} {receiving.length === 1 ? 'item' : 'items'} received
                             {piecesIntoStock > 0 ? ` · ${formatUnits(piecesIntoStock, 'Piece')} into stock` : ''}
@@ -497,19 +501,8 @@ function GroupCard({
                             <Text className="flex-1 font-sans-semibold text-sm text-slate-800">{variant.label}</Text>
                             <TextInput
                                 value={counts[variant.id] ?? ''}
-                                // All sizes together never more than the pieces left to receive.
-                                onChangeText={(value) =>
-                                    onCount(
-                                        variant.id,
-                                        upTo(
-                                            value,
-                                            remaining * target.pieces_per_unit -
-                                                Object.entries(counts)
-                                                    .filter(([id]) => Number(id) !== variant.id)
-                                                    .reduce((sum, [, count]) => sum + (Number(count) || 0), 0),
-                                        ),
-                                    )
-                                }
+                                // Kept as typed: more than is left shows "Only … left" in red.
+                                onChangeText={(value) => onCount(variant.id, upTo(value, MOST_RECEIVED))}
                                 keyboardType="number-pad"
                                 placeholder="0"
                                 placeholderTextColor="#94a3b8"
@@ -528,8 +521,8 @@ function GroupCard({
                     <View className="flex-row items-center gap-3">
                         <TextInput
                             value={total}
-                            // Never more than what is left to receive of this item.
-                            onChangeText={(value) => onTotal(upTo(value, remaining))}
+                            // Kept as typed: more than is left shows "Only … left" in red.
+                            onChangeText={(value) => onTotal(upTo(value, MOST_RECEIVED))}
                             keyboardType="number-pad"
                             placeholder="0"
                             placeholderTextColor="#94a3b8"

@@ -5,6 +5,9 @@ import { wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import type { WaitingItemGroup, WaitingItemRow } from '@/types';
 
+/** The most one box takes, as on the server (RecordDeliveryRequest). */
+const MOST_RECEIVED = 1_000_000;
+
 type DeliveryForm = {
     received_on: string;
     sales_invoice_number: string;
@@ -171,13 +174,14 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
         (group) => group.stock_target === null && groupReceivedNow(group) > 0,
     ).length;
 
-    // Never more than what is left to receive for that order.
+    // Kept as typed: more than is left turns the box red with "Only … left"
+    // (rowProblem) instead of being changed behind the Specialist's back.
     const setRowQuantity = (row: WaitingItemRow, value: string) =>
         setData('quantities', {
             ...data.quantities,
             [row.purchase_order_item_id]: wholeNumberInput(
                 value,
-                row.quantity_remaining,
+                MOST_RECEIVED,
             ),
         });
 
@@ -209,15 +213,10 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
         value: string,
     ) => {
         const target = group.stock_target;
-        const others = Object.entries(splitCounts[group.item_code] ?? {})
-            .filter(([id]) => Number(id) !== variantId)
-            .reduce((sum, [, count]) => sum + (wholeNumber(count) ?? 0), 0);
-        // All sizes together never more than the pieces left to receive.
-        const mostPieces =
-            remainingOf(group) * (target?.pieces_per_unit ?? 1) - others;
+        // Kept as typed: more than is left shows "Only … left" (splitProblem).
         const counts = {
             ...splitCounts[group.item_code],
-            [variantId]: wholeNumberInput(value, Math.max(0, mostPieces)),
+            [variantId]: wholeNumberInput(value, MOST_RECEIVED),
         };
         setSplitCounts({ ...splitCounts, [group.item_code]: counts });
 
