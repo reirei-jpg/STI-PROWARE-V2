@@ -96,7 +96,7 @@ export default function StaffOrdersScreen() {
                 <TextInput
                     value={searchText}
                     onChangeText={setSearchText} maxLength={120}
-                    placeholder="Order number or student"
+                    placeholder="Order number or name"
                     placeholderTextColor="#94a3b8"
                     autoCorrect={false}
                     returnKeyType="search"
