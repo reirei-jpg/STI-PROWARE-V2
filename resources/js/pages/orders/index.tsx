@@ -154,9 +154,9 @@ export default function OrdersIndex({
                                     onChange={(event) =>
                                         setSearch(event.target.value)
                                     }
-                                    placeholder="Search by order no. (PW-0042) or student"
+                                    placeholder="Search by order no. (PW-0042) or name"
                                     className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                    aria-label="Search by order number or student name"
+                                    aria-label="Search by order number or buyer name"
                                 />
                             </label>
                         </div>
@@ -217,7 +217,7 @@ export default function OrdersIndex({
                                     <thead className="bg-slate-50">
                                         <tr>
                                             <TableHeading>Order #</TableHeading>
-                                            <TableHeading>Student</TableHeading>
+                                            <TableHeading>Buyer</TableHeading>
                                             <TableHeading>Items</TableHeading>
                                             <TableHeading align="right">
                                                 Total
