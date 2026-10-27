@@ -1,6 +1,6 @@
 import { ImageIcon, Sparkles, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Image, Modal, PanResponder, Pressable, Text, View, useWindowDimensions } from 'react-native';
 
 import { saleEndsText } from '@/components/PriceLines';
 import { formatPeso } from '@/lib/format';
@@ -16,8 +16,8 @@ let shownThisLaunch = false;
  * The store pop-up, like an ad, in a soft card over a lightly dimmed screen
  * (the website's StoreSpotlight): the first time Home loads after the app
  * opens, it shows the products that came back in stock or are on sale, one
- * at a time with a big photo, moving to the next by itself (the dots switch
- * too). View item opens the product; X, Maybe later, Back or tapping outside
+ * at a time with a big photo, moving to the next by itself (a sideways swipe
+ * on the photo and the dots switch too). View item opens the product; X, Maybe later, Back or tapping outside
  * hides it until the app is opened again. Nothing shows when there is
  * nothing back in stock or on sale.
  */
@@ -40,6 +40,24 @@ export default function StoreSpotlight({
     }, [items]);
 
     const count = items?.length ?? 0;
+    const countRef = useRef(count);
+    countRef.current = count;
+
+    // A sideways swipe on the photo goes to the next or previous item; a tap
+    // still opens it (only a clearly sideways move takes the touch).
+    const swipe = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponderCapture: (_, move) =>
+                countRef.current > 1 && Math.abs(move.dx) > 12 && Math.abs(move.dx) > Math.abs(move.dy),
+            onPanResponderRelease: (_, move) => {
+                const total = countRef.current;
+
+                if (total > 1 && Math.abs(move.dx) >= 40) {
+                    setIndex((current) => (current + (move.dx < 0 ? 1 : -1) + total) % total);
+                }
+            },
+        }),
+    ).current;
 
     useEffect(() => {
         if (!open || count < 2) {
@@ -101,24 +119,27 @@ export default function StoreSpotlight({
                         </Pressable>
                     </View>
 
-                    <Pressable
-                        onPress={view}
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ${product.name}`}
-                        className="mt-4 overflow-hidden rounded-2xl bg-slate-50"
-                    >
-                        <View style={{ width: '100%', aspectRatio: 4 / 3 }} className="items-center justify-center">
-                            {product.photo_url ? (
-                                <Image
-                                    source={{ uri: product.photo_url }}
-                                    style={{ width: '100%', height: '100%' }}
-                                    resizeMode="cover"
-                                />
-                            ) : (
-                                <ImageIcon size={40} color="#cbd5e1" />
-                            )}
-                        </View>
-                    </Pressable>
+                    <View {...swipe.panHandlers} className="mt-4">
+                        <Pressable
+                            onPress={view}
+                            accessibilityRole="button"
+                            accessibilityLabel={`View ${product.name}`}
+                            accessibilityHint={count > 1 ? 'Swipe left or right for the other items.' : undefined}
+                            className="overflow-hidden rounded-2xl bg-slate-50"
+                        >
+                            <View style={{ width: '100%', aspectRatio: 4 / 3 }} className="items-center justify-center">
+                                {product.photo_url ? (
+                                    <Image
+                                        source={{ uri: product.photo_url }}
+                                        style={{ width: '100%', height: '100%' }}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <ImageIcon size={40} color="#cbd5e1" />
+                                )}
+                            </View>
+                        </Pressable>
+                    </View>
 
                     <View className="mt-4 flex-row flex-wrap items-center gap-2">
                         <View

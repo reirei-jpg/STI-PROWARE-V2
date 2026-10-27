@@ -1,6 +1,13 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { ImageIcon, Sparkles, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    ImageIcon,
+    Sparkles,
+    X,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { TouchEvent } from 'react';
 import { saleEndsText } from '@/components/storefront-tile';
 import { DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import { formatPeso } from '@/lib/format';
@@ -36,7 +43,8 @@ function rememberSeen(): void {
  * The store pop-up, like an ad, in a soft card over a lightly blurred page:
  * on the first page of a visit it shows the products that came back in
  * stock or are on sale, one at a time with a big photo, fading to the next
- * by itself (the dots switch too). View item opens the product; X, Maybe
+ * by itself. The ‹ › arrows on the photo, the ← → keys, a swipe on the photo
+ * (touch screens) and the dots switch too. View item opens the product; X, Maybe
  * later or a click outside hides it for the rest of the visit. Nothing shows
  * when there is nothing back in stock or on sale.
  */
@@ -50,6 +58,9 @@ export default function StoreSpotlight({
     const [open, setOpen] = useState(false);
     const [index, setIndex] = useState(0);
     const [paused, setPaused] = useState(false);
+    const touchX = useRef<number | null>(null);
+    // A swipe ends with a tap on the photo; that tap must not open the item.
+    const swiped = useRef(false);
 
     useEffect(() => {
         if (items.length > 0 && !seenThisVisit()) {
@@ -71,7 +82,8 @@ export default function StoreSpotlight({
         );
 
         return () => window.clearInterval(timer);
-    }, [open, paused, items.length]);
+        // A new item (by hand or by itself) gets its full 4 seconds.
+    }, [open, paused, items.length, index]);
 
     const item = items[Math.min(index, items.length - 1)];
 
@@ -81,9 +93,34 @@ export default function StoreSpotlight({
 
     const { product } = item;
     const backInStock = item.reason === 'back_in_stock';
+    const several = items.length > 1;
     const view = () => {
         setOpen(false);
         onView(product);
+    };
+    const go = (step: number) =>
+        setIndex((current) => (current + step + items.length) % items.length);
+    // A swipe on the photo (phones, tablets) goes to the next or previous item.
+    const swipe = {
+        onTouchStart: (event: TouchEvent) => {
+            touchX.current = event.touches[0]?.clientX ?? null;
+        },
+        onTouchEnd: (event: TouchEvent) => {
+            const start = touchX.current;
+            const end = event.changedTouches[0]?.clientX;
+            touchX.current = null;
+
+            if (
+                start === null ||
+                end === undefined ||
+                Math.abs(end - start) < 40
+            ) {
+                return;
+            }
+
+            swiped.current = true;
+            go(end < start ? 1 : -1);
+        },
     };
 
     return (
@@ -94,6 +131,13 @@ export default function StoreSpotlight({
                     className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-white p-5 shadow-2xl ring-1 shadow-slate-900/10 ring-slate-100 duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
                     onMouseEnter={() => setPaused(true)}
                     onMouseLeave={() => setPaused(false)}
+                    onKeyDown={(event) => {
+                        if (several && event.key === 'ArrowRight') {
+                            go(1);
+                        } else if (several && event.key === 'ArrowLeft') {
+                            go(-1);
+                        }
+                    }}
                 >
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -119,24 +163,54 @@ export default function StoreSpotlight({
                         key={product.id}
                         className="animate-in duration-300 fade-in-0"
                     >
-                        <button
-                            type="button"
-                            onClick={view}
-                            className="mt-4 block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-50 text-slate-300"
-                            aria-label={`View ${product.name}`}
-                        >
-                            {product.photo_url ? (
-                                <img
-                                    src={product.photo_url}
-                                    alt={product.name}
-                                    className="h-full w-full object-cover transition duration-300 hover:scale-[1.02]"
-                                />
-                            ) : (
-                                <span className="flex h-full items-center justify-center">
-                                    <ImageIcon size={44} />
-                                </span>
+                        <div className="relative mt-4" {...swipe}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (swiped.current) {
+                                        swiped.current = false;
+
+                                        return;
+                                    }
+
+                                    view();
+                                }}
+                                className="block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-50 text-slate-300"
+                                aria-label={`View ${product.name}`}
+                            >
+                                {product.photo_url ? (
+                                    <img
+                                        src={product.photo_url}
+                                        alt={product.name}
+                                        className="h-full w-full object-cover transition duration-300 hover:scale-[1.02]"
+                                    />
+                                ) : (
+                                    <span className="flex h-full items-center justify-center">
+                                        <ImageIcon size={44} />
+                                    </span>
+                                )}
+                            </button>
+                            {several && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => go(-1)}
+                                        className="absolute top-1/2 left-2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-slate-800"
+                                        aria-label="Previous item"
+                                    >
+                                        <ChevronLeft size={18} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => go(1)}
+                                        className="absolute top-1/2 right-2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-slate-800"
+                                        aria-label="Next item"
+                                    >
+                                        <ChevronRight size={18} />
+                                    </button>
+                                </>
                             )}
-                        </button>
+                        </div>
 
                         <div className="mt-4 flex flex-wrap items-center gap-2">
                             <span
