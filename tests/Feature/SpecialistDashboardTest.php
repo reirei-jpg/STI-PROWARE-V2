@@ -126,6 +126,20 @@ test('a long list shows the first five and how many more', function () {
         ->assertJsonPath('now.0.hidden', 0);
 });
 
+test('a product that just sold out is shown before ones that ran out long ago', function () {
+    foreach (range(1, 6) as $number) {
+        $old = Product::factory()->create(['name' => "Old Item {$number}", 'status' => ProductStatus::Available, 'low_stock_alert_at' => 5]);
+        ProductVariant::factory()->for($old)->create(['stock_on_hand' => 0, 'low_stock_notified_at' => now()->subWeeks(3)]);
+    }
+    $tee = Product::factory()->create(['name' => 'STI Classic Tee', 'status' => ProductStatus::Available, 'low_stock_alert_at' => 3]);
+    ProductVariant::factory()->for($tee)->create(['stock_on_hand' => 0, 'low_stock_notified_at' => now()->subMinutes(5)]);
+    Sanctum::actingAs($this->specialist);
+
+    $this->getJson(route('api.v1.specialist.tasks'))
+        ->assertJsonPath('now.0.title', 'Out of stock: STI Classic Tee')
+        ->assertJsonPath('now.5.title', 'And 2 more products low on stock');
+});
+
 test('preorders closing this week show the preordered products first, and how many more', function () {
     foreach (['Notebook' => 0, 'Tote Bag' => 0, 'Jersey' => 0, 'Lanyard' => 0, 'Pin Set' => 0, 'Mug' => 4, 'Cap' => 1] as $name => $pieces) {
         $product = Product::factory()->create(['name' => $name, 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-05']);

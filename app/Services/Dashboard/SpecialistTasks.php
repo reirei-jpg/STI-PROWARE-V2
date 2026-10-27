@@ -87,8 +87,8 @@ final class SpecialistTasks
 
     /**
      * One row per product with variants at or below its warning number,
-     * the emptiest first, e.g. "STI Umbrella: White, Red out of stock ·
-     * Black 4 pcs left".
+     * the most recently warned first, e.g. "STI Umbrella: White, Red out of
+     * stock · Black 4 pcs left".
      *
      * @return list<array<string, mixed>>
      */
@@ -101,9 +101,13 @@ final class SpecialistTasks
 
         $total = $atWarning()->distinct()->count('product_variants.product_id');
 
+        // The latest warnings first, so an item that just sold out is not
+        // hidden under ones that ran out long ago; then the emptiest.
         $productIds = $atWarning()
             ->groupBy('product_variants.product_id')
-            ->selectRaw('product_variants.product_id, min(product_variants.stock_on_hand - product_variants.held_pieces) as lowest')
+            ->selectRaw('product_variants.product_id, max(product_variants.low_stock_notified_at) as warned_at, min('.ProductVariant::FREE_TO_SELL_SQL.') as lowest')
+            ->orderByRaw('case when max(product_variants.low_stock_notified_at) is null then 1 else 0 end')
+            ->orderByDesc('warned_at')
             ->orderBy('lowest')
             ->orderBy('product_variants.product_id')
             ->limit(self::SHOWN_PER_KIND)
