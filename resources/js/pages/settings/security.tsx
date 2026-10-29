@@ -86,9 +86,8 @@ export default function Security({ passwordRules }: { passwordRules: string }) {
                                             : 'text-slate-500',
                                     )}
                                 >
-                                    At least 8 characters, with a lowercase
-                                    letter, a number and a symbol (e.g. ! @ #
-                                    $).
+                                    At least 8 characters, with a letter, a
+                                    number and a symbol (e.g. ! @ # $).
                                 </span>
                                 <InputError message={errors.password} />
                             </label>
