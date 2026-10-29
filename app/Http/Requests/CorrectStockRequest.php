@@ -89,7 +89,7 @@ class CorrectStockRequest extends FormRequest
     /**
      * The correction must change the stock, cannot take out more pieces than
      * are in stock, and cannot leave fewer on the shelf than are held for
-     * students' open orders (cancel those orders first).
+     * open orders and arrived preorders (cancel those first).
      *
      * @return array<int, callable(Validator): void>
      */
@@ -110,8 +110,11 @@ class CorrectStockRequest extends FormRequest
                     $validator->errors()->add('pieces_to_remove', 'Only '.Units::count($stock, 'Piece').($stock === 1 ? ' is' : ' are').' in stock.');
                 } elseif (! $this->reason()->removesPieces() && $after === $stock) {
                     $validator->errors()->add('actual_count', 'The stock is already '.Units::count($stock, 'Piece').', so nothing would change.');
-                } elseif ($after < $variant->held_pieces) {
-                    $validator->errors()->add($field, Units::count($variant->held_pieces, 'Piece').($variant->held_pieces === 1 ? ' is' : ' are')." held for orders, so the shelf cannot have fewer. Cancel those orders first, or count again.");
+                } elseif ($after < $variant->held_pieces + $variant->preorder_held_pieces) {
+                    $held = $variant->held_pieces + $variant->preorder_held_pieces;
+                    $validator->errors()->add($field, Units::count($held, 'Piece').($held === 1 ? ' is' : ' are').($variant->preorder_held_pieces > 0
+                        ? ' held for orders and arrived preorders, so the shelf cannot have fewer. Cancel those first, or count again.'
+                        : ' held for orders, so the shelf cannot have fewer. Cancel those orders first, or count again.'));
                 } elseif ($after > $stock && $this->centavosPerPiece() === null) {
                     $validator->errors()->add('unit_cost', 'Enter the eStore price per piece of the '.Units::count($after - $stock, 'Piece').' you are adding, so every piece has a cost.');
                 }

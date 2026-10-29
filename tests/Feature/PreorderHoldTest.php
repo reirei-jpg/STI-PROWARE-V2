@@ -271,6 +271,19 @@ test('one held piece is worded in the singular', function () {
         ->toStartWith('1 of your 3 pcs has arrived and is held for you until Nov 21, 9:00 AM.');
 });
 
+test('a stock correction cannot take out pieces held for arrived preorders', function () {
+    hoodiesArrive($this->variant, 3);
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->post(route('products.stock.correct', $this->product), [
+        'product_variant_id' => $this->variant->id,
+        'reason' => 'damaged',
+        'pieces_to_remove' => '1',
+    ])->assertSessionHasErrors(['pieces_to_remove' => '3 pcs are held for orders and arrived preorders, so the shelf cannot have fewer. Cancel those first, or count again.']);
+
+    expect($this->variant->refresh())->stock_on_hand->toBe(3)->freeToSell()->toBe(0);
+});
+
 test('the phone app can order held pieces', function () {
     hoodiesArrive($this->variant, 3);
     Sanctum::actingAs($this->first->student);
