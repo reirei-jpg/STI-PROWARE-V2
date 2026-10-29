@@ -24,6 +24,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { SpecialistOrderRow } from '@/types';
@@ -66,7 +67,7 @@ const cards: Card[] = [
         key: 'ready',
         title: 'Ready for pickup',
         icon: PackageCheck,
-        detail: () => 'waiting for the student',
+        detail: () => 'waiting for the buyer',
         popupTitle: 'Ready for pickup',
         emptyText: 'No orders are waiting for pickup.',
         iconClassName: 'bg-blue-50 text-blue-600',
@@ -127,7 +128,7 @@ export default function OrderCards({ data }: { data: OrderCardsData }) {
             <section className="space-y-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <h2 className="text-sm font-black tracking-wide text-slate-700 uppercase">
-                        Student orders
+                        Orders
                     </h2>
                     <p className="text-sm text-slate-500">
                         Click a card to see its orders. Updates by itself.
@@ -389,6 +390,12 @@ function OrderList({
                                             {order.number}
                                         </span>{' '}
                                         {order.student_name}
+                                        {order.is_staff && (
+                                            <>
+                                                {' '}
+                                                <StaffTag />
+                                            </>
+                                        )}
                                         {order.student_section && (
                                             <span className="font-semibold text-slate-500">
                                                 {' '}
@@ -467,8 +474,8 @@ function OrderList({
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm transition hover:bg-blue-50"
                 >
                     {count > orders.length
-                        ? `See all ${count} in Student Orders`
-                        : 'Open Student Orders'}
+                        ? `See all ${count} in Orders`
+                        : 'Open Orders'}
                     <ArrowRight size={15} />
                 </Link>
                 <DialogClose className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">

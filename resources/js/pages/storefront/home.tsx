@@ -23,6 +23,7 @@ import type {
     StorefrontTileProduct,
     StorefrontUniformSet,
 } from '@/types';
+import { isBuyer } from '@/lib/roles';
 
 const feedChoices: { value: StorefrontFilters['show']; label: string }[] = [
     { value: null, label: 'All' },
@@ -142,8 +143,10 @@ function WelcomeBanner({
 }) {
     const { auth } = usePage().props;
     const firstName =
-        auth.user?.role === 'student' ? auth.user.name.split(' ')[0] : null;
-    const isStaff = auth.user !== null && auth.user.role !== 'student';
+        auth.user !== null && isBuyer(auth.user)
+            ? auth.user.name.split(' ')[0]
+            : null;
+    const isStaff = auth.user !== null && !isBuyer(auth.user);
 
     const shortcuts = [
         {
@@ -206,7 +209,7 @@ function WelcomeBanner({
                     {firstName
                         ? 'Order here, pay at the cashier, then pick up at the PROWARE office with your receipt and issuance slip.'
                         : isStaff
-                          ? 'You are signed in with a staff account, so you can browse the store as students see it. Buying is for students.'
+                          ? 'You are signed in with a PROWARE Specialist or School Admin account, so you can browse the store as buyers see it. Buying is for students and STI staff.'
                           : 'Browse freely. You only need to sign in with your STI Microsoft 365 account when you add something to your cart.'}
                 </p>
 

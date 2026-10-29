@@ -71,6 +71,22 @@ class UserFactory extends Factory
         ]);
     }
 
+    /**
+     * An STI staff buyer (a teacher or employee) with an Employee ID and
+     * office/department.
+     */
+    public function employee(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Employee,
+        ])->afterCreating(function (User $user): void {
+            $user->forceFill([
+                'employee_id' => 'EMP-'.fake()->unique()->numerify('####'),
+                'section' => 'Faculty - IT',
+            ])->save();
+        });
+    }
+
     public function unverified(): static
     {
         return $this->state(fn (array $attributes) => [

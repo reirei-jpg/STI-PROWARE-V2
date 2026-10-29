@@ -95,11 +95,11 @@ function CancelForm({
                     onReason={(value) => form.setData('reason', value)}
                     onNote={(value) => form.setData('note', value)}
                     errors={form.errors}
-                    notePlaceholder="e.g. The student changed course and needs another uniform."
+                    notePlaceholder="e.g. They need another size and will order again."
                 />
                 <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                    The items go back on sale and the student is notified with
-                    this reason. This cannot be undone; the student can order
+                    The items go back on sale and the buyer is notified with
+                    this reason. This cannot be undone; the buyer can order
                     again.
                 </p>
             </div>

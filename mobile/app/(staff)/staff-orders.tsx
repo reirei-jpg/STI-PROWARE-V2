@@ -78,7 +78,7 @@ export default function StaffOrdersScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    Prepare, mark ready, and release when the student pays.
+                    Prepare, mark ready, and release when the buyer pays.
                 </Text>
             </View>
 
@@ -96,7 +96,7 @@ export default function StaffOrdersScreen() {
                 <TextInput
                     value={searchText}
                     onChangeText={setSearchText} maxLength={120}
-                    placeholder="Order number or student"
+                    placeholder="Order number or name"
                     placeholderTextColor="#94a3b8"
                     autoCorrect={false}
                     returnKeyType="search"

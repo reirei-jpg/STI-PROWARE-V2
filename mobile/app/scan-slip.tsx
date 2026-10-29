@@ -62,7 +62,7 @@ export default function ScanSlipScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">Scan Issuance Slip</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    Point the camera at the QR on the student&apos;s slip.
+                    Point the camera at the QR on the buyer&apos;s slip.
                 </Text>
             </View>
 
@@ -105,7 +105,7 @@ export default function ScanSlipScreen() {
             <View className="gap-2 rounded-3xl border border-slate-200 bg-white p-4">
                 <Text className="font-sans-bold text-sm text-slate-700">Nothing to scan?</Text>
                 <Text className="font-sans text-xs text-slate-500">
-                    Type the order number from the slip, or find the student under Orders.
+                    Type the order number from the slip, or find the buyer under Orders.
                 </Text>
                 <View className="flex-row items-center gap-2">
                     <TextInput

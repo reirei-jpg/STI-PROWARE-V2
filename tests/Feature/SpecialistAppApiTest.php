@@ -101,7 +101,7 @@ test('the Specialist prepares, releases once paid, and can undo a release the sa
     $variant = $order->items()->sole()->variant;
 
     $this->postJson(route('api.v1.specialist.orders.release', $order))
-        ->assertJsonValidationErrors(['paid' => "Check the student's cashier receipt and tick the box before releasing the items."]);
+        ->assertJsonValidationErrors(['paid' => 'Check the cashier receipt and tick the box before releasing the items.']);
 
     $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
         ->assertOk()
@@ -141,7 +141,7 @@ test('cancelling on the app needs a reason, ends the hold and tells the student'
     Sanctum::actingAs(User::factory()->specialist()->create());
 
     $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => ''])
-        ->assertJsonValidationErrors(['reason' => 'Select a reason for cancelling. The student will see it.']);
+        ->assertJsonValidationErrors(['reason' => 'Select a reason for cancelling. The buyer will see it.']);
     expect($order->refresh()->status)->toBe(OrderStatus::Placed);
 
     $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'item_damaged'])

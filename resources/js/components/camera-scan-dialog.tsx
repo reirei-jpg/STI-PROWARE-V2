@@ -121,7 +121,7 @@ export default function CameraScanDialog({
                                 Scan with camera
                             </DialogTitle>
                             <DialogDescription className="text-sm text-slate-500">
-                                Hold the slip's QR (on the student's phone or
+                                Hold the slip's QR (on the buyer's phone or
                                 paper) up to the camera.
                             </DialogDescription>
                         </div>

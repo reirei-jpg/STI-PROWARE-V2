@@ -30,6 +30,7 @@ const workspaceNames: Record<UserRole, string> = {
     specialist: 'Specialist Workspace',
     school_admin: 'School Admin Workspace',
     student: 'Student',
+    employee: 'STI Staff',
 };
 
 /**
@@ -65,7 +66,7 @@ function useStaffMenuItems(): NavItem[] {
     if (auth.user.role === 'specialist') {
         items.push(
             {
-                title: 'Student Orders',
+                title: 'Orders',
                 href: OrderController.index(),
                 icon: ShoppingBag,
             },

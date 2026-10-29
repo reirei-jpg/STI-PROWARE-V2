@@ -34,6 +34,7 @@ import type {
     StorefrontTileProduct,
     User,
 } from '@/types';
+import { isBuyer, NOT_A_BUYER } from '@/lib/roles';
 
 const AddToCartContext = createContext<
     (product: StorefrontTileProduct) => void
@@ -65,7 +66,7 @@ export function AddToCartProvider({ children }: { children: ReactNode }) {
             {children}
             <AddToCartDialog
                 product={product}
-                isStudent={auth.user?.role === 'student'}
+                isStudent={isBuyer(auth.user)}
                 onClose={() => setProduct(null)}
             />
         </AddToCartContext.Provider>
@@ -155,8 +156,7 @@ function AddToCartDialog({
 
                         {!isStudent ? (
                             <p className="px-6 py-8 text-center text-sm leading-6 text-slate-600">
-                                Buying is for students. You are signed in with a
-                                staff account.
+                                {NOT_A_BUYER}
                             </p>
                         ) : failed ? (
                             <p className="px-6 py-8 text-center text-sm text-slate-500">

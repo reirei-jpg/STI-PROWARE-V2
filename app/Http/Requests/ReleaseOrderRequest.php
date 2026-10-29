@@ -28,7 +28,7 @@ class ReleaseOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'paid.accepted' => "Check the student's cashier receipt and tick the box before releasing the items.",
+            'paid.accepted' => 'Check the cashier receipt and tick the box before releasing the items.',
         ];
     }
 }

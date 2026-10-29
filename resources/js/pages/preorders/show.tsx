@@ -95,7 +95,7 @@ export default function PreorderShow({
                                 <table className="w-full min-w-175">
                                     <thead className="bg-slate-50">
                                         <tr>
-                                            <TableHeading>Student</TableHeading>
+                                            <TableHeading>Buyer</TableHeading>
                                             <TableHeading>
                                                 Size / Color
                                             </TableHeading>

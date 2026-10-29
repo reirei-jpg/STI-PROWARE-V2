@@ -1,5 +1,13 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { IdCard, LockKeyhole, Mail, User, Users } from 'lucide-react';
+import {
+    Briefcase,
+    GraduationCap,
+    IdCard,
+    LockKeyhole,
+    Mail,
+    User,
+    Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
     AuthField,
@@ -9,11 +17,16 @@ import {
 } from '@/components/auth-field';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
+import { cn } from '@/lib/utils';
+
+type AccountType = 'student' | 'employee';
 
 type RegisterForm = {
+    account_type: AccountType;
     name: string;
     last_name: string;
     student_id: string;
+    employee_id: string;
     section: string;
     email: string;
     password: string;
@@ -38,17 +51,21 @@ function schoolEmail(studentId: string, lastName: string): string {
 }
 
 /**
- * Temporary student registration, as on V1, until STI's Microsoft 365
- * sign-in is connected: name, last name, 11-digit Student ID, course /
- * section, the school email (filled in from the last name and Student ID),
- * and a password. The new student is signed in right away.
+ * Temporary registration, as on V1, until STI's Microsoft 365 sign-in is
+ * connected. A student gives their name, last name, 11-digit Student ID,
+ * course / section, the school email (filled in from the last name and
+ * Student ID) and a password. STI staff (teachers and employees) choose
+ * STI Staff and give their name, Employee ID, office / department, their
+ * STI email and a password. The new account is signed in right away.
  */
 export default function Register() {
     const [showPassword, setShowPassword] = useState(false);
     const form = useForm<RegisterForm>({
+        account_type: 'student',
         name: '',
         last_name: '',
         student_id: '',
+        employee_id: '',
         section: '',
         email: '',
         password: '',
@@ -56,24 +73,74 @@ export default function Register() {
         terms: false,
     });
     const { data, errors, processing } = form;
+    const isEmployee = data.account_type === 'employee';
 
-    // The email follows the last name and Student ID as they are typed.
+    // A student's email follows the last name and Student ID as they are
+    // typed; STI staff type their own.
     const update = (changes: Partial<RegisterForm>) => {
         const next = { ...data, ...changes };
         form.setData({
             ...next,
-            email: schoolEmail(next.student_id, next.last_name),
+            email:
+                next.account_type === 'employee'
+                    ? next.email
+                    : schoolEmail(next.student_id, next.last_name),
+        });
+    };
+    const chooseType = (accountType: AccountType) => {
+        if (accountType === data.account_type) {
+            return;
+        }
+
+        form.clearErrors();
+        form.setData({
+            ...data,
+            account_type: accountType,
+            email:
+                accountType === 'employee'
+                    ? ''
+                    : schoolEmail(data.student_id, data.last_name),
         });
     };
 
     return (
         <>
-            <Head title="Student Registration" />
+            <Head title="Registration" />
 
             <p className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-xs leading-5 text-blue-900">
-                For now, students register here with their STI school email.
-                Signing in with Microsoft 365 will replace this soon.
+                For now, students and STI staff register here with their STI
+                email. Signing in with Microsoft 365 will replace this soon.
             </p>
+
+            <div
+                role="radiogroup"
+                aria-label="I am a"
+                className="mb-4 grid grid-cols-2 gap-2 rounded-full bg-slate-100 p-1"
+            >
+                {(
+                    [
+                        ['student', 'Student', GraduationCap],
+                        ['employee', 'STI Staff', Briefcase],
+                    ] as const
+                ).map(([type, label, Icon]) => (
+                    <button
+                        key={type}
+                        type="button"
+                        role="radio"
+                        aria-checked={data.account_type === type}
+                        onClick={() => chooseType(type)}
+                        className={cn(
+                            'flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition',
+                            data.account_type === type
+                                ? 'bg-white text-[#0D6EFD] shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700',
+                        )}
+                    >
+                        <Icon size={16} />
+                        {label}
+                    </button>
+                ))}
+            </div>
 
             <form
                 onSubmit={(event) => {
@@ -103,78 +170,77 @@ export default function Register() {
                         />
                     }
                 />
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <AuthField
-                        icon={<User size={17} />}
-                        error={errors.last_name}
-                        input={
-                            <input
-                                value={data.last_name}
-                                onChange={(event) =>
-                                    update({ last_name: event.target.value })
+                {isEmployee ? (
+                    <>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <AuthField
+                                icon={<IdCard size={17} />}
+                                error={errors.employee_id}
+                                input={
+                                    <input
+                                        value={data.employee_id}
+                                        onChange={(event) =>
+                                            update({
+                                                employee_id: event.target.value
+                                                    .replace(
+                                                        /[^A-Za-z0-9-]/g,
+                                                        '',
+                                                    )
+                                                    .slice(0, 20),
+                                            })
+                                        }
+                                        placeholder="Employee ID"
+                                        aria-label="Employee ID"
+                                        required
+                                    />
                                 }
-                                maxLength={60}
-                                autoComplete="family-name"
-                                placeholder="Last name"
-                                aria-label="Last name"
-                                required
                             />
-                        }
-                    />
-                    <AuthField
-                        icon={<IdCard size={17} />}
-                        error={errors.student_id}
-                        input={
-                            <input
-                                value={data.student_id}
-                                onChange={(event) =>
-                                    update({
-                                        student_id: event.target.value
-                                            .replace(/\D/g, '')
-                                            .slice(0, 11),
-                                    })
+                            <AuthField
+                                icon={<Users size={17} />}
+                                error={errors.section}
+                                input={
+                                    <input
+                                        value={data.section}
+                                        onChange={(event) =>
+                                            update({
+                                                section: event.target.value,
+                                            })
+                                        }
+                                        maxLength={40}
+                                        placeholder="Office / Department"
+                                        aria-label="Office / Department"
+                                        required
+                                    />
                                 }
-                                inputMode="numeric"
-                                placeholder="Student ID (11 digits)"
-                                aria-label="Student ID"
-                                required
                             />
-                        }
-                    />
-                </div>
-                <AuthField
-                    icon={<Users size={17} />}
-                    error={errors.section}
-                    input={
-                        <input
-                            value={data.section}
-                            onChange={(event) =>
-                                update({ section: event.target.value })
+                        </div>
+                        <AuthField
+                            icon={<Mail size={17} />}
+                            error={errors.email}
+                            hint="Your STI email, ending in sti.edu.ph."
+                            input={
+                                <input
+                                    type="email"
+                                    value={data.email}
+                                    onChange={(event) =>
+                                        update({ email: event.target.value })
+                                    }
+                                    maxLength={255}
+                                    autoComplete="email"
+                                    placeholder="STI email"
+                                    aria-label="STI email"
+                                    required
+                                />
                             }
-                            maxLength={40}
-                            placeholder="Course / Section (optional), e.g. BSIT 1-A"
-                            aria-label="Course / Section"
                         />
-                    }
-                />
-                <AuthField
-                    icon={<Mail size={17} />}
-                    error={errors.email}
-                    hint={
-                        data.email === ''
-                            ? 'Filled in from your last name and Student ID.'
-                            : 'Your STI school email.'
-                    }
-                    input={
-                        <input
-                            value={data.email}
-                            readOnly
-                            placeholder="School email (filled in for you)"
-                            aria-label="STI school email"
-                            className="bg-slate-50"
-                        />
-                    }
-                />
+                    </>
+                ) : (
+                    <StudentFields
+                        data={data}
+                        errors={errors}
+                        update={update}
+                    />
+                )}
                 <AuthField
                     icon={<LockKeyhole size={17} />}
                     error={errors.password}
@@ -231,7 +297,9 @@ export default function Register() {
                         }
                         className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                    This information is mine, and I am an STI College student.
+                    {isEmployee
+                        ? 'This information is mine, and I work at STI College.'
+                        : 'This information is mine, and I am an STI College student.'}
                 </label>
                 {errors.terms && (
                     <p className="px-4 text-sm text-red-600">{errors.terms}</p>
@@ -254,7 +322,98 @@ export default function Register() {
     );
 }
 
+/**
+ * A student's last name, Student ID, course / section and the school email
+ * filled in from them.
+ */
+function StudentFields({
+    data,
+    errors,
+    update,
+}: {
+    data: RegisterForm;
+    errors: Partial<Record<keyof RegisterForm, string>>;
+    update: (changes: Partial<RegisterForm>) => void;
+}) {
+    return (
+        <>
+            <div className="grid gap-4 sm:grid-cols-2">
+                <AuthField
+                    icon={<User size={17} />}
+                    error={errors.last_name}
+                    input={
+                        <input
+                            value={data.last_name}
+                            onChange={(event) =>
+                                update({ last_name: event.target.value })
+                            }
+                            maxLength={60}
+                            autoComplete="family-name"
+                            placeholder="Last name"
+                            aria-label="Last name"
+                            required
+                        />
+                    }
+                />
+                <AuthField
+                    icon={<IdCard size={17} />}
+                    error={errors.student_id}
+                    input={
+                        <input
+                            value={data.student_id}
+                            onChange={(event) =>
+                                update({
+                                    student_id: event.target.value
+                                        .replace(/\D/g, '')
+                                        .slice(0, 11),
+                                })
+                            }
+                            inputMode="numeric"
+                            placeholder="Student ID (11 digits)"
+                            aria-label="Student ID"
+                            required
+                        />
+                    }
+                />
+            </div>
+            <AuthField
+                icon={<Users size={17} />}
+                error={errors.section}
+                input={
+                    <input
+                        value={data.section}
+                        onChange={(event) =>
+                            update({ section: event.target.value })
+                        }
+                        maxLength={40}
+                        placeholder="Course / Section (optional), e.g. BSIT 1-A"
+                        aria-label="Course / Section"
+                    />
+                }
+            />
+            <AuthField
+                icon={<Mail size={17} />}
+                error={errors.email}
+                hint={
+                    data.email === ''
+                        ? 'Filled in from your last name and Student ID.'
+                        : 'Your STI school email.'
+                }
+                input={
+                    <input
+                        value={data.email}
+                        readOnly
+                        placeholder="School email (filled in for you)"
+                        aria-label="STI school email"
+                        className="bg-slate-50"
+                    />
+                }
+            />
+        </>
+    );
+}
+
 Register.layout = {
-    title: 'Student Registration',
-    description: 'Create your STI PROWARE account with your school email.',
+    title: 'Registration',
+    description: 'Create your STI PROWARE account with your STI email.',
 };

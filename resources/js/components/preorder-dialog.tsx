@@ -25,6 +25,7 @@ import type {
     StorefrontTileProduct,
     User,
 } from '@/types';
+import { isBuyer, NOT_A_BUYER } from '@/lib/roles';
 
 const PreorderContext = createContext<(product: StorefrontTileProduct) => void>(
     () => {},
@@ -56,7 +57,7 @@ export function PreorderProvider({ children }: { children: ReactNode }) {
             {children}
             <PreorderDialog
                 product={product}
-                isStudent={auth.user?.role === 'student'}
+                isStudent={isBuyer(auth.user)}
                 onClose={() => setProduct(null)}
             />
         </PreorderContext.Provider>
@@ -146,8 +147,7 @@ function PreorderDialog({
 
                         {!isStudent ? (
                             <p className="px-6 py-8 text-center text-sm leading-6 text-slate-600">
-                                Preorders are for students. You are signed in
-                                with a staff account.
+                                {NOT_A_BUYER}
                             </p>
                         ) : !product.accepts_preorders ? (
                             <p className="px-6 py-8 text-center text-sm leading-6 text-slate-600">

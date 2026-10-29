@@ -49,9 +49,9 @@ const descriptions: Record<Stage, string> = {
         'Preorders closed. Order these pieces in the eStore, then set the product to Available when they arrive.',
     sold_out:
         'Students preordered sizes that are out of stock. Order more in the eStore; students are notified when a delivery puts the size back in stock. Mark a size as not restocked if it will not come back.',
-    open: 'Students can still preorder these. Closing soonest first.',
+    open: 'These can still be preordered. Closing soonest first.',
     arrived:
-        'For sale now. The students who preordered were notified; nothing is held for them.',
+        'For sale now. The buyers who preordered were notified; nothing is held for them.',
 };
 
 /**

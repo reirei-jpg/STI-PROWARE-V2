@@ -140,7 +140,7 @@ test('the Specialist can mark a sold-out size as not restocked, closing every pr
     $this->actingAs($this->specialist)
         ->post(route('preorders.not-restocked', $extraSmall), ['reason' => '  Head Office no longer makes this size.  '])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'BSIT Polo (XS) has been marked as not restocked. 2 students have been notified and their preorders have been closed.');
+        ->assertInertiaFlash('toast.message', 'BSIT Polo (XS) has been marked as not restocked. 2 buyers have been notified and their preorders have been closed.');
 
     expect($extraSmall->refresh()->not_restocked_at)->not->toBeNull()
         ->and($juan->refresh())->status->toBe(PreorderStatus::NotRestocked)->not_restocked_reason->toBe('Head Office no longer makes this size.')
@@ -186,7 +186,7 @@ test('the Specialist can allow preorders again, and stock coming in clears the m
 
     $this->actingAs($this->specialist)
         ->delete(route('preorders.allow-restock', $extraSmall))
-        ->assertInertiaFlash('toast.message', 'Students can preorder BSIT Polo (XS) again while it is out of stock.');
+        ->assertInertiaFlash('toast.message', 'BSIT Polo (XS) can be preordered again while it is out of stock.');
 
     expect($extraSmall->refresh()->not_restocked_at)->toBeNull();
 

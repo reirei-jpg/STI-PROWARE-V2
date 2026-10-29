@@ -102,7 +102,7 @@ export function ReleaseBox({
             </ActionButton>
             {!paid && (
                 <Text className="font-sans-semibold text-xs text-emerald-900/70">
-                    Tick the box above after checking the student&apos;s cashier receipt.
+                    Tick the box above after checking the cashier receipt.
                 </Text>
             )}
         </View>
@@ -210,14 +210,14 @@ export function CancelSheet({
             <Text className="font-sans text-sm leading-5 text-slate-700">
                 Its items go back to stock and {order.student_name} is notified with the reason.
             </Text>
-            <Text className="font-sans-bold text-sm text-slate-700">Why is it cancelled? (the student will see it)</Text>
+            <Text className="font-sans-bold text-sm text-slate-700">Why is it cancelled? (the buyer will see it)</Text>
             <CancelReasonList
                 reasons={STAFF_CANCEL_REASONS}
                 reason={reason}
                 note={note}
                 onReason={setReason}
                 onNote={setNote}
-                notePlaceholder="e.g. The student changed course and needs another uniform."
+                notePlaceholder="e.g. They need another size and will order again."
             />
             {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
         </BottomSheet>

@@ -22,6 +22,7 @@ import { ConfirmReadyDialog } from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import SlipScanBox from '@/components/slip-scan-box';
+import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { IssuanceSlipData, SpecialistOrderRow } from '@/types';
@@ -64,14 +65,14 @@ export default function OrderSlip({
             <div className="space-y-6">
                 <PageHeader
                     title="Issuance Slip"
-                    description="Check the slip and the student's cashier receipt, then release the items."
+                    description="Check the slip and the cashier receipt, then release the items."
                     actions={
                         <Link
                             href={OrderController.index()}
                             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm hover:bg-slate-50"
                         >
                             <ArrowLeft size={17} />
-                            Back to Student Orders
+                            Back to Orders
                         </Link>
                     }
                 />
@@ -205,8 +206,9 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                     {initials(order.student_name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <p className="truncate font-black text-slate-900">
-                        {order.student_name}
+                    <p className="flex items-center gap-2 font-black text-slate-900">
+                        <span className="truncate">{order.student_name}</span>
+                        {order.is_staff && <StaffTag />}
                     </p>
                     <p className="text-sm text-slate-500">
                         <span className="font-bold text-slate-700">
@@ -263,8 +265,8 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                             {formatPeso(order.total_centavos)}
                         </p>
                         <p className="text-xs font-semibold text-slate-500">
-                            The student pays this at the cashier and shows you
-                            the official receipt.
+                            The buyer pays this at the cashier and shows you the
+                            official receipt.
                         </p>
                     </ReleaseStep>
                     <ReleaseStep number={2} title="Confirm it">

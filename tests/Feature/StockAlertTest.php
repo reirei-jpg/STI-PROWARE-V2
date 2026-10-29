@@ -75,6 +75,48 @@ test('after a delivery brings the stock back up, the next drop warns again', fun
     expect($this->specialist->notifications()->get()->pluck('data.stock_on_hand')->sort()->values()->all())->toBe([2, 4]);
 });
 
+test('after the warned pieces were sold, a smaller delivery still lets the next drop warn', function () {
+    $variant = stockedVariant(10);
+    $order = orderWith(['PRCU01-01' => 20]);
+    $this->actingAs($this->specialist);
+
+    // Orders hold 6 (4 left: warned at a shelf of 10), then are released.
+    $variant->forceFill(['held_pieces' => 6])->save();
+    app(LowStockAlerts::class)->check($variant);
+    $variant->refresh()->forceFill(['stock_on_hand' => 4, 'held_pieces' => 0])->save();
+
+    // 5 arrive: 9 on the shelf, fewer than the 10 when it was warned.
+    $this->post(route('deliveries.store'), [
+        'received_on' => now()->toDateString(),
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRCU01-01'), 'quantity_received' => 5]],
+    ])->assertSessionHasNoErrors();
+
+    expect($variant->refresh()->low_stock_notified_at)->toBeNull();
+
+    takeOut($variant, 5);
+
+    expect($this->specialist->notifications()->count())->toBe(2);
+});
+
+test('a recount that finds more pieces lets the next drop warn again', function () {
+    $variant = stockedVariant(10);
+    $this->actingAs($this->specialist);
+
+    // Warned at a shelf of 10 while orders held 6; then those were released.
+    $variant->forceFill(['held_pieces' => 6])->save();
+    app(LowStockAlerts::class)->check($variant);
+    $variant->refresh()->forceFill(['stock_on_hand' => 4, 'held_pieces' => 0])->save();
+
+    $this->post(route('products.stock.correct', $variant->product_id), [
+        'product_variant_id' => $variant->id,
+        'reason' => 'recount',
+        'actual_count' => '8',
+        'unit_cost' => '50',
+    ])->assertSessionHasNoErrors();
+
+    expect($variant->refresh()->low_stock_notified_at)->toBeNull();
+});
+
 test('orders taking and freeing the last pieces warn only once, until more pieces come in', function () {
     $variant = stockedVariant(6);
     $alerts = app(LowStockAlerts::class);

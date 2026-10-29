@@ -53,14 +53,14 @@ class MarkNotRestocked
     }
 
     /**
-     * "BSIT Polo (XS) will not be restocked. 3 students were notified and their preorders were closed."
+     * "BSIT Polo (XS) will not be restocked. 3 buyers were notified and their preorders were closed."
      */
     public static function message(ProductVariant $variant, int $students): string
     {
         return "{$variant->displayName()} has been marked as not restocked. ".match ($students) {
-            0 => 'No student was waiting for it.',
-            1 => '1 student has been notified and their preorder has been closed.',
-            default => "{$students} students have been notified and their preorders have been closed.",
+            0 => 'No one was waiting for it.',
+            1 => '1 buyer has been notified and their preorder has been closed.',
+            default => "{$students} buyers have been notified and their preorders have been closed.",
         };
     }
 }

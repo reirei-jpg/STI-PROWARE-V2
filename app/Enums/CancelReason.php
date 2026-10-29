@@ -37,8 +37,8 @@ enum CancelReason: string
             self::NoLongerNeeded => 'I no longer need it',
             self::ItemDamaged => 'The item is damaged',
             self::NotEnoughStock => 'Not enough stock (the count was wrong)',
-            self::StudentAsked => 'The student asked to cancel',
-            self::DuplicateOrder => 'The student ordered the same thing twice',
+            self::StudentAsked => 'The buyer asked to cancel',
+            self::DuplicateOrder => 'The same order was placed twice',
             self::Other => 'Other',
         };
     }

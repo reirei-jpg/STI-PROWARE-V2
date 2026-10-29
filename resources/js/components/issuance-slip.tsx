@@ -66,11 +66,19 @@ export default function IssuanceSlip({
                     <SlipField label="Date">
                         {formatDateOrdered(slip.date)}
                     </SlipField>
-                    <SlipField label="Student Name">
+                    <SlipField
+                        label={slip.is_staff ? 'Employee Name' : 'Student Name'}
+                    >
                         {slip.student_name}
                     </SlipField>
-                    <SlipField label="Section">{slip.section ?? ''}</SlipField>
-                    <SlipField label="Student ID">
+                    <SlipField
+                        label={slip.is_staff ? 'Office/Department' : 'Section'}
+                    >
+                        {slip.section ?? ''}
+                    </SlipField>
+                    <SlipField
+                        label={slip.is_staff ? 'Employee ID' : 'Student ID'}
+                    >
                         {slip.student_id ?? ''}
                     </SlipField>
                 </dl>

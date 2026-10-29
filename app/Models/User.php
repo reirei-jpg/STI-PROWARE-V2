@@ -22,6 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $name
  * @property string $email
  * @property string|null $student_id a student's 11-digit Student ID, from registration (null for staff and older accounts)
+ * @property string|null $employee_id an STI staff buyer's Employee ID, from registration
  * @property UserRole $role
  * @property Carbon|null $email_verified_at
  * @property string $password
@@ -29,7 +30,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
- * @property string|null $section a student's course/section, e.g. "BSIT 1-A" (asked at checkout)
+ * @property string|null $section a student's course/section, e.g. "BSIT 1-A" (asked at checkout), or an STI staff buyer's office/department, e.g. "Faculty - IT"
  * @property Carbon|null $ordering_resumed_at when the Specialist lifted an ordering pause
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -77,6 +78,32 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function isStudent(): bool
     {
         return $this->role === UserRole::Student;
+    }
+
+    /**
+     * An STI teacher or employee who buys from the store ("STI Staff").
+     */
+    public function isEmployee(): bool
+    {
+        return $this->role === UserRole::Employee;
+    }
+
+    /**
+     * A student or an STI staff buyer: who can use the cart, order and
+     * preorder.
+     */
+    public function isBuyer(): bool
+    {
+        return $this->role->isBuyer();
+    }
+
+    /**
+     * The buyer's ID number for the slip and the Specialist: the Student ID,
+     * or an STI staff buyer's Employee ID.
+     */
+    public function idNumber(): ?string
+    {
+        return $this->isEmployee() ? $this->employee_id : $this->student_id;
     }
 
     /**

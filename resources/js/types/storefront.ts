@@ -167,8 +167,10 @@ export type OrderRow = {
     status: OrderStatus;
     status_label: string;
     student_name: string;
-    /** The student's 11-digit Student ID (null for older accounts). */
+    /** The student's 11-digit Student ID, or an STI staff buyer's Employee ID (null for older accounts). */
     student_id: string | null;
+    /** True when the buyer is STI staff (a teacher or employee), not a student. */
+    is_staff: boolean;
     total_centavos: number;
     items: {
         id: number;
@@ -193,7 +195,7 @@ export type OrderRow = {
     cancel_reason: string | null;
     /** The random code in the issuance slip's QR. */
     slip_code: string | null;
-    /** The course/section the student gave at checkout ("BSIT 1-A"). */
+    /** The course/section the student gave at checkout ("BSIT 1-A"), or an STI staff buyer's office/department. */
     student_section: string | null;
 };
 
@@ -214,8 +216,11 @@ export type IssuanceSlipData = {
     /** The day the order was placed, "2026-10-09". */
     date: string | null;
     student_name: string;
+    /** The Student ID, or an STI staff buyer's Employee ID. */
     student_id: string | null;
     section: string | null;
+    /** True when the buyer is STI staff: the slip says Employee instead of Student. */
+    is_staff: boolean;
     items: {
         quantity: number;
         /** "STI Hoodie (M)", "STI Ballpen · Box of 12" */

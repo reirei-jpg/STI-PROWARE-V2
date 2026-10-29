@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import IssuanceSlipCard from '@/components/IssuanceSlipCard';
 import OrderStatusPill from '@/components/OrderStatusPill';
 import { ActionButton, CancelSheet, ReadySheet, ReleaseBox } from '@/components/StaffOrderActions';
+import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime } from '@/lib/format';
@@ -138,7 +139,7 @@ export default function SlipCheckScreen() {
                         <Text className="text-center font-sans text-sm leading-5 text-slate-500">
                             No order has the code{' '}
                             <Text className="font-sans-bold text-slate-700">{code}</Text>. Scan the slip
-                            again, or type its order number (PW-0042). The student can also open the slip
+                            again, or type its order number (PW-0042). The buyer can also open the slip
                             from My Orders.
                         </Text>
                     </View>
@@ -188,9 +189,12 @@ export default function SlipCheckScreen() {
                             </Text>
                         </View>
                         <View className="flex-1">
-                            <Text numberOfLines={1} className="font-sans-bold text-base text-slate-900">
-                                {order.student_name}
-                            </Text>
+                            <View className="flex-row items-center gap-2">
+                                <Text numberOfLines={1} className="shrink font-sans-bold text-base text-slate-900">
+                                    {order.student_name}
+                                </Text>
+                                {order.is_staff && <StaffTag />}
+                            </View>
                             <Text className="font-sans text-sm text-slate-500">
                                 <Text className="font-sans-bold text-slate-700">{order.number}</Text>
                                 {order.student_id ? ` · ID ${order.student_id}` : ''}

@@ -368,7 +368,7 @@ test('the specialist marks an order ready, then releases it once paid, and the i
     expect($this->student->notifications()->count())->toBe(1);
 
     $this->post(route('orders.release', $order))
-        ->assertSessionHasErrors(['paid' => "Check the student's cashier receipt and tick the box before releasing the items."]);
+        ->assertSessionHasErrors(['paid' => 'Check the cashier receipt and tick the box before releasing the items.']);
     expect($order->refresh()->status)->toBe(OrderStatus::Ready);
 
     $this->post(route('orders.release', $order), ['paid' => true])
@@ -437,9 +437,9 @@ test('the specialist cancels with a reason, the hold ends and the student is tol
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.cancel', $order), ['reason' => ''])
-        ->assertSessionHasErrors(['reason' => 'Select a reason for cancelling. The student will see it.']);
+        ->assertSessionHasErrors(['reason' => 'Select a reason for cancelling. The buyer will see it.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'other'])
-        ->assertSessionHasErrors(['note' => 'Describe the reason for cancelling. The student will see it.']);
+        ->assertSessionHasErrors(['note' => 'Describe the reason for cancelling. The buyer will see it.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'x'])
         ->assertSessionHasErrors(['note' => 'Write at least 5 characters.']);
     $this->post(route('orders.cancel', $order), ['reason' => 'wrong_size_or_color'])

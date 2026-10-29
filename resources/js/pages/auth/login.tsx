@@ -43,7 +43,7 @@ export default function Login({ status, canResetPassword }: Props) {
                 Sign in with Microsoft 365
             </button>
             <p className="mt-2 text-center text-xs text-slate-500">
-                For students, with your STI account (@sti.edu.ph)
+                For students and STI staff, with your STI account (@sti.edu.ph)
             </p>
 
             {triedMicrosoft && (
@@ -55,7 +55,7 @@ export default function Login({ status, canResetPassword }: Props) {
                     <p className="mt-1">
                         Microsoft 365 sign-in is waiting for STI&apos;s
                         Microsoft account details. For now, sign in with your
-                        email and password below, or register as a student.
+                        email and password below, or register.
                     </p>
                 </div>
             )}
@@ -145,7 +145,7 @@ export default function Login({ status, canResetPassword }: Props) {
 
             <div className="mt-6 text-center">
                 <p className="text-sm text-slate-500">
-                    Student without an account?{' '}
+                    Student or STI staff without an account?{' '}
                     <Link href={register()} className={authLinkClasses}>
                         Register
                     </Link>

@@ -33,7 +33,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
 
-    Route::middleware('role:student')->group(function () {
+    Route::middleware('role:student,employee')->group(function () {
         Route::get('my-preorders', [StudentPreorderController::class, 'index'])->name('my-preorders.index');
         Route::post('merchandise/{product}/preorder', [StudentPreorderController::class, 'store'])->name('my-preorders.store');
         Route::delete('my-preorders/{preorder}', [StudentPreorderController::class, 'destroy'])->name('my-preorders.destroy');

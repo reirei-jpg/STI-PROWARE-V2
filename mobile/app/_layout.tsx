@@ -20,7 +20,8 @@ import PushHandler from '@/lib/push';
 function RootNavigator() {
     const { user, restoring } = useAuth();
     const isSignedIn = user !== null;
-    const isStudent = user?.role === 'student';
+    // Students and STI staff (teachers and employees) buy.
+    const isStudent = user?.role === 'student' || user?.role === 'employee';
     const isSpecialist = user?.role === 'specialist';
 
     if (restoring) {

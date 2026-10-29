@@ -10,6 +10,7 @@ import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import SlipScanBox from '@/components/slip-scan-box';
+import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
@@ -34,7 +35,7 @@ const chips: { value: Show; label: string }[] = [
 
 const descriptions: Record<Show, string> = {
     placed: 'Orders to prepare. The nearest pick-up date first.',
-    ready: 'Waiting for the student to pay at the cashier and show the receipt and slip. The nearest pick-up date first.',
+    ready: 'Waiting for the buyer to pay at the cashier and show the receipt and slip. The nearest pick-up date first.',
     picked_up: 'Paid and handed over. Newest first.',
     cancelled: 'Their items are free to sell again. Newest first.',
     all: 'Every order, newest first.',
@@ -117,12 +118,12 @@ export default function OrdersIndex({
 
     return (
         <>
-            <Head title="Student Orders" />
+            <Head title="Orders" />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Student Orders"
-                    description="Orders students placed on the storefront. Scan the student's issuance slip and check the cashier's receipt to release the items, or open any order below. Orders not released by their pick-up date expire, and their items are free to sell again."
+                    title="Orders"
+                    description="Orders placed on the storefront by students and STI staff. Scan the buyer's issuance slip and check the cashier's receipt to release the items, or open any order below. Orders not released by their pick-up date expire, and their items are free to sell again."
                 />
 
                 <SlipScanBox />
@@ -153,9 +154,9 @@ export default function OrdersIndex({
                                     onChange={(event) =>
                                         setSearch(event.target.value)
                                     }
-                                    placeholder="Search by order no. (PW-0042) or student"
+                                    placeholder="Search by order no. (PW-0042) or name"
                                     className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                    aria-label="Search by order number or student name"
+                                    aria-label="Search by order number or buyer name"
                                 />
                             </label>
                         </div>
@@ -216,7 +217,7 @@ export default function OrdersIndex({
                                     <thead className="bg-slate-50">
                                         <tr>
                                             <TableHeading>Order #</TableHeading>
-                                            <TableHeading>Student</TableHeading>
+                                            <TableHeading>Buyer</TableHeading>
                                             <TableHeading>Items</TableHeading>
                                             <TableHeading align="right">
                                                 Total
@@ -294,8 +295,9 @@ function OrderTableRow({
                 </p>
             </td>
             <td className="px-5 py-4">
-                <p className="text-sm font-bold text-slate-800">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800">
                     {order.student_name}
+                    {order.is_staff && <StaffTag />}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                     {order.student_section ?? '—'}
@@ -457,7 +459,7 @@ function PausedStudents({ students }: { students: PausedStudent[] }) {
             <ConfirmDialog
                 open={confirming !== null}
                 title={`Allow ${confirming?.name ?? 'this student'} to order again?`}
-                description={`Ordering is paused until ${confirming ? formatDateOrdered(confirming.paused_until) : ''}. Lifting the pause allows the student to place orders immediately.`}
+                description={`Ordering is paused until ${confirming ? formatDateOrdered(confirming.paused_until) : ''}. Lifting the pause allows them to place orders immediately.`}
                 cancelLabel="Keep paused"
                 confirmLabel="Lift pause"
                 busy={lifting}

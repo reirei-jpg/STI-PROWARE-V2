@@ -24,6 +24,7 @@ import {
 } from '@/components/sign-in-prompt';
 import { dashboard, home, logout } from '@/routes';
 import type { StorefrontFilters } from '@/types';
+import { isBuyer } from '@/lib/roles';
 
 /**
  * The public storefront layout: anyone can browse without signing in.
@@ -63,7 +64,7 @@ export default function StorefrontLayout({
 function StorefrontTopBar() {
     const { auth, cart_count: cartCount } = usePage().props;
     const openSignIn = useSignInPrompt();
-    const isStudent = auth.user?.role === 'student';
+    const isStudent = isBuyer(auth.user);
 
     return (
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
@@ -100,7 +101,7 @@ function StorefrontTopBar() {
                         )}
                     </Link>
                 ) : (
-                    // Staff do not buy, so they get no Cart (My Dashboard instead).
+                    // The Specialist and the School Admin do not buy, so they get no Cart (My Dashboard instead).
                     auth.user === null && (
                         <button
                             type="button"
@@ -116,7 +117,7 @@ function StorefrontTopBar() {
 
                 {isStudent && <NotificationBell />}
 
-                {auth.user?.role === 'student' ? (
+                {isStudent ? (
                     <>
                         <Link
                             href={StudentOrderController.index()}

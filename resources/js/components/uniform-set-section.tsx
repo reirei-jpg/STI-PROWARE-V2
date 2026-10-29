@@ -15,6 +15,7 @@ import { formatPeso } from '@/lib/format';
 import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
 import { cn } from '@/lib/utils';
 import type { StorefrontUniformSet, StorefrontSetPiece, User } from '@/types';
+import { isBuyer, NOT_A_BUYER } from '@/lib/roles';
 
 /**
  * The Uniform Sets section of the storefront: each course's whole uniform
@@ -143,10 +144,9 @@ export default function UniformSetSection({
                                 </DialogClose>
                             </div>
 
-                            {auth.user?.role !== 'student' ? (
+                            {!isBuyer(auth.user) ? (
                                 <p className="px-6 py-8 text-center text-sm leading-6 text-slate-600">
-                                    Buying is for students. You are signed in
-                                    with a staff account.
+                                    {NOT_A_BUYER}
                                 </p>
                             ) : (
                                 <SetPicker

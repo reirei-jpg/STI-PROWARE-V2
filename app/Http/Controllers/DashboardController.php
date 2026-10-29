@@ -24,7 +24,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user?->isStudent()) {
+        if ($user?->isBuyer()) {
             return to_route('home');
         }
 
