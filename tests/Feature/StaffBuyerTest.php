@@ -99,6 +99,20 @@ test('an STI teacher signs in on the phone app and orders there', function () {
         ->assertJsonPath('order.student_id', 'EMP-0421');
 });
 
+test('an STI teacher opens My Account and changes their password', function () {
+    $this->actingAs($this->teacher)
+        ->get(route('profile.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('storefront/account'));
+    $this->get(route('security.edit'))->assertRedirect(route('profile.edit'));
+
+    $this->put(route('user-password.update'), [
+        'current_password' => 'Demo@2026!',
+        'password' => 'Staff@2027!',
+        'password_confirmation' => 'Staff@2027!',
+    ])->assertSessionHasNoErrors();
+});
+
 test('STI staff cannot open the Specialist\'s pages', function () {
     $this->actingAs($this->teacher)->get(route('orders.index'))->assertForbidden();
     $this->get(route('dashboard'))->assertRedirect(route('home'));
