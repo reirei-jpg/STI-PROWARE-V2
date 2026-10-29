@@ -358,6 +358,7 @@ function StudentFields({
                 <AuthField
                     icon={<IdCard size={17} />}
                     error={errors.student_id}
+                    hint="11 digits"
                     input={
                         <input
                             value={data.student_id}
@@ -369,7 +370,7 @@ function StudentFields({
                                 })
                             }
                             inputMode="numeric"
-                            placeholder="Student ID (11 digits)"
+                            placeholder="Student ID"
                             aria-label="Student ID"
                             required
                         />
