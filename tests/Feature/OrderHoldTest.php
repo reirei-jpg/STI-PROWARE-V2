@@ -183,7 +183,7 @@ test('the shelf cannot be corrected below what is held for orders', function () 
             'reason' => 'damaged',
             'pieces_to_remove' => '7',
         ])
-        ->assertSessionHasErrors(['pieces_to_remove' => "4 pcs are held for orders, so the shelf cannot have fewer. Cancel those orders first, or count again."]);
+        ->assertSessionHasErrors(['pieces_to_remove' => '4 pcs are held for orders, so the shelf cannot have fewer. Cancel those orders first, or count again.']);
 
     expect($variant->refresh()->stock_on_hand)->toBe(10);
 });
