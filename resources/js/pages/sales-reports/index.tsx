@@ -76,6 +76,14 @@ export default function SalesReportsIndex({
     const [pickingDates, setPickingDates] = useState(
         filters.period === 'custom',
     );
+    // The dates picked so far: the report loads once both are picked, so
+    // the first one must stay in its box while the second is chosen.
+    const [pickedFrom, setPickedFrom] = useState<string | null>(
+        filters.period === 'custom' ? filters.date_from : null,
+    );
+    const [pickedTo, setPickedTo] = useState<string | null>(
+        filters.period === 'custom' ? filters.date_to : null,
+    );
     const firstRender = useRef(true);
     const periodText =
         filters.date_from === filters.date_to
@@ -195,18 +203,21 @@ export default function SalesReportsIndex({
                     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                         <DateRangeFilter
                             label="From / To"
-                            dateFrom={
-                                filters.period === 'custom'
-                                    ? filters.date_from
-                                    : null
-                            }
-                            dateTo={
-                                filters.period === 'custom'
-                                    ? filters.date_to
-                                    : null
-                            }
+                            dateFrom={pickedFrom}
+                            dateTo={pickedTo}
                             serverError={errors.date_from ?? errors.date_to}
                             onChange={(dateFrom, dateTo) => {
+                                setPickedFrom(dateFrom);
+                                setPickedTo(dateTo);
+
+                                // Clear filters goes back to This month.
+                                if (!dateFrom && !dateTo) {
+                                    setPickingDates(false);
+                                    show({ period: 'month' });
+
+                                    return;
+                                }
+
                                 if (dateFrom && dateTo) {
                                     show({
                                         period: 'custom',
