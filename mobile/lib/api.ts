@@ -28,11 +28,11 @@ const TIMEOUT_MS = 30_000;
 
 /** Said when the server could not be reached at all. */
 export const OFFLINE_MESSAGE =
-    'Cannot reach the PROWARE server. Check your internet connection, then try again.';
+    'PROWARE could not be reached. Check your internet connection and try again.';
 
 /** Said when the server took too long to answer. */
 export const TOO_SLOW_MESSAGE =
-    'The connection is too slow, so PROWARE did not answer in time. Check your internet connection, then try again.';
+    'PROWARE took too long to respond. Check your internet connection and try again.';
 
 type RequestOptions = {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

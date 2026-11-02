@@ -20,9 +20,9 @@ class SignInExpiry
     /** Longer than a sign-in lasts, so it outlives the session. */
     private const COOKIE_MINUTES = 60 * 24 * 30;
 
-    public const EXPIRED_MESSAGE = 'Your sign-in expired after a while without activity. Sign in again to go back to where you were.';
+    public const EXPIRED_MESSAGE = 'Your session has expired, so you were signed out. Sign back in to return to the page you were on.';
 
-    public const PAGE_REFRESHED_MESSAGE = 'This page was open for a long time, so it was refreshed. Press the button again.';
+    public const PAGE_REFRESHED_MESSAGE = 'This page was open too long, so nothing was saved. Try again.';
 
     public static function markSignedIn(): void
     {
@@ -41,7 +41,7 @@ class SignInExpiry
     public static function signInPageFor(Request $request): string
     {
         if (self::wasSignedIn($request)) {
-            Inertia::flash('toast', ['type' => 'warning', 'message' => self::EXPIRED_MESSAGE]);
+            Inertia::flash('toast', ['type' => 'warning', 'kind' => 'session-expired', 'message' => self::EXPIRED_MESSAGE]);
         }
 
         return route('login');
@@ -58,12 +58,12 @@ class SignInExpiry
 
         if ($request->user() === null && self::wasSignedIn($request)) {
             redirect()->setIntendedUrl($previous);
-            Inertia::flash('toast', ['type' => 'warning', 'message' => self::EXPIRED_MESSAGE]);
+            Inertia::flash('toast', ['type' => 'warning', 'kind' => 'session-expired', 'message' => self::EXPIRED_MESSAGE]);
 
             return redirect()->route('login', status: 303);
         }
 
-        Inertia::flash('toast', ['type' => 'warning', 'message' => self::PAGE_REFRESHED_MESSAGE]);
+        Inertia::flash('toast', ['type' => 'warning', 'kind' => 'page-reloaded', 'message' => self::PAGE_REFRESHED_MESSAGE]);
 
         return redirect()->to($previous, 303);
     }

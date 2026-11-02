@@ -40,7 +40,7 @@ type RequestFunction = <T>(
 
 /** Said on the sign-in screen after the server stopped accepting the login. */
 const EXPIRED_NOTICE =
-    'Your sign-in expired. Sign in again to continue; your cart and orders are kept.';
+    'Your session has expired, so you were signed out. Sign back in; your cart and orders are saved.';
 
 type AuthContextValue = {
     user: SessionUser | null;

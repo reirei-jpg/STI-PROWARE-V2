@@ -1,3 +1,4 @@
+import { Hourglass } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -21,9 +22,17 @@ export default function LoadingState({ className = 'mt-10' }: { className?: stri
         <View className={`items-center gap-3 px-6 ${className}`}>
             <ActivityIndicator color="#0D6EFD" />
             {slow && (
-                <Text className="text-center font-sans-semibold text-sm leading-5 text-amber-700">
-                    Still loading. The connection is slow, so this takes longer than usual.
-                </Text>
+                <View className="flex-row items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <View className="h-9 w-9 items-center justify-center rounded-xl bg-amber-100">
+                        <Hourglass size={18} color="#b45309" />
+                    </View>
+                    <View className="shrink gap-0.5">
+                        <Text className="font-sans-bold text-sm text-amber-900">Still loading</Text>
+                        <Text className="font-sans-semibold text-sm text-amber-800">
+                            Your internet connection is slow.
+                        </Text>
+                    </View>
+                </View>
             )}
         </View>
     );

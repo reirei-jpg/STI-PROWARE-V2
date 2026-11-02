@@ -16,12 +16,14 @@ export default function DraftRestoredNotice({
             role="status"
             className="flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 sm:flex-row sm:items-center"
         >
-            <History size={20} className="shrink-0 text-blue-600" />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                <History size={20} />
+            </span>
             <p className="min-w-0 flex-1 leading-6">
-                <span className="font-black">
-                    What you typed before was brought back.
-                </span>{' '}
-                It was not saved yet; check it, then save.
+                <span className="block font-black">
+                    Your unsaved changes were restored.
+                </span>
+                Review them, then save.
             </p>
             <div className="flex shrink-0 gap-2">
                 <button
@@ -29,7 +31,7 @@ export default function DraftRestoredNotice({
                     onClick={onDiscard}
                     className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
                 >
-                    Discard and start over
+                    Discard changes
                 </button>
                 <button
                     type="button"

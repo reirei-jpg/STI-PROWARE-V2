@@ -109,10 +109,18 @@ export default function Login() {
                         </Text>
 
                         {signInNotice && (
-                            <View className="mt-5 w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                                <Text className="text-center font-sans-semibold text-sm leading-5 text-amber-800">
-                                    {signInNotice}
-                                </Text>
+                            <View className="mt-5 w-full flex-row gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                <View className="h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
+                                    <LockKeyhole size={20} color="#b45309" />
+                                </View>
+                                <View className="flex-1 gap-0.5">
+                                    <Text className="font-sans-bold text-base text-amber-900">
+                                        Session expired
+                                    </Text>
+                                    <Text className="font-sans-semibold text-sm leading-5 text-amber-800">
+                                        {signInNotice}
+                                    </Text>
+                                </View>
                             </View>
                         )}
                     </View>
