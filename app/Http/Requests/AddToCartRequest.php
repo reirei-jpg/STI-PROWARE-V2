@@ -61,7 +61,7 @@ class AddToCartRequest extends FormRequest
             return [
                 'product_variant_id' => ['required', 'integer', $variantExists],
                 'product_pack_id' => ['nullable', 'integer', $packExists],
-                // The most allowed (stock, and at most Cart::MAX_QUANTITY) is checked by the cart, with how many are left.
+                // The most allowed (the stock) is checked by the cart, with how many are left.
                 'quantity' => ['required', 'integer', 'min:1'],
             ];
         }

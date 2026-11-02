@@ -3,7 +3,7 @@
  * endless or unrealistic number. The server checks the same limits again.
  */
 
-/** The most of one item a student can add to the cart or preorder (Cart::MAX_QUANTITY). */
+/** The most of one item a student can preorder, or uniform sets in one cart line (Cart::MAX_QUANTITY). An item in stock stops at its stock. */
 export const MAX_PER_ITEM = 99;
 
 /** The highest price anyone can type, in pesos (SaveProductRequest::MAX_PRICE_PESOS). */
@@ -36,7 +36,7 @@ export function priceInput(value: string): string {
 
 /**
  * A whole number as typed: digits only, never above `most` (e.g. the
- * pieces left in stock, or 99 per cart item).
+ * pieces left in stock, or 99 per preorder).
  */
 export function wholeNumberInput(value: string, most: number): string {
     const digits = value

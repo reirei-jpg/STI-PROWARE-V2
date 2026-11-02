@@ -104,18 +104,21 @@ test('an impossible quantity says how many are left', function (string $quantity
     expect($this->student->cartItems()->sole()->quantity)->toBe(1);
 })->with([
     'just above the stock' => ['6'],
-    'above the most per item' => ['100'],
+    'well above the stock' => ['100'],
     'a very long number' => ['2321312312313'],
     'longer than a number can be' => ['23213123123132132132132132131'],
 ]);
 
-test('more than 99 asks to talk to the office only when there is that much stock', function () {
-    [$product, $variant] = ballpen(stock: 5000);
+test('a student can add as many as are in stock, even more than 99', function () {
+    [$product, $variant] = ballpen(stock: 250);
     $this->actingAs($this->student);
 
-    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '100'])
-        ->assertSessionHasErrors(['quantity' => 'For more than 99, contact the PROWARE office.']);
-    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '99'])->assertSessionHasNoErrors();
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '251'])
+        ->assertSessionHasErrors(['quantity' => 'You can have at most 250 pcs of STI Ballpen in your cart (only 250 pcs left).']);
+    $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '150'])->assertSessionHasNoErrors();
+    $this->patch(route('cart.update', $this->student->cartItems()->sole()), ['quantity' => '250'])->assertSessionHasNoErrors();
+
+    expect($this->student->cartItems()->sole()->quantity)->toBe(250);
 });
 
 test('only items students can buy now go in the cart', function (ProductStatus $status) {

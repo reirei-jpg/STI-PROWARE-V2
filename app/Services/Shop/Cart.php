@@ -26,7 +26,10 @@ use Illuminate\Validation\ValidationException;
  */
 final class Cart
 {
-    /** The most of one item a student can have in a cart line (as on V1). */
+    /**
+     * The most uniform sets in one cart line, or pieces of one preorder (as on
+     * V1). An item in stock is limited by its stock only.
+     */
     public const MAX_QUANTITY = 99;
 
     /** What to do after adding to the cart, said after "…added to your cart." */
@@ -74,6 +77,7 @@ final class Cart
             $lines = $existing === null ? collect() : $student->cartItems()->where('set_key', $existing->set_key)->get();
             $newQuantity = ($existing->quantity ?? 0) + $quantity;
 
+            $this->ensureSetLimit($newQuantity);
             $this->ensureInStock($student, $top, null, $newQuantity, $lines->firstWhere('product_variant_id', $top->id));
             $this->ensureInStock($student, $bottom, null, $newQuantity, $lines->firstWhere('product_variant_id', $bottom->id));
 
@@ -204,6 +208,8 @@ final class Cart
             return;
         }
 
+        $this->ensureSetLimit($quantity);
+
         $lines = $line->student->cartItems()->with(['variant.product', 'pack'])->where('set_key', $line->set_key)->get();
 
         foreach ($lines as $setLine) {
@@ -228,7 +234,17 @@ final class Cart
      */
     public static function mostOf(int $freeToSell, int $piecesInOtherLines, int $piecesPerUnit): int
     {
-        return min(self::MAX_QUANTITY, intdiv(max(0, $freeToSell - $piecesInOtherLines), $piecesPerUnit));
+        return intdiv(max(0, $freeToSell - $piecesInOtherLines), $piecesPerUnit);
+    }
+
+    /**
+     * A uniform set line holds at most Cart::MAX_QUANTITY sets.
+     */
+    private function ensureSetLimit(int $quantity): void
+    {
+        if ($quantity > self::MAX_QUANTITY) {
+            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', contact the PROWARE office.']);
+        }
     }
 
     private function ensureInStock(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity, ?CartItem $line): void
@@ -242,12 +258,6 @@ final class Cart
         $unit = $pack->name ?? 'Piece';
         $piecesPerUnit = $pack->pieces ?? 1;
         $inOtherLines = $this->piecesInOtherLines($student, $variant, $line);
-
-        // Only when the stock itself has more than the most one student may
-        // order; otherwise the student is told how many are left.
-        if ($quantity > self::MAX_QUANTITY && intdiv(max(0, $variant->freeToSell() - $inOtherLines), $piecesPerUnit) >= self::MAX_QUANTITY) {
-            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', contact the PROWARE office.']);
-        }
 
         $message = match (true) {
             $variant->freeToSell() === 0 => "{$variant->displayName()} is out of stock.",

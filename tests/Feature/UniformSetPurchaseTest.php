@@ -216,6 +216,22 @@ test('changing, ticking and removing a set does both its lines', function () {
     expect(CartItem::count())->toBe(0);
 });
 
+test('a set still stops at 99 in the cart, even with more in stock', function () {
+    $set = bsitSaleSet();
+    pieceSize($set->polo_product_id, 'M')->forceFill(['stock_on_hand' => 500])->save();
+    pieceSize($set->pants_product_id, 'S')->forceFill(['stock_on_hand' => 500])->save();
+    $this->actingAs($this->student)->post(route('cart.store-set', $set), boysSet($set, quantity: '60'))->assertSessionHasNoErrors();
+
+    $this->post(route('cart.store-set', $set), boysSet($set, quantity: '60'))
+        ->assertSessionHasErrors(['quantity' => 'For more than 99, contact the PROWARE office.']);
+    $this->patch(route('cart.update', CartItem::query()->first()), ['quantity' => '100'])
+        ->assertSessionHasErrors(['quantity' => 'For more than 99, contact the PROWARE office.']);
+    expect(CartItem::query()->pluck('quantity')->all())->toBe([60, 60]);
+
+    $this->patch(route('cart.update', CartItem::query()->first()), ['quantity' => '99'])->assertSessionHasNoErrors();
+    expect(CartItem::query()->pluck('quantity')->all())->toBe([99, 99]);
+});
+
 test('placing the order keeps both pieces at their own price with the set name, and holds their stock', function () {
     $set = bsitSaleSet();
     $this->actingAs($this->student)->post(route('cart.store-set', $set), [

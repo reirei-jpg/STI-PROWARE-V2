@@ -99,8 +99,10 @@ final class CartView
 
         $otherLines = $cart->filter(fn (CartItem $other): bool => $other->product_variant_id === $line->product_variant_id && $other->id !== $line->id);
 
-        // How many more fit in the cart at all (the + button's limit).
+        // How many more fit in the cart at all (the + button's limit); a set
+        // also stops at Cart::MAX_QUANTITY.
         $mostAllowed = Cart::mostOf($variant->freeToSell(), (int) $otherLines->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
+        $mostAllowed = $inSet ? min(Cart::MAX_QUANTITY, $mostAllowed) : $mostAllowed;
 
         // How many can be ordered with the other ticked lines, as Place
         // Order will take them; lines set aside do not count.

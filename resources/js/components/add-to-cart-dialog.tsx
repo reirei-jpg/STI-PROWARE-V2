@@ -271,12 +271,8 @@ function PickerForm({
             )
             .reduce((sum, line) => sum + piecesOf(line), 0);
 
-        return Math.min(
-            MAX_PER_ITEM,
-            Math.floor(
-                Math.max(0, item.stock_pieces - listed) /
-                    (itemPack?.pieces ?? 1),
-            ),
+        return Math.floor(
+            Math.max(0, item.stock_pieces - listed) / (itemPack?.pieces ?? 1),
         );
     };
 
@@ -296,19 +292,11 @@ function PickerForm({
             line.product_variant_id === String(variant.id) &&
             line.product_pack_id === unit,
     );
-    const most = preordering
-        ? MAX_PER_ITEM
-        : Math.min(
-              mostFor(variant, pack),
-              MAX_PER_ITEM - (Number(existing?.quantity) || 0),
-          );
+    const most = preordering ? MAX_PER_ITEM : mostFor(variant, pack);
     const quantity = Number(quantityText) || 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany =
         !preordering && variant !== undefined && most > 0 && quantity > most;
-    // The stock sets the most (not the 99-per-item cart limit).
-    const stockSetsMost =
-        most < MAX_PER_ITEM && mostFor(variant, pack) === most;
     const hasChoices = details.variants.length > 1;
     const unitChoices = (soldByPiece ? 1 : 0) + details.buy_packs.length;
     // A list only helps when there is more than one size or unit to pick.
@@ -596,10 +584,8 @@ function PickerForm({
                         </div>
                         {tooMany ? (
                             <p className="text-sm font-bold text-red-600">
-                                {stockSetsMost
-                                    ? `Only ${formatUnits(most, unitName)} left.`
-                                    : `You can add at most ${formatUnits(MAX_PER_ITEM, unitName)} of one item.`}{' '}
-                                Enter {most} or fewer.
+                                Only {formatUnits(most, unitName)} left. Enter{' '}
+                                {most} or fewer.
                             </p>
                         ) : (
                             !preordering &&
