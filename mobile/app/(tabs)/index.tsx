@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProductRow from '@/components/ProductRow';
 import ProductTile from '@/components/ProductTile';
 import LoadError from '@/components/LoadError';
-import LoadingState from '@/components/LoadingState';
+import LoadingState, { SlowNote } from '@/components/LoadingState';
 import StoreSpotlight from '@/components/StoreSpotlight';
 import UniformSetSheet from '@/components/UniformSetSheet';
 import { ApiError } from '@/lib/api';
@@ -291,6 +291,9 @@ export default function HomeScreen() {
 
             {error && <LoadError message={error} onRetry={loadAll} className="" />}
 
+            {/* One note for the whole store, not one per section. */}
+            {home === null && !error && <SlowNote />}
+
             {!(isSearching && home !== null && home.coming_soon.length === 0) && (
             <View>
                 <SectionTitle
@@ -300,7 +303,7 @@ export default function HomeScreen() {
                     description="Ordered from STI Head Office and on the way."
                 />
                 {home === null ? (
-                    <LoadingBox />
+                    error ? null : <LoadingBox />
                 ) : home.coming_soon.length === 0 ? (
                     <EmptyNote>
                         No preorders yet. New items appear here as soon as
@@ -329,7 +332,7 @@ export default function HomeScreen() {
                     description="Limited stock at a lower price."
                 />
                 {home === null ? (
-                    <LoadingBox />
+                    error ? null : <LoadingBox />
                 ) : home.on_sale.length === 0 ? (
                     <EmptyNote>
                         Nothing on sale right now. Check back for lower
@@ -575,7 +578,7 @@ function EmptyNote({ children }: { children: React.ReactNode }) {
 function LoadingBox() {
     return (
         <View className="items-center rounded-2xl bg-white py-10">
-            <LoadingState className="" />
+            <LoadingState className="" slowNote={false} />
         </View>
     );
 }
