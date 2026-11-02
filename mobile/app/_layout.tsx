@@ -25,13 +25,15 @@ function RootNavigator() {
     const isStudent = user?.role === 'student' || user?.role === 'employee';
     const isSpecialist = user?.role === 'specialist';
 
-    // A sign-in that expired opens the sign-in screen, which says why.
+    // A sign-in that expired opens the sign-in screen, which says why. It
+    // waits until signing out has moved the app back to the store, which
+    // would otherwise close it again.
     useEffect(() => {
         if (restoring || user !== null || signInNotice === null) {
             return;
         }
 
-        const timer = setTimeout(() => router.push('/login'), 0);
+        const timer = setTimeout(() => router.push('/login'), 700);
 
         return () => clearTimeout(timer);
     }, [restoring, user, signInNotice]);

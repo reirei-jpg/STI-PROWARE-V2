@@ -28,7 +28,7 @@ export default function NoResults({
                 <Pressable
                     onPress={onClearSearch}
                     accessibilityRole="button"
-                    className="mt-4 flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5"
+                    className="mt-4 flex-row items-center gap-2 rounded-xl border border-solid border-slate-300 bg-white px-4 py-2.5"
                 >
                     <X size={16} color="#334155" />
                     <Text className="font-sans-bold text-sm text-slate-700">Clear search</Text>
