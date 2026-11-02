@@ -303,6 +303,12 @@ function PickerForm({
               MAX_PER_ITEM - (Number(existing?.quantity) || 0),
           );
     const quantity = Number(quantityText) || 0;
+    // More typed than is left: kept as typed, flagged in red, not added.
+    const tooMany =
+        !preordering && variant !== undefined && most > 0 && quantity > most;
+    // The stock sets the most (not the 99-per-item cart limit).
+    const stockSetsMost =
+        most < MAX_PER_ITEM && mostFor(variant, pack) === most;
     const hasChoices = details.variants.length > 1;
     const unitChoices = (soldByPiece ? 1 : 0) + details.buy_packs.length;
     // A list only helps when there is more than one size or unit to pick.
@@ -565,6 +571,8 @@ function PickerForm({
                                 label="How many"
                                 most={variant ? most : MAX_PER_ITEM}
                                 tone={preordering ? 'amber' : 'blue'}
+                                keepTyped={!preordering}
+                                invalid={tooMany}
                             />
                             <span className="text-sm text-slate-500">
                                 {preordering
@@ -586,15 +594,24 @@ function PickerForm({
                                 </button>
                             )}
                         </div>
-                        {!preordering &&
+                        {tooMany ? (
+                            <p className="text-sm font-bold text-red-600">
+                                {stockSetsMost
+                                    ? `Only ${formatUnits(most, unitName)} left.`
+                                    : `You can add at most ${formatUnits(MAX_PER_ITEM, unitName)} of one item.`}{' '}
+                                Enter {most} or fewer.
+                            </p>
+                        ) : (
+                            !preordering &&
                             variant &&
                             most > 0 &&
-                            quantity >= most && (
+                            quantity === most && (
                                 <p className="text-sm font-bold text-amber-700">
                                     Only {formatUnits(most, unitName)} left to
                                     add.
                                 </p>
-                            )}
+                            )
+                        )}
                         {!preordering && variant && most === 0 && (
                             <p className="text-sm font-bold text-amber-700">
                                 {existing || data.items.length > 0

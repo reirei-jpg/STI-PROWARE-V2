@@ -7,6 +7,9 @@ import { Pressable, Text, TextInput, View } from 'react-native';
  *
  * Typing changes `value`; a button tap or leaving the box gives the final
  * number to `onCommit` (or to `onChange` when there is no `onCommit`).
+ * With `keepTyped`, a typed number above `most` stays as typed (the screen
+ * says what is wrong and `invalid` outlines the box in red); − and + still
+ * stop at `most`.
  */
 export default function QuantityStepper({
     value,
@@ -16,6 +19,8 @@ export default function QuantityStepper({
     unitText,
     disabled = false,
     showLeft = true,
+    keepTyped = false,
+    invalid = false,
 }: {
     /** The box's text, so the student can clear it while typing. */
     value: string;
@@ -26,10 +31,13 @@ export default function QuantityStepper({
     disabled?: boolean;
     /** "Only N left" at the most (off where the most is not what is left in stock). */
     showLeft?: boolean;
+    keepTyped?: boolean;
+    invalid?: boolean;
 }) {
     const quantity = Number(value) || 0;
-    const commit = (next: number): void => {
-        const kept = Math.max(1, Math.min(next, Math.max(most, 1)));
+    const typedCap = keepTyped ? Number.MAX_SAFE_INTEGER : Math.max(most, 1);
+    const commit = (next: number, cap = Math.max(most, 1)): void => {
+        const kept = Math.max(1, Math.min(next, cap));
 
         if (onCommit) {
             onCommit(kept);
@@ -50,17 +58,17 @@ export default function QuantityStepper({
 
             <TextInput
                 value={value}
-                // Never more than `most` (what is left to buy), even while typing.
+                // Never more than `most` (what is left to buy), even while typing, unless `keepTyped`.
                 onChangeText={(text) => {
                     const digits = text.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 7);
 
-                    onChange(digits !== '' && Number(digits) > Math.max(most, 1) ? String(Math.max(most, 1)) : digits);
+                    onChange(digits !== '' && Number(digits) > typedCap ? String(typedCap) : digits);
                 }}
-                onEndEditing={() => commit(quantity)}
+                onEndEditing={() => commit(quantity, typedCap)}
                 editable={!disabled}
                 keyboardType="number-pad"
                 accessibilityLabel="How many"
-                className="h-12 w-20 rounded-xl border border-slate-200 bg-white text-center font-sans-bold text-base text-slate-900"
+                className={`h-12 w-20 rounded-xl border text-center font-sans-bold text-base ${invalid ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-900'}`}
             />
 
             <StepButton
@@ -73,7 +81,7 @@ export default function QuantityStepper({
 
             <View className="flex-1">
                 <Text className="font-sans text-sm text-slate-500">{unitText}</Text>
-                {showLeft && most > 0 && quantity >= most && (
+                {showLeft && !invalid && most > 0 && quantity >= most && (
                     <Text className="font-sans-bold text-xs text-amber-700">Only {most} left</Text>
                 )}
             </View>

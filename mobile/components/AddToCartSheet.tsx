@@ -130,6 +130,10 @@ export default function AddToCartSheet({
         ? MOST
         : Math.min(mostFor(variant, pack), MOST - (Number(existing?.quantity) || 0));
     const quantity = Number(quantityText) || 0;
+    // More typed than is left: kept as typed, flagged in red, not added.
+    const tooMany = !preordering && variant !== undefined && most > 0 && quantity > most;
+    // The stock sets the most (not the 99-per-item cart limit).
+    const stockSetsMost = most < MOST && mostFor(variant, pack) === most;
     const hasChoices = product.variants.length > 1;
     const unitChoices = (soldByPiece ? 1 : 0) + product.buy_packs.length;
     // A list only helps when there is more than one size or unit to pick.
@@ -421,6 +425,8 @@ export default function AddToCartSheet({
                     <QuantityStepper
                         value={quantityText}
                         onChange={setQuantityText}
+                        keepTyped={!preordering}
+                        invalid={tooMany}
                         most={variant ? most : MOST}
                         unitText={
                             preordering
@@ -432,6 +438,14 @@ export default function AddToCartSheet({
                                   }`
                         }
                     />
+                    {tooMany && (
+                        <Text className="font-sans-semibold text-sm text-red-600">
+                            {stockSetsMost
+                                ? `Only ${formatUnits(most, unitName)} left.`
+                                : `You can add at most ${formatUnits(MOST, unitName)} of one item.`}{' '}
+                            Enter {most} or fewer.
+                        </Text>
+                    )}
                     {!preordering && variant && most === 0 && (
                         <Text className="font-sans-semibold text-sm text-amber-700">
                             {added.length > 0
