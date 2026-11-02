@@ -77,7 +77,7 @@ export type SchoolAdminOverviewData = {
     };
 };
 
-export type SalesPeriod = 'week' | 'month' | 'year';
+export type SalesPeriod = 'all' | 'week' | 'month' | 'year';
 
 type TopSeller = {
     rank: number;
@@ -90,6 +90,7 @@ type TopSeller = {
 };
 
 const periods: { value: SalesPeriod; label: string; words: string }[] = [
+    { value: 'all', label: 'All time', words: 'so far' },
     { value: 'week', label: 'This week', words: 'this week' },
     { value: 'month', label: 'This month', words: 'this month' },
     { value: 'year', label: 'This year', words: 'this year' },
@@ -525,7 +526,7 @@ function SalesLists({
     return (
         <Panel
             title="Sales"
-            description={`What students are buying, and what is sitting in stock · ${formatDateOrdered(sales.from)} to ${formatDateOrdered(sales.to)}.`}
+            description={`What students and STI staff are buying, and what is sitting in stock · ${formatDateOrdered(sales.from)} to ${formatDateOrdered(sales.to)}.`}
             actions={
                 <div
                     role="group"
@@ -555,7 +556,7 @@ function SalesLists({
                 <SalesNumber
                     label="Pieces sold"
                     value={totals.pieces.toLocaleString('en-PH')}
-                    note={`released to students ${periodWords}`}
+                    note={`released to buyers ${periodWords}`}
                 />
                 <SalesNumber
                     label="Sold for"
@@ -616,7 +617,7 @@ function SalesLists({
             {list === 'top' &&
                 (sales.top_sellers.data.length === 0 ? (
                     <p className="px-6 py-12 text-center text-sm text-slate-500">
-                        Nothing was released to students {periodWords}.
+                        Nothing was released to buyers {periodWords}.
                     </p>
                 ) : (
                     <ol className="divide-y divide-slate-100">

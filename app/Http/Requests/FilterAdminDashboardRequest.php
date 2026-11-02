@@ -13,7 +13,7 @@ use Illuminate\Validation\Rule;
  */
 class FilterAdminDashboardRequest extends FormRequest
 {
-    public const PERIODS = ['week', 'month', 'year'];
+    public const PERIODS = ['all', 'week', 'month', 'year'];
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -27,12 +27,12 @@ class FilterAdminDashboardRequest extends FormRequest
         ];
     }
 
-    /** The Top sellers period: this week, this month (the default) or this year. */
+    /** The Top sellers period: all time (the default), this week, this month or this year. */
     public function period(): string
     {
         $period = (string) $this->input('period', '');
 
-        return in_array($period, self::PERIODS, true) ? $period : 'month';
+        return in_array($period, self::PERIODS, true) ? $period : 'all';
     }
 
     /** Ongoing unless another tab is chosen. */

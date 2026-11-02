@@ -184,10 +184,29 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
     $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-09-01', 'date_to' => '2026-09-30']))
         ->assertInertia(fn (Assert $page) => $page->where('summary.price_centavos', 0)->where('summary.spent_centavos', 0));
 
-    $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-01-to-2026-10-09.csv')->streamedContent();
+    $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-09-to-2026-10-09.csv')->streamedContent();
     expect($csv)->toContain('"Lower Price Because"')
         ->toContain('"STI Jacket",,Piece,3,200.00,350.00,400.00,"On sale",1050.00,600.00,450.00,')
         ->toContain('"STI Jacket",,Piece,2,200.00,400.00,,,800.00,400.00,400.00,');
+});
+
+test('the report opens on all time, so sales from earlier months show', function () {
+    $variant = costedJacket();
+    $this->travelTo(CarbonImmutable::parse('2026-09-20 10:00', 'Asia/Manila'));
+    receivedJacketOrder(packs: 1, pricePerPack: 100000);
+    releasedJackets($variant, 2);
+    $this->travelTo(CarbonImmutable::parse('2026-10-09 10:00', 'Asia/Manila'));
+
+    $this->actingAs($this->specialist)->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('filters.period', 'all')
+        ->where('filters.date_from', '2026-09-20')
+        ->where('filters.date_to', '2026-10-09')
+        ->where('summary.pieces', 2)
+        ->where('summary.spent_centavos', 100000));
+
+    $this->get(route('sales-reports.index', ['period' => 'month']))->assertInertia(fn (Assert $page) => $page
+        ->where('summary.pieces', 0)
+        ->where('summary.spent_centavos', 0));
 });
 
 test('an item put on sale below its Cost shows what was lost', function () {

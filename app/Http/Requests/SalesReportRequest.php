@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Reports\SalesReport;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -9,12 +10,13 @@ use Illuminate\Validation\Rule;
 
 /**
  * The Sales Reports filters, read from the page address: the period
- * (today, this week, this month, or chosen dates; this month by default),
+ * (all time, today, this week, this month, or chosen dates; all time by
+ * default, so every sale shows),
  * which tab, and a product search.
  */
 class SalesReportRequest extends FormRequest
 {
-    public const PERIODS = ['today', 'week', 'month', 'custom'];
+    public const PERIODS = ['all', 'today', 'week', 'month', 'custom'];
 
     public const TABS = ['spent', 'sold', 'best', 'free'];
 
@@ -57,7 +59,7 @@ class SalesReportRequest extends FormRequest
 
     public function period(): string
     {
-        return $this->string('period')->toString() ?: 'month';
+        return $this->string('period')->toString() ?: 'all';
     }
 
     /**
@@ -76,7 +78,8 @@ class SalesReportRequest extends FormRequest
                 CarbonImmutable::parse($this->string('date_from')->toString())->startOfDay(),
                 CarbonImmutable::parse($this->string('date_to')->toString())->endOfDay(),
             ],
-            default => [$today->startOfMonth(), $today->endOfDay()],
+            'month' => [$today->startOfMonth(), $today->endOfDay()],
+            default => [SalesReport::firstDay(), $today->endOfDay()],
         };
     }
 

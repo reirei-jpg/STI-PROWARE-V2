@@ -1,4 +1,4 @@
-export type SalesPeriod = 'today' | 'week' | 'month' | 'custom';
+export type SalesPeriod = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
 

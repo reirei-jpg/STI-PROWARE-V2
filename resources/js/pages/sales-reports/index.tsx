@@ -36,6 +36,7 @@ import type {
 } from '@/types';
 
 const periods: { value: SalesPeriod; label: string }[] = [
+    { value: 'all', label: 'All time' },
     { value: 'today', label: 'Today' },
     { value: 'week', label: 'This week' },
     { value: 'month', label: 'This month' },
@@ -98,7 +99,7 @@ export default function SalesReportsIndex({
             query.tab = merged.tab;
         }
 
-        if (merged.period !== 'month') {
+        if (merged.period !== 'all') {
             query.period = merged.period;
         }
 
@@ -210,10 +211,10 @@ export default function SalesReportsIndex({
                                 setPickedFrom(dateFrom);
                                 setPickedTo(dateTo);
 
-                                // Clear filters goes back to This month.
+                                // Clear filters goes back to All time.
                                 if (!dateFrom && !dateTo) {
                                     setPickingDates(false);
-                                    show({ period: 'month' });
+                                    show({ period: 'all' });
 
                                     return;
                                 }

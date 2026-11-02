@@ -6,6 +6,7 @@ use App\Enums\LowerPriceReason;
 use App\Enums\OrderStatus;
 use App\Enums\StockCorrectionReason;
 use App\Enums\StockMovementType;
+use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
@@ -328,14 +329,43 @@ final class SalesReport
      */
     private static function givenFree(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
-        return StockMovement::query()
+        return self::freeMovements()
             ->with('variant.product')
+            ->whereBetween('created_at', [$from, $to]);
+    }
+
+    /**
+     * Every piece given free (promo), at any time.
+     *
+     * @return Builder<StockMovement>
+     */
+    private static function freeMovements(): Builder
+    {
+        return StockMovement::query()
             ->where(fn (Builder $query) => $query
                 ->where('type', StockMovementType::FreePromo)
                 ->orWhere(fn (Builder $old) => $old
                     ->where('type', StockMovementType::Correction)
-                    ->where('reason', StockCorrectionReason::GivenFree)))
-            ->whereBetween('created_at', [$from, $to]);
+                    ->where('reason', StockCorrectionReason::GivenFree)));
+    }
+
+    /**
+     * Where "All time" starts: the day of the earliest eStore order,
+     * released order or free piece; today when there is nothing yet.
+     */
+    public static function firstDay(): CarbonImmutable
+    {
+        $dates = array_filter([
+            PurchaseOrder::query()->min('date_ordered'),
+            Order::query()->where('status', OrderStatus::PickedUp)->min('picked_up_at'),
+            self::freeMovements()->min('created_at'),
+        ]);
+
+        if ($dates === []) {
+            return CarbonImmutable::today();
+        }
+
+        return min(array_map(fn (mixed $date): CarbonImmutable => CarbonImmutable::parse((string) $date)->startOfDay(), $dates));
     }
 
     /**

@@ -21,8 +21,9 @@ use Illuminate\Pagination\LengthAwarePaginator as Paginator;
  * Specialist uploaded, in three tabs by what has arrived (Coming, Ongoing,
  * Completed), with the dates and times of each step. 5 orders a page. A
  * search by Order # narrows the list and the tab counts alike, so the
- * counts show which tab the order is in. Below: what sells (Top sellers in
- * a week, month or year) and what does not (slow-moving items), 5 a page.
+ * counts show which tab the order is in. Below: what sells (Top sellers of
+ * all time, a week, a month or a year) and what does not (slow-moving items),
+ * 5 a page.
  *
  * @phpstan-type TopSellerRow array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, profit_centavos: int|null, top_variant_label: string|null, top_variant_pieces: int}
  * @phpstan-type NotSellingRow array{product_id: int, product_name: string, stock_pieces: int, first_arrived_at: string|null, last_sold_at: string|null, days_without_sale: int}
@@ -40,12 +41,13 @@ final class SchoolAdminOverview
     /**
      * @return array{deliveries: array{tab: string, search: string|null, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}, sales: array{period: string, from: string, to: string, totals: array{pieces: int, price_centavos: int, best: TopSellerRow|null, not_selling_pieces: int}, top_sellers: Paginator<int, TopSellerRow>, slow_days: int, not_selling: Paginator<int, NotSellingRow>}}
      */
-    public function all(AdminDeliveryTab $tab, ?string $search = null, string $period = 'month'): array
+    public function all(AdminDeliveryTab $tab, ?string $search = null, string $period = 'all'): array
     {
         $from = match ($period) {
             'week' => CarbonImmutable::now()->startOfWeek(),
+            'month' => CarbonImmutable::now()->startOfMonth(),
             'year' => CarbonImmutable::now()->startOfYear(),
-            default => CarbonImmutable::now()->startOfMonth(),
+            default => SalesReport::firstDay(),
         };
         $to = CarbonImmutable::now()->endOfDay();
 

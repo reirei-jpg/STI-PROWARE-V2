@@ -342,7 +342,8 @@ test('the school admin sees the top sellers of the week, month or year and what 
 
     $this->actingAs($this->schoolAdmin);
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
-        ->where('overview.sales.period', 'month')
+        ->where('overview.sales.period', 'all')
+        ->where('overview.sales.from', '2026-10-02')
         ->where('overview.sales.totals.pieces', 8)
         ->where('overview.sales.totals.price_centavos', 8 * 55000)
         ->where('overview.sales.totals.best.product_name', 'STI Cap')
