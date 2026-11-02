@@ -98,12 +98,22 @@ export function useFormDraft<T>(
         return () => window.clearTimeout(timer);
     }, [key, serialized]);
 
-    /** The form was saved: the draft is no longer needed. */
-    const clear = useCallback(() => {
-        initial.current = latest.current;
-        forget(key);
-        setRestored(false);
-    }, [key]);
+    /**
+     * The form was saved: the draft is no longer needed. Given the page that
+     * answered, a sign-in page (the sign-in expired meanwhile) keeps it.
+     */
+    const clear = useCallback(
+        (answeredWith?: { component: string }) => {
+            if (answeredWith?.component.startsWith('auth/')) {
+                return;
+            }
+
+            initial.current = latest.current;
+            forget(key);
+            setRestored(false);
+        },
+        [key],
+    );
 
     /** Throw the brought-back draft away: the form as it opened. */
     const discard = useCallback(() => {

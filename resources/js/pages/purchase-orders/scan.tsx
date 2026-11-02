@@ -298,8 +298,8 @@ export default function ScanPurchaseOrder({
                             actions={
                                 <Form
                                     {...PurchaseOrderScanController.destroy.form()}
-                                    onSuccess={() => {
-                                        draft.clear();
+                                    onSuccess={(page) => {
+                                        draft.clear(page);
                                         setEmailText('');
                                     }}
                                 >
@@ -433,7 +433,7 @@ export default function ScanPurchaseOrder({
                                 ) : (
                                     <Form
                                         {...PurchaseOrderController.store.form()}
-                                        onSuccess={() => draft.clear()}
+                                        onSuccess={(page) => draft.clear(page)}
                                         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
                                     >
                                         {({ processing, errors }) => (

@@ -463,7 +463,7 @@ export default function ProductForm({
             {
                 forceFormData: true,
                 preserveScroll: true,
-                onSuccess: () => draft.clear(),
+                onSuccess: (page) => draft.clear(page),
                 onError: () => {
                     jumpToFirstProblem.current = true;
                 },
@@ -783,7 +783,7 @@ export default function ProductForm({
             >
                 <PageHeader
                     title={product ? 'Edit Product' : 'Add Product'}
-                    description="Students see the photos, name, price and options on the storefront."
+                    description="Students and STI staff see the photos, name, price and options on the storefront."
                     actions={
                         <>
                             <Link

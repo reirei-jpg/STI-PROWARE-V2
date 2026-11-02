@@ -277,8 +277,8 @@ export function useRecordDelivery(
         form.post(DeliveryController.store().url, {
             preserveScroll: true,
             preserveState: options.stayOnPage ? true : undefined,
-            onSuccess: () => {
-                draft.clear();
+            onSuccess: (page) => {
+                draft.clear(page);
                 options.onSaved?.();
             },
         });
