@@ -141,7 +141,7 @@ export default function StaffStockScreen() {
                 products.loadingMore ? <ActivityIndicator color="#0D6EFD" className="py-4" /> : null
             }
             ListEmptyComponent={
-                products.items === null ? (
+                products.error || products.items === null ? (
                     products.error ? null : <LoadingState />
                 ) : search === '' ? (
                     <NoResults

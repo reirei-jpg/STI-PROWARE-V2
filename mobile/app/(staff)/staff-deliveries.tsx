@@ -121,7 +121,7 @@ export default function StaffDeliveriesScreen() {
                 deliveries.loadingMore ? <ActivityIndicator color="#0D6EFD" className="py-4" /> : null
             }
             ListEmptyComponent={
-                deliveries.items === null ? (
+                deliveries.error || deliveries.items === null ? (
                     deliveries.error ? null : <LoadingState />
                 ) : search !== '' ? (
                     <NoResults

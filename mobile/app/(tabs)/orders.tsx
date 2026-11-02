@@ -174,7 +174,7 @@ function OrdersScreen() {
             renderItem={({ item }) => <OrderRow order={item} />}
             onEndReached={orders.loadMore}
             ListEmptyComponent={
-                orders.items === null ? (
+                orders.error || orders.items === null ? (
                     orders.error ? null : <LoadingState />
                 ) : (
                     <EmptyBox
@@ -200,7 +200,7 @@ function OrdersScreen() {
             )}
             onEndReached={preorders.loadMore}
             ListEmptyComponent={
-                preorders.items === null ? (
+                preorders.error || preorders.items === null ? (
                     preorders.error ? null : <LoadingState />
                 ) : (
                     <EmptyBox

@@ -20,6 +20,8 @@ export function usePagedList<T extends { id: number | string }, Extra = Record<s
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const latestRequest = useRef(0);
+    // Which list (tab, filter, search) the rows shown belong to.
+    const itemsPath = useRef<string | null>(null);
 
     const load = useCallback(
         async (pageToLoad: number) => {
@@ -33,6 +35,7 @@ export function usePagedList<T extends { id: number | string }, Extra = Record<s
                 return;
             }
 
+            itemsPath.current = path;
             setItems((current) =>
                 pageToLoad === 1 ? result.data : [...(current ?? []), ...result.data],
             );
@@ -48,13 +51,19 @@ export function usePagedList<T extends { id: number | string }, Extra = Record<s
             await load(1);
             setError(null);
         } catch (caught) {
+            // Another list that could not load shows only why, never the
+            // previous list's rows or its "nothing here".
+            if (itemsPath.current !== path) {
+                setItems(null);
+            }
+
             setError(
                 caught instanceof ApiError
                     ? caught.message
                     : 'The list could not be loaded. Pull down to try again.',
             );
         }
-    }, [load]);
+    }, [load, path]);
 
     const loadMore = useCallback(async () => {
         if (loadingMore || page >= lastPage) {

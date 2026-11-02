@@ -302,7 +302,7 @@ export default function NotificationsScreen() {
                 notices.loadingMore ? <ActivityIndicator color="#0D6EFD" className="py-4" /> : null
             }
             ListEmptyComponent={
-                notices.items === null ? (
+                notices.error || notices.items === null ? (
                     notices.error ? null : <LoadingState />
                 ) : (
                     <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12">

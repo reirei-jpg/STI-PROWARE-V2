@@ -177,7 +177,7 @@ export default function StaffOrdersScreen() {
                 orders.loadingMore ? <ActivityIndicator color="#0D6EFD" className="py-4" /> : null
             }
             ListEmptyComponent={
-                orders.items === null ? (
+                orders.error || orders.items === null ? (
                     orders.error ? null : <LoadingState />
                 ) : search !== '' ? (
                     <NoResults
