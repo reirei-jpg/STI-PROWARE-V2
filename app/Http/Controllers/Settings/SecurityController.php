@@ -34,7 +34,7 @@ class SecurityController extends Controller
             'password' => $request->password,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Your password has been changed.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Your password has been changed. Use the new password the next time you sign in.']);
 
         return back();
     }

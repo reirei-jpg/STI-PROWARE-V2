@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Services\Auth\SignInExpiry;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
         ]);
+
+        // An ended sign-in is explained on the sign-in page.
+        $middleware->redirectGuestsTo(fn (Request $request) => SignInExpiry::signInPageFor($request));
 
         $middleware->web(append: [
             HandleInertiaRequests::class,

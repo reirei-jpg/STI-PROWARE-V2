@@ -130,7 +130,7 @@ test('a student adds a set: its top and bottom go in as one, at what the two cos
 
     $this->post(route('cart.store-set', $set), boysSet($set, quantity: '2'))
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', '2 × BSIT Uniform Set (For Boys: BSIT Polo (M), BSIT Pants (S)) have been added to your cart.');
+        ->assertInertiaFlash('toast.message', '2 × BSIT Uniform Set (For Boys: BSIT Polo (M), BSIT Pants (S)) have been added to your cart. Open the cart to place the order.');
 
     // The same set with the same sizes again adds to it.
     $this->post(route('cart.store-set', $set), boysSet($set));

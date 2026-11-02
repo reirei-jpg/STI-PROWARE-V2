@@ -14,10 +14,12 @@ import {
 import { useState } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
+import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useFormDraft } from '@/hooks/use-form-draft';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import type { DuplicateUpload, ScannedPurchaseOrder } from '@/types';
 
@@ -52,6 +54,12 @@ export default function ScanPurchaseOrder({
     const hasBlockingProblems =
         scan?.warnings.some((warning) => warning.blocking) ?? false;
     const [inputMode, setInputMode] = useState<'paste' | 'file'>('paste');
+    // The pasted email is kept until the order is saved or the scan
+    // discarded, so an expired sign-in does not lose it.
+    const [emailText, setEmailText] = useState('');
+    const draft = useFormDraft('estore-scan', emailText, setEmailText, {
+        announce: scan === null,
+    });
 
     return (
         <>
@@ -114,10 +122,20 @@ export default function ScanPurchaseOrder({
                     >
                         {({ processing, errors }) => (
                             <>
+                                {draft.restored && inputMode === 'paste' && (
+                                    <DraftRestoredNotice
+                                        onDiscard={draft.discard}
+                                        onDismiss={draft.dismiss}
+                                    />
+                                )}
                                 {inputMode === 'paste' ? (
                                     <div>
                                         <textarea
                                             name="email_text"
+                                            value={emailText}
+                                            onChange={(event) =>
+                                                setEmailText(event.target.value)
+                                            }
                                             required
                                             rows={10}
                                             placeholder={
@@ -280,6 +298,10 @@ export default function ScanPurchaseOrder({
                             actions={
                                 <Form
                                     {...PurchaseOrderScanController.destroy.form()}
+                                    onSuccess={() => {
+                                        draft.clear();
+                                        setEmailText('');
+                                    }}
                                 >
                                     {({ processing }) => (
                                         <button
@@ -411,6 +433,7 @@ export default function ScanPurchaseOrder({
                                 ) : (
                                     <Form
                                         {...PurchaseOrderController.store.form()}
+                                        onSuccess={() => draft.clear()}
                                         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
                                     >
                                         {({ processing, errors }) => (

@@ -43,7 +43,7 @@ class SecurityTest extends TestCase
             ])
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('profile.edit'))
-            ->assertInertiaFlash('toast.message', 'Your password has been changed.');
+            ->assertInertiaFlash('toast.message', 'Your password has been changed. Use the new password the next time you sign in.');
 
         $this->assertTrue(Hash::check('New@Pass2026', $student->refresh()->password));
     }
@@ -94,7 +94,7 @@ class SecurityTest extends TestCase
         $response
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('security.edit'))
-            ->assertInertiaFlash('toast.message', 'Your password has been changed.');
+            ->assertInertiaFlash('toast.message', 'Your password has been changed. Use the new password the next time you sign in.');
 
         $this->assertTrue(Hash::check('New@Pass2026', $user->refresh()->password));
     }

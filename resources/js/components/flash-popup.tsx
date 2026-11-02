@@ -6,6 +6,16 @@ import type { FlashToast } from '@/types';
 
 const AUTO_CLOSE_AFTER_MS = 6000;
 
+const SHOW_TOAST_EVENT = 'proware:toast';
+
+/**
+ * Show the popup from the browser itself, for what the server cannot say
+ * (e.g. when it could not be reached at all).
+ */
+export function showToast(toast: FlashToast): void {
+    window.dispatchEvent(new CustomEvent(SHOW_TOAST_EVENT, { detail: toast }));
+}
+
 const styles: Record<
     FlashToast['type'],
     {
@@ -63,6 +73,15 @@ export default function FlashPopup() {
                 setMessage(toast);
             }
         });
+    }, []);
+
+    useEffect(() => {
+        const show = (event: Event) =>
+            setMessage((event as CustomEvent<FlashToast>).detail);
+
+        window.addEventListener(SHOW_TOAST_EVENT, show);
+
+        return () => window.removeEventListener(SHOW_TOAST_EVENT, show);
     }, []);
 
     useEffect(() => {

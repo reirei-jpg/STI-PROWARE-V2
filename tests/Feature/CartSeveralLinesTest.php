@@ -55,7 +55,7 @@ test('several sizes or colors can be added to the cart at once', function () {
             ['product_variant_id' => $white->id, 'product_pack_id' => '', 'quantity' => '3'],
         ]])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', '2 pcs of STI Tumbler (Black) and 3 pcs of STI Tumbler (White) have been added to your cart.');
+        ->assertInertiaFlash('toast.message', '2 pcs of STI Tumbler (Black) and 3 pcs of STI Tumbler (White) have been added to your cart. Open the cart to place the order.');
 
     expect(CartItem::query()->orderBy('id')->pluck('quantity', 'product_variant_id')->all())
         ->toBe([$black->id => 2, $white->id => 3]);
@@ -71,7 +71,7 @@ test('pieces and boxes of the same item can be added together, within its stock'
         ['product_variant_id' => $variant->id, 'product_pack_id' => '', 'quantity' => '6'],
     ]])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', '2 Boxes of STI Ballpen and 6 pcs of STI Ballpen have been added to your cart.');
+        ->assertInertiaFlash('toast.message', '2 Boxes of STI Ballpen and 6 pcs of STI Ballpen have been added to your cart. Open the cart to place the order.');
 
     expect(CartItem::count())->toBe(2);
 });
@@ -132,7 +132,7 @@ test('the phone app can add several lines at once', function () {
         ['product_variant_id' => $white->id, 'product_pack_id' => null, 'quantity' => 2],
     ]])
         ->assertCreated()
-        ->assertJsonPath('message', '1 pc of STI Tumbler (Black) and 2 pcs of STI Tumbler (White) have been added to your cart.');
+        ->assertJsonPath('message', '1 pc of STI Tumbler (Black) and 2 pcs of STI Tumbler (White) have been added to your cart. Open the cart to place the order.');
 
     expect(CartItem::count())->toBe(2);
 

@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
+import ConnectionStatus from '@/components/connection-status';
 import FlashPopup from '@/components/flash-popup';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -33,6 +34,7 @@ void createInertiaApp({
         return (
             <TooltipProvider delayDuration={0}>
                 {app}
+                <ConnectionStatus />
                 <FlashPopup />
             </TooltipProvider>
         );

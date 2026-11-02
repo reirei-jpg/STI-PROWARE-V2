@@ -222,7 +222,7 @@ test('a student can cancel a preorder that is waiting for a restock', function (
         );
 
     $this->delete(route('my-preorders.destroy', $preorder))
-        ->assertInertiaFlash('toast.message', 'Your preorder for BSIT Polo has been cancelled.');
+        ->assertInertiaFlash('toast.message', 'Your preorder for BSIT Polo has been cancelled. Nothing needs to be paid.');
 
     expect($preorder->refresh()->status)->toBe(PreorderStatus::Cancelled);
 });

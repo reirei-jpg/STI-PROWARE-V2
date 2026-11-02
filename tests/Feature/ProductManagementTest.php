@@ -518,7 +518,7 @@ test('a combination that does not exist is not saved, and can be made available 
     // Pink does not come in 32 oz.
     $this->post(route('products.store'), $aquaFlask(['Color: Pink | Capacity: 32 oz']))
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'STI Aqua Flask has been saved with 3 variants. It is now visible to students.');
+        ->assertInertiaFlash('toast.message', 'STI Aqua Flask has been saved with 3 variants. It is now in the store for students and STI staff.');
     $product = Product::query()->where('name', 'STI Aqua Flask')->sole();
 
     expect($product->variants()->orderBy('position')->pluck('combination')->all())->toBe([

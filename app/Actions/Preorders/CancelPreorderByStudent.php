@@ -27,7 +27,7 @@ class CancelPreorderByStudent
      */
     public static function message(Preorder $preorder): string
     {
-        return "Your preorder for {$preorder->product->name} has been cancelled.";
+        return "Your preorder for {$preorder->product->name} has been cancelled. Nothing needs to be paid.";
     }
 
     /**

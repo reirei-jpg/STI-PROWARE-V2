@@ -96,7 +96,7 @@ class ProductSaleController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "{$product->name} is On Sale until {$endsAt->format('M j, Y g:i A')}.",
+            'message' => "{$product->name} is On Sale until {$endsAt->format('M j, Y g:i A')}. Buyers see it under On Sale in the store.",
         ]);
 
         return back();

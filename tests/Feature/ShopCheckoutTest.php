@@ -59,10 +59,10 @@ test('adding the same item again adds to its quantity in the cart', function () 
 
     $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '2'])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', '2 pcs of STI Ballpen have been added to your cart.');
+        ->assertInertiaFlash('toast.message', '2 pcs of STI Ballpen have been added to your cart. Open the cart to place the order.');
     $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '3']);
     $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'product_pack_id' => $box->id, 'quantity' => '1'])
-        ->assertInertiaFlash('toast.message', '1 Box of STI Ballpen has been added to your cart.');
+        ->assertInertiaFlash('toast.message', '1 Box of STI Ballpen has been added to your cart. Open the cart to place the order.');
 
     expect($this->student->cartItems()->orderBy('id')->get(['product_pack_id', 'quantity'])->toArray())
         ->toBe([['product_pack_id' => null, 'quantity' => 5], ['product_pack_id' => $box->id, 'quantity' => 1]]);
@@ -310,7 +310,7 @@ test('a student can cancel a placed order and its hold ends', function () {
         ->assertSessionHasErrors(['reason' => 'Choose one of the reasons shown.']);
 
     $this->post(route('my-orders.cancel', $order), ['reason' => 'wrong_size_or_color'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been cancelled.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been cancelled. Nothing needs to be paid.');
 
     expect($order->refresh())
         ->status->toBe(OrderStatus::Cancelled)

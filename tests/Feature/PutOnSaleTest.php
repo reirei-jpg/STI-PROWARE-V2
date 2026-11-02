@@ -35,7 +35,7 @@ test('putting a product on sale lowers its price until the end of the last day',
     $this->actingAs($this->specialist)
         ->post(route('products.sale.store', $product), ['sale_price' => '50', 'days' => '7'])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Lanyard is On Sale until Oct 10, 2026 11:59 PM.');
+        ->assertInertiaFlash('toast.message', 'Lanyard is On Sale until Oct 10, 2026 11:59 PM. Buyers see it under On Sale in the store.');
 
     expect($product->refresh())
         ->status->toBe(ProductStatus::OnSale)
