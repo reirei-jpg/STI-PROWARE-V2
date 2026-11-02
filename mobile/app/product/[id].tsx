@@ -8,7 +8,6 @@ import {
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Image,
     Pressable,
     ScrollView,
@@ -21,10 +20,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddToCartSheet from '@/components/AddToCartSheet';
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
 import PreorderSheet from '@/components/PreorderSheet';
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
 import { takesPreorders } from '@/components/ProductTile';
-import { ApiError } from '@/lib/api';
+import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatPeso } from '@/lib/format';
 import { choiceIsOpen } from '@/lib/option-picker';
@@ -54,12 +55,15 @@ export default function ProductScreen() {
     const load = useCallback(
         () =>
             request<StorefrontProductDetails>(`/products/${id}`)
-                .then(setProduct)
+                .then((loaded) => {
+                    setProduct(loaded);
+                    setError(null);
+                })
                 .catch((caught) =>
                     setError(
                         caught instanceof ApiError && caught.status === 404
                             ? 'This item is no longer in the store.'
-                            : 'The item could not be loaded. Go back and try again.',
+                            : loadErrorMessage(caught, 'The item could not be loaded.'),
                     ),
                 ),
         [id, request],
@@ -108,10 +112,10 @@ export default function ProductScreen() {
                     <Text className="font-sans-bold text-sm text-slate-700">Back</Text>
                 </Pressable>
 
-                {error ? (
-                    <Text className="mx-4 font-sans-semibold text-sm text-red-600">{error}</Text>
+                {error && product === null ? (
+                    <LoadError message={error} onRetry={load} />
                 ) : product === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                    <LoadingState />
                 ) : (
                     <View>
                         <View style={{ width, height: width }} className="bg-slate-100">

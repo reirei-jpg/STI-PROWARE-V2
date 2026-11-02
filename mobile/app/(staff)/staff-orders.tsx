@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
+import NoResults from '@/components/NoResults';
 import StaffOrderRow from '@/components/StaffOrderRow';
 import type { SpecialistOrder, SpecialistOrderCounts } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
@@ -149,9 +152,7 @@ export default function StaffOrdersScreen() {
             </ScrollView>
 
             {orders.error && (
-                <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                    <Text className="font-sans-semibold text-sm text-red-700">{orders.error}</Text>
-                </View>
+                <LoadError message={orders.error} onRetry={orders.reload} className="" />
             )}
         </View>
     );
@@ -177,18 +178,24 @@ export default function StaffOrdersScreen() {
             }
             ListEmptyComponent={
                 orders.items === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                    orders.error ? null : <LoadingState />
+                ) : search !== '' ? (
+                    <NoResults
+                        icon={<Package size={40} color="#cbd5e1" />}
+                        title={`No order matches "${search}".`}
+                        hint={
+                            show === 'all'
+                                ? 'Check the order number (e.g. PW-0042) or the buyer’s name.'
+                                : 'Check the order number (e.g. PW-0042) or the buyer’s name, or tap All to search every order.'
+                        }
+                        onClearSearch={() => setSearchText('')}
+                    />
                 ) : (
-                    <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12">
-                        <Package size={40} color="#cbd5e1" />
-                        <Text className="mt-3 text-center font-sans-bold text-base text-slate-700">
-                            {search !== ''
-                                ? 'No order matches your search.'
-                                : show === 'placed'
-                                  ? 'No new orders to prepare.'
-                                  : 'No orders here.'}
-                        </Text>
-                    </View>
+                    <NoResults
+                        icon={<Package size={40} color="#cbd5e1" />}
+                        title={show === 'placed' ? 'No new orders to prepare.' : 'No orders here.'}
+                        hint="New orders show here when buyers place them, and you get a notification."
+                    />
                 )
             }
             keyboardShouldPersistTaps="handled"

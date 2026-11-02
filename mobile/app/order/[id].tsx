@@ -1,17 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Banknote, CircleCheck, QrCode, XCircle } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheet from '@/components/BottomSheet';
 import CancelReasonList from '@/components/CancelReasonList';
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, {
     dateTierClasses,
     orderStripeColors,
 } from '@/components/OrderStatusPill';
-import { ApiError } from '@/lib/api';
+import { ApiError, loadErrorMessage } from '@/lib/api';
 import { STUDENT_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons';
 import { useAuth } from '@/lib/auth';
 import { dueDateTier, formatDate, formatDateTime, formatPeso } from '@/lib/format';
@@ -32,17 +34,26 @@ export default function OrderScreen() {
     const [error, setError] = useState<string | null>(null);
     const [done, setDone] = useState<string | null>(null);
 
-    useEffect(() => {
-        request<StudentOrder>(`/orders/${id}`)
-            .then(setOrder)
-            .catch((caught) =>
-                setLoadError(
-                    caught instanceof ApiError && caught.status === 404
-                        ? 'This order was not found.'
-                        : 'The order could not be loaded. Go back and try again.',
+    const load = useCallback(
+        () =>
+            request<StudentOrder>(`/orders/${id}`)
+                .then((loaded) => {
+                    setOrder(loaded);
+                    setLoadError(null);
+                })
+                .catch((caught) =>
+                    setLoadError(
+                        caught instanceof ApiError && caught.status === 404
+                            ? 'This order was not found.'
+                            : loadErrorMessage(caught, 'The order could not be loaded.'),
+                    ),
                 ),
-            );
-    }, [id, request]);
+        [id, request],
+    );
+
+    useEffect(() => {
+        void load();
+    }, [load]);
 
     // Cancel opens a sheet to pick why, like in online shops.
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -95,10 +106,10 @@ export default function OrderScreen() {
                 <Text className="font-sans-bold text-sm text-slate-700">Back</Text>
             </Pressable>
 
-            {loadError ? (
-                <Text className="font-sans-semibold text-sm text-red-600">{loadError}</Text>
+            {loadError && order === null ? (
+                <LoadError message={loadError} onRetry={load} className="" />
             ) : order === null ? (
-                <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                <LoadingState />
             ) : (
                 <>
                     <View className="flex-row items-start justify-between gap-3">

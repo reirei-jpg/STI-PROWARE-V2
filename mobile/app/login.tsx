@@ -25,7 +25,7 @@ import { useAuth } from '@/lib/auth';
  */
 export default function Login() {
     const insets = useSafeAreaInsets();
-    const { signIn } = useAuth();
+    const { signIn, signInNotice } = useAuth();
     const canGoBack = router.canGoBack();
 
     const passwordInput = useRef<TextInput>(null);
@@ -107,6 +107,14 @@ export default function Login() {
                             Official STI merchandise. Sign in with your STI
                             email to order.
                         </Text>
+
+                        {signInNotice && (
+                            <View className="mt-5 w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                <Text className="text-center font-sans-semibold text-sm leading-5 text-amber-800">
+                                    {signInNotice}
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     <View className="mt-8 gap-6">
