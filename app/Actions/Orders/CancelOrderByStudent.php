@@ -25,7 +25,7 @@ class CancelOrderByStudent
      */
     public static function message(Order $order): string
     {
-        return "Order {$order->number} has been cancelled.";
+        return "Order {$order->number} has been cancelled. Nothing needs to be paid.";
     }
 
     /**

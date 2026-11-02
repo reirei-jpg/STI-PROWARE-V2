@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import { noticeTarget } from '@/lib/notice-target';
@@ -275,11 +277,7 @@ export default function NotificationsScreen() {
             </View>
 
             {notices.error && (
-                <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                    <Text className="font-sans-semibold text-sm text-red-700">
-                        {notices.error}
-                    </Text>
-                </View>
+                <LoadError message={notices.error} onRetry={notices.reload} className="" />
             )}
         </View>
     );
@@ -304,8 +302,8 @@ export default function NotificationsScreen() {
                 notices.loadingMore ? <ActivityIndicator color="#0D6EFD" className="py-4" /> : null
             }
             ListEmptyComponent={
-                notices.items === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                notices.error || notices.items === null ? (
+                    notices.error ? null : <LoadingState />
                 ) : (
                     <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12">
                         <Bell size={40} color="#cbd5e1" />

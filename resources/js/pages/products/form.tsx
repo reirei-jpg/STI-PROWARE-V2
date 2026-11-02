@@ -16,10 +16,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
+import DraftRestoredNotice from '@/components/draft-restored-notice';
 import EndSaleButton from '@/components/end-sale-button';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
+import { useFormDraft } from '@/hooks/use-form-draft';
 import { formatDateTime, formatPeso } from '@/lib/format';
 import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
@@ -252,6 +254,16 @@ export default function ProductForm({
 
     const { data, setData, processing } = form;
 
+    // What was typed is kept until saved; new photos cannot be kept, so
+    // they are added again after a draft is brought back.
+    const draft = useFormDraft(
+        product
+            ? `product-${product.id}`
+            : `new-product-${fromItem?.item_code ?? ''}`,
+        { ...data, photos: data.photos.filter((photo) => photo.file === null) },
+        (saved) => setData(saved),
+    );
+
     // The expected arrival follows the close date until the Specialist
     // changes it herself (a saved product keeps its own days).
     const [arrivalChosen, setArrivalChosen] = useState(
@@ -451,6 +463,7 @@ export default function ProductForm({
             {
                 forceFormData: true,
                 preserveScroll: true,
+                onSuccess: (page) => draft.clear(page),
                 onError: () => {
                     jumpToFirstProblem.current = true;
                 },
@@ -770,7 +783,7 @@ export default function ProductForm({
             >
                 <PageHeader
                     title={product ? 'Edit Product' : 'Add Product'}
-                    description="Students see the photos, name, price and options on the storefront."
+                    description="Students and STI staff see the photos, name, price and options on the storefront."
                     actions={
                         <>
                             <Link
@@ -794,6 +807,13 @@ export default function ProductForm({
                         </>
                     }
                 />
+
+                {draft.restored && (
+                    <DraftRestoredNotice
+                        onDiscard={draft.discard}
+                        onDismiss={draft.dismiss}
+                    />
+                )}
 
                 {fromItem && (
                     <section className="flex items-start gap-3 rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">

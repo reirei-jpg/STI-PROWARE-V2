@@ -21,11 +21,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderSteps from '@/components/OrderSteps';
 import QuantityStepper from '@/components/QuantityStepper';
 import SignInPrompt from '@/components/SignInPrompt';
-import { ApiError } from '@/lib/api';
+import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { cartRows, type CartRow } from '@/lib/cart-rows';
@@ -64,11 +66,24 @@ function CartScreen() {
         null,
     );
 
+    // Shown only while there is no cart to show at all.
+    const [loadError, setLoadError] = useState<string | null>(null);
+
+    const load = useCallback(
+        () =>
+            refresh()
+                .then(() => setLoadError(null))
+                .catch((caught) =>
+                    setLoadError(loadErrorMessage(caught, 'The cart could not be loaded.')),
+                ),
+        [refresh],
+    );
+
     // Prices and stock may have changed since it was last opened.
     useFocusEffect(
         useCallback(() => {
-            refresh().catch(() => undefined);
-        }, [refresh]),
+            void load();
+        }, [load]),
     );
 
     const pullToRefresh = async (): Promise<void> => {
@@ -177,7 +192,11 @@ function CartScreen() {
                 </View>
 
                 {cart === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                    loadError ? (
+                        <LoadError message={loadError} onRetry={load} className="" />
+                    ) : (
+                        <LoadingState />
+                    )
                 ) : lines.length === 0 ? (
                     <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12">
                         <ShoppingCart size={40} color="#cbd5e1" />

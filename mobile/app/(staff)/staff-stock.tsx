@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
+import NoResults from '@/components/NoResults';
 import { formatUnits } from '@/lib/format';
 import type { StockListProduct } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
@@ -113,9 +116,7 @@ export default function StaffStockScreen() {
             </View>
 
             {products.error && (
-                <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                    <Text className="font-sans-semibold text-sm text-red-700">{products.error}</Text>
-                </View>
+                <LoadError message={products.error} onRetry={products.reload} className="" />
             )}
         </View>
     );
@@ -140,17 +141,29 @@ export default function StaffStockScreen() {
                 products.loadingMore ? <ActivityIndicator color="#0D6EFD" className="py-4" /> : null
             }
             ListEmptyComponent={
-                products.items === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                products.error || products.items === null ? (
+                    products.error ? null : <LoadingState />
+                ) : search === '' ? (
+                    <NoResults
+                        icon={<Boxes size={40} color="#cbd5e1" />}
+                        title={lowOnly ? 'Nothing is low on stock.' : 'No products yet.'}
+                        hint={
+                            lowOnly
+                                ? 'Every product has more than its low-stock alert.'
+                                : 'Products added on the website show here.'
+                        }
+                    />
                 ) : (
-                    <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12">
-                        <Boxes size={40} color="#cbd5e1" />
-                        <Text className="mt-3 text-center font-sans-bold text-base text-slate-700">
-                            {lowOnly && search === ''
-                                ? 'Nothing is low on stock.'
-                                : 'No product matches your search.'}
-                        </Text>
-                    </View>
+                    <NoResults
+                        icon={<Boxes size={40} color="#cbd5e1" />}
+                        title={`No product matches "${search}".`}
+                        hint={
+                            lowOnly
+                                ? 'It may not be low on stock. Tap All products, or try another name.'
+                                : 'Try another name, e.g. Polo or Lanyard.'
+                        }
+                        onClearSearch={() => setSearchText('')}
+                    />
                 )
             }
             keyboardShouldPersistTaps="handled"

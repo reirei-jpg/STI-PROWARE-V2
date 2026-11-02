@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/PurchaseOrderDeliveryController';
+import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
 import {
     Quantity,
@@ -137,6 +138,7 @@ export default function RecordDeliveryDialog({
                 ) : (
                     <DeliveryForm
                         key={purchaseOrderId}
+                        purchaseOrderId={purchaseOrderId!}
                         waiting={waiting}
                         orderLabel={orderLabel}
                         onSaved={onSaved}
@@ -152,17 +154,20 @@ export default function RecordDeliveryDialog({
  * and the live summary with Save.
  */
 function DeliveryForm({
+    purchaseOrderId,
     waiting,
     orderLabel,
     onSaved,
 }: {
+    purchaseOrderId: number;
     waiting: WaitingItems;
     orderLabel: string;
     onSaved: () => void;
 }) {
     const { groups, today } = waiting;
-    const delivery = useRecordDelivery(groups, today);
+    const delivery = useRecordDelivery(groups, today, purchaseOrderId);
     const {
+        draft,
         data,
         setData,
         errors,
@@ -209,6 +214,14 @@ function DeliveryForm({
             className="flex min-h-0 flex-1 flex-col"
         >
             <div className="min-h-0 flex-1 overflow-y-auto">
+                {draft.restored && (
+                    <div className="px-6 pt-4">
+                        <DraftRestoredNotice
+                            onDiscard={draft.discard}
+                            onDismiss={draft.dismiss}
+                        />
+                    </div>
+                )}
                 <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Field
                         label="Date Received"

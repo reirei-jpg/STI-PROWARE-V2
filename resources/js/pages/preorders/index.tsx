@@ -9,6 +9,7 @@ import {
     PackageSearch,
     Search,
     ShoppingCart,
+    X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
@@ -280,10 +281,37 @@ export default function PreordersIndex({
                                     : 'Nothing here'}
                             </h3>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                                Set a product to Preorder (with a close date) on
-                                its Edit Product page. It shows under Coming
-                                Soon, and students can preorder it.
+                                {filters.search
+                                    ? `Nothing matches "${filters.search}"${filters.stage === 'all' ? '' : ' in this tab'}. Try another product name${filters.stage === 'all' ? '' : ', or search all preorders'}.`
+                                    : 'Set a product to Preorder (with a close date) on its Edit Product page. It shows under Coming Soon, and students and STI staff can preorder it.'}
                             </p>
+                            {filters.search && (
+                                <div className="mt-6 flex flex-wrap justify-center gap-2">
+                                    {filters.stage !== 'all' && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                showList('all', search)
+                                            }
+                                            className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+                                        >
+                                            <Search size={17} />
+                                            Search all preorders
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearch('');
+                                            showList(filters.stage, '');
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    >
+                                        <X size={17} />
+                                        Clear search
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <>

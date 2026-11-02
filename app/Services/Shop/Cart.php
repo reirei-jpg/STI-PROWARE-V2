@@ -29,6 +29,9 @@ final class Cart
     /** The most of one item a student can have in a cart line (as on V1). */
     public const MAX_QUANTITY = 99;
 
+    /** What to do after adding to the cart, said after "…added to your cart." */
+    private const ADDED_NEXT_STEP = ' Open the cart to place the order.';
+
     public function add(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity): CartItem
     {
         $line = $student->cartItems()
@@ -103,7 +106,7 @@ final class Cart
     {
         $sets = $quantity === 1 ? '1 '.$set->displayName() : "{$quantity} × {$set->displayName()}";
 
-        return "{$sets} ({$for->label()}: {$top->displayName()}, {$bottom->displayName()}) ".($quantity === 1 ? 'has' : 'have').' been added to your cart.';
+        return "{$sets} ({$for->label()}: {$top->displayName()}, {$bottom->displayName()}) ".($quantity === 1 ? 'has' : 'have').' been added to your cart.'.self::ADDED_NEXT_STEP;
     }
 
     /**
@@ -141,7 +144,7 @@ final class Cart
      */
     public static function addedMessage(ProductVariant $variant, ?ProductPack $pack, int $quantity): string
     {
-        return Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} ".($quantity === 1 ? 'has' : 'have').' been added to your cart.';
+        return Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} ".($quantity === 1 ? 'has' : 'have').' been added to your cart.'.self::ADDED_NEXT_STEP;
     }
 
     /**
@@ -185,7 +188,7 @@ final class Cart
         );
         $last = array_pop($parts);
 
-        return implode(', ', $parts)." and {$last} have been added to your cart.";
+        return implode(', ', $parts)." and {$last} have been added to your cart.".self::ADDED_NEXT_STEP;
     }
 
     /**

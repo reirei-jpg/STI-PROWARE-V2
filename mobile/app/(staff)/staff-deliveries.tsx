@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
+import NoResults from '@/components/NoResults';
 import { formatDate, formatDateTime, formatUnits } from '@/lib/format';
 import type { RecordedDelivery } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
@@ -93,9 +96,7 @@ export default function StaffDeliveriesScreen() {
             <Text className="font-sans-bold text-base text-slate-900">Recorded deliveries</Text>
 
             {deliveries.error && (
-                <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                    <Text className="font-sans-semibold text-sm text-red-700">{deliveries.error}</Text>
-                </View>
+                <LoadError message={deliveries.error} onRetry={deliveries.reload} className="" />
             )}
         </View>
     );
@@ -120,15 +121,21 @@ export default function StaffDeliveriesScreen() {
                 deliveries.loadingMore ? <ActivityIndicator color="#0D6EFD" className="py-4" /> : null
             }
             ListEmptyComponent={
-                deliveries.items === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                deliveries.error || deliveries.items === null ? (
+                    deliveries.error ? null : <LoadingState />
+                ) : search !== '' ? (
+                    <NoResults
+                        icon={<Truck size={40} color="#cbd5e1" />}
+                        title={`No delivery matches "${search}".`}
+                        hint="Search by the eStore Order # (e.g. 30722)."
+                        onClearSearch={() => setSearchText('')}
+                    />
                 ) : (
-                    <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12">
-                        <Truck size={40} color="#cbd5e1" />
-                        <Text className="mt-3 text-center font-sans-bold text-base text-slate-700">
-                            {search !== '' ? 'No delivery matches your search.' : 'No deliveries recorded yet.'}
-                        </Text>
-                    </View>
+                    <NoResults
+                        icon={<Truck size={40} color="#cbd5e1" />}
+                        title="No deliveries recorded yet."
+                        hint="Tap Record Delivery above when Head Office delivers."
+                    />
                 )
             }
             keyboardShouldPersistTaps="handled"

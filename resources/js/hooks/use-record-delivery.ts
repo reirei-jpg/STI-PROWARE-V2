@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
+import { useFormDraft } from '@/hooks/use-form-draft';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import type { WaitingItemGroup, WaitingItemRow } from '@/types';
@@ -35,7 +36,11 @@ export function wholeNumber(value: string | undefined): number | null {
  * form, what was typed per order and per color, why something cannot be
  * saved, what saving adds to stock, and saving itself.
  */
-export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
+export function useRecordDelivery(
+    groups: WaitingItemGroup[],
+    today: string,
+    purchaseOrderId: number,
+) {
     const form = useForm<DeliveryForm>({
         received_on: today,
         sales_invoice_number: '',
@@ -49,6 +54,15 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
     const [splitCounts, setSplitCounts] = useState<
         Record<string, Record<number, string>>
     >({});
+    // What was counted is kept until saved, per purchase order.
+    const draft = useFormDraft(
+        `delivery-${purchaseOrderId}`,
+        { form: data, splits: splitCounts },
+        (saved) => {
+            setData(saved.form);
+            setSplitCounts(saved.splits);
+        },
+    );
 
     const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
     const splitGroups = useMemo(
@@ -263,11 +277,15 @@ export function useRecordDelivery(groups: WaitingItemGroup[], today: string) {
         form.post(DeliveryController.store().url, {
             preserveScroll: true,
             preserveState: options.stayOnPage ? true : undefined,
-            onSuccess: () => options.onSaved?.(),
+            onSuccess: (page) => {
+                draft.clear(page);
+                options.onSaved?.();
+            },
         });
     };
 
     return {
+        draft,
         data,
         setData,
         errors,

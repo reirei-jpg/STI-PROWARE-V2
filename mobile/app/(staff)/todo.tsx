@@ -20,17 +20,12 @@ import {
     type LucideIcon,
 } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import {
-    ActivityIndicator,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    Text,
-    View,
-} from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheet from '@/components/BottomSheet';
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
 import StaffOrderRow from '@/components/StaffOrderRow';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -213,14 +208,10 @@ export default function TodoScreen() {
                     </View>
                 </View>
 
-                {error && (
-                    <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                        <Text className="font-sans-semibold text-sm text-red-700">{error}</Text>
-                    </View>
-                )}
+                {error && <LoadError message={error} onRetry={load} className="" />}
 
                 {tasks === null ? (
-                    !error && <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                    !error && <LoadingState />
                 ) : (
                     <>
                         <View className="gap-2.5">

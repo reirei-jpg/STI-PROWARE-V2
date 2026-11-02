@@ -18,7 +18,7 @@ class UniformSetController extends Controller
     {
         $set = UniformSet::query()->create($request->values());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "The {$set->name} set has been added."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "The {$set->name} set has been added. Buyers see it under Uniform Sets in the store."]);
 
         return back();
     }

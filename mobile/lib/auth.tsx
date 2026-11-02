@@ -38,8 +38,14 @@ type RequestFunction = <T>(
     },
 ) => Promise<T>;
 
+/** Said on the sign-in screen after the server stopped accepting the login. */
+const EXPIRED_NOTICE =
+    'Your session has expired, so you were signed out. Sign back in; your cart and orders are saved.';
+
 type AuthContextValue = {
     user: SessionUser | null;
+    /** Why the sign-in screen opened by itself (an expired sign-in), if it did. */
+    signInNotice: string | null;
     /** Calls the server as the signed-in student; a refused token signs out. */
     request: RequestFunction;
     /** True until the saved login (if any) has been checked. */
@@ -62,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<SessionUser | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [restoring, setRestoring] = useState(true);
+    const [signInNotice, setSignInNotice] = useState<string | null>(null);
 
     // On start, sign back in with the saved token if the server still
     // accepts it.
@@ -89,6 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     // so the student is not signed out just for being offline.
                     if (caught instanceof ApiError && caught.status === 401) {
                         await clearToken();
+
+                        if (!cancelled) {
+                            setSignInNotice(EXPIRED_NOTICE);
+                        }
                     }
                 }
             }
@@ -122,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setToken(response.token);
             setUser(response.user);
+            setSignInNotice(null);
         },
         [],
     );
@@ -147,7 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 return await apiRequest(path, { ...options, token });
             } catch (caught) {
-                if (caught instanceof ApiError && caught.status === 401) {
+                // The server no longer accepts this login: say why on the
+                // sign-in screen instead of signing out without a word.
+                if (caught instanceof ApiError && caught.status === 401 && token) {
+                    setSignInNotice(EXPIRED_NOTICE);
                     void signOut();
                 }
 
@@ -158,8 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     const value = useMemo(
-        () => ({ user, request, restoring, signIn, signOut }),
-        [user, request, restoring, signIn, signOut],
+        () => ({ user, signInNotice, request, restoring, signIn, signOut }),
+        [user, signInNotice, request, restoring, signIn, signOut],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Monitor } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/lib/api';
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
+import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatUnits } from '@/lib/format';
 import type { ProductStockView } from '@/lib/types';
@@ -21,17 +23,26 @@ export default function StockScreen() {
     const [stock, setStock] = useState<ProductStockView | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        request<ProductStockView>(`/specialist/stock/${id}`)
-            .then(setStock)
-            .catch((caught) =>
-                setError(
-                    caught instanceof ApiError && caught.status === 404
-                        ? 'This product was not found.'
-                        : 'The stock could not be loaded. Go back and try again.',
+    const load = useCallback(
+        () =>
+            request<ProductStockView>(`/specialist/stock/${id}`)
+                .then((loaded) => {
+                    setStock(loaded);
+                    setError(null);
+                })
+                .catch((caught) =>
+                    setError(
+                        caught instanceof ApiError && caught.status === 404
+                            ? 'This product was not found.'
+                            : loadErrorMessage(caught, 'The stock could not be loaded.'),
+                    ),
                 ),
-            );
-    }, [id, request]);
+        [id, request],
+    );
+
+    useEffect(() => {
+        void load();
+    }, [load]);
 
     return (
         <ScrollView
@@ -52,10 +63,10 @@ export default function StockScreen() {
                 <Text className="font-sans-bold text-sm text-slate-700">Back</Text>
             </Pressable>
 
-            {error ? (
-                <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
+            {error && stock === null ? (
+                <LoadError message={error} onRetry={load} className="" />
             ) : stock === null ? (
-                <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                <LoadingState />
             ) : (
                 <>
                     <View>

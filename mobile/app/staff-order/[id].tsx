@@ -1,14 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CircleCheck, PackageCheck, Undo2, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
 import { ActionButton, CancelSheet, ReadySheet, ReleaseBox } from '@/components/StaffOrderActions';
 import StaffTag from '@/components/StaffTag';
-import { ApiError } from '@/lib/api';
+import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
@@ -31,19 +33,26 @@ export default function StaffOrderScreen() {
     const [cancelling, setCancelling] = useState(false);
     const [confirmingReady, setConfirmingReady] = useState(false);
 
-    const load = useCallback(() => {
-        request<SpecialistOrder>(`/specialist/orders/${id}`)
-            .then(setOrder)
-            .catch((caught) =>
-                setLoadError(
-                    caught instanceof ApiError && caught.status === 404
-                        ? 'This order was not found.'
-                        : 'The order could not be loaded. Go back and try again.',
+    const load = useCallback(
+        () =>
+            request<SpecialistOrder>(`/specialist/orders/${id}`)
+                .then((loaded) => {
+                    setOrder(loaded);
+                    setLoadError(null);
+                })
+                .catch((caught) =>
+                    setLoadError(
+                        caught instanceof ApiError && caught.status === 404
+                            ? 'This order was not found.'
+                            : loadErrorMessage(caught, 'The order could not be loaded.'),
+                    ),
                 ),
-            );
-    }, [id, request]);
+        [id, request],
+    );
 
-    useEffect(load, [load]);
+    useEffect(() => {
+        void load();
+    }, [load]);
 
     const run = async (path: string, body?: Record<string, unknown>): Promise<boolean> => {
         if (!order) {
@@ -96,10 +105,10 @@ export default function StaffOrderScreen() {
                 <Text className="font-sans-bold text-sm text-slate-700">Back</Text>
             </Pressable>
 
-            {loadError ? (
-                <Text className="font-sans-semibold text-sm text-red-600">{loadError}</Text>
+            {loadError && order === null ? (
+                <LoadError message={loadError} onRetry={load} className="" />
             ) : order === null ? (
-                <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                <LoadingState />
             ) : (
                 <>
                     <View className="flex-row items-start justify-between gap-3">

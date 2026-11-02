@@ -21,6 +21,8 @@ import OrderStatusPill, {
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import HeldOrderSheet from '@/components/HeldOrderSheet';
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
 import SignInPrompt from '@/components/SignInPrompt';
 import { dueDateTier, formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
@@ -142,11 +144,7 @@ function OrdersScreen() {
             )}
 
             {active.error && (
-                <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                    <Text className="font-sans-semibold text-sm text-red-700">
-                        {active.error}
-                    </Text>
-                </View>
+                <LoadError message={active.error} onRetry={active.reload} className="" />
             )}
         </View>
     );
@@ -176,8 +174,8 @@ function OrdersScreen() {
             renderItem={({ item }) => <OrderRow order={item} />}
             onEndReached={orders.loadMore}
             ListEmptyComponent={
-                orders.items === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                orders.error || orders.items === null ? (
+                    orders.error ? null : <LoadingState />
                 ) : (
                     <EmptyBox
                         icon={<Package size={40} color="#cbd5e1" />}
@@ -202,8 +200,8 @@ function OrdersScreen() {
             )}
             onEndReached={preorders.loadMore}
             ListEmptyComponent={
-                preorders.items === null ? (
-                    <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                preorders.error || preorders.items === null ? (
+                    preorders.error ? null : <LoadingState />
                 ) : (
                     <EmptyBox
                         icon={<CalendarClock size={40} color="#cbd5e1" />}

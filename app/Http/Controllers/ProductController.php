@@ -269,9 +269,9 @@ class ProductController extends Controller
             .($product->status === ProductStatus::Draft ? ' as a draft' : '')
             .($variants > 1 ? " with {$variants} variants" : '').'. '
             .match ($product->status) {
-                ProductStatus::Draft => 'It is not visible to students.',
+                ProductStatus::Draft => 'It is not in the store yet; set it to Available when it is ready to sell.',
                 ProductStatus::Preorder => 'It is open for preorders until '.$product->preorders_close_on?->format('M j, Y').' and expected to arrive '.$product->expectedArrivalText().'.',
-                ProductStatus::Available => 'It is now visible to students.',
+                ProductStatus::Available => 'It is now in the store for students and STI staff.',
                 ProductStatus::OnSale => 'It is currently on sale.',
             };
 

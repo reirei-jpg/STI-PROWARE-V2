@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, Search, ShoppingBag, Unlock } from 'lucide-react';
+import { Eye, Search, ShoppingBag, Unlock, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
@@ -206,9 +206,37 @@ export default function OrdersIndex({
                                     : 'No orders here'}
                             </h3>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                                Orders appear here when students place them from
-                                their cart. You are also notified in the bell.
+                                {filters.search
+                                    ? `Nothing matches "${filters.search}"${filters.show === 'all' ? '' : ' in this tab'}. Check the order number (e.g. PW-0042) or the buyer's name${filters.show === 'all' ? '' : ', or search all orders'}.`
+                                    : 'Orders appear here when buyers place them from their cart. You are also notified in the bell.'}
                             </p>
+                            {filters.search && (
+                                <div className="mt-6 flex flex-wrap justify-center gap-2">
+                                    {filters.show !== 'all' && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                showList('all', search)
+                                            }
+                                            className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+                                        >
+                                            <Search size={17} />
+                                            Search all orders
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearch('');
+                                            showList(filters.show, '');
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    >
+                                        <X size={17} />
+                                        Clear search
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <>

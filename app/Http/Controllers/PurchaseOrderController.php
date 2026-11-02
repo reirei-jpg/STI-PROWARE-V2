@@ -195,7 +195,7 @@ class PurchaseOrderController extends Controller
             new PurchaseOrderUploaded($purchaseOrder),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Order #{$purchaseOrder->order_number} has been saved and is now waiting to arrive."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Order #{$purchaseOrder->order_number} has been saved and is now waiting to arrive. When it arrives, record it on the Deliveries page."]);
 
         return to_route('purchase-orders.index');
     }

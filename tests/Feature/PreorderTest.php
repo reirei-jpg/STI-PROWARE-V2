@@ -169,7 +169,7 @@ test('a student can cancel a preorder while preorders are open, but not after', 
 
     $this->travelTo(CarbonImmutable::parse('2026-10-20 20:00', 'Asia/Manila'));
     $this->delete(route('my-preorders.destroy', $preorder))
-        ->assertInertiaFlash('toast.message', 'Your preorder for 42nd Anniversary Shirt has been cancelled.');
+        ->assertInertiaFlash('toast.message', 'Your preorder for 42nd Anniversary Shirt has been cancelled. Nothing needs to be paid.');
 
     expect($preorder->refresh())
         ->status->toBe(PreorderStatus::Cancelled)

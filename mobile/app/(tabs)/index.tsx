@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ProductRow from '@/components/ProductRow';
 import ProductTile from '@/components/ProductTile';
+import LoadError from '@/components/LoadError';
+import LoadingState, { SlowNote } from '@/components/LoadingState';
 import StoreSpotlight from '@/components/StoreSpotlight';
 import UniformSetSheet from '@/components/UniformSetSheet';
 import { ApiError } from '@/lib/api';
@@ -287,13 +289,10 @@ export default function HomeScreen() {
                 )}
             </View>
 
-            {error && (
-                <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                    <Text className="font-sans-semibold text-sm text-red-700">
-                        {error}
-                    </Text>
-                </View>
-            )}
+            {error && <LoadError message={error} onRetry={loadAll} className="" />}
+
+            {/* One note for the whole store, not one per section. */}
+            {home === null && !error && <SlowNote />}
 
             {!(isSearching && home !== null && home.coming_soon.length === 0) && (
             <View>
@@ -304,7 +303,7 @@ export default function HomeScreen() {
                     description="Ordered from STI Head Office and on the way."
                 />
                 {home === null ? (
-                    <LoadingBox />
+                    error ? null : <LoadingBox />
                 ) : home.coming_soon.length === 0 ? (
                     <EmptyNote>
                         No preorders yet. New items appear here as soon as
@@ -333,7 +332,7 @@ export default function HomeScreen() {
                     description="Limited stock at a lower price."
                 />
                 {home === null ? (
-                    <LoadingBox />
+                    error ? null : <LoadingBox />
                 ) : home.on_sale.length === 0 ? (
                     <EmptyNote>
                         Nothing on sale right now. Check back for lower
@@ -486,13 +485,25 @@ export default function HomeScreen() {
             )}
             ListEmptyComponent={
                 home === null ? null : (
-                    <EmptyNote>
-                        {isSearching && show === null && otherSectionsMatch
-                            ? `No other merchandise matches “${search.trim()}”. The matches are above.`
-                            : isFiltered
-                            ? 'No merchandise matches your search. Try another name, or choose All.'
-                            : 'No merchandise yet. New items appear here as soon as they arrive at the PROWARE store.'}
-                    </EmptyNote>
+                    <View className="gap-3">
+                        <EmptyNote>
+                            {isSearching && show === null && otherSectionsMatch
+                                ? `No other merchandise matches “${search.trim()}”. The matches are above.`
+                                : isFiltered
+                                ? 'No merchandise matches your search. Try another name, or choose All.'
+                                : 'No merchandise yet. New items appear here as soon as they arrive at the PROWARE store.'}
+                        </EmptyNote>
+                        {isSearching && !(show === null && otherSectionsMatch) && (
+                            <Pressable
+                                onPress={() => setSearch('')}
+                                accessibilityRole="button"
+                                className="flex-row items-center gap-2 self-center rounded-xl border border-slate-200 bg-white px-4 py-2.5"
+                            >
+                                <X size={16} color="#334155" />
+                                <Text className="font-sans-bold text-sm text-slate-700">Clear search</Text>
+                            </Pressable>
+                        )}
+                    </View>
                 )
             }
             ListFooterComponent={
@@ -567,7 +578,7 @@ function EmptyNote({ children }: { children: React.ReactNode }) {
 function LoadingBox() {
     return (
         <View className="items-center rounded-2xl bg-white py-10">
-            <ActivityIndicator color="#0D6EFD" />
+            <LoadingState className="" slowNote={false} />
         </View>
     );
 }

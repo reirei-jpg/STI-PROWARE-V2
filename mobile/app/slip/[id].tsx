@@ -1,11 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Ban, CircleCheck, Clock, PackageCheck } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IssuanceSlipCard from '@/components/IssuanceSlipCard';
-import { ApiError } from '@/lib/api';
+import LoadError from '@/components/LoadError';
+import LoadingState from '@/components/LoadingState';
+import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatPeso } from '@/lib/format';
 import type { IssuanceSlipData } from '@/lib/types';
@@ -32,7 +34,7 @@ export default function SlipScreen() {
             setLoadError(
                 caught instanceof ApiError && caught.status === 404
                     ? 'This order was not found.'
-                    : 'The slip could not be loaded. Pull down to try again.',
+                    : loadErrorMessage(caught, 'The slip could not be loaded.'),
             );
         }
     }, [id, request]);
@@ -69,9 +71,9 @@ export default function SlipScreen() {
             </Pressable>
 
             {loadError && slip === null ? (
-                <Text className="font-sans-semibold text-sm text-red-600">{loadError}</Text>
+                <LoadError message={loadError} onRetry={load} className="" />
             ) : slip === null ? (
-                <ActivityIndicator color="#0D6EFD" className="mt-10" />
+                <LoadingState />
             ) : (
                 <>
                     <View>

@@ -139,7 +139,7 @@ test('the app\'s cart follows the website\'s rules', function () {
 
     $this->postJson(route('api.v1.cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => 3])
         ->assertCreated()
-        ->assertJsonPath('message', '3 pcs of STI Ballpen have been added to your cart.')
+        ->assertJsonPath('message', '3 pcs of STI Ballpen have been added to your cart. Open the cart to place the order.')
         ->assertJsonPath('cart.lines.0.quantity', 3)
         ->assertJsonPath('cart.total_centavos', 4500)
         ->assertJsonPath('cart.can_place_order', true);

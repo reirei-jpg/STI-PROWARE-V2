@@ -1,8 +1,9 @@
 import '../global.css';
 
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -18,11 +19,24 @@ import PushHandler from '@/lib/push';
  * To-do, Orders and Stock instead of the store.
  */
 function RootNavigator() {
-    const { user, restoring } = useAuth();
+    const { user, restoring, signInNotice } = useAuth();
     const isSignedIn = user !== null;
     // Students and STI staff (teachers and employees) buy.
     const isStudent = user?.role === 'student' || user?.role === 'employee';
     const isSpecialist = user?.role === 'specialist';
+
+    // A sign-in that expired opens the sign-in screen, which says why. It
+    // waits until signing out has moved the app back to the store, which
+    // would otherwise close it again.
+    useEffect(() => {
+        if (restoring || user !== null || signInNotice === null) {
+            return;
+        }
+
+        const timer = setTimeout(() => router.push('/login'), 700);
+
+        return () => clearTimeout(timer);
+    }, [restoring, user, signInNotice]);
 
     if (restoring) {
         return null;

@@ -41,6 +41,7 @@ class CartController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
+            'kind' => 'cart',
             'message' => Cart::addedManyMessage($lines),
         ]);
 
@@ -60,6 +61,7 @@ class CartController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
+            'kind' => 'cart',
             'message' => Cart::addedSetMessage($uniformSet, $request->for(), $top, $bottom, $quantity),
         ]);
 
