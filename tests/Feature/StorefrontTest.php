@@ -8,6 +8,7 @@ use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\Stock\RestockedPreorders;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
 
@@ -73,6 +74,69 @@ test('the feed shows the newest first and sold-out products last', function () {
             ->where('merchandise.data.2.name', 'Sold Out Shirt')
             ->where('merchandise.data.2.sold_out', true)
         );
+});
+
+test('All Merchandise shows NEW first, then on sale, then the rest, sold out last', function () {
+    shopProduct('Sold Out Shirt', 0, ['created_at' => now()]);
+    shopProduct('Old Keychain', 5, ['created_at' => now()->subDays(9)]);
+    shopProduct('Newer Lanyard', 9, ['created_at' => now()->subDays(5)]);
+    shopProduct('Tumbler On Sale', 9, ['status' => ProductStatus::OnSale, 'sale_price_centavos' => 30000, 'sale_ends_at' => now()->addDays(4)]);
+    shopProduct('Mug On Sale', 9, ['status' => ProductStatus::OnSale, 'sale_price_centavos' => 30000, 'sale_ends_at' => now()->addDays(2)]);
+    shopProduct('New Cap', 9, ['new_until' => now()->addDays(2)]);
+    shopProduct('Newest Pin On Sale', 9, ['status' => ProductStatus::OnSale, 'sale_price_centavos' => 30000, 'sale_ends_at' => now()->addDays(5), 'new_until' => now()->addDays(3)]);
+    shopProduct('No Longer New Bag', 9, ['new_until' => now()->subMinute(), 'created_at' => now()->subDays(4)]);
+
+    $this->get('/')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('merchandise.data', fn ($products) => collect($products)->pluck('name')->all() === [
+                'Newest Pin On Sale', 'New Cap', 'Mug On Sale', 'Tumbler On Sale', 'No Longer New Bag', 'Newer Lanyard', 'Old Keychain', 'Sold Out Shirt',
+            ])
+            ->where('merchandise.data', fn ($products) => collect($products)->where('is_new', true)->pluck('name')->all() === ['Newest Pin On Sale', 'New Cap'])
+        );
+});
+
+test('a product is NEW for 3 days after its first stock arrives, and not again for later stock', function () {
+    $product = shopProduct('STI Umbrella', 0, received: false);
+    $variant = $product->variants()->sole();
+
+    $variant->forceFill(['stock_on_hand' => 10])->save();
+    app(RestockedPreorders::class)->check($variant);
+    expect($product->refresh()->isNew())->toBeTrue();
+
+    $this->travel(3)->days();
+    $variant->forceFill(['stock_on_hand' => 20])->save();
+    app(RestockedPreorders::class)->check($variant);
+    expect($product->refresh()->isNew())->toBeFalse();
+});
+
+test('a Coming Soon product that arrives stays in Coming Soon for a day to order, then moves to All Merchandise as NEW', function () {
+    $product = shopProduct('STI Hoodie', 0, ['status' => ProductStatus::Preorder], received: false);
+    $variant = $product->variants()->sole();
+    StockMovement::factory()->for($variant, 'variant')->create();
+    $variant->forceFill(['stock_on_hand' => 10])->save();
+
+    app(RestockedPreorders::class)->check($variant);
+
+    expect($product->refresh()->status)->toBe(ProductStatus::Available);
+    $this->get('/')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('comingSoon.0.name', 'STI Hoodie')
+            ->where('comingSoon.0.new_stock', true)
+            ->where('comingSoon.0.accepts_preorders', false)
+            ->has('merchandise.data', 0)
+        );
+
+    $this->travel(25)->hours();
+    $this->get('/')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('comingSoon', 0)
+            ->where('merchandise.data.0.name', 'STI Hoodie')
+            ->where('merchandise.data.0.is_new', true)
+            ->where('merchandise.data.0.new_stock', false)
+        );
+
+    $this->travel(2)->days();
+    $this->getJson(route('api.v1.storefront.merchandise'))->assertJsonPath('data.0.is_new', false);
 });
 
 test('the feed can be searched and narrowed to in stock or sold out', function () {

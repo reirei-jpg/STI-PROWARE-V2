@@ -37,6 +37,10 @@ export type StorefrontTileProduct = {
     early_bird: { price_centavos: number; pieces: number; pieces_left: number } | null;
     /** A Preorder product taking preorders, or a product for sale with a sold-out size to preorder. */
     accepts_preorders: boolean;
+    /** Its stock arrived in the last 3 days: the NEW tag. */
+    is_new: boolean;
+    /** A Coming Soon product whose stock arrived today, still in Coming Soon to order now. */
+    new_stock: boolean;
 };
 
 export type StorefrontVariantAvailability =
