@@ -1,4 +1,4 @@
-import { CalendarClock, ImageIcon, ShoppingCart } from 'lucide-react';
+import { CalendarClock, Clock, ImageIcon, ShoppingCart } from 'lucide-react';
 import { useAddToCart } from '@/components/add-to-cart-dialog';
 import { usePreorder } from '@/components/preorder-dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
@@ -15,7 +15,9 @@ import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
  * when both), SALE with how much is off (original price crossed
  * out before the sale price), when the sale ends, COMING SOON with a
  * Preorder button, "Only 3 left" when almost sold out, and OUT OF STOCK
- * (greyed; a Preorder button while it can be preordered, otherwise none).
+ * (greyed; a Preorder button while it can be preordered, otherwise none),
+ * or AVAILABLE SOON over a greyed, blurred photo while more is on an
+ * uploaded eStore order.
  * The photo zooms in a little on hover; names keep two lines so every
  * card's price and button line up. Add to Cart and Preorder ask a
  * signed-out visitor to sign in first, then open their pickers.
@@ -74,9 +76,11 @@ export default function StorefrontTile({
                             loading="lazy"
                             className={cn(
                                 'h-full w-full object-cover transition duration-300',
-                                product.sold_out
-                                    ? 'grayscale'
-                                    : 'group-hover:scale-105',
+                                product.available_soon
+                                    ? 'scale-105 blur-[3px] grayscale'
+                                    : product.sold_out
+                                      ? 'grayscale'
+                                      : 'group-hover:scale-105',
                             )}
                         />
                     ) : (
@@ -122,9 +126,16 @@ export default function StorefrontTile({
 
                     {product.sold_out && (
                         <span className="absolute inset-0 flex items-center justify-center bg-slate-900/40">
-                            <span className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-black tracking-wide text-white">
-                                OUT OF STOCK
-                            </span>
+                            {product.available_soon ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-black tracking-wide text-slate-900 shadow">
+                                    <Clock size={14} />
+                                    AVAILABLE SOON
+                                </span>
+                            ) : (
+                                <span className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-black tracking-wide text-white">
+                                    OUT OF STOCK
+                                </span>
+                            )}
                         </span>
                     )}
                 </div>
@@ -165,13 +176,17 @@ export default function StorefrontTile({
 
                 {product.sold_out && product.accepts_preorders && (
                     <p className="text-[11px] font-bold text-amber-700">
-                        Out of stock · preorder to be notified
+                        {product.available_soon
+                            ? 'Available soon · preorder to be first'
+                            : 'Out of stock · preorder to be notified'}
                     </p>
                 )}
 
                 {product.sold_out && !product.accepts_preorders ? (
                     <span className="mt-auto inline-flex h-10 w-full items-center justify-center rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-500">
-                        Unavailable for now
+                        {product.available_soon
+                            ? 'Available soon'
+                            : 'Unavailable for now'}
                     </span>
                 ) : comingSoon && !product.accepts_preorders ? (
                     <span className="mt-auto inline-flex h-10 w-full items-center justify-center rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-500">

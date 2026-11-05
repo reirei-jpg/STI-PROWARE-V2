@@ -306,11 +306,16 @@ function PreorderForm({
                     )}
                     <div className="space-y-1">
                         <PriceLines price={details.price} />
-                        {restock && (
-                            <p className="text-xs font-bold text-red-600">
-                                Out of stock
-                            </p>
-                        )}
+                        {restock &&
+                            (details.available_soon ? (
+                                <p className="text-xs font-bold text-blue-700">
+                                    Available soon
+                                </p>
+                            ) : (
+                                <p className="text-xs font-bold text-red-600">
+                                    Out of stock
+                                </p>
+                            ))}
                         {!restock && details.preorders_close_on && (
                             <p className="text-xs font-bold text-amber-700">
                                 Preorders close{' '}

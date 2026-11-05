@@ -194,9 +194,12 @@ export default function PreorderSheet({
                 )}
                 <View className="flex-1 justify-center gap-1">
                     <PriceLines price={product.price} />
-                    {restock && (
-                        <Text className="font-sans-bold text-xs text-red-600">Out of stock</Text>
-                    )}
+                    {restock &&
+                        (product.available_soon ? (
+                            <Text className="font-sans-bold text-xs text-blue-700">Available soon</Text>
+                        ) : (
+                            <Text className="font-sans-bold text-xs text-red-600">Out of stock</Text>
+                        ))}
                     {!restock && product.preorders_close_on && (
                         <Text className="font-sans-bold text-xs text-amber-700">
                             Preorders close {formatDate(product.preorders_close_on)}

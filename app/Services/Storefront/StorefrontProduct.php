@@ -27,8 +27,9 @@ final class StorefrontProduct
      * for sale with a sold-out size students can preorder. is_new: its
      * stock arrived in the last 3 days (NEW tag). new_stock: a Coming Soon
      * product whose stock arrived today, still shown in Coming Soon.
+     * available_soon: sold out, with more on an uploaded eStore order.
      *
-     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, expected_arrival: string|null, early_bird: array{price_centavos: int, pieces: int, pieces_left: int}|null, accepts_preorders: bool, is_new: bool, new_stock: bool}
+     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, expected_arrival: string|null, early_bird: array{price_centavos: int, pieces: int, pieces_left: int}|null, accepts_preorders: bool, is_new: bool, new_stock: bool, available_soon: bool}
      */
     public static function tile(Product $product): array
     {
@@ -59,6 +60,8 @@ final class StorefrontProduct
             'accepts_preorders' => $product->acceptsPreorders() || $soldOutSizeToPreorder,
             'is_new' => ! $isPreorder && $stock > 0 && $product->isNew(),
             'new_stock' => $stock > 0 && $product->isNewStockInComingSoon(),
+            'available_soon' => ! $isPreorder && $stock === 0
+                && AvailableSoon::coming($product->variants->map(fn (ProductVariant $variant): ?string => $variant->estore_item_code)->values()->all()) !== [],
         ];
     }
 
@@ -86,6 +89,13 @@ final class StorefrontProduct
     {
         $isPreorder = $product->status === ProductStatus::Preorder;
         $canBuy = ShopPrice::canBuy($product);
+        $coming = $isPreorder ? [] : AvailableSoon::coming(
+            $product->variants
+                ->filter(fn (ProductVariant $variant): bool => $variant->freeToSell() === 0)
+                ->map(fn (ProductVariant $variant): ?string => $variant->estore_item_code)
+                ->values()
+                ->all(),
+        );
 
         return [
             ...self::tile($product),
@@ -106,7 +116,7 @@ final class StorefrontProduct
                 'name' => $option->name,
                 'choices' => $option->choices,
             ])->all(),
-            'variants' => $product->variants->map(function (ProductVariant $variant) use ($product, $isPreorder, $canBuy): array {
+            'variants' => $product->variants->map(function (ProductVariant $variant) use ($product, $isPreorder, $canBuy, $coming): array {
                 $stock = $variant->freeToSell();
                 $variant->setRelation('product', $product);
 
@@ -130,6 +140,8 @@ final class StorefrontProduct
                     // Sold out: it can be preordered, or it will not be restocked.
                     'can_preorder' => $variant->canBePreordered(),
                     'not_restocked' => ! $isPreorder && $stock === 0 && $variant->not_restocked_at !== null,
+                    // Sold out, with more on an uploaded eStore order.
+                    'available_soon' => ! $isPreorder && $stock === 0 && in_array($variant->estore_item_code, $coming, true),
                 ];
             })->all(),
         ];

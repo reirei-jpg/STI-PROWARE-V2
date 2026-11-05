@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DeliveryStatus;
 use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductOption;
@@ -137,6 +138,43 @@ test('a Coming Soon product that arrives stays in Coming Soon for a day to order
 
     $this->travel(2)->days();
     $this->getJson(route('api.v1.storefront.merchandise'))->assertJsonPath('data.0.is_new', false);
+});
+
+test('a sold-out product says Available soon while an uploaded eStore order still has pieces of it coming', function () {
+    $umbrella = shopProduct('STI Umbrella', 0);
+    $umbrella->variants()->sole()->forceFill(['estore_item_code' => 'PRUM01-01'])->save();
+    $lanyard = shopProduct('STI Lanyard', 5);
+    $lanyard->variants()->sole()->forceFill(['estore_item_code' => 'PRLY01-01'])->save();
+    $availableSoon = fn (): array => collect($this->getJson(route('api.v1.storefront.merchandise'))->json('data'))->where('available_soon', true)->pluck('name')->all();
+
+    expect($availableSoon())->toBe([]);
+
+    $order = orderWith(['PRUM01-01' => 10, 'PRLY01-01' => 10]);
+    expect($availableSoon())->toBe(['STI Umbrella'])
+        ->and($this->getJson(route('api.v1.storefront.product', $umbrella))->json('variants.0.available_soon'))->toBeTrue();
+
+    $order->items()->update(['quantity_delivered' => 10]);
+    $order->forceFill(['delivery_status' => DeliveryStatus::Completed])->save();
+    expect($availableSoon())->toBe([]);
+});
+
+test('a delivery to a sold-out product makes it NEW again, but not one to a product that still had stock', function () {
+    $umbrella = shopProduct('STI Umbrella', 0, ['new_until' => now()->subMonth()]);
+    $umbrella->variants()->sole()->forceFill(['estore_item_code' => 'PRUM01-01'])->save();
+    $lanyard = shopProduct('STI Lanyard', 5, ['new_until' => now()->subMonth()]);
+    $lanyard->variants()->sole()->forceFill(['estore_item_code' => 'PRLY01-01'])->save();
+    $order = orderWith(['PRUM01-01' => 10, 'PRLY01-01' => 10]);
+
+    $this->actingAs(User::factory()->specialist()->create())->post(route('deliveries.store'), [
+        'received_on' => now()->toDateString(),
+        'items' => [
+            ['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 10],
+            ['purchase_order_item_id' => itemOf($order, 'PRLY01-01'), 'quantity_received' => 10],
+        ],
+    ])->assertSessionHasNoErrors();
+
+    expect($umbrella->refresh()->isNew())->toBeTrue()
+        ->and($lanyard->refresh()->isNew())->toBeFalse();
 });
 
 test('the feed can be searched and narrowed to in stock or sold out', function () {
