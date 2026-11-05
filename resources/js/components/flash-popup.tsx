@@ -90,7 +90,8 @@ const stripes: Record<FlashToast['type'], string> = {
 /**
  * The message popup from V1: shown in the middle of the screen after an
  * action (e.g. "Purchase order saved."), closing by itself after a few
- * seconds or when the user closes it.
+ * seconds or when the user closes it. One with a next-step button stays
+ * until it is used or closed.
  */
 export default function FlashPopup() {
     const [message, setMessage] = useState<FlashToast | null>(null);
@@ -116,7 +117,8 @@ export default function FlashPopup() {
     }, []);
 
     useEffect(() => {
-        if (!message) {
+        // A message with a next step stays until it is used or closed.
+        if (!message || message.action) {
             return;
         }
 
@@ -162,6 +164,19 @@ export default function FlashPopup() {
                         <p className="mt-1.5 text-base leading-6 text-slate-600">
                             {message.message}
                         </p>
+                        {message.action && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const href = message.action?.href ?? '';
+                                    setMessage(null);
+                                    router.visit(href);
+                                }}
+                                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700"
+                            >
+                                {message.action.label}
+                            </button>
+                        )}
                     </div>
 
                     <button

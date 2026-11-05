@@ -267,6 +267,8 @@ export type StockCorrectionReasonOption = {
 export type LinkableProduct = {
     id: number;
     name: string;
+    /** "Preorder", "Available", "On Sale" or "Draft". */
+    status_label: string;
     variants: { id: number; label: string; estore_item_code: string | null }[];
     packs: { id: number; name: string; pieces: number }[];
 };

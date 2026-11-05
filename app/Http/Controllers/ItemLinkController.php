@@ -137,16 +137,22 @@ class ItemLinkController extends Controller
 
     /**
      * Products to choose from in the Link pop-up, found by name, with their
-     * variants and packs.
+     * variants and packs. The pop-up searches the eStore description first:
+     * a product whose name contains it, or whose name is in it ("STI Mug -
+     * White" finds STI Mug), the same name first.
      */
     public function products(Request $request): JsonResponse
     {
         $validated = $request->validate(['search' => ['nullable', 'string', 'max:120']]);
         $search = trim((string) ($validated['search'] ?? ''));
+        $lowered = mb_strtolower($search);
 
         $products = Product::query()
             ->with(['variants', 'packs'])
-            ->when($search !== '', fn (Builder $query) => $query->whereLike('name', "%{$search}%"))
+            ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $names) => $names
+                ->whereLike('name', "%{$search}%")
+                ->orWhereRaw("? like '%' || lower(name) || '%'", [$lowered])))
+            ->when($search !== '', fn (Builder $query) => $query->orderByRaw('case when lower(name) = ? then 0 else 1 end', [$lowered]))
             ->orderBy('name')
             ->limit(10)
             ->get();
@@ -155,6 +161,7 @@ class ItemLinkController extends Controller
             'products' => $products->map(fn (Product $product): array => [
                 'id' => $product->id,
                 'name' => $product->name,
+                'status_label' => $product->status->label(),
                 'variants' => $product->variants->map(fn (ProductVariant $variant): array => [
                     'id' => $variant->id,
                     'label' => $variant->label(),
