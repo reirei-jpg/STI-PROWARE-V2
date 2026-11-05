@@ -6,8 +6,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * The search and the All / In stock / Sold out choice on the storefront's
- * All Merchandise feed, read from the page address.
+ * The search (every section), the All Merchandise search (find) and the
+ * All / In stock / Sold out choice on the storefront's All Merchandise
+ * feed, read from the page address.
  */
 class FilterStorefrontRequest extends FormRequest
 {
@@ -18,6 +19,7 @@ class FilterStorefrontRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:120'],
+            'find' => ['nullable', 'string', 'max:120'],
             'show' => ['nullable', 'in:in_stock,sold_out'],
         ];
     }
@@ -27,6 +29,16 @@ class FilterStorefrontRequest extends FormRequest
         $search = trim((string) $this->input('search', ''));
 
         return $search === '' ? null : $search;
+    }
+
+    /**
+     * The search typed at All Merchandise: only that section follows it.
+     */
+    public function find(): ?string
+    {
+        $find = trim((string) $this->input('find', ''));
+
+        return $find === '' ? null : $find;
     }
 
     /**

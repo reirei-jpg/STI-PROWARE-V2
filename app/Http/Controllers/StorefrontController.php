@@ -21,6 +21,7 @@ class StorefrontController extends Controller
     public function home(FilterStorefrontRequest $request): Response
     {
         $search = $request->search();
+        $find = $request->find();
         $show = $request->show();
 
         return Inertia::render('storefront/home', [
@@ -28,12 +29,13 @@ class StorefrontController extends Controller
             'onSale' => StorefrontFeed::onSale($search),
             'uniformSets' => StorefrontUniformSets::all($search),
             'spotlight' => StorefrontFeed::spotlight(),
-            'merchandise' => Inertia::scroll(fn () => StorefrontFeed::merchandise($search, $show)
+            'merchandise' => Inertia::scroll(fn () => StorefrontFeed::merchandise($search, $show, $find)
                 ->paginate(20)
                 ->withQueryString()
                 ->through(StorefrontProduct::tile(...))),
             'filters' => [
                 'search' => $search,
+                'find' => $find,
                 'show' => $show,
             ],
         ]);

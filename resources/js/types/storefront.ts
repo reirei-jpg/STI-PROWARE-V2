@@ -248,5 +248,7 @@ export type IssuanceSlipData = {
 
 export type StorefrontFilters = {
     search: string | null;
+    /** Typed at All Merchandise: only that section follows it. */
+    find: string | null;
     show: 'in_stock' | 'sold_out' | null;
 };

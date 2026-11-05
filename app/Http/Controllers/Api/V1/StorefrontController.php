@@ -34,11 +34,12 @@ class StorefrontController extends Controller
     }
 
     /**
-     * All Merchandise, 20 at a time, by name and Available / Out of Stock.
+     * All Merchandise, 20 at a time, by name (the search of every section,
+     * and find, typed at All Merchandise) and Available / Out of Stock.
      */
     public function merchandise(FilterStorefrontRequest $request): JsonResponse
     {
-        return response()->json(StorefrontFeed::merchandise($request->search(), $request->show())
+        return response()->json(StorefrontFeed::merchandise($request->search(), $request->show(), $request->find())
             ->paginate(20)
             ->withQueryString()
             ->through(StorefrontProduct::tile(...)));

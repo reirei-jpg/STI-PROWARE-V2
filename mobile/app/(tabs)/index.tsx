@@ -41,9 +41,10 @@ const GAP = 12;
  * Home: the storefront, like the website. Coming Soon (open preorders
  * first) and On Sale as swipeable rows of full tiles, Uniform Sets (Buy
  * the Set opens its picker), and All Merchandise (newest first, out of
- * stock last) with Available / Out of Stock. More loads as the student
- * scrolls. The search at the top covers every section; while searching,
- * sections with no match are hidden. When the app opens, the store pop-up
+ * stock last) with Available / Out of Stock and its own search, pinned at
+ * the top while scrolling the section. More loads as the student scrolls.
+ * The search at the top covers every section; while searching, sections
+ * with no match are hidden. When the app opens, the store pop-up
  * shows what came back in stock or is on sale (StoreSpotlight).
  */
 export default function HomeScreen() {
@@ -60,7 +61,14 @@ export default function HomeScreen() {
     const [page, setPage] = useState(1);
     const [lastPage, setLastPage] = useState(1);
     const [search, setSearch] = useState('');
+    // Typed at All Merchandise: only that section follows it.
+    const [find, setFind] = useState('');
     const [show, setShow] = useState<Show>(null);
+    // The All Merchandise bar is pinned at the top once it scrolls past it.
+    const [barPinned, setBarPinned] = useState(false);
+    const [typingIn, setTypingIn] = useState<'list' | 'pinned' | null>(null);
+    const sectionY = useRef(0);
+    const barY = useRef(0);
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -84,12 +92,16 @@ export default function HomeScreen() {
     );
 
     const loadMerchandise = useCallback(
-        async (pageToLoad: number, term: string, filter: Show) => {
+        async (pageToLoad: number, term: string, filter: Show, findTerm: string) => {
             const requestNumber = ++latestRequest.current;
             const query = new URLSearchParams({ page: String(pageToLoad) });
 
             if (term.trim() !== '') {
                 query.set('search', term.trim());
+            }
+
+            if (findTerm.trim() !== '') {
+                query.set('find', findTerm.trim());
             }
 
             if (filter) {
@@ -118,7 +130,7 @@ export default function HomeScreen() {
         setError(null);
 
         try {
-            await Promise.all([loadSections(search), loadMerchandise(1, search, show)]);
+            await Promise.all([loadSections(search), loadMerchandise(1, search, show, find)]);
         } catch (caught) {
             setError(
                 caught instanceof ApiError
@@ -158,7 +170,8 @@ export default function HomeScreen() {
     );
 
     // Search every section as the student types, after a short pause.
-    // Available / Out of Stock is only for All Merchandise.
+    // Available / Out of Stock and the All Merchandise search are only for
+    // All Merchandise.
     const firstSearch = useRef(true);
     const searchedSections = useRef(search);
 
@@ -170,7 +183,7 @@ export default function HomeScreen() {
         }
 
         const timer = setTimeout(() => {
-            const loads = [loadMerchandise(1, search, show)];
+            const loads = [loadMerchandise(1, search, show, find)];
 
             if (searchedSections.current !== search) {
                 searchedSections.current = search;
@@ -183,7 +196,7 @@ export default function HomeScreen() {
         }, 400);
 
         return () => clearTimeout(timer);
-    }, [search, show, loadMerchandise, loadSections]);
+    }, [search, show, find, loadMerchandise, loadSections]);
 
     const refresh = async (): Promise<void> => {
         setRefreshing(true);
@@ -199,7 +212,7 @@ export default function HomeScreen() {
         setLoadingMore(true);
 
         try {
-            await loadMerchandise(page + 1, search, show);
+            await loadMerchandise(page + 1, search, show, find);
         } catch {
             // Scrolling again will retry.
         } finally {
@@ -211,8 +224,61 @@ export default function HomeScreen() {
         router.push(`/product/${product.id}`);
     };
 
+    // All / Available / Out of Stock and the All Merchandise search: under
+    // the section title, and pinned at the top while scrolling the section.
+    const merchandiseBar = (where: 'list' | 'pinned'): React.ReactNode => (
+        <View className="gap-2">
+            {/* Equal widths with room to spare: Android can measure a
+                label a little short and drop its last word ("Out of"). */}
+            <View className="flex-row gap-2">
+                {CHIPS.map((chip) => (
+                    <Pressable
+                        key={chip.label}
+                        onPress={() => setShow(chip.value)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: show === chip.value }}
+                        className={`flex-1 items-center rounded-full border px-2 py-2.5 ${show === chip.value ? 'border-brand bg-brand' : 'border-slate-200 bg-white'}`}
+                    >
+                        <Text
+                            numberOfLines={1}
+                            className={`font-sans-bold text-xs ${show === chip.value ? 'text-white' : 'text-slate-600'}`}
+                        >
+                            {chip.label}
+                        </Text>
+                    </Pressable>
+                ))}
+            </View>
+            <View className="flex-row items-center gap-2 rounded-full border border-slate-200 bg-white px-4">
+                <Search size={16} color="#94a3b8" />
+                <TextInput
+                    value={find}
+                    onChangeText={setFind}
+                    maxLength={120}
+                    placeholder="Search All Merchandise"
+                    placeholderTextColor="#94a3b8"
+                    autoCorrect={false}
+                    returnKeyType="search"
+                    onFocus={() => setTypingIn(where)}
+                    onBlur={() => setTypingIn((typing) => (typing === where ? null : typing))}
+                    accessibilityLabel="Search All Merchandise"
+                    className="flex-1 py-2.5 font-sans-medium text-sm text-slate-900"
+                />
+                {find !== '' && (
+                    <Pressable
+                        onPress={() => setFind('')}
+                        accessibilityLabel="Clear the All Merchandise search"
+                        hitSlop={10}
+                    >
+                        <X size={16} color="#64748b" />
+                    </Pressable>
+                )}
+            </View>
+        </View>
+    );
+
     const isSearching = search.trim() !== '';
-    const isFiltered = isSearching || show !== null;
+    const isFinding = find.trim() !== '';
+    const isFiltered = isSearching || isFinding || show !== null;
     const otherSectionsMatch =
         home !== null && home.coming_soon.length + home.on_sale.length + home.uniform_sets.length > 0;
 
@@ -435,7 +501,7 @@ export default function HomeScreen() {
                 </View>
             )}
 
-            <View className="gap-3">
+            <View className="gap-3" onLayout={(event) => (sectionY.current = event.nativeEvent.layout.y)}>
                 <SectionTitle
                     icon={<Store size={18} color="#2563eb" />}
                     iconClass="bg-blue-100"
@@ -443,29 +509,21 @@ export default function HomeScreen() {
                     description="Everything available at the PROWARE store."
                 />
 
-                {/* Equal widths with room to spare: Android can measure a
-                    label a little short and drop its last word ("Out of"). */}
-                <View className="flex-row gap-2">
-                    {CHIPS.map((chip) => (
-                        <Pressable
-                            key={chip.label}
-                            onPress={() => setShow(chip.value)}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: show === chip.value }}
-                            className={`flex-1 items-center rounded-full border px-2 py-2.5 ${show === chip.value ? 'border-brand bg-brand' : 'border-slate-200 bg-white'}`}
-                        >
-                            <Text
-                                numberOfLines={1}
-                                className={`font-sans-bold text-xs ${show === chip.value ? 'text-white' : 'text-slate-600'}`}
-                            >
-                                {chip.label}
-                            </Text>
-                        </Pressable>
-                    ))}
+                <View onLayout={(event) => (barY.current = event.nativeEvent.layout.y)}>
+                    {merchandiseBar('list')}
                 </View>
             </View>
         </View>
     );
+
+    // Pinned once the bar in the list has scrolled up under the top.
+    const onScroll = (offsetY: number): void => {
+        const pinned = offsetY > sectionY.current + barY.current + 8;
+
+        if (pinned !== barPinned) {
+            setBarPinned(pinned);
+        }
+    };
 
     return (
         <>
@@ -489,15 +547,18 @@ export default function HomeScreen() {
                 home === null ? null : (
                     <View className="gap-3">
                         <EmptyNote>
-                            {isSearching && show === null && otherSectionsMatch
+                            {isSearching && !isFinding && show === null && otherSectionsMatch
                                 ? `No other merchandise matches “${search.trim()}”. The matches are above.`
                                 : isFiltered
                                 ? 'No merchandise matches your search. Try another name, or choose All.'
                                 : 'No merchandise yet. New items appear here as soon as they arrive at the PROWARE store.'}
                         </EmptyNote>
-                        {isSearching && !(show === null && otherSectionsMatch) && (
+                        {(isFinding || (isSearching && !(show === null && otherSectionsMatch))) && (
                             <Pressable
-                                onPress={() => setSearch('')}
+                                onPress={() => {
+                                    setSearch('');
+                                    setFind('');
+                                }}
                                 accessibilityRole="button"
                                 className="flex-row items-center gap-2 self-center rounded-xl border border-slate-200 bg-white px-4 py-2.5"
                             >
@@ -517,11 +578,23 @@ export default function HomeScreen() {
             }
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
+            onScroll={(event) => onScroll(event.nativeEvent.contentOffset.y)}
+            scrollEventThrottle={32}
             refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={refresh} />
             }
             keyboardShouldPersistTaps="handled"
         />
+        {/* Stays while typing in it, even if fewer results scroll the list
+            back up; not while typing in the one in the list. */}
+        {((barPinned && typingIn !== 'list') || typingIn === 'pinned') && (
+            <View
+                style={{ paddingTop: insets.top + 8 }}
+                className="absolute left-0 right-0 top-0 border-b border-slate-200 bg-page px-4 pb-3"
+            >
+                {merchandiseBar('pinned')}
+            </View>
+        )}
         <StoreSpotlight items={home?.spotlight ?? null} onOpen={open} />
         <UniformSetSheet
             set={buyingSet}

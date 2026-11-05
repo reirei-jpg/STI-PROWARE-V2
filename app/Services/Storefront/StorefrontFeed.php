@@ -146,13 +146,13 @@ final class StorefrontFeed
     }
 
     /**
-     * All Merchandise, to paginate, optionally by name and in stock / sold
-     * out.
+     * All Merchandise, to paginate, optionally by name (the search of every
+     * section, and $find, typed at All Merchandise) and in stock / sold out.
      *
      * @param  'in_stock'|'sold_out'|null  $show
      * @return Builder<Product>
      */
-    public static function merchandise(?string $search, ?string $show): Builder
+    public static function merchandise(?string $search, ?string $show, ?string $find = null): Builder
     {
         $now = now();
 
@@ -162,6 +162,7 @@ final class StorefrontFeed
             ->where(fn (Builder $query) => $query->whereNull('coming_soon_until')->orWhere('coming_soon_until', '<=', $now))
             ->with(self::RELATIONS)
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
+            ->when($find, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
             ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
             // NEW, then on sale, then the rest; sold out last.
