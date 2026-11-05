@@ -114,7 +114,10 @@ export default function ProductTile({
                 )}
 
                 {product.sold_out && (
-                    <View className="absolute inset-0 items-center justify-center bg-slate-900/40">
+                    <View
+                        style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)' }}
+                        className="absolute inset-0 items-center justify-center"
+                    >
                         {product.available_soon ? (
                             <View className="flex-row items-center gap-1.5 rounded-lg bg-white px-3 py-1.5">
                                 <Clock size={13} color="#0f172a" />
