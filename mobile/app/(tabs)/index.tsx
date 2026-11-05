@@ -312,7 +312,9 @@ export default function HomeScreen() {
                 ) : (
                     <ProductRow
                         products={[...home.coming_soon].sort(
-                            (a, b) => Number(b.accepts_preorders) - Number(a.accepts_preorders),
+                            (a, b) =>
+                                Number(b.new_stock) - Number(a.new_stock) ||
+                                Number(b.accepts_preorders) - Number(a.accepts_preorders),
                         )}
                         width={width - SIDE * 2}
                         onOpen={open}

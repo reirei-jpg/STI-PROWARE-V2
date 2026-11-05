@@ -11,7 +11,8 @@ import type { StorefrontPrice, StorefrontTileProduct } from '@/types';
  * it is unavailable (out of stock, or preorders closed): then it is shown
  * greyed and nothing opens.
  *
- * Badges on the photo: SALE with how much is off (original price crossed
+ * Badges on the photo: NEW for 3 days after its stock arrived (beside SALE
+ * when both), SALE with how much is off (original price crossed
  * out before the sale price), when the sale ends, COMING SOON with a
  * Preorder button, "Only 3 left" when almost sold out, and OUT OF STOCK
  * (greyed; a Preorder button while it can be preordered, otherwise none).
@@ -82,9 +83,19 @@ export default function StorefrontTile({
                         <ImageIcon size={36} />
                     )}
 
-                    {onSale && !product.sold_out && (
-                        <span className="absolute top-2 left-2 rounded-lg bg-red-500 px-2 py-1 text-[11px] font-black text-white shadow-sm">
-                            SALE{percentOff !== null && ` −${percentOff}%`}
+                    {(product.is_new || (onSale && !product.sold_out)) && (
+                        <span className="absolute top-2 left-2 flex gap-1">
+                            {product.is_new && (
+                                <span className="rounded-lg bg-emerald-500 px-2 py-1 text-[11px] font-black text-white shadow-sm">
+                                    NEW
+                                </span>
+                            )}
+                            {onSale && !product.sold_out && (
+                                <span className="rounded-lg bg-red-500 px-2 py-1 text-[11px] font-black text-white shadow-sm">
+                                    SALE
+                                    {percentOff !== null && ` −${percentOff}%`}
+                                </span>
+                            )}
                         </span>
                     )}
 
@@ -125,6 +136,12 @@ export default function StorefrontTile({
 
             <div className="flex flex-1 flex-col gap-2 p-3 pt-1.5">
                 <PriceLines price={product.price} />
+
+                {product.new_stock && (
+                    <p className="text-[11px] font-black text-emerald-700">
+                        New stock is available. Order now.
+                    </p>
+                )}
 
                 {comingSoon && product.preorders_close_on && (
                     <p className="text-[11px] font-bold text-amber-700">

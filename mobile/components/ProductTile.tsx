@@ -20,7 +20,8 @@ export function takesPreorders(product: StorefrontTileProduct): boolean {
 
 /**
  * A merchandise tile, like the website's: square photo, name, price and the
- * button. Badges: SALE (and when it ends), COMING SOON, "Only 3 left", and
+ * button. Badges: NEW (3 days after its stock arrived, beside SALE when
+ * both), SALE (and when it ends), COMING SOON, "Only 3 left", and
  * OUT OF STOCK (greyed; a Preorder button while it can be preordered,
  * otherwise none). Tapping opens the product, unless it is unavailable.
  */
@@ -64,13 +65,22 @@ export default function ProductTile({
                     <ImageIcon size={32} color="#cbd5e1" />
                 )}
 
-                {onSale && !product.sold_out && (
-                    <View
-                        className="absolute left-2 top-2 rounded-lg bg-red-500 px-2 py-1"
-                    >
-                        <Text className="font-sans-bold text-[10px] text-white">
-                            SALE
-                        </Text>
+                {(product.is_new || (onSale && !product.sold_out)) && (
+                    <View className="absolute left-2 top-2 flex-row gap-1">
+                        {product.is_new && (
+                            <View className="rounded-lg bg-emerald-500 px-2 py-1">
+                                <Text className="font-sans-bold text-[10px] text-white">
+                                    NEW
+                                </Text>
+                            </View>
+                        )}
+                        {onSale && !product.sold_out && (
+                            <View className="rounded-lg bg-red-500 px-2 py-1">
+                                <Text className="font-sans-bold text-[10px] text-white">
+                                    SALE
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
 
@@ -124,6 +134,11 @@ export default function ProductTile({
 
                 <PriceLines price={product.price} />
 
+                {product.new_stock && (
+                    <Text className="font-sans-bold text-[11px] text-emerald-700">
+                        New stock is available. Order now.
+                    </Text>
+                )}
                 {comingSoon && product.preorders_close_on && (
                     <Text className="font-sans-bold text-[11px] text-amber-700">
                         {product.accepts_preorders

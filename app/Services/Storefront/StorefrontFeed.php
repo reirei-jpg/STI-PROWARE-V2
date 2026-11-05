@@ -13,11 +13,14 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 /**
  * The storefront's three sections, for the website and the phone app:
  *
- * - Coming Soon: Preorder products.
+ * - Coming Soon: Preorder products, after the ones whose stock arrived in
+ *   the last day (to order now, newest first).
  * - On Sale: On Sale products that have stock, the soonest-ending first.
  * - All Merchandise: Available and On Sale products that were ever
- *   received, newest first, sold-out ones last. Products never received
- *   stay hidden, and Draft products are never shown.
+ *   received (not those still in Coming Soon): NEW ones (stock arrived in
+ *   the last 3 days, newest first), then those on sale (soonest-ending
+ *   first), then the rest newest first, sold-out ones last. Products never
+ *   received stay hidden, and Draft products are never shown.
  *
  * The search covers every section: only products whose name matches show.
  * The store pop-up (spotlight) ignores it.
@@ -32,15 +35,30 @@ final class StorefrontFeed
     /** The most products the store pop-up shows. */
     public const SPOTLIGHT_LIMIT = 10;
 
+    /** How long a product is NEW after its stock first arrived. */
+    public const NEW_DAYS = 3;
+
+    /** How long a Coming Soon product that arrived stays in Coming Soon, to order. */
+    public const NEW_STOCK_IN_COMING_SOON_HOURS = 24;
+
+    /** It has a size or color students can buy now. */
+    private const IN_STOCK_SQL = 'exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > product_variants.held_pieces)';
+
     /**
      * @return list<array<string, mixed>>
      */
     public static function comingSoon(?string $search = null): array
     {
         return array_values(Product::query()
-            ->where('status', ProductStatus::Preorder)
+            ->where(fn (Builder $query) => $query
+                ->where('status', ProductStatus::Preorder)
+                ->orWhere(fn (Builder $arrived) => $arrived
+                    ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
+                    ->where('coming_soon_until', '>', now())))
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->with(self::RELATIONS)
+            ->orderByRaw('case when status = ? then 1 else 0 end', [ProductStatus::Preorder->value])
+            ->orderByDesc('coming_soon_until')
             ->latest('created_at')
             ->latest('id')
             ->limit(20)
@@ -136,14 +154,20 @@ final class StorefrontFeed
      */
     public static function merchandise(?string $search, ?string $show): Builder
     {
+        $now = now();
+
         return Product::query()
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
             ->whereHas('variants.stockMovements')
+            ->where(fn (Builder $query) => $query->whereNull('coming_soon_until')->orWhere('coming_soon_until', '<=', $now))
             ->with(self::RELATIONS)
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
             ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
-            ->orderByRaw('case when exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > product_variants.held_pieces) then 0 else 1 end')
+            // NEW, then on sale, then the rest; sold out last.
+            ->orderByRaw('case when not '.self::IN_STOCK_SQL.' then 3 when new_until > ? then 0 when status = ? then 1 else 2 end', [$now, ProductStatus::OnSale->value])
+            ->orderByRaw('case when new_until > ? then new_until end desc', [$now])
+            ->orderByRaw('case when status = ? then sale_ends_at end', [ProductStatus::OnSale->value])
             ->latest('created_at')
             ->latest('id');
     }
