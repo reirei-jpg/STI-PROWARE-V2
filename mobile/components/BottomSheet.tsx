@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardHeight } from '@/lib/use-keyboard-height';
+
 /**
  * A panel that slides up from the bottom (like TikTok Shop's picker): a
  * title with Close, the content (scrolls when long), and a footer that
@@ -36,6 +38,8 @@ export default function BottomSheet({
     children: ReactNode;
 }) {
     const insets = useSafeAreaInsets();
+    // The sheet is its own window, so it moves up for the keyboard itself.
+    const keyboardHeight = useKeyboardHeight();
 
     const onBack = (): void => {
         if (Keyboard.isVisible()) {
@@ -56,7 +60,8 @@ export default function BottomSheet({
             statusBarTranslucent
         >
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={{ paddingBottom: keyboardHeight }}
                 className="flex-1 justify-end"
             >
                 <Pressable

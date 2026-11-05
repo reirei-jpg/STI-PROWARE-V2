@@ -4,12 +4,14 @@ import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart';
 import { NotificationsProvider } from '@/lib/notifications';
 import PushHandler from '@/lib/push';
+import { useKeyboardHeight } from '@/lib/use-keyboard-height';
 
 /**
  * The app opens on the store: anyone can browse, and signing in is asked
@@ -86,6 +88,10 @@ export default function RootLayout() {
         'Aptos-Bold': require('../assets/fonts/Aptos-Bold.ttf'),
     });
 
+    // Every screen ends above the keyboard while it is open, so the box
+    // being typed in is never under it (bottom sheets do the same).
+    const keyboardHeight = useKeyboardHeight();
+
     if (!fontsLoaded) {
         return null;
     }
@@ -97,7 +103,9 @@ export default function RootLayout() {
             <AuthProvider>
                 <CartProvider>
                     <NotificationsProvider>
-                        <RootNavigator />
+                        <View style={{ flex: 1, paddingBottom: keyboardHeight }}>
+                            <RootNavigator />
+                        </View>
                         <PushHandler />
                     </NotificationsProvider>
                 </CartProvider>
