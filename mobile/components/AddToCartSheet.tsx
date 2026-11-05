@@ -323,10 +323,12 @@ export default function AddToCartSheet({
                     </View>
                     {variant && (
                         <Text
-                            className={`font-sans-bold text-xs ${preordering ? 'text-red-600' : 'text-slate-500'}`}
+                            className={`font-sans-bold text-xs ${preordering ? (variant.available_soon ? 'text-blue-700' : 'text-red-600') : 'text-slate-500'}`}
                         >
                             {preordering
-                                ? 'Out of stock'
+                                ? variant.available_soon
+                                    ? 'Available soon'
+                                    : 'Out of stock'
                                 : variant.pieces_left !== null
                                   ? `Only ${formatUnits(variant.pieces_left, 'Piece')} left`
                                   : 'In stock'}

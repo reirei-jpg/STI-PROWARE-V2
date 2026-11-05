@@ -104,9 +104,13 @@ export default function StorefrontProductDialog({
                                     {comingSoon
                                         ? 'Coming soon · preorder it now'
                                         : shown.sold_out
-                                          ? shown.accepts_preorders
-                                              ? 'Out of stock · preorder it to be notified when it is back'
-                                              : 'Out of stock for now'
+                                          ? shown.available_soon
+                                              ? shown.accepts_preorders
+                                                  ? 'Available soon · preorder it to be first'
+                                                  : 'Available soon'
+                                              : shown.accepts_preorders
+                                                ? 'Out of stock · preorder it to be notified when it is back'
+                                                : 'Out of stock for now'
                                           : shown.sale_ends_at
                                             ? `On sale · ${saleEndsText(shown.sale_ends_at).toLowerCase()}`
                                             : 'Official STI merchandise'}
@@ -268,7 +272,9 @@ export default function StorefrontProductDialog({
 
                                 {shown.sold_out && !shown.accepts_preorders ? (
                                     <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
-                                        Out of stock for now
+                                        {shown.available_soon
+                                            ? 'Available soon'
+                                            : 'Out of stock for now'}
                                     </p>
                                 ) : comingSoon && !shown.accepts_preorders ? (
                                     <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">

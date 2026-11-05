@@ -1,4 +1,4 @@
-import { CalendarClock, ImageIcon, ShoppingCart } from 'lucide-react-native';
+import { CalendarClock, Clock, ImageIcon, ShoppingCart } from 'lucide-react-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
@@ -23,7 +23,9 @@ export function takesPreorders(product: StorefrontTileProduct): boolean {
  * button. Badges: NEW (3 days after its stock arrived, beside SALE when
  * both), SALE (and when it ends), COMING SOON, "Only 3 left", and
  * OUT OF STOCK (greyed; a Preorder button while it can be preordered,
- * otherwise none). Tapping opens the product, unless it is unavailable.
+ * otherwise none), or AVAILABLE SOON over a greyed, blurred photo while more
+ * is on an uploaded eStore order. Tapping opens the product, unless it is
+ * unavailable.
  */
 export default function ProductTile({
     product,
@@ -60,6 +62,7 @@ export default function ProductTile({
                         source={{ uri: product.photo_url }}
                         style={{ width, height: width }}
                         resizeMode="cover"
+                        blurRadius={product.available_soon ? 6 : 0}
                     />
                 ) : (
                     <ImageIcon size={32} color="#cbd5e1" />
@@ -111,12 +114,24 @@ export default function ProductTile({
                 )}
 
                 {product.sold_out && (
-                    <View className="absolute inset-0 items-center justify-center bg-slate-900/40">
-                        <View className="rounded-lg bg-slate-900 px-3 py-1.5">
-                            <Text className="font-sans-bold text-xs tracking-wide text-white">
-                                OUT OF STOCK
-                            </Text>
-                        </View>
+                    <View
+                        style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)' }}
+                        className="absolute inset-0 items-center justify-center"
+                    >
+                        {product.available_soon ? (
+                            <View className="flex-row items-center gap-1.5 rounded-lg bg-white px-3 py-1.5">
+                                <Clock size={13} color="#0f172a" />
+                                <Text className="font-sans-bold text-xs tracking-wide text-slate-900">
+                                    AVAILABLE SOON
+                                </Text>
+                            </View>
+                        ) : (
+                            <View className="rounded-lg bg-slate-900 px-3 py-1.5">
+                                <Text className="font-sans-bold text-xs tracking-wide text-white">
+                                    OUT OF STOCK
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
             </View>
@@ -161,7 +176,9 @@ export default function ProductTile({
 
                 {product.sold_out && product.accepts_preorders && (
                     <Text className="font-sans-bold text-[11px] text-amber-700">
-                        Out of stock · preorder to be notified
+                        {product.available_soon
+                            ? 'Available soon · preorder to be first'
+                            : 'Out of stock · preorder to be notified'}
                     </Text>
                 )}
 
@@ -169,7 +186,7 @@ export default function ProductTile({
                     {product.sold_out && !product.accepts_preorders ? (
                         <View className="items-center rounded-xl bg-slate-100 py-2">
                             <Text className="font-sans-bold text-xs text-slate-500">
-                                Unavailable for now
+                                {product.available_soon ? 'Available soon' : 'Unavailable for now'}
                             </Text>
                         </View>
                     ) : comingSoon && !product.accepts_preorders ? (

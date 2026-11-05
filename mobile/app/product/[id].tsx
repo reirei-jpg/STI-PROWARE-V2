@@ -193,9 +193,13 @@ export default function ProductScreen() {
                                     {comingSoon
                                         ? 'Coming soon · preorder it now'
                                         : product.sold_out
-                                          ? product.accepts_preorders
-                                              ? 'Out of stock · preorder it to be notified when it is back'
-                                              : 'Out of stock for now'
+                                          ? product.available_soon
+                                              ? product.accepts_preorders
+                                                  ? 'Available soon · preorder it to be first'
+                                                  : 'Available soon'
+                                              : product.accepts_preorders
+                                                ? 'Out of stock · preorder it to be notified when it is back'
+                                                : 'Out of stock for now'
                                           : product.sale_ends_at
                                             ? `On sale · ${saleEndsText(product.sale_ends_at).toLowerCase()}`
                                             : 'Official STI merchandise'}
@@ -283,7 +287,7 @@ export default function ProductScreen() {
                     className="border-t border-slate-200 bg-white px-4 pt-3"
                 >
                     {product.sold_out && !product.accepts_preorders ? (
-                        <ClosedBar>Out of stock for now</ClosedBar>
+                        <ClosedBar>{product.available_soon ? 'Available soon' : 'Out of stock for now'}</ClosedBar>
                     ) : comingSoon && !product.accepts_preorders ? (
                         <ClosedBar>Preorders closed</ClosedBar>
                     ) : (

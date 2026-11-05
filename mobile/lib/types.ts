@@ -41,6 +41,8 @@ export type StorefrontTileProduct = {
     is_new: boolean;
     /** A Coming Soon product whose stock arrived today, still in Coming Soon to order now. */
     new_stock: boolean;
+    /** Sold out, with more on an uploaded eStore order. */
+    available_soon: boolean;
 };
 
 export type StorefrontVariantAvailability =
@@ -67,6 +69,8 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
         can_preorder: boolean;
         /** Sold out, and the PROWARE office said it will not be restocked. */
         not_restocked: boolean;
+        /** Sold out, with more on an uploaded eStore order. */
+        available_soon: boolean;
     }[];
     buy_packs: {
         id: number;

@@ -2,10 +2,13 @@
 
 namespace App\Services\Stock;
 
+use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
 use App\Models\DeliveryItem;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Services\Storefront\StorefrontFeed;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +27,8 @@ use Illuminate\Validation\ValidationException;
  *
  * Each delivered item is added at most once per variant; the stock
  * movements table refuses a second one. Students waiting for a sold-out
- * size that arrived are notified.
+ * size that arrived are notified, and a product that was sold out is NEW
+ * for 3 days.
  */
 final class DeliveredStock
 {
@@ -62,6 +66,9 @@ final class DeliveredStock
                 $waiting->map(fn (DeliveryItem $item): string => $item->purchaseOrderItem->item_code)->all(),
                 lockForUpdate: true,
             );
+            $soldOutBefore = self::soldOutProductIds(
+                $variantsByCode->flatten(1)->map(fn (ProductVariant $variant): int => $variant->product_id)->unique()->values()->all(),
+            );
 
             $piecesAdded = 0;
             $restockedIds = [];
@@ -95,6 +102,14 @@ final class DeliveredStock
                     }
                 }
             }
+
+            // A product that was sold out and got stock again is NEW (Coming
+            // Soon products are handled when they arrive).
+            $restockedProductIds = $variantsByCode->flatten(1)->whereIn('id', $restockedIds)->pluck('product_id')->unique()->all();
+            Product::query()
+                ->whereKey(array_intersect($soldOutBefore, $restockedProductIds))
+                ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
+                ->update(['new_until' => now()->addDays(StorefrontFeed::NEW_DAYS)]);
 
             // Stock went up, so a variant warned before may be warned again.
             foreach ($variantsByCode->flatten(1) as $variant) {
@@ -179,6 +194,23 @@ final class DeliveredStock
         }
 
         return $splits;
+    }
+
+    /**
+     * The given products with nothing students can buy (every variant sold
+     * out).
+     *
+     * @param  array<int, int>  $productIds
+     * @return array<int, int>
+     */
+    private static function soldOutProductIds(array $productIds): array
+    {
+        return Product::query()
+            ->whereKey($productIds)
+            ->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0'))
+            ->get(['id'])
+            ->map(fn (Product $product): int => $product->id)
+            ->all();
     }
 
     /**
