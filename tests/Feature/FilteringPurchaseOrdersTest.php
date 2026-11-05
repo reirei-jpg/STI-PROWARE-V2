@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DeliveryStatus;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
@@ -42,6 +43,22 @@ test('the Date Ordered filter keeps only orders in the range, including both end
     'to only' => [null, '2026-09-01', ['2026-09-01', '2026-08-31']],
     'one day' => ['2026-09-15', '2026-09-15', ['2026-09-15']],
 ]);
+
+test('by default the list goes Awaiting, Partially Received, Completed, then Completed (some missing), oldest first in each', function () {
+    $order = fn (string $number, string $date, DeliveryStatus $status) => PurchaseOrder::factory()->create(['order_number' => $number, 'date_ordered' => $date, 'delivery_status' => $status]);
+    $order('008', '2026-10-08', DeliveryStatus::PartiallyReceived);
+    $order('003', '2026-10-03', DeliveryStatus::Completed);
+    $order('007', '2026-10-07', DeliveryStatus::PartiallyReceived);
+    $order('009', '2026-10-09', DeliveryStatus::Awaiting);
+    $order('001', '2026-10-01', DeliveryStatus::CompletedShort);
+    $order('005', '2026-10-05', DeliveryStatus::Awaiting);
+    $order('002', '2026-10-02', DeliveryStatus::Completed);
+
+    $this->get(route('purchase-orders.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('purchaseOrders.data', fn ($rows) => collect($rows)->pluck('order_number')->all() === ['005', '009', '007', '008', '002', '003', '001'])
+        );
+});
 
 test('the summary cards follow the Date Ordered filter', function () {
     $september = PurchaseOrder::factory()->create(['date_ordered' => '2026-09-10', 'total_amount_centavos' => 42000]);

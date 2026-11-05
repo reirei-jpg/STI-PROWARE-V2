@@ -60,10 +60,11 @@ class PurchaseOrderController extends Controller
             'newest' => (clone $filtered)
                 ->orderByDesc('date_ordered')
                 ->orderByDesc('id'),
-            // Default: orders still waiting come first, the oldest order at
-            // the top.
+            // Default: Awaiting Delivery, then Partially Received, then
+            // Completed, then Completed (some missing); in each, the oldest
+            // order at the top.
             default => (clone $filtered)
-                ->orderByRaw('case when delivery_status in (?, ?) then 0 else 1 end', [DeliveryStatus::Awaiting->value, DeliveryStatus::PartiallyReceived->value])
+                ->orderByRaw('case delivery_status when ? then 0 when ? then 1 when ? then 2 else 3 end', [DeliveryStatus::Awaiting->value, DeliveryStatus::PartiallyReceived->value, DeliveryStatus::Completed->value])
                 ->orderBy('date_ordered')
                 ->orderBy('id'),
         };

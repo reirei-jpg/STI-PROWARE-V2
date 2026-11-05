@@ -54,7 +54,10 @@ const statusChips: { value: DeliveryStatus | null; label: string }[] = [
 ];
 
 const sortOptions: { value: PurchaseOrderSort; label: string }[] = [
-    { value: 'oldest_waiting', label: 'Still waiting, oldest first' },
+    {
+        value: 'oldest_waiting',
+        label: 'Awaiting → Partially Received → Completed, oldest first',
+    },
     { value: 'newest', label: 'Newest Date Ordered first' },
 ];
 
