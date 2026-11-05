@@ -10,7 +10,6 @@ import {
     SearchX,
     ShieldAlert,
     TriangleAlert,
-    Undo2,
     XCircle,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -42,8 +41,8 @@ type SlipResult = {
  * release this?" (green OK, red stop), then the order beside its slip with
  * the student, the checks, and the release as numbered steps: check the
  * cashier's receipt, tick that it was checked, release the items (they leave
- * the shelf only then). Ready for pickup, Undo release (same day), Print
- * and Cancel sit below, smaller. Not a PROWARE slip: says so.
+ * the shelf only then; a release is final). Ready for pickup, Print and
+ * Cancel sit below, smaller. Not a PROWARE slip: says so.
  */
 export default function OrderSlip({
     code,
@@ -317,19 +316,6 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                     >
                         <PackageCheck size={16} />
                         Ready for pickup
-                    </SmallButton>
-                )}
-
-                {order.can_undo_release && (
-                    <SmallButton
-                        disabled={busy}
-                        onClick={() =>
-                            act(OrderController.undoRelease(order.id).url)
-                        }
-                        title="Released by mistake? Put it back to Ready for pickup (today only)."
-                    >
-                        <Undo2 size={16} />
-                        Undo release
                     </SmallButton>
                 )}
 

@@ -56,11 +56,6 @@ class OrderController extends Controller
         return self::done($handle->release($order, $request->user()), $order);
     }
 
-    public function undoRelease(Request $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
-    {
-        return self::done($handle->undoRelease($order, $request->user()), $order);
-    }
-
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
     {
         return self::done($handle->cancel($order, $request->user(), $request->reasonText()), $order);

@@ -202,8 +202,6 @@ export type OrderRow = {
 /** An order on the Specialist's Orders page and slip screen. */
 export type SpecialistOrderRow = OrderRow & {
     handled_by: string | null;
-    /** Released today by mistake: it can be put back to Ready for pickup. */
-    can_undo_release: boolean;
 };
 
 /** An order's issuance slip, as on STI College-Ormoc's paper form. */

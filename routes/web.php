@@ -77,7 +77,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('students/{student}/lift-pause', [OrderController::class, 'liftPause'])->name('students.lift-pause');
         Route::post('orders/{order}/ready', [OrderController::class, 'ready'])->name('orders.ready');
         Route::post('orders/{order}/release', [OrderController::class, 'release'])->name('orders.release');
-        Route::post('orders/{order}/undo-release', [OrderController::class, 'undoRelease'])->name('orders.undo-release');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
         Route::get('sales-reports', [SalesReportController::class, 'index'])->name('sales-reports.index');

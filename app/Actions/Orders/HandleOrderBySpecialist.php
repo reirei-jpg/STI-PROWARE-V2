@@ -18,8 +18,8 @@ use Illuminate\Validation\ValidationException;
  * phone app: Placed → Ready for pickup (the student is told) → Released
  * (the issuance slip was scanned, the student paid, and the items left the
  * shelf as a Sale). Any order not released yet can be cancelled with a
- * reason; its hold ends. A release marked by mistake can be undone the same
- * day. Each step answers with what happened, or refuses in words.
+ * reason; its hold ends. A release is final. Each step answers with what
+ * happened, or refuses in words.
  */
 class HandleOrderBySpecialist
 {
@@ -78,39 +78,6 @@ class HandleOrderBySpecialist
     }
 
     /**
-     * A release marked by mistake is undone the same day: the items are back
-     * on the shelf, held for the order again, and it is Ready for pickup.
-     *
-     * @throws ValidationException when it was not released today
-     */
-    public function undoRelease(Order $order, User $specialist): string
-    {
-        $this->refuseUnless(self::canUndoRelease($order), "The release of Order {$order->number} can only be undone on the day it was released.");
-
-        DB::transaction(function () use ($order, $specialist): void {
-            $order = Order::query()->with('items')->lockForUpdate()->findOrFail($order->id);
-            $this->refuseUnless(self::canUndoRelease($order), "The release of Order {$order->number} can only be undone on the day it was released.");
-
-            foreach ($order->items as $item) {
-                $variant = ProductVariant::query()->lockForUpdate()->findOrFail($item->product_variant_id);
-                $balance = $variant->stock_on_hand + $item->pieces();
-
-                $variant->forceFill([
-                    'stock_on_hand' => $balance,
-                    'held_pieces' => $variant->held_pieces + $item->pieces(),
-                ])->save();
-
-                $this->record($variant, StockMovementType::ReleaseUndone, $item->pieces(), $balance, $item, $specialist);
-                StockCost::replay($variant->id);
-            }
-
-            $order->forceFill(['status' => OrderStatus::Ready, 'picked_up_at' => null])->save();
-        });
-
-        return "The release of Order {$order->number} has been undone. The order is ready for pickup again, and its items are reserved for it.";
-    }
-
-    /**
      * Cancel an order that was not picked up; the stock goes back and the
      * student is told why.
      *
@@ -123,11 +90,6 @@ class HandleOrderBySpecialist
         $this->cancelOrder->handle($order, $specialist, trim($reason));
 
         return "Order {$order->number} has been cancelled, and its items have been returned to stock. {$order->student->name} has been notified.";
-    }
-
-    public static function canUndoRelease(Order $order): bool
-    {
-        return $order->status === OrderStatus::PickedUp && $order->picked_up_at?->isToday() === true;
     }
 
     /**

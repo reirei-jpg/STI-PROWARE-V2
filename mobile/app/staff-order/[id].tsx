@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CircleCheck, PackageCheck, Undo2, XCircle } from 'lucide-react-native';
+import { ArrowLeft, CircleCheck, PackageCheck, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,8 +18,8 @@ import type { SpecialistOrder } from '@/lib/types';
 /**
  * One student's order on the Specialist's phone, with the website's steps:
  * Ready for pickup (the student is told), Release once the student has
- * paid (the items leave the shelf only then), undo a release the same day,
- * and Cancel with the reason the student will see.
+ * paid (the items leave the shelf only then; a release is final), and
+ * Cancel with the reason the student will see.
  */
 export default function StaffOrderScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -169,17 +169,6 @@ export default function StaffOrderScreen() {
                                 busy={busy}
                                 onRelease={() => void run('release', { paid: true })}
                             />
-                        )}
-                        {order.can_undo_release && (
-                            <ActionButton
-                                small
-                                tone="plain"
-                                icon={<Undo2 size={16} color="#334155" />}
-                                busy={busy}
-                                onPress={() => void run('undo-release')}
-                            >
-                                Undo release
-                            </ActionButton>
                         )}
                         {isOpen && (
                             <ActionButton

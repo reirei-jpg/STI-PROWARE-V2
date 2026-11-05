@@ -22,7 +22,10 @@ enum StockMovementType: string
      */
     case OrderCancelled = 'order_cancelled';
 
-    /** A release marked by mistake was undone the same day: the pieces are back on the shelf, held again. */
+    /**
+     * A release marked by mistake was undone the same day: the pieces are back
+     * on the shelf, held again. Releases are final now; kept for old records.
+     */
     case ReleaseUndone = 'release_undone';
 
     /** An open order placed before holds existed: its pieces went back on the shelf, held for it. */

@@ -2,7 +2,6 @@
 
 namespace App\Services\Shop;
 
-use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use Illuminate\Database\Eloquent\Builder;
@@ -69,8 +68,8 @@ final class SpecialistOrders
     }
 
     /**
-     * An order with who handled it and whether its pickup can be undone.
-     * Expects the items, student and handler to be loaded.
+     * An order with who handled it. Expects the items, student and handler
+     * to be loaded.
      *
      * @return array<string, mixed>
      */
@@ -80,7 +79,6 @@ final class SpecialistOrders
             ...OrderRow::of($order),
             'status_label' => $order->status->staffLabel(),
             'handled_by' => $order->handler?->name,
-            'can_undo_release' => HandleOrderBySpecialist::canUndoRelease($order),
         ];
     }
 

@@ -107,13 +107,13 @@ test('the Specialist prepares, releases once paid, and can undo a release the sa
         ->assertOk()
         ->assertJsonPath('message', "Order {$order->number} has been released to Juan Dela Cruz. Paid at the cashier: ₱700.00.")
         ->assertJsonPath('order.status_label', 'Released')
-        ->assertJsonPath('order.can_undo_release', true);
+        ->assertJsonMissingPath('order.can_undo_release');
     expect($variant->refresh())->stock_on_hand->toBe(9)->held_pieces->toBe(0);
 
-    $this->postJson(route('api.v1.specialist.orders.undo-release', $order))
-        ->assertOk()
-        ->assertJsonPath('order.status', 'ready');
-    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(1);
+    // A release is final: there is nothing to undo it with.
+    $this->postJson("/api/v1/specialist/orders/{$order->id}/undo-release")->assertNotFound();
+    expect($order->refresh()->status)->toBe(OrderStatus::PickedUp)
+        ->and($variant->refresh())->stock_on_hand->toBe(9);
 });
 
 test('the app refuses a step that no longer fits the order, in words', function () {
@@ -126,8 +126,6 @@ test('the app refuses a step that no longer fits the order, in words', function 
         ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released."]);
     $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
         ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released."]);
-    $this->postJson(route('api.v1.specialist.orders.undo-release', $order))
-        ->assertJsonValidationErrors(['order' => "The release of Order {$order->number} can only be undone on the day it was released."]);
     $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'student_asked'])
         ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released, so it can no longer be cancelled."]);
 

@@ -8,7 +8,6 @@ import {
     SearchX,
     ShieldAlert,
     TriangleAlert,
-    Undo2,
     XCircle,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -29,7 +28,7 @@ import type { SlipLookup, SpecialistOrder } from '@/lib/types';
  * first a large banner that answers "can I release this?" (green OK, red
  * stop), then the student, the checks, and the release as numbered steps
  * (collect, tick paid, release: the items leave the shelf only then).
- * Ready for pickup, Undo release (same day) and Cancel sit below, smaller.
+ * A release is final. Ready for pickup and Cancel sit below, smaller.
  * After a step, Scan the next slip is the main button. Not a PROWARE slip:
  * says so.
  */
@@ -249,7 +248,7 @@ export default function SlipCheckScreen() {
                         />
                     )}
 
-                    {(order.status === 'placed' || order.can_undo_release || isOpen) && (
+                    {(order.status === 'placed' || isOpen) && (
                         <View className="flex-row flex-wrap gap-2">
                             {order.status === 'placed' && (
                                 <View className="min-w-36 flex-1">
@@ -261,19 +260,6 @@ export default function SlipCheckScreen() {
                                         onPress={() => setConfirmingReady(true)}
                                     >
                                         Ready for pickup
-                                    </ActionButton>
-                                </View>
-                            )}
-                            {order.can_undo_release && (
-                                <View className="min-w-36 flex-1">
-                                    <ActionButton
-                                        small
-                                        tone="plain"
-                                        icon={<Undo2 size={16} color="#334155" />}
-                                        busy={busy}
-                                        onPress={() => void run('undo-release')}
-                                    >
-                                        Undo release
                                     </ActionButton>
                                 </View>
                             )}

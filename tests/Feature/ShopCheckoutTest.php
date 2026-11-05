@@ -400,26 +400,18 @@ test('an order released from the New tab stays open in its popup, with its new s
             ->reloadOnly('viewing', fn (Assert $reload) => $reload
                 ->where('viewing.number', 'PW-0001')
                 ->where('viewing.status', 'picked_up')
-                ->where('viewing.can_undo_release', true)));
+                ->missing('viewing.can_undo_release')));
 });
 
-test('a release marked by mistake is undone the same day and the items are held again', function () {
+test('a release is final: it cannot be undone, even right away', function () {
     [, $variant] = ballpen(stock: 30);
     $order = placedOrder($variant, 2);
     $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
 
-    $this->post(route('orders.undo-release', $order))
-        ->assertInertiaFlash('toast.message', 'The release of Order PW-0001 has been undone. The order is ready for pickup again, and its items are reserved for it.');
-    expect($order->refresh())->status->toBe(OrderStatus::Ready)->picked_up_at->toBeNull()
-        ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2)
-        ->and(StockMovement::query()->latest('id')->first())->type->toBe(StockMovementType::ReleaseUndone)->quantity->toBe(2);
+    $this->post("/orders/{$order->id}/undo-release")->assertNotFound();
 
-    $this->post(route('orders.release', $order), ['paid' => true]);
-    $this->travel(1)->day();
-    $this->post(route('orders.undo-release', $order))
-        ->assertInertiaFlash('toast.message', 'The release of Order PW-0001 can only be undone on the day it was released.');
     expect($order->refresh()->status)->toBe(OrderStatus::PickedUp)
-        ->and($variant->refresh()->stock_on_hand)->toBe(28);
+        ->and($variant->refresh())->stock_on_hand->toBe(28)->held_pieces->toBe(0);
 });
 
 test('an order cannot be released twice', function () {

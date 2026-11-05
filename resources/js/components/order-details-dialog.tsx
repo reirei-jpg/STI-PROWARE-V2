@@ -7,7 +7,6 @@ import {
     PackageCheck,
     QrCode,
     ShoppingBag,
-    Undo2,
     X,
     XCircle,
 } from 'lucide-react';
@@ -33,8 +32,8 @@ import type { SpecialistOrderRow } from '@/types';
  * View Details: the student, every item with its price, the total, what
  * happened so far (placed, ready, released or cancelled, and by whom), and
  * only the steps that apply: Ready for pickup, Release once the student
- * has paid (the items leave the shelf only then), Undo release (same day),
- * Open slip, and Cancel (asks for the reason the student will see).
+ * has paid (the items leave the shelf only then; a release is final), Open
+ * slip, and Cancel (asks for the reason the student will see).
  */
 export default function OrderDetailsDialog({
     order,
@@ -244,24 +243,6 @@ export default function OrderDetailsDialog({
                                     >
                                         <PackageCheck size={16} />
                                         Ready for pickup
-                                    </button>
-                                )}
-                                {order.can_undo_release && (
-                                    <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() =>
-                                            act(
-                                                OrderController.undoRelease(
-                                                    order.id,
-                                                ).url,
-                                            )
-                                        }
-                                        title="Released by mistake? Put it back to Ready for pickup (today only)."
-                                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                                    >
-                                        <Undo2 size={16} />
-                                        Undo release
                                     </button>
                                 )}
                                 {order.status !== 'cancelled' && (

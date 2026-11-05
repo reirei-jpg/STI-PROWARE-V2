@@ -21,7 +21,7 @@ use Inertia\Response;
  * The Specialist's Orders page: students' orders to prepare and hand over.
  * A student shows the order's issuance slip; the Specialist scans (or
  * types) its code, checks it, and releases the items once paid. The steps
- * (Ready for pickup, Release, undo release, Cancel) are in
+ * (Ready for pickup, Release, Cancel) are in
  * HandleOrderBySpecialist, shared with the phone app.
  */
 class OrderController extends Controller
@@ -78,11 +78,6 @@ class OrderController extends Controller
     public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
         return $this->respond(fn (): string => $handle->release($order, $request->user()));
-    }
-
-    public function undoRelease(Request $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
-    {
-        return $this->respond(fn (): string => $handle->undoRelease($order, $request->user()));
     }
 
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse

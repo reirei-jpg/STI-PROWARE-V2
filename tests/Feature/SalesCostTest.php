@@ -89,18 +89,6 @@ test('a sale costs the oldest delivered pieces first, at the price they were ord
         ->and($second->items->sole()->refresh()->cost_centavos)->toBe(2 * 20000 + 2 * 25000);
 });
 
-test('a release undone and released again keeps its cost', function () {
-    $variant = costedJacket();
-    receivedJacketOrder(packs: 1, pricePerPack: 100000);
-    receivedJacketOrder(packs: 1, pricePerPack: 150000);
-    $order = releasedJackets($variant, 3);
-
-    $this->post(route('orders.undo-release', $order))->assertSessionHasNoErrors();
-    $this->post(route('orders.release', $order), ['paid' => true])->assertSessionHasNoErrors();
-
-    expect($order->items->sole()->refresh()->cost_centavos)->toBe(3 * 20000);
-});
-
 test('an order keeps its normal price, so a sale price shows as a discount', function () {
     $variant = costedJacket();
     receivedJacketOrder(packs: 1, pricePerPack: 100000);

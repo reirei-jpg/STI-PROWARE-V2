@@ -399,7 +399,6 @@ export type OrderCardKey = 'new' | 'ready' | 'last_day' | 'released_today';
 /** A student's order on the Specialist's list. */
 export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {
     handled_by: string | null;
-    can_undo_release: boolean;
 };
 
 /** A scanned slip (or typed order number): the order, its slip, and the student's other open orders. */
