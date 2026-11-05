@@ -1,12 +1,16 @@
 <?php
 
+use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
+use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Notifications\PreorderHeld;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -426,6 +430,51 @@ test('the link pop-up finds products by name with their variants and packs', fun
         ->assertJsonPath('products.0.variants.0.label', 'S/M')
         ->assertJsonPath('products.0.variants.0.estore_item_code', 'UTMP02-03')
         ->assertJsonPath('products.0.packs.0.pieces', 10);
+});
+
+test('the link pop-up starts from the eStore name: the same name first, and a name inside it counts', function () {
+    Product::factory()->create(['name' => 'STI Mug Holder']);
+    Product::factory()->create(['name' => 'STI Mug', 'status' => ProductStatus::Preorder]);
+    Product::factory()->create(['name' => 'Lanyard']);
+
+    $this->actingAs($this->specialist)
+        ->getJson(route('item-links.products', ['search' => 'STI Mug']))
+        ->assertJsonPath('products.0.name', 'STI Mug')
+        ->assertJsonPath('products.0.status_label', 'Preorder')
+        ->assertJsonPath('products.1.name', 'STI Mug Holder')
+        ->assertJsonCount(2, 'products');
+
+    $this->getJson(route('item-links.products', ['search' => 'STI MUG - White']))
+        ->assertJsonCount(1, 'products')
+        ->assertJsonPath('products.0.name', 'STI Mug');
+});
+
+test('a product made for preorders is linked to its new eStore code with one button, then the sizes that arrived go into stock and the students who preordered are notified', function () {
+    Notification::fake();
+    $product = Product::factory()->create(['name' => 'STI Cap', 'status' => ProductStatus::Preorder]);
+    $small = ProductVariant::factory()->for($product)->create(['combination' => 'Size: S', 'choices' => [['option' => 'Size', 'choice' => 'S']], 'stock_on_hand' => 0]);
+    $large = ProductVariant::factory()->for($product)->create(['combination' => 'Size: L', 'choices' => [['option' => 'Size', 'choice' => 'L']], 'stock_on_hand' => 0]);
+    $juan = User::factory()->student()->create();
+    Preorder::factory()->for($juan, 'student')->for($product)->for($small, 'variant')->create(['quantity' => 2]);
+    $order = orderWith(['PRCP01-01' => 10]);
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), deliveryOf($order, 'PRCP01-01', 10))->assertSessionHasNoErrors();
+
+    // "Link to this product": every size without a code, by the piece.
+    $this->post(route('item-links.store'), [
+        'item_code' => 'PRCP01-01',
+        'product_variant_ids' => [$small->id, $large->id],
+        'sent_by' => 'piece',
+    ])->assertSessionHasNoErrors();
+
+    $this->post(route('item-links.split'), [
+        'item_code' => 'PRCP01-01',
+        'pieces' => [['product_variant_id' => $small->id, 'pieces' => 6], ['product_variant_id' => $large->id, 'pieces' => 4]],
+    ])->assertSessionHasNoErrors();
+
+    expect($small->refresh()->stock_on_hand)->toBe(6)
+        ->and($large->refresh()->stock_on_hand)->toBe(4)
+        ->and($product->refresh()->status)->toBe(ProductStatus::Available);
+    Notification::assertSentTo($juan, PreorderHeld::class);
 });
 
 test('the school admin cannot link items', function () {

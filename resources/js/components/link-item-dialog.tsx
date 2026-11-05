@@ -77,7 +77,8 @@ function LinkItemForm({
         Record<string, never>,
         { products: LinkableProduct[] }
     >({});
-    const [search, setSearch] = useState('');
+    // Starts with the eStore name, so the product it matches is listed first.
+    const [search, setSearch] = useState(item.description);
     const [results, setResults] = useState<LinkableProduct[] | null>(null);
     const [product, setProduct] = useState<LinkableProduct | null>(null);
     const latestSearch = useRef(0);
@@ -166,6 +167,28 @@ function LinkItemForm({
         });
     };
 
+    // One button: the product's sizes or colors without a code, by the
+    // piece. How many of each arrived is asked when it is in stock.
+    const linkTo = (chosen: LinkableProduct) => {
+        const free = chosen.variants.filter(
+            (variant) => variant.estore_item_code === null,
+        );
+
+        form.transform(() => ({
+            item_code: item.item_code,
+            product_variant_ids: free.map((variant) => variant.id),
+            sent_by: 'piece' as SentBy,
+            pack_id: '',
+            new_pack_name: 'Pack',
+            new_pack_pieces: '',
+        }));
+        form.post(ItemLinkController.store().url, {
+            preserveScroll: true,
+            onSuccess: onClose,
+            onFinish: () => form.transform((current) => current),
+        });
+    };
+
     return (
         <form
             onSubmit={(event) => {
@@ -248,25 +271,64 @@ function LinkItemForm({
                                         "Create product" instead.
                                     </p>
                                 ) : (
-                                    results.map((result) => (
-                                        <button
-                                            key={result.id}
-                                            type="button"
-                                            onClick={() =>
-                                                chooseProduct(result)
-                                            }
-                                            className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 hover:bg-slate-50"
-                                        >
-                                            <span className="font-bold text-slate-800">
-                                                {result.name}
-                                            </span>
-                                            <span className="text-xs text-slate-500">
-                                                {result.variants.length === 1
-                                                    ? '1 variant'
-                                                    : `${result.variants.length} variants`}
-                                            </span>
-                                        </button>
-                                    ))
+                                    results.map((result) => {
+                                        const free = result.variants.filter(
+                                            (variant) =>
+                                                variant.estore_item_code ===
+                                                null,
+                                        ).length;
+
+                                        return (
+                                            <div
+                                                key={result.id}
+                                                className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-800">
+                                                        {result.name}
+                                                        {result.status_label ===
+                                                            'Preorder' && (
+                                                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">
+                                                                Coming Soon
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            chooseProduct(
+                                                                result,
+                                                            )
+                                                        }
+                                                        className="text-xs font-semibold text-slate-500 hover:text-blue-700"
+                                                    >
+                                                        {result.variants
+                                                            .length === 1
+                                                            ? '1 variant'
+                                                            : `${result.variants.length} variants`}{' '}
+                                                        · choose them yourself
+                                                    </button>
+                                                </div>
+                                                {free > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        disabled={processing}
+                                                        onClick={() =>
+                                                            linkTo(result)
+                                                        }
+                                                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0D6EFD] px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+                                                    >
+                                                        <Link2 size={14} />
+                                                        Link to this product
+                                                    </button>
+                                                ) : (
+                                                    <span className="shrink-0 text-xs font-semibold text-slate-400">
+                                                        Already linked
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         </>
@@ -512,7 +574,9 @@ function LinkItemForm({
             <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
                 {data.product_variant_ids.length === 0 && (
                     <p className="mr-auto text-xs font-semibold text-slate-500">
-                        Choose the product and at least one variant to link.
+                        {product
+                            ? 'Tick at least one variant to link.'
+                            : 'Press Link to this product, or choose its variants yourself.'}
                     </p>
                 )}
                 <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">

@@ -196,7 +196,20 @@ class PurchaseOrderController extends Controller
             new PurchaseOrderUploaded($purchaseOrder),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Order #{$purchaseOrder->order_number} has been saved and is now waiting to arrive. When it arrives, record it on the Deliveries page."]);
+        // New item codes: link each to its product (e.g. one made for
+        // preorders) so its deliveries go into stock.
+        $newCodes = $purchaseOrder->items()->notLinkedToProduct()->distinct()->count('item_code');
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "Order #{$purchaseOrder->order_number} has been saved and is now waiting to arrive. When it arrives, record it on the Deliveries page."
+                .match ($newCodes) {
+                    0 => '',
+                    1 => ' 1 item in it is new to PROWARE: link it to its product.',
+                    default => " {$newCodes} items in it are new to PROWARE: link each to its product.",
+                },
+            ...($newCodes > 0 ? ['action' => ['label' => 'Link the new items', 'href' => route('item-links.index')]] : []),
+        ]);
 
         return to_route('purchase-orders.index');
     }
