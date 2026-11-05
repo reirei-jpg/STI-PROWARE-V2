@@ -9,7 +9,7 @@ import {
     X,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import StoreSpotlight from '@/components/store-spotlight';
 import StorefrontProductDialog from '@/components/storefront-product-dialog';
@@ -239,14 +239,19 @@ function WelcomeBanner({
 }
 
 /**
- * Reloads the storefront with a search and an All / Available / Out of
- * Stock choice. Every section follows the search.
+ * Reloads the storefront with a search, the All Merchandise search and an
+ * All / Available / Out of Stock choice. Every section follows the search;
+ * only All Merchandise follows the other two.
  */
 function showStorefront(next: StorefrontFilters) {
     const query: Record<string, string> = {};
 
     if (next.search) {
         query.search = next.search;
+    }
+
+    if (next.find) {
+        query.find = next.find;
     }
 
     if (next.show) {
@@ -458,9 +463,81 @@ function OnSaleSection({
 }
 
 /**
+ * The All Merchandise search, in the bar that stays at the top while
+ * scrolling the feed: only All Merchandise follows it, as the visitor types
+ * (after a short pause).
+ */
+function MerchandiseSearch({ filters }: { filters: StorefrontFilters }) {
+    const current = filters.find ?? '';
+    const [term, setTerm] = useState(current);
+    const firstRender = useRef(true);
+
+    // Cleared or changed on the page (e.g. Show all merchandise).
+    useEffect(() => {
+        setTerm((typed) => (typed.trim() === current ? typed : current));
+    }, [current]);
+
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
+
+            return;
+        }
+
+        if (term.trim() === current) {
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () => showStorefront({ ...filters, find: term.trim() || null }),
+            400,
+        );
+
+        return () => window.clearTimeout(timer);
+        // Only the typed text should trigger a search.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [term]);
+
+    return (
+        <form
+            role="search"
+            onSubmit={(event) => {
+                event.preventDefault();
+                showStorefront({ ...filters, find: term.trim() || null });
+            }}
+            className="flex h-10 w-full items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-slate-400 shadow-sm transition focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 sm:ml-auto sm:w-72"
+        >
+            <Search size={16} className="shrink-0" />
+            <input
+                type="text"
+                maxLength={120}
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                placeholder="Search All Merchandise"
+                className="w-full min-w-0 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                aria-label="Search All Merchandise"
+            />
+            {term !== '' && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        setTerm('');
+                        showStorefront({ ...filters, find: null });
+                    }}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                    aria-label="Clear the All Merchandise search"
+                >
+                    <X size={14} />
+                </button>
+            )}
+        </form>
+    );
+}
+
+/**
  * All merchandise as a dense TikTok Shop style feed that loads more as the
- * visitor scrolls. All / Available / Out of Stock stay at the top while
- * scrolling; the search is the one in the top bar.
+ * visitor scrolls. All / Available / Out of Stock and the All Merchandise
+ * search stay at the top while scrolling.
  */
 function MerchandiseFeed({
     merchandise,
@@ -474,7 +551,10 @@ function MerchandiseFeed({
     otherSectionsMatch: boolean;
     onView: (product: StorefrontTileProduct) => void;
 }) {
-    const isFiltered = filters.search !== null || filters.show !== null;
+    const isFiltered =
+        filters.search !== null ||
+        filters.find !== null ||
+        filters.show !== null;
     const grid = useRef<HTMLDivElement>(null);
 
     return (
@@ -527,6 +607,8 @@ function MerchandiseFeed({
                         <span className="sr-only">Clear the search</span>
                     </button>
                 )}
+
+                <MerchandiseSearch filters={filters} />
             </div>
 
             {merchandise.data.length === 0 && !isFiltered ? (
@@ -546,6 +628,7 @@ function MerchandiseFeed({
                 </>
             ) : merchandise.data.length === 0 &&
               filters.search !== null &&
+              filters.find === null &&
               filters.show === null &&
               otherSectionsMatch ? (
                 <EmptyNote>
@@ -564,7 +647,11 @@ function MerchandiseFeed({
                     <button
                         type="button"
                         onClick={() =>
-                            showStorefront({ search: null, show: null })
+                            showStorefront({
+                                search: null,
+                                find: null,
+                                show: null,
+                            })
                         }
                         className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700"
                     >

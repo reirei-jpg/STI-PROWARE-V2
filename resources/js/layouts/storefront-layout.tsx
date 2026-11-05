@@ -192,8 +192,10 @@ function StorefrontSearch() {
     const search = (value: string, options: { scroll: boolean }) => {
         const trimmed = value.trim();
         const show = page.props.filters?.show ?? null;
+        const find = page.props.filters?.find ?? null;
         const query: Record<string, string> = {
             ...(trimmed !== '' ? { search: trimmed } : {}),
+            ...(onStorefront && find ? { find } : {}),
             ...(onStorefront && show ? { show } : {}),
         };
 

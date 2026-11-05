@@ -177,6 +177,23 @@ test('a delivery to a sold-out product makes it NEW again, but not one to a prod
         ->and($lanyard->refresh()->isNew())->toBeFalse();
 });
 
+test('the All Merchandise search narrows only All Merchandise, on the website and the phone', function () {
+    shopProduct('Chibi Hoodie', 0, ['status' => ProductStatus::Preorder], received: false);
+    shopProduct('Chibi Keychain', 45);
+    shopProduct('Lanyard', 30);
+
+    $this->get('/?find=chibi')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('merchandise.data', fn ($products) => collect($products)->pluck('name')->all() === ['Chibi Keychain'])
+            ->where('comingSoon', fn ($products) => collect($products)->pluck('name')->all() === ['Chibi Hoodie'])
+            ->where('filters', ['search' => null, 'find' => 'chibi', 'show' => null])
+        );
+
+    $this->getJson(route('api.v1.storefront.merchandise', ['find' => 'lanyard']))
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.name', 'Lanyard');
+});
+
 test('the feed can be searched and narrowed to in stock or sold out', function () {
     shopProduct('Chibi Keychain', 45);
     shopProduct('Chibi Pin', 0);
@@ -185,7 +202,7 @@ test('the feed can be searched and narrowed to in stock or sold out', function (
     $this->get('/?search=chibi')
         ->assertInertia(fn (Assert $page) => $page
             ->has('merchandise.data', 2)
-            ->where('filters', ['search' => 'chibi', 'show' => null])
+            ->where('filters', ['search' => 'chibi', 'find' => null, 'show' => null])
         );
 
     $this->get('/?show=in_stock')
