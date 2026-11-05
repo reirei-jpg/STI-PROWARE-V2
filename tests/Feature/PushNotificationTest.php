@@ -13,6 +13,7 @@ use App\Notifications\LowStockAlert;
 use App\Notifications\OrderCancelled;
 use App\Notifications\OrderPlaced;
 use App\Notifications\OrderReady;
+use App\Notifications\OrderReleased;
 use App\Notifications\PreorderArrived;
 use App\Notifications\PurchaseOrderUploaded;
 use App\Notifications\SaleEnded;
@@ -258,6 +259,16 @@ test('a cancelled order and an arrived preorder are pushed with the bell\'s word
         },
         'Order PW-0042 was cancelled',
         'Not picked up by Oct 7, 2026.',
+    ],
+    'order released' => [
+        function (User $student): array {
+            $order = Order::factory()->for($student, 'student')->create();
+            $order->forceFill(['number' => 'PW-0042'])->save();
+
+            return [new OrderReleased($order), ['kind' => 'order_released', 'order_id' => (string) $order->id]];
+        },
+        'Order PW-0042 has been released to you',
+        'Thank you for your order.',
     ],
     'preorder arrived' => [
         function (): array {

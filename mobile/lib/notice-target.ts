@@ -15,6 +15,7 @@ export function noticeTarget(data: Record<string, unknown>): Href | null {
 
     switch (data.kind) {
         case 'order_ready':
+        case 'order_released':
         case 'order_last_day':
         case 'order_cancelled':
             return hasOrder ? `/order/${orderId}` : null;

@@ -51,6 +51,13 @@ export type OrderReadyData = {
     pick_up_by: string | null;
 };
 
+/** The order was released to the student at the PROWARE office. */
+export type OrderReleasedData = {
+    kind: 'order_released';
+    order_id: number;
+    order_number: string | null;
+};
+
 /** Today is the last day to get the order before it expires. */
 export type OrderLastDayData = {
     kind: 'order_last_day';
@@ -230,6 +237,7 @@ export type StaffNotification = {
         | SaleEndedData
         | OrderPlacedData
         | OrderReadyData
+        | OrderReleasedData
         | OrderLastDayData
         | OrderCancelledData
         | PreorderArrivedData

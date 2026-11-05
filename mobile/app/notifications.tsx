@@ -39,6 +39,13 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
+        case 'order_released':
+            return {
+                title: `Order ${data.order_number} has been released to you`,
+                body: 'Thank you for your order.',
+                titleClass: 'text-emerald-700',
+                stripe: '#10b981',
+            };
         case 'order_last_day':
             return {
                 title: `Last day to get order ${data.order_number}`,

@@ -274,6 +274,19 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'order_released') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Order {data.order_number} has been released to you
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Thank you for your order.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'order_last_day') {
         return (
             <>

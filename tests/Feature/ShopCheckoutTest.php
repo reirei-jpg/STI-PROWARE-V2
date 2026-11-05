@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Notifications\OrderCancelled;
 use App\Notifications\OrderPlaced;
 use App\Notifications\OrderReady;
+use App\Notifications\OrderReleased;
 use App\Notifications\PreorderHeld;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -385,7 +386,8 @@ test('the specialist marks an order ready, then releases it once paid, and the i
         ->type->toBe(StockMovementType::Sale)
         ->quantity->toBe(-2)
         ->balance_after->toBe(28)
-        ->recorded_by->toBe($this->specialist->id);
+        ->recorded_by->toBe($this->specialist->id)
+        ->and($this->student->notifications()->where('type', OrderReleased::class)->sole()->data)->toBe(['kind' => 'order_released', 'order_id' => $order->id, 'order_number' => 'PW-0001']);
 });
 
 test('an order released from the New tab stays open in its popup, with its new status', function () {

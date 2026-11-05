@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderReady;
+use App\Notifications\OrderReleased;
 use App\Services\Stock\StockCost;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,7 +18,7 @@ use Illuminate\Validation\ValidationException;
  * What the Specialist does with a student's order, from the website or the
  * phone app: Placed → Ready for pickup (the student is told) → Released
  * (the issuance slip was scanned, the student paid, and the items left the
- * shelf as a Sale). Any order not released yet can be cancelled with a
+ * shelf as a Sale; the student is told). Any order not released yet can be cancelled with a
  * reason; its hold ends. A release is final. Each step answers with what
  * happened, or refuses in words.
  */
@@ -73,6 +74,8 @@ class HandleOrderBySpecialist
 
             $order->forceFill(['status' => OrderStatus::PickedUp, 'picked_up_at' => now(), 'handled_by' => $specialist->id])->save();
         });
+
+        $order->student->notify(new OrderReleased($order));
 
         return "Order {$order->number} has been released to {$order->student->name}. Paid at the cashier: ₱".number_format($order->total_centavos / 100, 2).'.';
     }
