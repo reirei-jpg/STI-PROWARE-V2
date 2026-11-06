@@ -43,6 +43,10 @@ class UpdatePreorderCloseDateRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
+                if ($validator->errors()->has('preorders_close_on')) {
+                    return;
+                }
+
                 $product = $this->route('product');
 
                 if ($product instanceof Product && $product->status !== ProductStatus::Preorder) {

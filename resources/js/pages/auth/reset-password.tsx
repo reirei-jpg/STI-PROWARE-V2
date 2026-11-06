@@ -24,6 +24,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
 
             <Form
                 {...update.form()}
+                noValidate
                 transform={(data) => ({ ...data, token, email })}
                 resetOnSuccess={['password', 'password_confirmation']}
                 className="space-y-4"

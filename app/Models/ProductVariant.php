@@ -139,7 +139,7 @@ class ProductVariant extends Model
     {
         $product = $this->product;
 
-        if ($product->status !== ProductStatus::OnSale || ! $product->sold_by_piece) {
+        if (! $product->isOnSale() || ! $product->sold_by_piece) {
             return null;
         }
 

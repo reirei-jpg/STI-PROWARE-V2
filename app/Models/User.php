@@ -50,6 +50,15 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public const string NAME_PATTERN = "/^\pL[\pL\s.'-]*$/u";
 
     /**
+     * A course/section or office/department: starts with a letter or number,
+     * then only letters, numbers, spaces and ordinary punctuation, e.g.
+     * "BSIT 1-A" or "Registrar's Office".
+     */
+    public const string SECTION_PATTERN = "/^[\pL\pN][\pL\pN\s.,&'()\/-]*$/u";
+
+    public const string SECTION_MESSAGE = "The course/section may only contain letters, numbers, spaces and . , - / ' & ( ), e.g. BSIT 1-A.";
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

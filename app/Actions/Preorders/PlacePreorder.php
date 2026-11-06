@@ -18,10 +18,10 @@ use Illuminate\Support\Facades\Notification;
 /**
  * A student preorders sizes or colors (website or phone app): of a Preorder
  * product, or sold-out sizes of a product for sale. Preordering the same
- * size again adds to it (keeping its place in line), so a student has one
- * active preorder per size or color. The student is told it was received;
- * a new preorder of a sold-out size is sent to the Specialist, so she can
- * order more.
+ * size again is a new preorder at the end of the line, so pieces added later
+ * never go ahead of buyers who were already waiting. The student is told it
+ * was received; a preorder of a sold-out size is sent to the Specialist, so
+ * she can order more.
  */
 class PlacePreorder
 {
@@ -40,19 +40,6 @@ class PlacePreorder
             $saved = [];
 
             foreach ($items as $item) {
-                $existing = $student->preorders()
-                    ->where('product_variant_id', $item['product_variant_id'])
-                    ->where('status', PreorderStatus::Active)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($existing !== null) {
-                    $existing->forceFill(['quantity' => $existing->quantity + $item['quantity']])->save();
-                    $saved[] = $existing;
-
-                    continue;
-                }
-
                 $saved[] = $student->preorders()->create([
                     'product_variant_id' => $item['product_variant_id'],
                     'status' => PreorderStatus::Active,
@@ -73,9 +60,7 @@ class PlacePreorder
             $specialists = User::query()->where('role', UserRole::Specialist)->get();
 
             foreach ($preorders as $preorder) {
-                if ($preorder->wasRecentlyCreated) {
-                    Notification::send($specialists, new PreorderPlaced($preorder->setRelations(['product' => $product, 'student' => $student])));
-                }
+                Notification::send($specialists, new PreorderPlaced($preorder->setRelations(['product' => $product, 'student' => $student])));
             }
         }
 
@@ -93,10 +78,12 @@ class PlacePreorder
 
     /**
      * One size: "Your preorder of 2 × BSIT Polo (M) has been placed. …", or
-     * when it was added to an earlier preorder: "Your preorder of BSIT Polo
-     * (M) now has 4 pcs. …"
+     * when the buyer was already waiting for that size: "Your preorder of 2 ×
+     * BSIT Polo (M) has been placed behind those already in line, so you now
+     * have 4 pcs preordered. …"
      * Several: "Your preorder of BSIT Polo has been placed: 2 × S, 3 × M. …"
-     * ("… now has: …" when one was added to).
+     * ("… Pieces added to an earlier preorder wait behind those already in
+     * line. …" when one was added to).
      *
      * @param  list<Preorder>  $preorders
      */
@@ -105,7 +92,12 @@ class PlacePreorder
         $after = (LowStockAlerts::isSold($product) ? ' You will be notified when it is back in stock.' : '')
             .self::earlyBirdNote($preorders, $product)
             .' It is listed in My Preorders.';
-        $addedTo = array_filter($preorders, fn (Preorder $preorder): bool => ! $preorder->wasRecentlyCreated) !== [];
+        $waiting = fn (Preorder $preorder): int => (int) Preorder::query()
+            ->where('user_id', $preorder->user_id)
+            ->where('product_variant_id', $preorder->product_variant_id)
+            ->where('status', PreorderStatus::Active)
+            ->sum('quantity');
+        $addedTo = array_filter($preorders, fn (Preorder $preorder): bool => $waiting($preorder) > $preorder->quantity) !== [];
 
         if (count($preorders) === 1) {
             $preorder = $preorders[0];
@@ -113,7 +105,7 @@ class PlacePreorder
             $name = $product->name.($variant->choices === [] ? '' : " ({$variant->label()})");
 
             return ($addedTo
-                ? "Your preorder of {$name} now has ".Units::count($preorder->quantity, 'Piece').'.'
+                ? "Your preorder of {$preorder->quantity} × {$name} has been placed behind those already in line, so you now have ".Units::count($waiting($preorder), 'Piece').' preordered.'
                 : "Your preorder of {$preorder->quantity} × {$name} has been placed.").$after;
         }
 
@@ -122,9 +114,9 @@ class PlacePreorder
             $preorders,
         ));
 
-        return ($addedTo
-            ? "Your preorder of {$product->name} now has: {$sizes}."
-            : "Your preorder of {$product->name} has been placed: {$sizes}.").$after;
+        return "Your preorder of {$product->name} has been placed: {$sizes}."
+            .($addedTo ? ' Pieces added to an earlier preorder wait behind those already in line.' : '')
+            .$after;
     }
 
     /**

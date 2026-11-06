@@ -10,10 +10,9 @@ use App\Services\Stock\Units;
 use Illuminate\Notifications\Notification;
 
 /**
- * Tells a student their preorder was received: the sizes and how many (an
- * added-to size shows its new total), and that they will be notified when
- * it arrives (or is back in stock, for a sold-out size). Also pushed to
- * their phones.
+ * Tells a student their preorder was received: the sizes and how many, and
+ * that they will be notified when it arrives (or is back in stock, for a
+ * sold-out size). Also pushed to their phones.
  */
 class PreorderReceived extends Notification implements PushesToPhones
 {

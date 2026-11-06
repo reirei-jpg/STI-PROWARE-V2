@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
  * while preorders for the product are still open, or while a sold-out size
  * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, hold_ended_at: string|null}
+ * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -44,7 +44,13 @@ class CancelPreorderByStudent
             return null;
         }
 
-        return "Preorders for {$preorder->product->name} are closed, so this preorder can no longer be cancelled here. Ask the PROWARE office.";
+        return match ($preorder->status) {
+            PreorderStatus::Cancelled => "Your preorder for {$preorder->product->name} is already cancelled.",
+            PreorderStatus::Ordered => "You already ordered this preorder for {$preorder->product->name}. To cancel it, cancel the order.",
+            PreorderStatus::HoldEnded => "The hold on your preorder for {$preorder->product->name} already ended, so there is nothing to cancel.",
+            PreorderStatus::NotRestocked => "{$preorder->product->name} will not be restocked, so this preorder is already closed.",
+            default => "Preorders for {$preorder->product->name} are closed, so this preorder can no longer be cancelled here. Ask the PROWARE office.",
+        };
     }
 
     /**
@@ -124,6 +130,7 @@ class CancelPreorderByStudent
             'piece_price_centavos' => $preorder->status === PreorderStatus::Held ? ShopPrice::perUnit($preorder->variant->setRelation('product', $preorder->product), null) : null,
             'order_id' => $preorder->order_id,
             'order_number' => $preorder->order?->number,
+            'order_status' => $preorder->order?->status->value,
             'hold_ended_at' => $preorder->hold_ended_at?->toIso8601String(),
         ];
     }

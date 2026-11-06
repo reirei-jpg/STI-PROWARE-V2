@@ -94,12 +94,12 @@ class PlacePreorderRequest extends FormRequest
 
                 $product = $this->product();
 
-                // Preordering a size again adds to it: the total stays within the limit.
+                // Preordering a size again is a new preorder: the total stays within the limit.
                 foreach ($this->items() as $index => $item) {
                     $already = (int) $this->user()?->preorders()
                         ->where('product_variant_id', $item['product_variant_id'])
                         ->where('status', PreorderStatus::Active)
-                        ->value('quantity');
+                        ->sum('quantity');
 
                     if ($already > 0 && $already + $item['quantity'] > self::MAX_QUANTITY) {
                         $variant = $product->variants()->findOrFail($item['product_variant_id'])->setRelation('product', $product);

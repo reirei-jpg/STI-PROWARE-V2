@@ -217,7 +217,7 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
     'two packs with the same name' => [['packs' => [packInput(), packInput(['key' => 'new-2', 'name' => 'pack'])]], 'packs.1.name', 'Two packs have the same name.'],
     'variant sent by a removed pack' => [['variants' => [['combination' => '', 'estore_item_code' => 'PRLY01-01', 'estore_pack_key' => 'new-9', 'price' => '']]], 'variants.0.estore_pack_key', 'That pack was removed. Choose how Head Office sends this item again.'],
     'photo not a picture' => [['photos' => [['file' => UploadedFile::fake()->create('po.pdf', 10, 'application/pdf'), 'label' => '']]], 'photos.0.file', 'Photos must be JPG, PNG or WEBP pictures.'],
-    'photo too large' => [['photos' => [['file' => UploadedFile::fake()->image('big.jpg')->size(5121), 'label' => '']]], 'photos.0.file', 'Each photo must be 5 MB or smaller.'],
+    'photo too large' => [['photos' => [['file' => UploadedFile::fake()->image('big.jpg')->size(10241), 'label' => '']]], 'photos.0.file', 'Each photo must be 10 MB or smaller.'],
     'option without name' => [['options' => [['name' => '', 'choices' => ['S']]]], 'options.0.name', 'Give every option a name, e.g. Size or Color.'],
     'two options with the same name' => [['options' => [['name' => 'Size', 'choices' => ['S']], ['name' => 'size', 'choices' => ['M']]]], 'options.1.name', 'Two options have the same name.'],
     'same choice twice' => [['options' => [['name' => 'Size', 'choices' => ['M', 'm']]]], 'options.0.choices', 'The option "Size" has the same choice twice.'],

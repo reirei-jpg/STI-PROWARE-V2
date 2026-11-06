@@ -556,7 +556,6 @@ function CloseShortForm({
                         </span>
                         <textarea
                             name="reason"
-                            required
                             rows={2}
                             maxLength={500}
                             placeholder="e.g. Head Office said the M/L polos are out of stock and will not be delivered."

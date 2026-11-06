@@ -33,11 +33,11 @@ class PutOnSaleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sale_price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
+            'sale_price' => ['bail', 'nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             'group_sale_prices' => ['nullable', 'array'],
-            'group_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
+            'group_sale_prices.*' => ['bail', 'nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             'pack_sale_prices' => ['nullable', 'array'],
-            'pack_sale_prices.*' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
+            'pack_sale_prices.*' => ['bail', 'nullable', 'decimal:0,2', 'gt:0', 'max:'.SaveProductRequest::MAX_PRICE_PESOS],
             'days' => ['required', 'integer', 'min:1', 'max:'.self::MAX_DAYS],
         ];
     }

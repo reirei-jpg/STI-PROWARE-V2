@@ -44,13 +44,13 @@ final class StorefrontProduct
         return [
             'id' => $product->id,
             'name' => $product->name,
-            'status' => $product->status->value,
+            'status' => ($product->status === ProductStatus::OnSale && ! $product->isOnSale() ? ProductStatus::Available : $product->status)->value,
             'photo_url' => $product->mainPhoto?->url(),
             'price' => self::price($product),
             'sold_out' => ! $isPreorder && $stock === 0,
             'almost_sold_out' => $almostSoldOut,
             'pieces_left' => $almostSoldOut ? $stock : null,
-            'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
+            'sale_ends_at' => $product->isOnSale() ? $product->sale_ends_at?->toIso8601String() : null,
             'preorders_close_on' => $isPreorder ? $product->preorders_close_on?->toDateString() : null,
             'expected_arrival' => $isPreorder ? $product->expectedArrivalText() : null,
             'early_bird' => $isPreorder && $product->early_bird_price_centavos !== null
@@ -154,7 +154,7 @@ final class StorefrontProduct
      */
     private static function price(Product $product): array
     {
-        $onSale = $product->status === ProductStatus::OnSale;
+        $onSale = $product->isOnSale();
 
         $variants = $product->sold_by_piece
             ? $product->variants->each(fn (ProductVariant $variant) => $variant->setRelation('product', $product))

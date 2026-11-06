@@ -17,7 +17,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
             {status && <AuthStatus>{status}</AuthStatus>}
 
-            <Form {...email.form()} className="space-y-4">
+            <Form {...email.form()} noValidate className="space-y-4">
                 {({ processing, errors }) => (
                     <>
                         <AuthField

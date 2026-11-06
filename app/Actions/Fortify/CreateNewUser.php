@@ -50,7 +50,7 @@ class CreateNewUser implements CreatesNewUsers
             'last_name' => [Rule::requiredIf(! $isEmployee), 'nullable', 'string', 'max:60', 'regex:'.User::NAME_PATTERN],
             'student_id' => $isEmployee ? ['exclude'] : ['required', 'digits:11', 'unique:users,student_id'],
             'employee_id' => $isEmployee ? ['required', 'string', 'regex:'.self::EMPLOYEE_ID_PATTERN, 'unique:users,employee_id'] : ['exclude'],
-            'section' => [Rule::requiredIf($isEmployee), 'nullable', 'string', 'max:40'],
+            'section' => [Rule::requiredIf($isEmployee), 'nullable', 'string', 'max:40', 'regex:'.User::SECTION_PATTERN],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => $this->passwordRules(),
             'terms' => ['accepted'],
@@ -71,6 +71,9 @@ class CreateNewUser implements CreatesNewUsers
             'section.max' => $isEmployee
                 ? 'The office/department may not be longer than 40 characters.'
                 : 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',
+            'section.regex' => $isEmployee
+                ? 'The office/department may only contain letters, numbers, spaces and . , - / \' & ( ).'
+                : User::SECTION_MESSAGE,
             'email.required' => $isEmployee ? 'Enter your STI email.' : 'Enter your STI school email.',
             'email.email' => 'Enter a valid email address.',
             'email.unique' => 'An account already uses this email. Log in instead.',

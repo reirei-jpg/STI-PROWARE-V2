@@ -59,6 +59,7 @@ export default function Profile() {
 
                 <Form
                     {...ProfileController.update.form()}
+                    noValidate
                     options={{ preserveScroll: true }}
                     className="space-y-5 px-6 py-5"
                 >

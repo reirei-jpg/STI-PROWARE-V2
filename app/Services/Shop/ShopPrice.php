@@ -2,7 +2,6 @@
 
 namespace App\Services\Shop;
 
-use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
@@ -38,7 +37,7 @@ final class ShopPrice
             return null;
         }
 
-        if ($pack->product->status === ProductStatus::OnSale && $pack->sale_price_centavos !== null) {
+        if ($pack->product->isOnSale() && $pack->sale_price_centavos !== null) {
             return $pack->sale_price_centavos;
         }
 

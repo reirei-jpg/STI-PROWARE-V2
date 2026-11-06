@@ -36,7 +36,7 @@ enum PreorderStatus: string
 
     /**
      * The student did not order the held pieces in time; they went to the
-     * next student waiting (or on sale to everyone).
+     * next buyer waiting (or on sale to everyone).
      */
     case HoldEnded = 'hold_ended';
 

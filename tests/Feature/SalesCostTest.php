@@ -255,6 +255,7 @@ test('the Selling Price cannot be set below the Cost on the eStore order', funct
     $variant = costedJacket(); // Head Office sends it by the Pack of 5
     receivedJacketOrder(packs: 1, pricePerPack: 100000); // Cost ₱200 a piece
     $pack = $variant->estorePack;
+    $variant->product->forceFill(['status' => ProductStatus::Draft])->save();
     $form = fn (string $price, string $packPrice = '') => [
         'name' => 'STI Jacket', 'sold_by_piece' => '1', 'price' => $price, 'status' => 'draft', 'sale_price' => '',
         'low_stock_alert_at' => '0', 'photos' => [], 'options' => [],

@@ -351,6 +351,9 @@ test('the school admin sees the top sellers of the week, month or year and what 
         ->where('overview.sales.top_sellers.data.0.product_name', 'STI Cap')
         ->where('overview.sales.top_sellers.data.0.pieces', 5)
         ->where('overview.sales.top_sellers.data.1.product_name', 'BSIT Polo')
+        // Profit is only for the Specialist's Sales Reports.
+        ->missing('overview.sales.totals.best.profit_centavos')
+        ->missing('overview.sales.top_sellers.data.0.profit_centavos')
         ->where('overview.sales.slow_days', 18)
         ->has('overview.sales.not_selling.data', 1)
         ->where('overview.sales.not_selling.data.0.product_name', 'STI Umbrella')

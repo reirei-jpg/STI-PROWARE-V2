@@ -12,7 +12,7 @@ import type { StudentPreorder } from '@/lib/types';
 
 /**
  * Order Now on pieces held for the student (as on the website): how many
- * (all or fewer; the rest go to the next student), with the total,
+ * (all or fewer; the rest go to the next buyer), with the total,
  * early-bird pieces first. The order is placed at once and its screen opens.
  */
 export default function HeldOrderSheet({
@@ -87,7 +87,7 @@ export default function HeldOrderSheet({
         >
             <Text className="font-sans text-sm text-slate-600">
                 Held for you until {formatDateTime(preorder.held_until)}. Order before then, or the pieces go to the
-                next student.
+                next buyer.
             </Text>
 
             <View className="gap-2">
@@ -106,7 +106,7 @@ export default function HeldOrderSheet({
                 )}
                 {quantity > 0 && quantity < preorder.quantity && (
                     <Text className="font-sans text-sm text-slate-500">
-                        The other {preorder.quantity - quantity} will go to the next student.
+                        The other {preorder.quantity - quantity} will go to the next buyer.
                     </Text>
                 )}
             </View>

@@ -82,6 +82,16 @@ class Product extends Model
     }
 
     /**
+     * On sale right now: marked On Sale and its last day has not passed, even
+     * if the timed job has not ended the sale yet.
+     */
+    public function isOnSale(): bool
+    {
+        return $this->status === ProductStatus::OnSale
+            && ($this->sale_ends_at === null || $this->sale_ends_at->isFuture());
+    }
+
+    /**
      * "Nov 14 – Nov 21, 2026" ("Dec 28, 2026 – Jan 4, 2027" across years), or
      * null when no expected arrival is set.
      */

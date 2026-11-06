@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schedule;
 
 // Sales: end the ones whose days are up, and tell the Specialist the day
 // before a sale ends (from 7:00 AM).
-Schedule::command('sales:check')->hourly()->withoutOverlapping();
+Schedule::command('sales:check')->everyMinute()->withoutOverlapping();
 
 // Orders not picked up by their pick-up date cancel themselves and their
 // stock goes back.

@@ -67,9 +67,9 @@ test('arriving pieces make the product Available and are held first come, first 
     expect($rest->quantity)->toBe(2)->and($rest->created_at->equalTo($this->second->created_at))->toBeTrue();
 
     Notification::assertSentTo($this->first->student, PreorderHeld::class, fn (PreorderHeld $notice) => $notice->toPush($this->first->student)['body']
-        === '3 pcs are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next student.');
+        === '3 pcs are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next buyer.');
     Notification::assertSentTo($this->second->student, PreorderHeld::class, fn (PreorderHeld $notice) => $notice->toPush($this->second->student)['body']
-        === '2 of your 4 pcs have arrived and are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next student. You will be notified when the other 2 arrive.');
+        === '2 of your 4 pcs have arrived and are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next buyer. You will be notified when the other 2 arrive.');
     Notification::assertNotSentTo($this->third->student, PreorderHeld::class);
 });
 
@@ -111,7 +111,7 @@ test('Sales Reports calls early-bird pieces Early-bird price, not On sale', func
             ->where('sold.data.1.lower_price_label', null));
 });
 
-test('held pieces the student does not order go to the next student at once', function () {
+test('held pieces the student does not order go to the next buyer at once', function () {
     hoodiesArrive($this->variant, 7);
 
     // The first orders 1 of 3; the 2 others go to the second's last 2 pieces.
@@ -127,7 +127,7 @@ test('held pieces the student does not order go to the next student at once', fu
     Notification::assertSentTo($this->second->student, PreorderHeld::class, fn (PreorderHeld $notice) => $notice->preorder->quantity === 4 && $notice->preordered === 4);
 });
 
-test('a hold not ordered within 24 hours ends, and the pieces go to the next student', function () {
+test('a hold not ordered within 24 hours ends, and the pieces go to the next buyer', function () {
     hoodiesArrive($this->variant, 3);
     $this->travel(24)->hours();
     $this->travel(1)->minutes();
@@ -137,14 +137,14 @@ test('a hold not ordered within 24 hours ends, and the pieces go to the next stu
     expect($this->first->refresh())->status->toBe(PreorderStatus::HoldEnded)->hold_ended_at->not->toBeNull()
         ->and($this->second->refresh())->status->toBe(PreorderStatus::Held)->quantity->toBe(3);
     Notification::assertSentTo($this->first->student, PreorderHoldEnded::class, fn (PreorderHoldEnded $notice) => $notice->toPush($this->first->student)['body']
-        === 'The 3 pcs held for you were not ordered within 24 hours, so they went to the next student. Check the store if you still want it.');
+        === 'The 3 pcs held for you were not ordered within 24 hours, so they went to the next buyer. Check the store if you still want it.');
 
     $this->actingAs($this->first->student)
         ->post(route('my-preorders.order', $this->first), ['quantity' => '1'])
         ->assertSessionHasErrors(['quantity' => 'The pieces are no longer held for you. Check the store to buy them.']);
 });
 
-test('a student can give up held pieces, for the next student', function () {
+test('a student can give up held pieces, for the next buyer', function () {
     hoodiesArrive($this->variant, 3);
 
     $this->actingAs($this->first->student)
@@ -172,7 +172,7 @@ function secondStudentHalfServed(object $test): array
     ];
 }
 
-test('giving up held pieces also closes the rest still waiting, so they go to the next student', function () {
+test('giving up held pieces also closes the rest still waiting, so they go to the next buyer', function () {
     [$hold, $rest] = secondStudentHalfServed($this);
 
     $this->actingAs($this->second->student)
@@ -198,7 +198,7 @@ test('a hold that ends after 24 hours also closes the rest still waiting, and th
         ->and($rest->refresh()->status)->toBe(PreorderStatus::HoldEnded)
         ->and($this->third->refresh())->status->toBe(PreorderStatus::Held)->quantity->toBe(2);
     Notification::assertSentTo($this->second->student, PreorderHoldEnded::class, fn (PreorderHoldEnded $notice) => $notice->toArray($this->second->student)['rest_closed'] === 2
-        && $notice->toPush($this->second->student)['body'] === 'The 2 pcs held for you were not ordered within 24 hours, so they went to the next student. The other 2 pcs of this preorder will not be held for you either. Check the store if you still want it.');
+        && $notice->toPush($this->second->student)['body'] === 'The 2 pcs held for you were not ordered within 24 hours, so they went to the next buyer. The other 2 pcs of this preorder will not be held for you either. Check the store if you still want it.');
 });
 
 test('ordering fewer than were held closes the rest still waiting', function () {

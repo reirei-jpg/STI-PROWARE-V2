@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -17,7 +18,7 @@ class PlaceOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'section' => ['nullable', 'string', 'max:40'],
+            'section' => ['nullable', 'string', 'max:40', 'regex:'.User::SECTION_PATTERN],
         ];
     }
 
@@ -28,6 +29,7 @@ class PlaceOrderRequest extends FormRequest
     {
         return [
             'section.max' => 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',
+            'section.regex' => User::SECTION_MESSAGE,
         ];
     }
 

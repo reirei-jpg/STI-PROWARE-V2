@@ -143,6 +143,7 @@ export default function Register() {
             </div>
 
             <form
+                noValidate
                 onSubmit={(event) => {
                     event.preventDefault();
                     form.post(store().url, {
