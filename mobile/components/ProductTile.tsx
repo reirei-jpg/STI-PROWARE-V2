@@ -149,7 +149,7 @@ export default function ProductTile({
 
                 <PriceLines price={product.price} />
 
-                {product.new_stock && (
+                {product.is_new && (
                     <Text className="font-sans-bold text-[11px] text-emerald-700">
                         New stock is available. Order now.
                     </Text>

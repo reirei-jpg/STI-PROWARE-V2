@@ -13,14 +13,13 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 /**
  * The storefront's three sections, for the website and the phone app:
  *
- * - Coming Soon: Preorder products, after the ones whose stock arrived in
- *   the last day (to order now, newest first).
+ * - Coming Soon: Preorder products; one whose stock arrives leaves at once.
  * - On Sale: On Sale products that have stock, the soonest-ending first.
  * - All Merchandise: Available and On Sale products that were ever
- *   received (not those still in Coming Soon): NEW ones (stock arrived in
- *   the last 3 days, newest first), then those on sale (soonest-ending
- *   first), then the rest newest first, sold-out ones last. Products never
- *   received stay hidden, and Draft products are never shown.
+ *   received: NEW ones (stock arrived in the last 3 days, newest first),
+ *   then those on sale (soonest-ending first), then the rest newest first,
+ *   sold-out ones last. Products never received stay hidden, and Draft
+ *   products are never shown.
  *
  * The search covers every section: only products whose name matches show.
  * The store pop-up (spotlight) ignores it.
@@ -38,9 +37,6 @@ final class StorefrontFeed
     /** How long a product is NEW after its stock first arrived. */
     public const NEW_DAYS = 3;
 
-    /** How long a Coming Soon product that arrived stays in Coming Soon, to order. */
-    public const NEW_STOCK_IN_COMING_SOON_HOURS = 24;
-
     /** It has a size or color students can buy now. */
     private const IN_STOCK_SQL = 'exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > product_variants.held_pieces)';
 
@@ -50,15 +46,9 @@ final class StorefrontFeed
     public static function comingSoon(?string $search = null): array
     {
         return array_values(Product::query()
-            ->where(fn (Builder $query) => $query
-                ->where('status', ProductStatus::Preorder)
-                ->orWhere(fn (Builder $arrived) => $arrived
-                    ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-                    ->where('coming_soon_until', '>', now())))
+            ->where('status', ProductStatus::Preorder)
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->with(self::RELATIONS)
-            ->orderByRaw('case when status = ? then 1 else 0 end', [ProductStatus::Preorder->value])
-            ->orderByDesc('coming_soon_until')
             ->latest('created_at')
             ->latest('id')
             ->limit(20)
@@ -159,7 +149,6 @@ final class StorefrontFeed
         return Product::query()
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
             ->whereHas('variants.stockMovements')
-            ->where(fn (Builder $query) => $query->whereNull('coming_soon_until')->orWhere('coming_soon_until', '<=', $now))
             ->with(self::RELATIONS)
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->when($find, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))

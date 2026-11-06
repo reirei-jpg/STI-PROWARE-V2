@@ -40,7 +40,6 @@ use Illuminate\Support\Carbon;
  * @property int|null $early_bird_price_centavos lower price per piece for the first pieces preordered
  * @property int|null $early_bird_pieces how many pieces get the early-bird price
  * @property Carbon|null $new_until when the NEW tag ends: 3 days after its stock first arrived (null: never had stock)
- * @property Carbon|null $coming_soon_until a Coming Soon product that arrived stays in Coming Soon until then (1 day)
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -70,25 +69,16 @@ class Product extends Model
             'early_bird_price_centavos' => 'integer',
             'early_bird_pieces' => 'integer',
             'new_until' => 'datetime',
-            'coming_soon_until' => 'datetime',
         ];
     }
 
     /**
-     * Its stock arrived less than 3 days ago (NEW in the store).
+     * Its stock arrived less than 3 days ago (NEW in the store, saying "New
+     * stock is available. Order now.").
      */
     public function isNew(): bool
     {
         return $this->new_until?->isFuture() === true;
-    }
-
-    /**
-     * A Coming Soon product whose stock arrived today: it stays in Coming
-     * Soon, to order now, until coming_soon_until.
-     */
-    public function isNewStockInComingSoon(): bool
-    {
-        return $this->status !== ProductStatus::Preorder && $this->coming_soon_until?->isFuture() === true;
     }
 
     /**
