@@ -110,7 +110,7 @@ test('a product is NEW for 3 days after its first stock arrives, and not again f
     expect($product->refresh()->isNew())->toBeFalse();
 });
 
-test('a Coming Soon product that arrives leaves Coming Soon at once for All Merchandise, saying new stock is available for a day and NEW for 3 days', function () {
+test('a Coming Soon product that arrives leaves Coming Soon at once for All Merchandise, NEW for 3 days', function () {
     $product = shopProduct('STI Hoodie', 0, ['status' => ProductStatus::Preorder], received: false);
     $variant = $product->variants()->sole();
     StockMovement::factory()->for($variant, 'variant')->create();
@@ -124,19 +124,10 @@ test('a Coming Soon product that arrives leaves Coming Soon at once for All Merc
             ->has('comingSoon', 0)
             ->where('merchandise.data.0.name', 'STI Hoodie')
             ->where('merchandise.data.0.is_new', true)
-            ->where('merchandise.data.0.new_stock', true)
             ->where('merchandise.data.0.accepts_preorders', false)
         );
 
-    $this->travel(25)->hours();
-    $this->get('/')
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('merchandise.data.0.name', 'STI Hoodie')
-            ->where('merchandise.data.0.is_new', true)
-            ->where('merchandise.data.0.new_stock', false)
-        );
-
-    $this->travel(2)->days();
+    $this->travel(3)->days();
     $this->getJson(route('api.v1.storefront.merchandise'))->assertJsonPath('data.0.is_new', false);
 });
 

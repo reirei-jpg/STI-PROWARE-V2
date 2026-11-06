@@ -148,7 +148,7 @@ export default function StorefrontTile({
             <div className="flex flex-1 flex-col gap-2 p-3 pt-1.5">
                 <PriceLines price={product.price} />
 
-                {product.new_stock && (
+                {product.is_new && (
                     <p className="text-[11px] font-black text-emerald-700">
                         New stock is available. Order now.
                     </p>

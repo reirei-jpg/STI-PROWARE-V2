@@ -7,21 +7,21 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * A Coming Soon product that arrives now moves to All Merchandise at
-     * once, so this date only says how long it shows "New stock is
-     * available".
+     * A Coming Soon product that arrives moves to All Merchandise at once, and
+     * its message lasts as long as its NEW tag (new_until), so this date is
+     * no longer used.
      */
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->renameColumn('coming_soon_until', 'new_stock_until');
+            $table->dropColumn('coming_soon_until');
         });
     }
 
     public function down(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->renameColumn('new_stock_until', 'coming_soon_until');
+            $table->timestamp('coming_soon_until')->nullable();
         });
     }
 };

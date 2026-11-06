@@ -37,9 +37,6 @@ final class StorefrontFeed
     /** How long a product is NEW after its stock first arrived. */
     public const NEW_DAYS = 3;
 
-    /** How long a Coming Soon product that arrived says "New stock is available". */
-    public const NEW_STOCK_MESSAGE_HOURS = 24;
-
     /** It has a size or color students can buy now. */
     private const IN_STOCK_SQL = 'exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > product_variants.held_pieces)';
 

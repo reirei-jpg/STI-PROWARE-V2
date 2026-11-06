@@ -25,11 +25,10 @@ final class StorefrontProduct
     /**
      * accepts_preorders: a Preorder product taking preorders, or a product
      * for sale with a sold-out size students can preorder. is_new: its
-     * stock arrived in the last 3 days (NEW tag). new_stock: a Coming Soon
-     * product whose stock arrived today ("New stock is available").
-     * available_soon: sold out, with more on an uploaded eStore order.
+     * stock arrived in the last 3 days (the NEW tag and "New stock is
+     * available. Order now."). available_soon: sold out, with more on an uploaded eStore order.
      *
-     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, expected_arrival: string|null, early_bird: array{price_centavos: int, pieces: int, pieces_left: int}|null, accepts_preorders: bool, is_new: bool, new_stock: bool, available_soon: bool}
+     * @return array{id: int, name: string, status: string, photo_url: string|null, price: array{piece_centavos: int|null, piece_from: bool, sale_centavos: int|null, packs: list<array{name: string, pieces: int, price_centavos: int, sale_price_centavos: int|null}>}, sold_out: bool, almost_sold_out: bool, pieces_left: int|null, sale_ends_at: string|null, preorders_close_on: string|null, expected_arrival: string|null, early_bird: array{price_centavos: int, pieces: int, pieces_left: int}|null, accepts_preorders: bool, is_new: bool, available_soon: bool}
      */
     public static function tile(Product $product): array
     {
@@ -59,7 +58,6 @@ final class StorefrontProduct
                 : null,
             'accepts_preorders' => $product->acceptsPreorders() || $soldOutSizeToPreorder,
             'is_new' => ! $isPreorder && $stock > 0 && $product->isNew(),
-            'new_stock' => $stock > 0 && $product->saysNewStockAvailable(),
             'available_soon' => ! $isPreorder && $stock === 0
                 && AvailableSoon::coming($product->variants->map(fn (ProductVariant $variant): ?string => $variant->estore_item_code)->values()->all()) !== [],
         ];

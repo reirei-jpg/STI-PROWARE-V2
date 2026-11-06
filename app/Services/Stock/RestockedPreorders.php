@@ -21,9 +21,8 @@ use Illuminate\Support\Facades\DB;
  * served are free for anyone to buy.
  *
  * A Preorder (Coming Soon) product becomes Available as soon as a size gets
- * stock, so students can order it: it moves to All Merchandise at once and
- * says "New stock is available" for a day. A product's first stock makes it
- * NEW for 3 days. A size marked "will not be restocked" is cleared when stock comes
+ * stock, so students can order it: it moves to All Merchandise at once. A
+ * product's first stock makes it NEW for 3 days. A size marked "will not be restocked" is cleared when stock comes
  * in anyway.
  */
 final class RestockedPreorders
@@ -129,17 +128,14 @@ final class RestockedPreorders
 
     /**
      * A Coming Soon product that got stock can be ordered now: Available, in
-     * All Merchandise, NEW, and saying "New stock is available" for a day.
-     * Any other product is NEW when its first stock arrives.
+     * All Merchandise, and NEW. Any other product is NEW when its first stock
+     * arrives.
      */
     private function arrived(Product $product): void
     {
         if ($product->status === ProductStatus::Preorder) {
             $product->update(['status' => ProductStatus::Available]);
-            $product->forceFill([
-                'new_until' => now()->addDays(StorefrontFeed::NEW_DAYS),
-                'new_stock_until' => now()->addHours(StorefrontFeed::NEW_STOCK_MESSAGE_HOURS),
-            ])->save();
+            $product->forceFill(['new_until' => now()->addDays(StorefrontFeed::NEW_DAYS)])->save();
 
             return;
         }

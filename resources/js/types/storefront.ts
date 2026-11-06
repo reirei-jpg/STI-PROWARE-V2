@@ -39,10 +39,8 @@ export type StorefrontTileProduct = {
     } | null;
     /** A Preorder product taking preorders, or a product for sale with a sold-out size to preorder. */
     accepts_preorders: boolean;
-    /** Its stock arrived in the last 3 days: the NEW tag. */
+    /** Its stock arrived in the last 3 days: the NEW tag and "New stock is available. Order now." */
     is_new: boolean;
-    /** A Coming Soon product whose stock arrived today: "New stock is available. Order now." */
-    new_stock: boolean;
     /** Sold out, with more on an uploaded eStore order. */
     available_soon: boolean;
 };
