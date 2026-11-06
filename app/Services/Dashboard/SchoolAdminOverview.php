@@ -25,7 +25,7 @@ use Illuminate\Pagination\LengthAwarePaginator as Paginator;
  * all time, a week, a month or a year) and what does not (slow-moving items),
  * 5 a page.
  *
- * @phpstan-type TopSellerRow array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, profit_centavos: int|null, top_variant_label: string|null, top_variant_pieces: int}
+ * @phpstan-type TopSellerRow array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, top_variant_label: string|null, top_variant_pieces: int}
  * @phpstan-type NotSellingRow array{product_id: int, product_name: string, stock_pieces: int, first_arrived_at: string|null, last_sold_at: string|null, days_without_sale: int}
  */
 final class SchoolAdminOverview
@@ -65,11 +65,26 @@ final class SchoolAdminOverview
                 'to' => $to->toDateString(),
                 'totals' => $this->salesTotals($from, $to),
                 // The Specialist's Best sellers (Sales Reports), 5 a page.
-                'top_sellers' => SalesReport::bestSellers($from, $to, self::PER_PAGE, 'top_page'),
+                'top_sellers' => SalesReport::bestSellers($from, $to, self::PER_PAGE, 'top_page')
+                    ->through(fn (array $row): array => self::withoutProfit($row)),
                 'slow_days' => SpecialistTasks::SLOW_MOVING_DAYS,
                 'not_selling' => $this->notSelling(),
             ],
         ];
+    }
+
+    /**
+     * Profit is for the Specialist's Sales Reports: it is not sent to the
+     * School Administrator's browser.
+     *
+     * @param  array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, profit_centavos: int|null, top_variant_label: string|null, top_variant_pieces: int}  $row
+     * @return TopSellerRow
+     */
+    private static function withoutProfit(array $row): array
+    {
+        unset($row['profit_centavos']);
+
+        return $row;
     }
 
     /**
@@ -86,7 +101,7 @@ final class SchoolAdminOverview
         return [
             'pieces' => $summary['pieces'],
             'price_centavos' => $summary['price_centavos'],
-            'best' => $best,
+            'best' => $best === null ? null : self::withoutProfit($best),
             'not_selling_pieces' => (int) Product::query()
                 ->slowMoving(SpecialistTasks::SLOW_MOVING_DAYS)
                 ->withSum('variants as stock_pieces', 'stock_on_hand')

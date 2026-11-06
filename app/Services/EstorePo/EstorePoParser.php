@@ -534,6 +534,10 @@ class EstorePoParser
             $errors = DateTimeImmutable::getLastErrors();
 
             if ($date !== false && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
+                if ($date->format('Y-m-d') > now()->toDateString()) {
+                    $warnings[] = $this->warning(null, sprintf('Date Ordered (%s) is in the future. Check the eStore email.', $date->format('M j, Y')));
+                }
+
                 return [$date->format('Y-m-d'), $hasTime ? $date->format('H:i') : null];
             }
         }

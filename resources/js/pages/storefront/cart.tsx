@@ -10,7 +10,7 @@ import {
     Trash2,
     TriangleAlert,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
@@ -69,9 +69,13 @@ export default function Cart({
     const placeOrder = useForm({});
     const rows = cartRows(lines);
     const allTicked = lines.every((line) => line.selected);
-    const tickedHaveProblems = lines.some(
-        (line) => line.selected && line.problem !== null,
+    const [tooMany, setTooMany] = useState<string[]>([]);
+    const tickedTooMany = rows.some(
+        (row) => row.line.selected && tooMany.includes(row.key),
     );
+    const tickedHaveProblems =
+        tickedTooMany ||
+        lines.some((line) => line.selected && line.problem !== null);
 
     return (
         <>
@@ -131,7 +135,22 @@ export default function Cart({
                             </label>
                             <ul className="divide-y divide-slate-100">
                                 {rows.map((row) => (
-                                    <CartLineRow key={row.key} row={row} />
+                                    <CartLineRow
+                                        key={row.key}
+                                        row={row}
+                                        onTooMany={(key, isTooMany) =>
+                                            setTooMany((keys) =>
+                                                isTooMany
+                                                    ? keys.includes(key)
+                                                        ? keys
+                                                        : [...keys, key]
+                                                    : keys.filter(
+                                                          (other) =>
+                                                              other !== key,
+                                                      ),
+                                            )
+                                        }
+                                    />
                                 ))}
                             </ul>
                         </div>
@@ -201,6 +220,7 @@ export default function Cart({
                                     type="button"
                                     disabled={
                                         !canPlaceOrder ||
+                                        tickedTooMany ||
                                         orderRefusal !== null ||
                                         placeOrder.processing
                                     }
@@ -252,7 +272,13 @@ function Step({ number, children }: { number: number; children: ReactNode }) {
  * One item, or one uniform set (its top and bottom shown together, at the
  * price of the two, changed and removed as one).
  */
-function CartLineRow({ row }: { row: CartRow }) {
+function CartLineRow({
+    row,
+    onTooMany,
+}: {
+    row: CartRow;
+    onTooMany: (key: string, isTooMany: boolean) => void;
+}) {
     const line = row.line;
     const set = line.set;
     const ids = row.lines.map((item) => item.id);
@@ -260,7 +286,23 @@ function CartLineRow({ row }: { row: CartRow }) {
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
 
+    const typed = Number(quantity) || 0;
+    const tooMany = line.most_allowed > 0 && typed > line.most_allowed;
+
+    // Place Order waits until a too-high number is corrected.
+    useEffect(() => {
+        onTooMany(row.key, tooMany);
+
+        return () => onTooMany(row.key, false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [row.key, tooMany]);
+
     const save = (value: number) => {
+        // A too-high number stays in the box, with the red message.
+        if (line.most_allowed > 0 && value > line.most_allowed) {
+            return;
+        }
+
         if (value < 1 || value === line.quantity) {
             setQuantity(String(line.quantity));
 
@@ -409,11 +451,11 @@ function CartLineRow({ row }: { row: CartRow }) {
                         <input
                             value={quantity}
                             onChange={(event) =>
-                                // Never more than what is left to buy.
+                                // Kept as typed: too many shows a red message.
                                 setQuantity(
                                     wholeNumberInput(
                                         event.target.value,
-                                        Math.max(line.most_allowed, 1),
+                                        Number.MAX_SAFE_INTEGER,
                                     ),
                                 )
                             }
@@ -422,7 +464,13 @@ function CartLineRow({ row }: { row: CartRow }) {
                                 event.key === 'Enter' && save(current)
                             }
                             inputMode="numeric"
-                            className="h-9 w-14 rounded-lg border border-slate-200 text-center text-sm font-black text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            className={cn(
+                                'h-9 w-14 rounded-lg border text-center text-sm font-black outline-none focus:ring-2',
+                                tooMany
+                                    ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-100'
+                                    : 'border-slate-200 text-slate-800 focus:border-blue-400 focus:ring-blue-100',
+                            )}
+                            aria-invalid={tooMany}
                             aria-label="How many"
                         />
                         <button
@@ -437,13 +485,25 @@ function CartLineRow({ row }: { row: CartRow }) {
                     </div>
                     <p className="mt-1 text-center text-xs text-slate-500">
                         {set
-                            ? `${line.quantity} ${line.quantity === 1 ? 'set' : 'sets'}`
-                            : formatUnits(line.quantity, line.unit_name)}
+                            ? `${current} ${current === 1 ? 'set' : 'sets'}`
+                            : formatUnits(current, line.unit_name)}
                         {!set &&
                             line.pieces_per_unit > 1 &&
-                            ` = ${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')}`}
+                            ` = ${formatUnits(current * line.pieces_per_unit, 'Piece')}`}
                     </p>
-                    {current >= line.most_allowed && line.most_allowed > 0 && (
+                    {tooMany && (
+                        <p className="max-w-44 text-center text-xs font-bold text-red-600">
+                            Only{' '}
+                            {set
+                                ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
+                                : formatUnits(
+                                      line.most_allowed,
+                                      line.unit_name,
+                                  )}{' '}
+                            left. Enter {line.most_allowed} or fewer.
+                        </p>
+                    )}
+                    {current === line.most_allowed && line.most_allowed > 0 && (
                         <p className="text-center text-xs font-bold text-amber-700">
                             Only{' '}
                             {set

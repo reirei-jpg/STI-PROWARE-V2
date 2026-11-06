@@ -6,12 +6,13 @@ import type { StudentOrder } from '@/lib/types';
 /**
  * An order's items, each with its unit and the price when it was ordered
  * ("2 Packs (100 pcs) × ₱900.00"), the uniform set it was bought in, and
- * the total to pay at the cashier.
+ * the total: to pay at the cashier, paid once released, or just the order's
+ * total once cancelled.
  */
 export default function OrderItemsList({
     order,
 }: {
-    order: Pick<StudentOrder, 'items' | 'total_centavos'>;
+    order: Pick<StudentOrder, 'items' | 'total_centavos' | 'status'>;
 }) {
     return (
         <View>
@@ -50,7 +51,11 @@ export default function OrderItemsList({
             ))}
             <View className="flex-row items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
                 <Text className="font-sans-bold text-sm text-slate-600">
-                    Total to pay at the cashier
+                    {order.status === 'picked_up'
+                        ? 'Total paid at the cashier'
+                        : order.status === 'cancelled'
+                          ? 'Order total'
+                          : 'Total to pay at the cashier'}
                 </Text>
                 <Text className="font-sans-bold text-lg text-slate-900">
                     {formatPeso(order.total_centavos)}

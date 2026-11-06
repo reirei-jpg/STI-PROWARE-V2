@@ -844,7 +844,7 @@ export default function ProductForm({
                     id="product-photos"
                     className="scroll-mt-24"
                     title="Photos"
-                    description={`Up to ${MAX_PHOTOS} photos, e.g. the front, back and side of a shirt. The first photo is the main one shown on the storefront. JPG, PNG or WEBP, up to 5 MB each.`}
+                    description={`Up to ${MAX_PHOTOS} photos, e.g. the front, back and side of a shirt. The first photo is the main one shown on the storefront. JPG, PNG or WEBP, up to 10 MB each.`}
                 >
                     <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {data.photos.map((photo, index) => (

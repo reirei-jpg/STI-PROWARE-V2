@@ -57,7 +57,7 @@ test('a student can preorder several sizes at once', function () {
         ]));
 });
 
-test('preordering a size already preordered adds to it, and keeps the others', function () {
+test('preordering a size already preordered goes behind those already in line, and keeps the others', function () {
     [$product, $sizes] = productWithSizes(ProductStatus::Preorder, ['S' => 0, 'M' => 0]);
     Preorder::factory()->forVariant($sizes['S'])->for($this->student, 'student')->create(['quantity' => 1]);
 
@@ -67,10 +67,10 @@ test('preordering a size already preordered adds to it, and keeps the others', f
             ['product_variant_id' => $sizes['M']->id, 'quantity' => '1'],
         ]])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Your preorder of Foundation Week Shirt now has: 5 × S, 1 × M. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of Foundation Week Shirt has been placed: 4 × S, 1 × M. Pieces added to an earlier preorder wait behind those already in line. It is listed in My Preorders.');
 
-    expect(Preorder::query()->where('status', PreorderStatus::Active)->pluck('quantity', 'product_variant_id')->all())
-        ->toBe([$sizes['S']->id => 5, $sizes['M']->id => 1]);
+    expect(Preorder::query()->where('status', PreorderStatus::Active)->orderBy('id')->pluck('quantity')->all())
+        ->toBe([1, 4, 1]);
 });
 
 test('a preorder of several sizes explains what is wrong and saves nothing', function (Closure $items, string $field, string $message) {

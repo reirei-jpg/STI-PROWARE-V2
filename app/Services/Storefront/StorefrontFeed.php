@@ -64,6 +64,7 @@ final class StorefrontFeed
     {
         return array_values(Product::query()
             ->where('status', ProductStatus::OnSale)
+            ->where(fn (Builder $sales) => $sales->whereNull('sale_ends_at')->orWhere('sale_ends_at', '>', now()))
             ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0'))
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->with(self::RELATIONS)
@@ -155,7 +156,7 @@ final class StorefrontFeed
             ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
             ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
             // NEW, then on sale, then the rest; sold out last.
-            ->orderByRaw('case when not '.self::IN_STOCK_SQL.' then 3 when new_until > ? then 0 when status = ? then 1 else 2 end', [$now, ProductStatus::OnSale->value])
+            ->orderByRaw('case when not '.self::IN_STOCK_SQL.' then 3 when new_until > ? then 0 when status = ? and (sale_ends_at is null or sale_ends_at > ?) then 1 else 2 end', [$now, ProductStatus::OnSale->value, $now])
             ->orderByRaw('case when new_until > ? then new_until end desc', [$now])
             ->orderByRaw('case when status = ? then sale_ends_at end', [ProductStatus::OnSale->value])
             ->latest('created_at')

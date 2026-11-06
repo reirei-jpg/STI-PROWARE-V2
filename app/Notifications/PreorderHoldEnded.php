@@ -10,7 +10,7 @@ use Illuminate\Notifications\Notification;
 
 /**
  * Tells a student the pieces held for them were not ordered within 24
- * hours, so the hold ended and they went to the next student, with the rest
+ * hours, so the hold ended and they went to the next buyer, with the rest
  * of that preorder still on its way ($restClosed pieces). Also pushed to
  * their phones.
  */
@@ -51,7 +51,7 @@ class PreorderHoldEnded extends Notification implements PushesToPhones
     {
         return [
             'title' => "Your hold has ended: {$this->preorder->variant->displayName()}",
-            'body' => 'The '.Units::count($this->preorder->quantity, 'Piece').' held for you were not ordered within 24 hours, so they went to the next student.'
+            'body' => 'The '.Units::count($this->preorder->quantity, 'Piece').' held for you were not ordered within 24 hours, so they went to the next buyer.'
                 .($this->restClosed > 0 ? ' The other '.Units::count($this->restClosed, 'Piece').' of this preorder will not be held for you either.' : '')
                 .' Check the store if you still want it.',
             'data' => ['kind' => 'preorder_hold_ended', 'product_id' => $this->preorder->product_id],

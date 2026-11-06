@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Preorder;
+use App\Models\User;
 use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,7 +29,7 @@ class OrderHeldPreorderRequest extends FormRequest
     {
         return [
             'quantity' => ['required', 'integer', 'min:1', 'max:'.$this->preorder()->quantity],
-            'section' => ['nullable', 'string', 'max:40'],
+            'section' => ['nullable', 'string', 'max:40', 'regex:'.User::SECTION_PATTERN],
         ];
     }
 
@@ -43,6 +44,7 @@ class OrderHeldPreorderRequest extends FormRequest
             'quantity.min' => 'The quantity must be at least 1.',
             'quantity.max' => 'Only '.Units::count($this->preorder()->quantity, 'Piece').($this->preorder()->quantity === 1 ? ' is' : ' are').' held for you.',
             'section.max' => 'The course/section may not be longer than 40 characters, e.g. BSIT 1-A.',
+            'section.regex' => User::SECTION_MESSAGE,
         ];
     }
 

@@ -307,8 +307,8 @@ export default function PreorderSheet({
             <View className="rounded-xl bg-amber-50 px-4 py-3">
                 <Text className="font-sans text-xs leading-5 text-amber-900">
                     {restock
-                        ? 'This item is out of stock. Preorder it: when it is back in stock, your pieces are held for you for 24 hours and you are notified. There is nothing to pay now. If you preorder the same size again, it is added to your preorder.'
-                        : 'A preorder reserves the item so the PROWARE office knows how many to order. There is nothing to pay now. If you preorder the same size again, it is added to your preorder.'}
+                        ? 'This item is out of stock. Preorder it: when it is back in stock, your pieces are held for you for 24 hours and you are notified. There is nothing to pay now. If you preorder the same size again, the added pieces wait behind those already in line.'
+                        : 'A preorder reserves the item so the PROWARE office knows how many to order. There is nothing to pay now. If you preorder the same size again, the added pieces wait behind those already in line.'}
                 </Text>
             </View>
 

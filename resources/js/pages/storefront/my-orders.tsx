@@ -498,7 +498,11 @@ function OrderCard({ order }: { order: MyOrder }) {
 
             <div className="mt-5 flex items-end justify-between gap-4 border-t border-slate-100 pt-5">
                 <p className="text-xs text-slate-400">
-                    Total to pay at the cashier
+                    {order.status === 'picked_up'
+                        ? 'Total paid at the cashier'
+                        : order.status === 'cancelled'
+                          ? 'Order total'
+                          : 'Total to pay at the cashier'}
                 </p>
                 <p className="text-xl font-black text-slate-900">
                     {formatPeso(order.total_centavos)}

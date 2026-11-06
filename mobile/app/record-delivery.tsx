@@ -553,7 +553,7 @@ function GroupCard({
                                 {row.order_number ? `#${row.order_number}` : 'No Order #'}
                             </Text>
                             {` · ${row.quantity_remaining.toLocaleString('en-PH')} of ${row.quantity_ordered.toLocaleString('en-PH')} left`}
-                            {now > 0 ? (
+                            {now > 0 && problem === null ? (
                                 <Text className="font-sans-bold text-emerald-700">{` → receives ${now.toLocaleString('en-PH')}`}</Text>
                             ) : (
                                 ''

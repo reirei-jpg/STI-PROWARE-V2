@@ -31,7 +31,7 @@ function preorderShirt(?string $closesOn = '2026-10-20', string $name = '42nd An
     return [$product, $small, $large];
 }
 
-test('a student can preorder a size, and preordering it again adds to it', function () {
+test('a student can preorder a size, and preordering it again goes behind those already in line', function () {
     [$product, $small] = preorderShirt();
     $this->actingAs($this->student);
 
@@ -41,14 +41,14 @@ test('a student can preorder a size, and preordering it again adds to it', funct
     $first = Preorder::sole();
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '3'])
-        ->assertInertiaFlash('toast.message', 'Your preorder of 42nd Anniversary Shirt (S/M) now has 5 pcs. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of 3 × 42nd Anniversary Shirt (S/M) has been placed behind those already in line, so you now have 5 pcs preordered. It is listed in My Preorders.');
 
-    expect(Preorder::sole())
-        ->id->toBe($first->id)
+    expect(Preorder::query()->orderBy('id')->pluck('quantity')->all())->toBe([2, 3])
+        ->and($first->refresh())
         ->user_id->toBe($this->student->id)
         ->product_id->toBe($product->id)
         ->product_variant_id->toBe($small->id)
-        ->quantity->toBe(5)
+        ->quantity->toBe(2)
         ->status->toBe(PreorderStatus::Active);
 });
 

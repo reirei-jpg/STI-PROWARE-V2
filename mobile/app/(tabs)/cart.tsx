@@ -61,6 +61,7 @@ function CartScreen() {
     const { cart, refresh, replace } = useCart();
     const [refreshing, setRefreshing] = useState(false);
     const [placing, setPlacing] = useState(false);
+    const [tooMany, setTooMany] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [placed, setPlaced] = useState<{ message: string; order: StudentOrder } | null>(
         null,
@@ -143,8 +144,9 @@ function CartScreen() {
     const rows = cartRows(lines);
     const ticked = rows.filter((row) => row.line.selected);
     const allTicked = ticked.length === rows.length;
-    const tickedHaveProblems = ticked.some((row) => row.line.problem !== null);
-    const canPlaceOrder = cart !== null && cart.can_place_order && cart.order_refusal === null;
+    const tickedTooMany = ticked.some((row) => tooMany.includes(row.key));
+    const tickedHaveProblems = tickedTooMany || ticked.some((row) => row.line.problem !== null);
+    const canPlaceOrder = cart !== null && cart.can_place_order && cart.order_refusal === null && !tickedTooMany;
 
     // The tick changes at once; the total follows when the server answers.
     const selectLines = async (ids: number[], selected: boolean): Promise<void> => {
@@ -243,6 +245,15 @@ function CartScreen() {
                                 row={row}
                                 first={position === 0}
                                 onChanged={replace}
+                                onTooMany={(key, isTooMany) =>
+                                    setTooMany((keys) =>
+                                        isTooMany
+                                            ? keys.includes(key)
+                                                ? keys
+                                                : [...keys, key]
+                                            : keys.filter((other) => other !== key),
+                                    )
+                                }
                                 onTick={() =>
                                     selectLines(
                                         row.lines.map((line) => line.id),
@@ -349,11 +360,13 @@ function CartLineRow({
     row,
     first,
     onChanged,
+    onTooMany,
     onTick,
 }: {
     row: CartRow;
     first: boolean;
     onChanged: (cart: CartView) => void;
+    onTooMany: (key: string, isTooMany: boolean) => void;
     onTick: () => void;
 }) {
     const line: CartLine = row.line;
@@ -364,10 +377,20 @@ function CartLineRow({
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const shownQuantity = Number(quantityText) || line.quantity;
+    const tooMany = line.most_allowed > 0 && (Number(quantityText) || 0) > line.most_allowed;
+
     // Follow the server's number (after a save, or when the cart reloads).
     useEffect(() => {
         setQuantityText(String(line.quantity));
     }, [line.quantity]);
+
+    // Place Order waits until a too-high number is corrected.
+    useEffect(() => {
+        onTooMany(row.key, tooMany);
+
+        return () => onTooMany(row.key, false);
+    }, [row.key, tooMany]);
 
     const save = async (value: number): Promise<void> => {
         setQuantityText(String(value));
@@ -512,22 +535,37 @@ function CartLineRow({
             {error && (
                 <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
             )}
+            {tooMany && (
+                <Text className="font-sans-bold text-sm text-red-600">
+                    Only {set ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}` : formatUnits(line.most_allowed, line.unit_name)} left. Enter {line.most_allowed} or fewer.
+                </Text>
+            )}
 
             <View className="flex-row items-center gap-3">
                 <View className="flex-1">
                     <QuantityStepper
                         value={quantityText}
                         onChange={setQuantityText}
-                        onCommit={(quantity) => void save(quantity)}
+                        onCommit={(quantity) => {
+                            if (line.most_allowed > 0 && quantity > line.most_allowed) {
+                                setQuantityText(String(quantity));
+
+                                return;
+                            }
+
+                            void save(quantity);
+                        }}
                         most={Math.max(line.most_allowed, 1)}
+                        keepTyped
+                        invalid={tooMany}
                         unitText={
                             set
-                                ? line.quantity === 1
+                                ? shownQuantity === 1
                                     ? 'set'
                                     : 'sets'
-                                : `${unitWord(line.quantity, line.unit_name)}${
+                                : `${unitWord(shownQuantity, line.unit_name)}${
                                       line.pieces_per_unit > 1
-                                          ? ` (${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')})`
+                                          ? ` (${formatUnits(shownQuantity * line.pieces_per_unit, 'Piece')})`
                                           : ''
                                   }`
                         }

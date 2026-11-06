@@ -2,7 +2,6 @@
 
 namespace App\Services\Shop;
 
-use App\Enums\ProductStatus;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\User;
@@ -129,7 +128,7 @@ final class CartView
             'selected' => $line->selected,
             'most_allowed' => $mostAllowed,
             'unit_price_centavos' => $unitPrice,
-            'on_sale' => ! $inSet && ($line->pack === null ? $variant->salePiecePrice() !== null : $product->status === ProductStatus::OnSale && $line->pack->sale_price_centavos !== null),
+            'on_sale' => ! $inSet && ($line->pack === null ? $variant->salePiecePrice() !== null : $product->isOnSale() && $line->pack->sale_price_centavos !== null),
             'line_total_centavos' => ($unitPrice ?? 0) * $line->quantity,
             'problem' => $problem,
             'set' => $inSet && $line->uniformSet !== null && $line->set_for !== null ? [

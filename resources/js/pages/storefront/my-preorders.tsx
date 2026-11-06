@@ -59,6 +59,7 @@ type MyPreorder = {
     /** The order the held pieces went into. */
     order_id: number | null;
     order_number: string | null;
+    order_status: 'placed' | 'ready' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
 };
 
@@ -481,7 +482,29 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
                 <span className="font-black">
                     {formatDateTime(preorder.held_until)}
                 </span>
-                . Order before then, or the pieces go to the next student.
+                . Order before then, or the pieces go to the next buyer.
+            </p>
+        );
+    }
+
+    if (
+        preorder.status === 'ordered' &&
+        preorder.order_status === 'cancelled'
+    ) {
+        return (
+            <p className="mt-1 text-xs leading-5 font-medium">
+                Order {preorder.order_number} was cancelled.
+            </p>
+        );
+    }
+
+    if (
+        preorder.status === 'ordered' &&
+        preorder.order_status === 'picked_up'
+    ) {
+        return (
+            <p className="mt-1 text-xs leading-5 font-medium">
+                You received it in order {preorder.order_number}.
             </p>
         );
     }
@@ -500,8 +523,8 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
         return (
             <p className="mt-1 text-xs leading-5 font-medium">
                 It was held for you but not ordered within 24 hours, so it went
-                to the next student on{' '}
-                {formatDateOrdered(preorder.hold_ended_at)}.
+                to the next buyer on {formatDateOrdered(preorder.hold_ended_at)}
+                .
             </p>
         );
     }

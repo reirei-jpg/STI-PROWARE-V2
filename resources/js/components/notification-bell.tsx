@@ -373,7 +373,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     The {formatUnits(data.held, 'Piece')} held for you were not
-                    ordered within 24 hours, so they went to the next student.
+                    ordered within 24 hours, so they went to the next buyer.
                     {(data.rest_closed ?? 0) > 0 &&
                         ` The other ${formatUnits(data.rest_closed ?? 0, 'Piece')} of this preorder will not be held for you either.`}
                 </span>

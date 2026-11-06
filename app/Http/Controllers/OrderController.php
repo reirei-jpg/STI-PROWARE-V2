@@ -92,9 +92,15 @@ class OrderController extends Controller
     {
         abort_unless($student->isBuyer(), 404);
 
-        OrderRules::liftPause($student);
+        return $this->respond(function () use ($student): string {
+            if (OrderRules::pausedUntil($student) === null) {
+                throw ValidationException::withMessages(['order' => "{$student->name} is not paused, so there is nothing to lift."]);
+            }
 
-        return $this->respond(fn (): string => "{$student->name} can now place orders again.");
+            OrderRules::liftPause($student);
+
+            return "{$student->name} can now place orders again.";
+        });
     }
 
     /**

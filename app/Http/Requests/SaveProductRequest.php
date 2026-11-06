@@ -11,6 +11,7 @@ use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductName;
 use App\Services\Products\ProductVariants;
 use App\Services\Sales\HeadOfficeCost;
+use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -37,6 +38,9 @@ use Inertia\Inertia;
 class SaveProductRequest extends FormRequest
 {
     public const MAX_PHOTOS = 6;
+
+    /** The largest photo, in KB (10 MB). */
+    public const MAX_PHOTO_KB = 10240;
 
     public const MAX_OPTIONS = 3;
 
@@ -71,6 +75,7 @@ class SaveProductRequest extends FormRequest
             'name' => ['required', 'string', 'max:120'],
             'sold_by_piece' => ['required', 'boolean'],
             'price' => [
+                'bail',
                 Rule::requiredIf($soldByPiece),
                 'nullable',
                 'decimal:0,2',
@@ -96,7 +101,7 @@ class SaveProductRequest extends FormRequest
                 'after_or_equal:expected_arrival_from',
             ],
             // Optional: a lower price for the first pieces preordered.
-            'early_bird_price' => ['nullable', 'required_with:early_bird_pieces', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
+            'early_bird_price' => ['bail', 'nullable', 'required_with:early_bird_pieces', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
             'early_bird_pieces' => ['nullable', 'required_with:early_bird_price', 'integer', 'min:1', 'max:100000'],
 
             'packs' => ['nullable', 'array', 'max:'.self::MAX_PACKS],
@@ -109,7 +114,7 @@ class SaveProductRequest extends FormRequest
             'packs.*.name' => ['required', 'string', 'max:30'],
             'packs.*.pieces' => ['required', 'integer', 'min:2', 'max:100000'],
             'packs.*.sold_to_students' => ['required', 'boolean'],
-            'packs.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
+            'packs.*.price' => ['bail', 'nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
 
             'photos' => [
                 Rule::requiredIf($this->input('status') !== ProductStatus::Draft->value),
@@ -126,7 +131,7 @@ class SaveProductRequest extends FormRequest
                 'nullable',
                 'image',
                 'mimes:jpg,jpeg,png,webp',
-                'max:5120',
+                'max:'.self::MAX_PHOTO_KB,
             ],
             'photos.*.label' => ['nullable', 'string', 'max:40'],
 
@@ -144,7 +149,7 @@ class SaveProductRequest extends FormRequest
             'variants.*.combination' => ['present', 'nullable', 'string'],
             'variants.*.estore_item_code' => ['nullable', 'string', 'max:40'],
             'variants.*.estore_pack_key' => ['nullable', 'string', 'max:40'],
-            'variants.*.price' => ['nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
+            'variants.*.price' => ['bail', 'nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
         ];
     }
 
@@ -155,6 +160,7 @@ class SaveProductRequest extends FormRequest
     {
         return [
             'name.required' => 'Enter the product name.',
+            'name.max' => 'The product name may not be longer than 120 characters.',
             'price.required' => 'Enter the Selling Price per piece (set by Head Office).',
             'price.decimal' => 'Enter the Selling Price in pesos, e.g. 350 or 350.50.',
             'price.gt' => 'The Selling Price must be more than ₱0.',
@@ -192,7 +198,8 @@ class SaveProductRequest extends FormRequest
             'photos.*.file.required_without' => 'Choose a photo file.',
             'photos.*.file.image' => 'Photos must be JPG, PNG or WEBP pictures.',
             'photos.*.file.mimes' => 'Photos must be JPG, PNG or WEBP pictures.',
-            'photos.*.file.max' => 'Each photo must be 5 MB or smaller.',
+            'photos.*.file.max' => 'Each photo must be 10 MB or smaller.',
+            'photos.*.file.uploaded' => 'The photo could not be uploaded. Each photo must be 10 MB or smaller.',
             'options.max' => 'A product can have up to '.self::MAX_OPTIONS.' options.',
             'options.*.choices.*.required' => 'A choice cannot be blank.',
             'variants.*.price.decimal' => 'Enter variant prices in pesos, e.g. 450.',
@@ -273,6 +280,7 @@ class SaveProductRequest extends FormRequest
                 }
 
                 $this->validateUniqueName($validator);
+                $this->validateStatusFitsStock($validator);
                 $this->validatePacks($validator);
                 $this->validatePreorderCloseDate($validator);
                 $this->validateItemCodes($validator);
@@ -282,6 +290,37 @@ class SaveProductRequest extends FormRequest
                 $this->validateVariantsWithPreordersAreKept($validator);
             },
         ];
+    }
+
+    /**
+     * Pieces on the shelf (also those held for orders and preorders) stay in
+     * the store: they cannot be hidden as a Draft or shown as Coming Soon. A
+     * Draft that already has stock can stay a Draft until it is ready to sell.
+     */
+    private function validateStatusFitsStock(Validator $validator): void
+    {
+        $product = $this->route('product');
+
+        if (! $product instanceof Product) {
+            return;
+        }
+
+        $pieces = (int) $product->variants()->sum('stock_on_hand');
+
+        if ($pieces === 0) {
+            return;
+        }
+
+        $stock = Units::count($pieces, 'Piece');
+        $status = $this->input('status');
+
+        if ($status === ProductStatus::Preorder->value) {
+            $validator->errors()->add('status', "{$product->name} has {$stock} in stock, so it cannot be a Preorder product. Set it to Available.");
+        }
+
+        if ($status === ProductStatus::Draft->value && LowStockAlerts::isSold($product)) {
+            $validator->errors()->add('status', "{$product->name} is in the store with {$stock} in stock, so it cannot go back to Draft. Keep it Available, or correct its stock first.");
+        }
     }
 
     /**

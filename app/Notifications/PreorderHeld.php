@@ -62,7 +62,7 @@ class PreorderHeld extends Notification implements PushesToPhones
 
     /**
      * "2 pcs are held for you until Oct 21, 3:00 PM. Order them in My
-     * Preorders before then, or they go to the next student." For part of a
+     * Preorders before then, or they go to the next buyer." For part of a
      * preorder: "20 of your 50 pcs have arrived … You will be notified when
      * the other 30 arrive."
      */
@@ -72,7 +72,7 @@ class PreorderHeld extends Notification implements PushesToPhones
             ? Units::count($held, 'Piece').' '.($held === 1 ? 'is' : 'are').' held for you'
             : "{$held} of your ".Units::count($preordered, 'Piece').($held === 1 ? ' has arrived and is' : ' have arrived and are').' held for you';
 
-        return "{$start} until {$until}. Order ".($held === 1 ? 'it' : 'them').' in My Preorders before then, or '.($held === 1 ? 'it goes' : 'they go').' to the next student.'
+        return "{$start} until {$until}. Order ".($held === 1 ? 'it' : 'them').' in My Preorders before then, or '.($held === 1 ? 'it goes' : 'they go').' to the next buyer.'
             .($held === $preordered ? '' : ' You will be notified when the other '.($preordered - $held).' arrive.');
     }
 }

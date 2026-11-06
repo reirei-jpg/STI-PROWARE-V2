@@ -254,18 +254,25 @@ function OrderRow({ order }: { order: StudentOrder }) {
 function preorderNote(preorder: StudentPreorder): { text: string; className: string } {
     if (preorder.status === 'held') {
         return {
-            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or the pieces go to the next student.`,
+            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or the pieces go to the next buyer.`,
             className: 'font-sans-bold text-emerald-700',
         };
     }
 
     if (preorder.status === 'ordered') {
-        return { text: `Ordered in ${preorder.order_number}`, className: 'font-sans-bold text-blue-700' };
+        if (preorder.order_status === 'cancelled') {
+            return { text: `Order ${preorder.order_number} was cancelled`, className: 'font-sans text-slate-500' };
+        }
+
+        return {
+            text: preorder.order_status === 'picked_up' ? `Received in ${preorder.order_number}` : `Ordered in ${preorder.order_number}`,
+            className: 'font-sans-bold text-blue-700',
+        };
     }
 
     if (preorder.status === 'hold_ended') {
         return {
-            text: 'Hold ended: it was not ordered within 24 hours, so it went to the next student.',
+            text: 'Hold ended: it was not ordered within 24 hours, so it went to the next buyer.',
             className: 'font-sans text-slate-500',
         };
     }
