@@ -377,6 +377,7 @@ function CartLineRow({
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const shownQuantity = Number(quantityText) || line.quantity;
     const tooMany = line.most_allowed > 0 && (Number(quantityText) || 0) > line.most_allowed;
 
     // Follow the server's number (after a save, or when the cart reloads).
@@ -559,12 +560,12 @@ function CartLineRow({
                         invalid={tooMany}
                         unitText={
                             set
-                                ? line.quantity === 1
+                                ? shownQuantity === 1
                                     ? 'set'
                                     : 'sets'
-                                : `${unitWord(line.quantity, line.unit_name)}${
+                                : `${unitWord(shownQuantity, line.unit_name)}${
                                       line.pieces_per_unit > 1
-                                          ? ` (${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')})`
+                                          ? ` (${formatUnits(shownQuantity * line.pieces_per_unit, 'Piece')})`
                                           : ''
                                   }`
                         }

@@ -485,11 +485,11 @@ function CartLineRow({
                     </div>
                     <p className="mt-1 text-center text-xs text-slate-500">
                         {set
-                            ? `${line.quantity} ${line.quantity === 1 ? 'set' : 'sets'}`
-                            : formatUnits(line.quantity, line.unit_name)}
+                            ? `${current} ${current === 1 ? 'set' : 'sets'}`
+                            : formatUnits(current, line.unit_name)}
                         {!set &&
                             line.pieces_per_unit > 1 &&
-                            ` = ${formatUnits(line.quantity * line.pieces_per_unit, 'Piece')}`}
+                            ` = ${formatUnits(current * line.pieces_per_unit, 'Piece')}`}
                     </p>
                     {tooMany && (
                         <p className="max-w-44 text-center text-xs font-bold text-red-600">
