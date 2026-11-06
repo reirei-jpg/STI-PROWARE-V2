@@ -39,7 +39,7 @@ export type StorefrontTileProduct = {
     accepts_preorders: boolean;
     /** Its stock arrived in the last 3 days: the NEW tag. */
     is_new: boolean;
-    /** A Coming Soon product whose stock arrived today, still in Coming Soon to order now. */
+    /** A Coming Soon product whose stock arrived today: "New stock is available. Order now." */
     new_stock: boolean;
     /** Sold out, with more on an uploaded eStore order. */
     available_soon: boolean;

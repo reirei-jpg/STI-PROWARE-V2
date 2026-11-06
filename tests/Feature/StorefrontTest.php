@@ -110,7 +110,7 @@ test('a product is NEW for 3 days after its first stock arrives, and not again f
     expect($product->refresh()->isNew())->toBeFalse();
 });
 
-test('a Coming Soon product that arrives stays in Coming Soon for a day to order, then moves to All Merchandise as NEW', function () {
+test('a Coming Soon product that arrives leaves Coming Soon at once for All Merchandise, saying new stock is available for a day and NEW for 3 days', function () {
     $product = shopProduct('STI Hoodie', 0, ['status' => ProductStatus::Preorder], received: false);
     $variant = $product->variants()->sole();
     StockMovement::factory()->for($variant, 'variant')->create();
@@ -121,16 +121,16 @@ test('a Coming Soon product that arrives stays in Coming Soon for a day to order
     expect($product->refresh()->status)->toBe(ProductStatus::Available);
     $this->get('/')
         ->assertInertia(fn (Assert $page) => $page
-            ->where('comingSoon.0.name', 'STI Hoodie')
-            ->where('comingSoon.0.new_stock', true)
-            ->where('comingSoon.0.accepts_preorders', false)
-            ->has('merchandise.data', 0)
+            ->has('comingSoon', 0)
+            ->where('merchandise.data.0.name', 'STI Hoodie')
+            ->where('merchandise.data.0.is_new', true)
+            ->where('merchandise.data.0.new_stock', true)
+            ->where('merchandise.data.0.accepts_preorders', false)
         );
 
     $this->travel(25)->hours();
     $this->get('/')
         ->assertInertia(fn (Assert $page) => $page
-            ->has('comingSoon', 0)
             ->where('merchandise.data.0.name', 'STI Hoodie')
             ->where('merchandise.data.0.is_new', true)
             ->where('merchandise.data.0.new_stock', false)
