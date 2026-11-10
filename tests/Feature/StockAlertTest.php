@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\ProductStatus;
+use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Notifications\LowStockAlert;
 use App\Services\Stock\LowStockAlerts;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -55,6 +57,39 @@ test('the specialist is warned once when a variant falls to the low-stock number
             'alert_at' => 5,
         ])
         ->and($schoolAdmin->notifications()->count())->toBe(0);
+});
+
+test('a Coming Soon product that arrives at or below the low-stock number warns the specialist at the delivery', function () {
+    $product = Product::factory()->create(['name' => 'STI Intramurals Shirt 2026', 'status' => ProductStatus::Preorder, 'low_stock_alert_at' => 5]);
+    $xl = ProductVariant::factory()->for($product)->create(['estore_item_code' => 'PRIS26-01', 'stock_on_hand' => 0]);
+    $order = orderWith(['PRIS26-01' => 20]);
+    $this->actingAs($this->specialist);
+
+    $this->post(route('deliveries.store'), [
+        'received_on' => now()->toDateString(),
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRIS26-01'), 'quantity_received' => 2]],
+    ])->assertSessionHasNoErrors();
+
+    expect($product->refresh()->status)->toBe(ProductStatus::Available)
+        ->and($this->specialist->notifications()->count())->toBe(1)
+        ->and($this->specialist->notifications()->sole()->data['stock_on_hand'])->toBe(2)
+        ->and($xl->refresh()->low_stock_notified_at)->not->toBeNull();
+});
+
+test('pieces held for waiting preorders at a delivery count as gone for the low-stock warning', function () {
+    $variant = stockedVariant(0);
+    Preorder::factory()->forVariant($variant)->create(['quantity' => 4]);
+    $order = orderWith(['PRCU01-01' => 20]);
+    $this->actingAs($this->specialist);
+
+    // 8 arrive, 4 are held for the preorder: 4 free, at or below 5.
+    $this->post(route('deliveries.store'), [
+        'received_on' => now()->toDateString(),
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRCU01-01'), 'quantity_received' => 8]],
+    ])->assertSessionHasNoErrors();
+
+    expect($variant->refresh()->preorder_held_pieces)->toBe(4)
+        ->and($this->specialist->notifications()->where('type', LowStockAlert::class)->count())->toBe(1);
 });
 
 test('after a delivery brings the stock back up, the next drop warns again', function () {
