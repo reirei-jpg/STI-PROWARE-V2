@@ -13,15 +13,29 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Rect } from 'react-native-svg';
 
 import ServerAddressSetting from '@/components/ServerAddressSetting';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
+/** The four-square Microsoft logo, as on the website's sign-in. */
+function MicrosoftLogo() {
+    return (
+        <Svg width={20} height={20} viewBox="0 0 21 21">
+            <Rect x={1} y={1} width={9} height={9} fill="#f25022" />
+            <Rect x={11} y={1} width={9} height={9} fill="#7fba00" />
+            <Rect x={1} y={11} width={9} height={9} fill="#00a4ef" />
+            <Rect x={11} y={11} width={9} height={9} fill="#ffb900" />
+        </Svg>
+    );
+}
+
 /**
  * Signing in with the student's STI email and password (the same account as
- * the website). Microsoft 365 sign-in comes later. It opens on top of the
- * store, so Back to the store closes it without signing in.
+ * the website). Sign in with Microsoft 365 is shown as on the website; until
+ * the school connects it, pressing it only says it is not connected yet. It
+ * opens on top of the store, so Back to the store closes it without signing in.
  */
 export default function Login() {
     const insets = useSafeAreaInsets();
@@ -33,6 +47,7 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [triedMicrosoft, setTriedMicrosoft] = useState(false);
     const [remember, setRemember] = useState(true);
     const [focused, setFocused] = useState<'email' | 'password' | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -125,7 +140,51 @@ export default function Login() {
                         )}
                     </View>
 
-                    <View className="mt-8 gap-6">
+                    <View className="mt-8">
+                        <Pressable
+                            onPress={() => setTriedMicrosoft(true)}
+                            accessibilityRole="button"
+                            className="flex-row items-center justify-center gap-3 rounded-full border border-slate-300 bg-white py-4"
+                        >
+                            <MicrosoftLogo />
+                            <Text className="font-sans-bold text-base text-slate-800">
+                                Sign in with Microsoft 365
+                            </Text>
+                        </Pressable>
+
+                        <Text className="mt-2 text-center font-sans text-xs text-slate-500">
+                            For students and STI staff, with your STI account
+                            (@sti.edu.ph)
+                        </Text>
+
+                        {triedMicrosoft && (
+                            <View
+                                accessibilityRole="alert"
+                                className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
+                            >
+                                <Text className="font-sans-bold text-sm text-amber-900">
+                                    Not connected yet
+                                </Text>
+                                <Text className="mt-1 font-sans text-sm leading-6 text-amber-900">
+                                    Microsoft 365 sign-in is waiting for STI's
+                                    Microsoft account details. For now, sign in
+                                    with your email and password below. No
+                                    account yet? Register on the PROWARE
+                                    website.
+                                </Text>
+                            </View>
+                        )}
+
+                        <View className="mt-5 flex-row items-center gap-3">
+                            <View className="h-px flex-1 bg-slate-200" />
+                            <Text className="font-sans-bold text-xs uppercase tracking-wide text-slate-400">
+                                or with your PROWARE email
+                            </Text>
+                            <View className="h-px flex-1 bg-slate-200" />
+                        </View>
+                    </View>
+
+                    <View className="mt-5 gap-6">
                         <View>
                             <View className="justify-center">
                                 <View className="absolute left-5 z-10">
