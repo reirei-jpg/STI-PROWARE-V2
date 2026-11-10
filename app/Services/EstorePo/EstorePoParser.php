@@ -36,6 +36,14 @@ class EstorePoParser
 
     private const UNSUPPORTED_FILE_MESSAGE = 'PROWARE cannot read this file type. Paste the order details email instead, or upload it as a Word (.docx) or text file.';
 
+    public const WORD_FILES_UNAVAILABLE_MESSAGE = 'Word files cannot be opened on this computer yet. Paste the order details email instead, or upload it as a text (.txt) file.';
+
+    /**
+     * @param  bool|null  $wordFilesSupported  Whether Word files can be opened; by default, whether PHP's
+     *                                         zip extension is loaded (a .docx is a zip file).
+     */
+    public function __construct(private ?bool $wordFilesSupported = null) {}
+
     /** A line above these looks wrong and cannot be saved. */
     public const MAX_UNIT_PRICE_CENTAVOS = 100000 * 100;
 
@@ -90,6 +98,11 @@ class EstorePoParser
      */
     private function linesFromWordFile(string $path): array
     {
+        // Without PHP's zip extension a .docx cannot be opened: say so instead of failing.
+        if (! ($this->wordFilesSupported ?? class_exists(ZipArchive::class))) {
+            throw new UnreadablePurchaseOrderException(self::WORD_FILES_UNAVAILABLE_MESSAGE);
+        }
+
         $zip = new ZipArchive;
 
         if ($zip->open($path) !== true) {

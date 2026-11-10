@@ -77,6 +77,13 @@ test('it reads the same purchase order when the items are a Word table', functio
     expectRealEstorePo((new EstorePoParser)->parseFile(makeWordFile($body)));
 });
 
+test('a Word file on a computer that cannot open Word files gets a clear message, not an error', function () {
+    $body = implode('', array_map(wordParagraph(...), explode("\n", REAL_ESTORE_PO)));
+
+    expect(fn () => (new EstorePoParser(wordFilesSupported: false))->parseFile(makeWordFile($body)))
+        ->toThrow(UnreadablePurchaseOrderException::class, EstorePoParser::WORD_FILES_UNAVAILABLE_MESSAGE);
+});
+
 test('it reads the same purchase order from plain text', function () {
     expectRealEstorePo((new EstorePoParser)->parseText(REAL_ESTORE_PO));
 });

@@ -111,10 +111,14 @@ final class DeliveredStock
                 ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
                 ->update(['new_until' => now()->addDays(StorefrontFeed::NEW_DAYS)]);
 
-            // Stock went up, so a variant warned before may be warned again.
+            // Waiting preorders are served first: a Coming Soon product becomes
+            // Available there, and held pieces are no longer free to sell. The
+            // low-stock check then sees the product as it is now (stock went up,
+            // so a variant warned before may be warned again).
             foreach ($variantsByCode->flatten(1) as $variant) {
-                $this->lowStockAlerts->check($variant, restocked: in_array($variant->id, $restockedIds, true));
                 $this->restockedPreorders->check($variant);
+                $variant->unsetRelation('product');
+                $this->lowStockAlerts->check($variant, restocked: in_array($variant->id, $restockedIds, true));
             }
 
             return $piecesAdded;

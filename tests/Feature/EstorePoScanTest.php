@@ -2,6 +2,7 @@
 
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Services\EstorePo\EstorePoParser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -88,6 +89,16 @@ test('pasted text without an order is refused with an explanation', function () 
         ->assertSessionHasErrors(['email_text' => 'PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.']);
 
     expect(Storage::disk('local')->allFiles())->toBe([]);
+});
+
+test('a Word file on a computer that cannot open Word files is refused with a message instead of an error', function () {
+    app()->instance(EstorePoParser::class, new EstorePoParser(wordFilesSupported: false));
+
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()])
+        ->assertSessionHasErrors(['document' => EstorePoParser::WORD_FILES_UNAVAILABLE_MESSAGE]);
+
+    expect(PurchaseOrder::query()->count())->toBe(0);
 });
 
 test('scanning a new file replaces the previous scan', function () {
