@@ -10,8 +10,17 @@ export type FlashToast = {
         | 'session-expired'
         | 'page-reloaded'
         | 'cart';
-    /** A button for the next step, e.g. "Link the new items". */
-    action?: { label: string; href: string };
+    /**
+     * A button for the next step, e.g. "Link the new items" (opens a page), or
+     * Undo (sent as a form with `method` and `data`, e.g. putting a removed
+     * cart line back).
+     */
+    action?: {
+        label: string;
+        href: string;
+        method?: 'post';
+        data?: Record<string, string | number | boolean | null>;
+    };
 };
 
 export type AuthLayoutProps = {

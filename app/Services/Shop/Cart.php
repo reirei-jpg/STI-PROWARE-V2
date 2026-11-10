@@ -114,6 +114,45 @@ final class Cart
     }
 
     /**
+     * Undo after Remove: the line that was put back is ticked, or not, as it
+     * was before it was removed (adding it ticks it).
+     */
+    public function keepTickAfterUndo(User $student, ProductVariant $variant, ?ProductPack $pack, bool $selected): void
+    {
+        $student->cartItems()
+            ->where('product_variant_id', $variant->id)
+            ->where('product_pack_id', $pack?->id)
+            ->whereNull('set_key')
+            ->update(['selected' => $selected]);
+    }
+
+    /**
+     * Undo after Remove, for a uniform set: both its lines, as before.
+     */
+    public function keepSetTickAfterUndo(User $student, string $setKey, bool $selected): void
+    {
+        $student->cartItems()->where('set_key', $setKey)->update(['selected' => $selected]);
+    }
+
+    /**
+     * "2 pcs of STI Lanyard are back in your cart."
+     */
+    public static function backInCartMessage(ProductVariant $variant, ?ProductPack $pack, int $quantity): string
+    {
+        return Units::count($quantity, $pack->name ?? 'Piece')." of {$variant->displayName()} ".($quantity === 1 ? 'is' : 'are').' back in your cart.';
+    }
+
+    /**
+     * "1 BSIT Uniform Set (For Boys: BSIT Polo (M), BSIT Pants (L)) is back in your cart."
+     */
+    public static function setBackInCartMessage(UniformSet $set, UniformSetFor $for, ProductVariant $top, ProductVariant $bottom, int $quantity): string
+    {
+        $sets = $quantity === 1 ? '1 '.$set->displayName() : "{$quantity} × {$set->displayName()}";
+
+        return "{$sets} ({$for->label()}: {$top->displayName()}, {$bottom->displayName()}) ".($quantity === 1 ? 'is' : 'are').' back in your cart.';
+    }
+
+    /**
      * Tick or untick some of the student's own lines for the next Place
      * Order (one line, or "Select all"); a set's two lines go together.
      * Other students' lines are never touched.

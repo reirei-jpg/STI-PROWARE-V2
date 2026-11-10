@@ -303,6 +303,10 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                             )}
                             Release the items
                         </button>
+                        <p className="mt-2 text-center text-xs font-semibold text-slate-500">
+                            The items leave the stock at once. This cannot be
+                            undone.
+                        </p>
                     </ReleaseStep>
                 </ol>
             )}

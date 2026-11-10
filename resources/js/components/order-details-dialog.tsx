@@ -222,12 +222,12 @@ export default function OrderDetailsDialog({
                                         )}
                                         Release the items
                                     </button>
-                                    {!paid && (
-                                        <p className="text-xs font-semibold text-emerald-900/70">
-                                            Tick the box above after checking
-                                            the cashier receipt.
-                                        </p>
-                                    )}
+                                    <p className="text-xs font-semibold text-emerald-900/70">
+                                        {!paid &&
+                                            'Tick the box above after checking the cashier receipt. '}
+                                        The items leave the stock at once. This
+                                        cannot be undone.
+                                    </p>
                                 </section>
                             )}
                         </div>

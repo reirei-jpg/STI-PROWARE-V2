@@ -1,8 +1,9 @@
 import { useForm } from '@inertiajs/react';
 import { Gift, LoaderCircle, Plus, Trash2, X } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import {
     Dialog,
@@ -254,28 +255,80 @@ function GroupForm({
     }
 
     const tooFew = data.students.length < groupSize;
+    // Recording gives the pieces at once and a group cannot be taken back,
+    // so the Specialist answers first.
+    const [confirming, setConfirming] = useState(false);
+    const freeToSell = new Map<number, number>();
+
+    for (const option of sets) {
+        for (const piece of [
+            option.blouse,
+            option.polo,
+            option.pants,
+            option.ladies_pants,
+            option.skirt,
+        ]) {
+            for (const size of piece?.sizes ?? []) {
+                freeToSell.set(size.id, size.free_to_sell);
+            }
+        }
+    }
+
+    let pieces = 0;
+    let stillToGive = 0;
+
+    for (const [id, count] of Object.entries(taken)) {
+        const given = Math.min(count, freeToSell.get(Number(id)) ?? 0);
+        pieces += given;
+        stillToGive += count - given;
+    }
+
+    const students = data.students.length;
+    const leaveTheStock =
+        pieces === 0
+            ? 'No piece leaves the stock now.'
+            : `${pieces} ${pieces === 1 ? 'piece leaves' : 'pieces leave'} the stock now, as Free (promo).`;
+    const outOfStock =
+        stillToGive === 0
+            ? ''
+            : ` ${stillToGive} ${stillToGive === 1 ? 'piece is' : 'pieces are'} out of stock and marked Still to give.`;
+
+    const record = () => {
+        setConfirming(false);
+        form.transform((current) => ({
+            enrolled_on: current.enrolled_on,
+            note: current.note,
+            students: current.students.map(
+                ({ key: _key, ...student }) => student,
+            ),
+        }));
+        form.post(FreeUniformController.store().url, {
+            preserveScroll: true,
+            onSuccess: onClose,
+            onError: () => {
+                jumpToFirstProblem.current = true;
+            },
+        });
+    };
 
     return (
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                form.transform((current) => ({
-                    enrolled_on: current.enrolled_on,
-                    note: current.note,
-                    students: current.students.map(
-                        ({ key: _key, ...student }) => student,
-                    ),
-                }));
-                form.post(FreeUniformController.store().url, {
-                    preserveScroll: true,
-                    onSuccess: onClose,
-                    onError: () => {
-                        jumpToFirstProblem.current = true;
-                    },
-                });
+                setConfirming(true);
             }}
             className="flex min-h-0 flex-col"
         >
+            <ConfirmDialog
+                open={confirming}
+                title={`Record ${students} ${students === 1 ? 'student' : 'students'} and give their free ${students === 1 ? 'set' : 'sets'}?`}
+                description={`${leaveTheStock}${outOfStock} This cannot be undone.`}
+                cancelLabel="Check again"
+                confirmLabel="Record the group"
+                busy={form.processing}
+                onConfirm={record}
+                onClose={() => setConfirming(false)}
+            />
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">

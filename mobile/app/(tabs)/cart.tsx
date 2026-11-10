@@ -11,7 +11,6 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Image,
     Pressable,
     RefreshControl,
@@ -21,6 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import CenteredToast, { type ToastMessage } from '@/components/CenteredToast';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
@@ -69,6 +69,10 @@ function CartScreen() {
 
     // Shown only while there is no cart to show at all.
     const [loadError, setLoadError] = useState<string | null>(null);
+
+    // "… has been removed from your cart." with Undo, in the middle of the screen.
+    const [toast, setToast] = useState<ToastMessage | null>(null);
+    const closeToast = useCallback(() => setToast(null), []);
 
     const load = useCallback(
         () =>
@@ -245,6 +249,7 @@ function CartScreen() {
                                 row={row}
                                 first={position === 0}
                                 onChanged={replace}
+                                onRemoved={setToast}
                                 onTooMany={(key, isTooMany) =>
                                     setTooMany((keys) =>
                                         isTooMany
@@ -337,6 +342,8 @@ function CartScreen() {
                     )}
                 </View>
             )}
+
+            <CenteredToast toast={toast} onClose={closeToast} />
         </View>
     );
 }
@@ -360,12 +367,14 @@ function CartLineRow({
     row,
     first,
     onChanged,
+    onRemoved,
     onTooMany,
     onTick,
 }: {
     row: CartRow;
     first: boolean;
     onChanged: (cart: CartView) => void;
+    onRemoved: (toast: ToastMessage) => void;
     onTooMany: (key: string, isTooMany: boolean) => void;
     onTick: () => void;
 }) {
@@ -419,28 +428,62 @@ function CartLineRow({
         }
     };
 
-    const remove = (): void => {
-        Alert.alert('Remove from cart?', name, [
-            { text: 'Keep it', style: 'cancel' },
-            {
-                text: 'Remove',
-                style: 'destructive',
-                onPress: async () => {
-                    setBusy(true);
+    // Removing is a toast, not a question: it is easy to put back with Undo.
+    const putBack = async (): Promise<void> => {
+        const undo =
+            set && set.uniform_set_id !== null && set.top_variant_id !== null && set.bottom_variant_id !== null
+                ? {
+                      path: `/uniform-sets/${set.uniform_set_id}/cart`,
+                      body: { for: set.for, top_variant_id: set.top_variant_id, bottom_variant_id: set.bottom_variant_id },
+                  }
+                : {
+                      path: `/products/${line.product_id}/cart`,
+                      body: { product_variant_id: line.product_variant_id, product_pack_id: line.product_pack_id },
+                  };
 
-                    try {
-                        const result = await request<{ cart: CartView }>(`/cart/${line.id}`, {
-                            method: 'DELETE',
-                        });
+        try {
+            const result = await request<{ message: string; cart: CartView }>(undo.path, {
+                method: 'POST',
+                body: { ...undo.body, quantity: line.quantity, undo_remove: true, selected: line.selected },
+            });
 
-                        onChanged(result.cart);
-                    } catch {
-                        setError('It could not be removed. Try again.');
-                        setBusy(false);
-                    }
-                },
-            },
-        ]);
+            onChanged(result.cart);
+            onRemoved({ type: 'success', message: result.message });
+        } catch (caught) {
+            onRemoved({
+                type: 'error',
+                message: caught instanceof ApiError ? caught.message : 'It could not be put back. Add it again from the store.',
+            });
+        }
+    };
+
+    const remove = async (): Promise<void> => {
+        const what = set
+            ? set.name
+            : `${line.product_name}${
+                  [line.variant_label, line.unit_name !== 'Piece' ? line.unit_name : null]
+                      .filter(Boolean)
+                      .join(', ')
+                      .replace(/^(.+)$/, ' ($1)')
+              }`;
+
+        setBusy(true);
+
+        try {
+            const result = await request<{ cart: CartView }>(`/cart/${line.id}`, {
+                method: 'DELETE',
+            });
+
+            onChanged(result.cart);
+            onRemoved({
+                type: 'success',
+                message: `${what} has been removed from your cart.`,
+                action: { label: 'Undo', onPress: () => void putBack() },
+            });
+        } catch {
+            setError('It could not be removed. Try again.');
+            setBusy(false);
+        }
     };
 
     return (

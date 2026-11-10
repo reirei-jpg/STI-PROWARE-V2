@@ -79,7 +79,7 @@ final class CartView
     /**
      * @param  Collection<int, CartItem>  $cart
      * @param  array<int, int|null>  $setPrices  today's price per piece of set lines, by line id
-     * @return array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, selected: bool, most_allowed: int, unit_price_centavos: int|null, on_sale: bool, line_total_centavos: int, problem: string|null, set: array{key: string, name: string, for_label: string, price_centavos: int|null}|null}
+     * @return array{id: int, product_id: int, product_variant_id: int, product_pack_id: int|null, product_name: string, photo_url: string|null, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, selected: bool, most_allowed: int, unit_price_centavos: int|null, on_sale: bool, line_total_centavos: int, problem: string|null, set: array{key: string, name: string, for_label: string, price_centavos: int|null, uniform_set_id: int|null, for: string, top_variant_id: int|null, bottom_variant_id: int|null}|null}
      */
     private static function line(CartItem $line, Collection $cart, array $setPrices): array
     {
@@ -116,9 +116,15 @@ final class CartView
             default => null,
         };
 
+        // A set's top line is saved first, so the set's lines in id order are top, then bottom.
+        $setLines = $inSet ? $cart->where('set_key', $line->set_key)->sortBy('id')->values() : collect();
+
         return [
             'id' => $line->id,
             'product_id' => $product->id,
+            // What Undo after Remove puts back (the same as Add to Cart sends).
+            'product_variant_id' => $variant->id,
+            'product_pack_id' => $line->pack?->id,
             'product_name' => $product->name,
             'photo_url' => $product->mainPhoto?->url(),
             'variant_label' => $variant->choices === [] ? null : $variant->label(),
@@ -137,6 +143,11 @@ final class CartView
                 'for_label' => $line->set_for->label(),
                 // One set, today: the top and bottom together.
                 'price_centavos' => $unitPrice === null ? null : (int) $setPrice,
+                // What Undo after Remove puts back (the same as adding the set sends).
+                'uniform_set_id' => $line->uniform_set_id,
+                'for' => $line->set_for->value,
+                'top_variant_id' => $setLines->first()?->product_variant_id,
+                'bottom_variant_id' => $setLines->count() > 1 ? $setLines->last()?->product_variant_id : null,
             ] : null,
         ];
     }

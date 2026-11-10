@@ -3,6 +3,7 @@ import { ArrowLeft, Boxes, CircleCheck, PackagePlus, Search, TriangleAlert, Unli
 import { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -192,11 +193,28 @@ export default function RecordDeliveryScreen() {
             group.rows.some((row) => (row.order_number ?? '').toLowerCase().includes(term)),
     );
 
-    const save = async (): Promise<void> => {
+    // Saving adds the stock and serves and notifies waiting buyers at once,
+    // and cannot be undone, so the Specialist answers first.
+    const save = (): void => {
         if (!canSave) {
             return;
         }
 
+        const added = piecesIntoStock > 0 ? `It adds ${formatUnits(piecesIntoStock, 'Piece')} to stock now. ` : 'It is recorded on the order. ';
+        const unlinked =
+            notLinked > 0 ? `${notLinked === 1 ? '1 item is' : `${notLinked} items are`} not linked to a product, so only recorded. ` : '';
+
+        Alert.alert(
+            'Record this delivery?',
+            `${added}${unlinked}Buyers waiting for these items are served first and notified. This cannot be undone.`,
+            [
+                { text: 'Check again', style: 'cancel' },
+                { text: 'Record delivery', onPress: () => void record() },
+            ],
+        );
+    };
+
+    const record = async (): Promise<void> => {
         setSaving(true);
         setError(null);
 

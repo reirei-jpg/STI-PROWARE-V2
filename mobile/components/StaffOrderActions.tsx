@@ -100,11 +100,10 @@ export function ReleaseBox({
             >
                 Release the items
             </ActionButton>
-            {!paid && (
-                <Text className="font-sans-semibold text-xs text-emerald-900/70">
-                    Tick the box above after checking the cashier receipt.
-                </Text>
-            )}
+            <Text className="font-sans-semibold text-xs text-emerald-900/70">
+                {!paid ? 'Tick the box above after checking the cashier receipt. ' : ''}
+                The items leave the stock at once. This cannot be undone.
+            </Text>
         </View>
     );
 }

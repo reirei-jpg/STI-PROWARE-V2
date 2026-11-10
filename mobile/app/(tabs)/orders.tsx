@@ -337,7 +337,15 @@ function PreorderRow({
     const held = preorder.status === 'held';
 
     const cancel = (): void => {
-        Alert.alert(held ? 'Give up these pieces?' : 'Cancel this preorder?', preorder.product_name, [
+        // It cannot be undone, so the alert says what will happen.
+        const whatHappens = held
+            ? `The ${preorder.quantity === 1 ? 'piece goes' : `${preorder.quantity} pcs go`} to the next buyer in line, or back on sale. This cannot be undone.`
+            : 'You lose your place in line and any early-bird price. Preordering again puts you at the end of the line. This cannot be undone.';
+
+        Alert.alert(
+            held ? `Give up the ${preorder.quantity === 1 ? 'piece' : 'pieces'} held for you?` : `Cancel your preorder for ${preorder.product_name}?`,
+            whatHappens,
+            [
             { text: 'Keep it', style: 'cancel' },
             {
                 text: held ? 'Give up' : 'Cancel preorder',

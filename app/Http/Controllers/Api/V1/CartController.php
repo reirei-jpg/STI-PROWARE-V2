@@ -32,8 +32,15 @@ class CartController extends Controller
 
         $cart->addMany($request->user(), $lines, $request->fieldFor(...));
 
+        // Undo after Remove: the line is back, ticked as it was before.
+        if ($request->boolean('undo_remove')) {
+            $cart->keepTickAfterUndo($request->user(), $lines[0]['variant'], $lines[0]['pack'], $request->boolean('selected', true));
+        }
+
         return response()->json([
-            'message' => Cart::addedManyMessage($lines),
+            'message' => $request->boolean('undo_remove')
+                ? Cart::backInCartMessage($lines[0]['variant'], $lines[0]['pack'], $lines[0]['quantity'])
+                : Cart::addedManyMessage($lines),
             'cart' => CartView::for($request->user()),
         ], 201);
     }
@@ -47,10 +54,17 @@ class CartController extends Controller
         $bottom = $request->bottom();
         $quantity = $request->integer('quantity');
 
-        $cart->addSet($request->user(), $uniformSet, $request->for(), $top, $bottom, $quantity);
+        $setKey = $cart->addSet($request->user(), $uniformSet, $request->for(), $top, $bottom, $quantity);
+
+        // Undo after Remove: the set is back, ticked as it was before.
+        if ($request->boolean('undo_remove')) {
+            $cart->keepSetTickAfterUndo($request->user(), $setKey, $request->boolean('selected', true));
+        }
 
         return response()->json([
-            'message' => Cart::addedSetMessage($uniformSet, $request->for(), $top, $bottom, $quantity),
+            'message' => $request->boolean('undo_remove')
+                ? Cart::setBackInCartMessage($uniformSet, $request->for(), $top, $bottom, $quantity)
+                : Cart::addedSetMessage($uniformSet, $request->for(), $top, $bottom, $quantity),
             'cart' => CartView::for($request->user()),
         ], 201);
     }

@@ -29,6 +29,9 @@ class AddSetToCartRequest extends FormRequest
             'top_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
             'bottom_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
             'quantity' => ['required', 'integer', 'min:1', 'max:'.Cart::MAX_QUANTITY],
+            // Undo after Remove: put the set back, ticked as it was.
+            'undo_remove' => ['sometimes', 'boolean'],
+            'selected' => ['sometimes', 'boolean'],
         ];
     }
 

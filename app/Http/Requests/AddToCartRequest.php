@@ -63,6 +63,9 @@ class AddToCartRequest extends FormRequest
                 'product_pack_id' => ['nullable', 'integer', $packExists],
                 // The most allowed (the stock) is checked by the cart, with how many are left.
                 'quantity' => ['required', 'integer', 'min:1'],
+                // Undo after Remove: put the line back, ticked as it was.
+                'undo_remove' => ['sometimes', 'boolean'],
+                'selected' => ['sometimes', 'boolean'],
             ];
         }
 

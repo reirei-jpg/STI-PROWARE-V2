@@ -90,8 +90,10 @@ const stripes: Record<FlashToast['type'], string> = {
 /**
  * The message popup from V1: shown in the middle of the screen after an
  * action (e.g. "Purchase order saved."), closing by itself after a few
- * seconds or when the user closes it. One with a next-step button stays
- * until it is used or closed.
+ * seconds or when the user closes it. A success with Undo also closes by
+ * itself (undo is enough to fix a mistake). One that must be read stays
+ * until it is closed: an error or warning (nothing happened, or something
+ * needs attention), and one with a next-step button.
  */
 export default function FlashPopup() {
     const [message, setMessage] = useState<FlashToast | null>(null);
@@ -117,8 +119,14 @@ export default function FlashPopup() {
     }, []);
 
     useEffect(() => {
-        // A message with a next step stays until it is used or closed.
-        if (!message || message.action) {
+        // An error or warning, and a message with a next step, stay until
+        // closed; a success (even with Undo) closes by itself.
+        const mustBeRead =
+            message?.type === 'error' ||
+            message?.type === 'warning' ||
+            (message?.action !== undefined && message.action.method !== 'post');
+
+        if (!message || mustBeRead) {
             return;
         }
 
@@ -168,9 +176,26 @@ export default function FlashPopup() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    const href = message.action?.href ?? '';
+                                    const action = message.action;
                                     setMessage(null);
-                                    router.visit(href);
+
+                                    if (!action) {
+                                        return;
+                                    }
+
+                                    if (action.method === 'post') {
+                                        router.post(
+                                            action.href,
+                                            action.data ?? {},
+                                            {
+                                                preserveScroll: true,
+                                            },
+                                        );
+
+                                        return;
+                                    }
+
+                                    router.visit(action.href);
                                 }}
                                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700"
                             >
