@@ -165,8 +165,8 @@ function DeliveryForm({
     orderLabel: string;
     onSaved: () => void;
 }) {
-    const { groups, today } = waiting;
-    const delivery = useRecordDelivery(groups, today, purchaseOrderId);
+    const { groups } = waiting;
+    const delivery = useRecordDelivery(groups, purchaseOrderId);
     const {
         draft,
         data,
@@ -177,7 +177,6 @@ function DeliveryForm({
         splitGroups,
         rowErrors,
         rowProblem,
-        dateProblem,
         receivedNowOf,
         totalReceived,
         groupReceivedNow,
@@ -251,25 +250,7 @@ function DeliveryForm({
                         />
                     </div>
                 )}
-                <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Field
-                        label="Date Received"
-                        error={dateProblem ?? errors.received_on}
-                    >
-                        <input
-                            type="date"
-                            value={data.received_on}
-                            max={today}
-                            onChange={(event) =>
-                                setData('received_on', event.target.value)
-                            }
-                            aria-invalid={
-                                dateProblem !== null ||
-                                Boolean(errors.received_on)
-                            }
-                            className={deliveryInputClasses}
-                        />
-                    </Field>
+                <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 sm:grid-cols-3">
                     <Field
                         label="SI # (optional)"
                         error={errors.sales_invoice_number}

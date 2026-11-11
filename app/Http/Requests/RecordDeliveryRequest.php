@@ -11,8 +11,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * A delivery that arrived: when, the optional Sales Invoice # and Delivery
- * Receipt #, and how many of each waiting item were received. Receiving
+ * A delivery that arrived (on the day it is recorded): the optional Sales
+ * Invoice # and Delivery Receipt #, and how many of each waiting item were
+ * received. Receiving
  * more than what is left of an item is refused. For an item shared by
  * several variants (e.g. every color), the pieces counted for each variant
  * must add up to what is received.
@@ -25,7 +26,6 @@ class RecordDeliveryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'received_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'sales_invoice_number' => ['nullable', 'string', 'max:40'],
             'delivery_receipt_number' => ['nullable', 'string', 'max:40'],
             'note' => ['nullable', 'string', 'max:500'],
@@ -47,9 +47,6 @@ class RecordDeliveryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'received_on.required' => 'Choose the date the delivery arrived.',
-            'received_on.date_format' => 'Choose a valid date.',
-            'received_on.before_or_equal' => 'The date received cannot be in the future.',
             'items.required' => 'There are no items waiting for delivery.',
             'items.*.quantity_received.integer' => 'Enter a whole number.',
             'items.*.quantity_received.min' => 'The quantity cannot be negative.',
@@ -185,6 +182,10 @@ class RecordDeliveryRequest extends FormRequest
     }
 
     /**
+     * The delivery's details. It is received on the day it is recorded: the
+     * stock can only be sold from then, so its Stock History and the
+     * delivery show the same day (a date sent by an older app is ignored).
+     *
      * @return array{received_on: string, sales_invoice_number: ?string, delivery_receipt_number: ?string, note: ?string}
      */
     public function deliveryDetails(): array
@@ -192,7 +193,7 @@ class RecordDeliveryRequest extends FormRequest
         $optional = fn (string $field): ?string => is_string($this->input($field)) ? $this->input($field) : null;
 
         return [
-            'received_on' => (string) $this->input('received_on'),
+            'received_on' => now()->toDateString(),
             'sales_invoice_number' => $optional('sales_invoice_number'),
             'delivery_receipt_number' => $optional('delivery_receipt_number'),
             'note' => $optional('note'),

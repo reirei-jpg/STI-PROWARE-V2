@@ -73,19 +73,23 @@ test('receiving more than what is left of an item is refused', function () {
     expect(Delivery::count())->toBe(0);
 });
 
-test('the delivery form explains what is wrong', function (array $payload, string $field, string $message) {
+test('a delivery is received on the day it is recorded, even when an older app sends a date', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-11-11 09:00', 'Asia/Manila'));
     $order = orderWith(['UTMP02-03' => 10]);
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), array_merge([
-            'received_on' => now()->toDateString(),
+        ->post(route('deliveries.store'), [
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 5]],
-        ], $payload))
-        ->assertSessionHasErrors([$field => $message]);
-})->with([
-    'a date in the future' => [['received_on' => '2099-01-01'], 'received_on', 'The date received cannot be in the future.'],
-    'no date' => [['received_on' => ''], 'received_on', 'Choose the date the delivery arrived.'],
-]);
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->post(route('deliveries.store'), [
+        'received_on' => '2026-11-05',
+        'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 5]],
+    ])->assertSessionHasNoErrors();
+
+    expect(Delivery::query()->pluck('received_on')->map->toDateString()->all())->toBe(['2026-11-11', '2026-11-11']);
+});
 
 test('a delivery with nothing received is refused', function () {
     $order = orderWith(['UTMP02-03' => 10]);

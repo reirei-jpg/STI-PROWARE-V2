@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { ArrowLeft, Boxes, CircleCheck, PackagePlus, Search, TriangleAlert, Unlink, X } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -16,10 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatConversion, formatDate, formatUnits, isoDate, unitWord } from '@/lib/format';
+import { formatConversion, formatUnits, unitWord } from '@/lib/format';
 import type { WaitingDeliveryGroup } from '@/lib/types';
-
-type DateChoice = 'today' | 'yesterday' | 'other';
 
 /** '' counts as 0; anything but digits is not a number (null). */
 function wholeNumber(text: string | undefined): number | null {
@@ -48,9 +46,9 @@ const remainingOf = (group: WaitingDeliveryGroup): number =>
 const isSplit = (group: WaitingDeliveryGroup): boolean => (group.stock_target?.split_into.length ?? 0) > 1;
 
 /**
- * Record Delivery on the Specialist's phone, with the website's rules: the
- * date (today by default), SI # and DR #, and how many of each waiting item
- * arrived. A total fills the oldest order first. An item code shared by
+ * Record Delivery on the Specialist's phone, with the website's rules: SI #
+ * and DR #, and how many of each waiting item arrived (it is received on the
+ * day it is recorded). A total fills the oldest order first. An item code shared by
  * several variants (e.g. every color) is counted per variant, and the counts
  * must make whole boxes. Linked items go into stock; the others are
  * recorded and wait to be linked on the website.
@@ -59,11 +57,8 @@ export default function RecordDeliveryScreen() {
     const insets = useSafeAreaInsets();
     const { request } = useAuth();
     const [groups, setGroups] = useState<WaitingDeliveryGroup[] | null>(null);
-    const [today, setToday] = useState(isoDate(new Date()));
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    const [dateChoice, setDateChoice] = useState<DateChoice>('today');
-    const [otherDate, setOtherDate] = useState('');
     const [salesInvoice, setSalesInvoice] = useState('');
     const [deliveryReceipt, setDeliveryReceipt] = useState('');
     const [note, setNote] = useState('');
@@ -76,22 +71,12 @@ export default function RecordDeliveryScreen() {
     const [result, setResult] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
 
     useEffect(() => {
-        request<{ groups: WaitingDeliveryGroup[]; today: string }>('/specialist/deliveries/waiting')
-            .then((answer) => {
-                setGroups(answer.groups);
-                setToday(answer.today);
-            })
+        request<{ groups: WaitingDeliveryGroup[] }>('/specialist/deliveries/waiting')
+            .then((answer) => setGroups(answer.groups))
             .catch((caught) =>
                 setLoadError(caught instanceof ApiError ? caught.message : 'The waiting items could not be loaded. Go back and try again.'),
             );
     }, [request]);
-
-    const yesterday = useMemo(() => {
-        const [year, month, day] = today.split('-').map(Number);
-
-        return isoDate(new Date(year, month - 1, day - 1));
-    }, [today]);
-    const receivedOn = dateChoice === 'today' ? today : dateChoice === 'yesterday' ? yesterday : otherDate.trim();
 
     /** How many arrived for a code, in Head Office's unit; null when not a number. */
     const unitsFor = (group: WaitingDeliveryGroup): number | null => {
@@ -176,13 +161,7 @@ export default function RecordDeliveryScreen() {
         0,
     );
     const notLinked = receiving.filter((group) => group.stock_target === null).length;
-    const dateProblem =
-        dateChoice === 'other' && !/^\d{4}-\d{2}-\d{2}$/.test(receivedOn)
-            ? 'Type the date as YYYY-MM-DD, e.g. 2026-10-03.'
-            : receivedOn > today
-              ? 'The date received cannot be in the future.'
-              : null;
-    const canSave = !saving && receiving.length > 0 && problems.length === 0 && dateProblem === null;
+    const canSave = !saving && receiving.length > 0 && problems.length === 0;
 
     const term = searchText.trim().toLowerCase().replace(/^#/, '');
     const visible = all.filter(
@@ -239,7 +218,6 @@ export default function RecordDeliveryScreen() {
                 await request<{ type: 'success' | 'warning'; message: string }>('/specialist/deliveries', {
                     method: 'POST',
                     body: {
-                        received_on: receivedOn,
                         sales_invoice_number: salesInvoice.trim(),
                         delivery_receipt_number: deliveryReceipt.trim(),
                         note: note.trim(),
@@ -322,32 +300,6 @@ export default function RecordDeliveryScreen() {
                 ) : (
                     <>
                         <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
-                            <Text className="font-sans-bold text-sm text-slate-700">Date received</Text>
-                            <View className="flex-row gap-2">
-                                {(['today', 'yesterday', 'other'] as const).map((choice) => (
-                                    <Pressable
-                                        key={choice}
-                                        onPress={() => setDateChoice(choice)}
-                                        accessibilityRole="button"
-                                        accessibilityState={{ selected: dateChoice === choice }}
-                                        className={`flex-1 items-center rounded-xl border px-2 py-2.5 ${dateChoice === choice ? 'border-brand bg-brand' : 'border-slate-200 bg-white'}`}
-                                    >
-                                        <Text
-                                            numberOfLines={1}
-                                            className={`font-sans-bold text-xs ${dateChoice === choice ? 'text-white' : 'text-slate-600'}`}
-                                        >
-                                            {choice === 'today' ? 'Today' : choice === 'yesterday' ? 'Yesterday' : 'Other date'}
-                                        </Text>
-                                    </Pressable>
-                                ))}
-                            </View>
-                            {dateChoice === 'other' ? (
-                                <Field value={otherDate} onChangeText={setOtherDate} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" maxLength={10} />
-                            ) : (
-                                <Text className="font-sans text-sm text-slate-600">{formatDate(receivedOn)}</Text>
-                            )}
-                            {dateProblem && <Text className="font-sans-semibold text-sm text-red-600">{dateProblem}</Text>}
-
                             <View className="flex-row gap-2">
                                 <View className="flex-1 gap-1">
                                     <Text className="font-sans-bold text-xs text-slate-600">SI # (optional)</Text>
