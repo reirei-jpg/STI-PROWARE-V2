@@ -30,7 +30,7 @@ export default function ConfirmDialog({
     description: ReactNode;
     confirmLabel: string;
     cancelLabel: string;
-    tone?: 'blue' | 'red';
+    tone?: 'blue' | 'red' | 'green';
     busy?: boolean;
     onConfirm: () => void;
     onClose: () => void;
@@ -62,9 +62,10 @@ export default function ConfirmDialog({
                         disabled={busy}
                         className={cn(
                             'inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white transition disabled:opacity-60',
-                            tone === 'red'
-                                ? 'bg-red-600 hover:bg-red-700'
-                                : 'bg-[#0D6EFD] hover:bg-blue-700',
+                            tone === 'red' && 'bg-red-600 hover:bg-red-700',
+                            tone === 'green' &&
+                                'bg-emerald-600 hover:bg-emerald-700',
+                            tone === 'blue' && 'bg-[#0D6EFD] hover:bg-blue-700',
                         )}
                     >
                         {busy && (

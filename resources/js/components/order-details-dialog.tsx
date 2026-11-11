@@ -50,6 +50,7 @@ export default function OrderDetailsDialog({
     const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
     const [confirmingReady, setConfirmingReady] = useState(false);
+    const [confirmingRelease, setConfirmingRelease] = useState(false);
 
     // A fresh tick for every order and every change of status.
     useEffect(() => {
@@ -68,7 +69,10 @@ export default function OrderDetailsDialog({
                     onActed?.(orderId);
                 }
             },
-            onFinish: () => setBusy(false),
+            onFinish: () => {
+                setBusy(false);
+                setConfirmingRelease(false);
+            },
         });
     };
 
@@ -203,12 +207,7 @@ export default function OrderDetailsDialog({
                                         type="button"
                                         disabled={!paid || busy}
                                         onClick={() =>
-                                            act(
-                                                OrderController.release(
-                                                    order.id,
-                                                ).url,
-                                                { paid: true },
-                                            )
+                                            setConfirmingRelease(true)
                                         }
                                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
@@ -282,10 +281,62 @@ export default function OrderDetailsDialog({
                             }
                             onClose={() => setConfirmingReady(false)}
                         />
+                        <ConfirmReleaseDialog
+                            order={confirmingRelease ? order : null}
+                            busy={busy}
+                            onConfirm={() =>
+                                act(OrderController.release(order.id).url, {
+                                    paid: true,
+                                })
+                            }
+                            onClose={() => setConfirmingRelease(false)}
+                        />
                     </>
                 )}
             </DialogContent>
         </Dialog>
+    );
+}
+
+/**
+ * "Release Order PW-0042 to Juan Dela Cruz?": the items leave the stock and
+ * a release is final, so the Specialist answers first (after ticking that
+ * the cashier's receipt was checked).
+ */
+export function ConfirmReleaseDialog({
+    order,
+    busy,
+    onConfirm,
+    onClose,
+}: {
+    order: Pick<SpecialistOrderRow, 'number' | 'student_name' | 'items'> | null;
+    busy: boolean;
+    onConfirm: () => void;
+    onClose: () => void;
+}) {
+    const items = order?.items ?? [];
+    const pieces = items.reduce(
+        (sum, item) => sum + item.quantity * item.pieces_per_unit,
+        0,
+    );
+    const piecesText = `${pieces} ${pieces === 1 ? 'pc' : 'pcs'}`;
+    const what =
+        items.length === 1
+            ? `${piecesText} of ${items[0].product_name}${items[0].variant_label ? ` (${items[0].variant_label})` : ''}`
+            : `${items.length} items (${piecesText})`;
+
+    return (
+        <ConfirmDialog
+            open={order !== null}
+            title={`Release Order ${order?.number ?? ''} to ${order?.student_name ?? 'the buyer'}?`}
+            description={`${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now. This cannot be undone.`}
+            cancelLabel="Check again"
+            confirmLabel="Release"
+            tone="green"
+            busy={busy}
+            onConfirm={onConfirm}
+            onClose={onClose}
+        />
     );
 }
 

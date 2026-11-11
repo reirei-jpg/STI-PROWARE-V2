@@ -1,6 +1,6 @@
 import { Banknote, Check, PackageCheck, XCircle } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import BottomSheet from '@/components/BottomSheet';
 import CancelReasonList from '@/components/CancelReasonList';
@@ -96,7 +96,7 @@ export function ReleaseBox({
                 icon={busy ? <ActivityIndicator color="#ffffff" /> : <Banknote size={18} color="#ffffff" />}
                 busy={busy}
                 disabled={!paid}
-                onPress={onRelease}
+                onPress={() => confirmRelease(order, onRelease)}
             >
                 Release the items
             </ActionButton>
@@ -105,6 +105,29 @@ export function ReleaseBox({
                 The items leave the stock at once. This cannot be undone.
             </Text>
         </View>
+    );
+}
+
+/**
+ * "Release Order PW-0042 to Juan Dela Cruz?": the items leave the stock and a
+ * release is final, so the Specialist answers first, like the website.
+ */
+function confirmRelease(order: SpecialistOrder, onRelease: () => void): void {
+    const pieces = order.items.reduce((sum, item) => sum + item.quantity * item.pieces_per_unit, 0);
+    const piecesText = `${pieces} ${pieces === 1 ? 'pc' : 'pcs'}`;
+    const first = order.items[0];
+    const what =
+        order.items.length === 1 && first
+            ? `${piecesText} of ${first.product_name}${first.variant_label ? ` (${first.variant_label})` : ''}`
+            : `${order.items.length} items (${piecesText})`;
+
+    Alert.alert(
+        `Release Order ${order.number} to ${order.student_name}?`,
+        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now. This cannot be undone.`,
+        [
+            { text: 'Check again', style: 'cancel' },
+            { text: 'Release', onPress: onRelease },
+        ],
     );
 }
 
