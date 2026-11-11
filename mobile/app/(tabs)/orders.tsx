@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, ChevronRight, ImageIcon, Package, ShoppingBag, Store } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package, ShoppingBag, Store, XCircle } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -442,7 +442,7 @@ function PreorderRow({
                 <Pressable
                     onPress={() => router.push(`/product/${preorder.product_id}`)}
                     accessibilityRole="button"
-                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2.5"
+                    className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
                 >
                     <Store size={16} color="#ffffff" />
                     <Text className="font-sans-bold text-sm text-white">Buy it in the store</Text>
@@ -453,7 +453,7 @@ function PreorderRow({
                 <Pressable
                     onPress={() => setOrdering(true)}
                     accessibilityRole="button"
-                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2.5"
+                    className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
                 >
                     <ShoppingBag size={16} color="#ffffff" />
                     <Text className="font-sans-bold text-sm text-white">Order now</Text>
@@ -464,7 +464,7 @@ function PreorderRow({
                 <Pressable
                     onPress={() => router.push(`/order/${preorder.order_id}`)}
                     accessibilityRole="button"
-                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-brand px-4 py-2.5"
+                    className={`${PREORDER_BUTTON} border-brand bg-brand`}
                 >
                     <ShoppingBag size={16} color="#ffffff" />
                     <Text className="font-sans-bold text-sm text-white">Open order {preorder.order_number}</Text>
@@ -478,9 +478,9 @@ function PreorderRow({
                     onPress={cancel}
                     disabled={cancelling}
                     accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 self-start rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 ${cancelling ? 'opacity-60' : ''}`}
+                    className={`${PREORDER_BUTTON} border-red-200 bg-red-50 ${cancelling ? 'opacity-60' : ''}`}
                 >
-                    {cancelling && <ActivityIndicator size="small" color="#b91c1c" />}
+                    {cancelling ? <ActivityIndicator size="small" color="#b91c1c" /> : <XCircle size={16} color="#b91c1c" />}
                     <Text className="font-sans-bold text-sm text-red-700">
                         {held ? 'I do not want them' : 'Cancel preorder'}
                     </Text>
@@ -489,6 +489,9 @@ function PreorderRow({
         </View>
     );
 }
+
+/** Every button on a preorder card: full width, the same height and text size. */
+const PREORDER_BUTTON = 'w-full flex-row items-center justify-center gap-2 rounded-xl border px-4 py-3';
 
 function SwitchButton({
     chosen,
