@@ -1,7 +1,9 @@
 import { useForm } from '@inertiajs/react';
 import { ClipboardCheck, LoaderCircle, X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import {
     Dialog,
@@ -139,17 +141,36 @@ function CorrectionForm({
         after > variant.stock_on_hand;
     const costMissing = addsPieces && !(Number(data.unit_cost) > 0);
 
+    // The stock changes at once and stays in the Stock History, so the
+    // Specialist answers first.
+    const [confirming, setConfirming] = useState(false);
+    const save = () =>
+        form.post(ProductStockController.store(product.id).url, {
+            preserveScroll: true,
+            onSuccess: onClose,
+            onFinish: () => setConfirming(false),
+        });
+
     return (
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                form.post(ProductStockController.store(product.id).url, {
-                    preserveScroll: true,
-                    onSuccess: onClose,
-                });
+                setConfirming(true);
             }}
             className="flex min-h-0 flex-col"
         >
+            {variant && reason && after !== null && (
+                <ConfirmDialog
+                    open={confirming}
+                    title={`Correct the stock of ${product.name}${product.has_options ? ` (${variant.label})` : ''}?`}
+                    description={`${formatUnits(variant.stock_on_hand, 'Piece')} → ${formatUnits(after, 'Piece')} (${after > variant.stock_on_hand ? '+' : '−'}${formatUnits(Math.abs(after - variant.stock_on_hand), 'Piece')}), ${reason.label}. It is kept in the Stock History with your name. This cannot be undone.`}
+                    cancelLabel="Check again"
+                    confirmLabel="Save Correction"
+                    busy={processing}
+                    onConfirm={save}
+                    onClose={() => setConfirming(false)}
+                />
+            )}
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
