@@ -2,6 +2,7 @@ import { useForm, useHttp } from '@inertiajs/react';
 import { Link2, LoaderCircle, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import {
     Dialog,
@@ -160,10 +161,18 @@ function LinkItemForm({
               ? data.new_pack_name.trim() || 'Pack'
               : 'Piece';
 
+    // A link cannot be taken back, and what already arrived goes into stock
+    // at once, so the Specialist answers first.
+    const [confirming, setConfirming] = useState<{
+        question: LinkQuestion;
+        run: () => void;
+    } | null>(null);
+
     const submit = () => {
         form.post(ItemLinkController.store().url, {
             preserveScroll: true,
             onSuccess: onClose,
+            onFinish: () => setConfirming(null),
         });
     };
 
@@ -185,7 +194,29 @@ function LinkItemForm({
         form.post(ItemLinkController.store().url, {
             preserveScroll: true,
             onSuccess: onClose,
-            onFinish: () => form.transform((current) => current),
+            onFinish: () => {
+                form.transform((current) => current);
+                setConfirming(null);
+            },
+        });
+    };
+
+    const askBeforeLinkTo = (chosen: LinkableProduct) => {
+        const free = chosen.variants.filter(
+            (variant) => variant.estore_item_code === null,
+        );
+
+        setConfirming({
+            question: {
+                productName: chosen.name,
+                variantLabels:
+                    chosen.variants.length > 1
+                        ? free.map((variant) => variant.label)
+                        : [],
+                unitName: 'Piece',
+                piecesPerUnit: 1,
+            },
+            run: () => linkTo(chosen),
         });
     };
 
@@ -193,10 +224,44 @@ function LinkItemForm({
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                submit();
+
+                if (!product) {
+                    return;
+                }
+
+                setConfirming({
+                    question: {
+                        productName: product.name,
+                        variantLabels:
+                            product.variants.length > 1
+                                ? product.variants
+                                      .filter((variant) =>
+                                          data.product_variant_ids.includes(
+                                              variant.id,
+                                          ),
+                                      )
+                                      .map((variant) => variant.label)
+                                : [],
+                        unitName,
+                        piecesPerUnit,
+                    },
+                    run: submit,
+                });
             }}
             className="flex min-h-0 flex-col"
         >
+            <ConfirmDialog
+                open={confirming !== null}
+                title={`Link ${item.item_code} to ${confirming?.question.productName ?? ''}?`}
+                description={
+                    confirming ? linkQuestion(item, confirming.question) : ''
+                }
+                cancelLabel="Check again"
+                confirmLabel="Link Item"
+                busy={processing}
+                onConfirm={() => confirming?.run()}
+                onClose={() => setConfirming(null)}
+            />
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -314,7 +379,9 @@ function LinkItemForm({
                                                         type="button"
                                                         disabled={processing}
                                                         onClick={() =>
-                                                            linkTo(result)
+                                                            askBeforeLinkTo(
+                                                                result,
+                                                            )
                                                         }
                                                         className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0D6EFD] px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
                                                     >
@@ -599,6 +666,40 @@ function LinkItemForm({
             </div>
         </form>
     );
+}
+
+type LinkQuestion = {
+    productName: string;
+    /** The sizes or colors that get the code; empty for one variant. */
+    variantLabels: string[];
+    unitName: string;
+    /** Null while a new pack's pieces are not entered. */
+    piecesPerUnit: number | null;
+};
+
+/**
+ * What linking does: which variants get the code, how it is sent, and what
+ * already arrived goes into stock now (or is split next, for a shared code).
+ */
+function linkQuestion(item: ItemToLink, question: LinkQuestion): string {
+    const shared = question.variantLabels.length > 1;
+    const which =
+        question.variantLabels.length === 0
+            ? question.productName
+            : `${question.productName} (${question.variantLabels.join(', ')})`;
+    const sentBy =
+        question.unitName === 'Piece'
+            ? 'by the piece'
+            : `by the ${question.unitName}${question.piecesPerUnit ? ` of ${question.piecesPerUnit.toLocaleString('en-PH')}` : ''}`;
+    let arrived = '';
+
+    if (item.waiting_for_stock > 0 && shared) {
+        arrived = ` The ${item.waiting_for_stock.toLocaleString('en-PH')} that already arrived are split into stock on this page next.`;
+    } else if (item.waiting_for_stock > 0 && question.piecesPerUnit) {
+        arrived = ` ${formatConversion(item.waiting_for_stock, question.unitName, question.piecesPerUnit)} that already arrived go into stock now, and buyers waiting for it are served first and notified.`;
+    }
+
+    return `Every delivery of ${item.item_code} goes to ${which}, sent ${sentBy}.${arrived} This cannot be undone.`;
 }
 
 function SentByChoice({
