@@ -429,7 +429,7 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                             >
                                 <XCircle size={16} />
                                 {preorder.status === 'held'
-                                    ? 'I do not want them'
+                                    ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}`
                                     : 'Cancel preorder'}
                             </button>
                         )}
@@ -474,7 +474,9 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
                 <span className="font-black">
                     {formatDateTime(preorder.held_until)}
                 </span>
-                . Order before then, or the pieces go to the next buyer.
+                . Order before then, or{' '}
+                {preorder.quantity === 1 ? 'the piece goes' : 'the pieces go'}{' '}
+                to the next buyer.
             </p>
         );
     }

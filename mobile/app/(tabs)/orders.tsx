@@ -254,7 +254,7 @@ function OrderRow({ order }: { order: StudentOrder }) {
 function preorderNote(preorder: StudentPreorder): { text: string; className: string } {
     if (preorder.status === 'held') {
         return {
-            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or the pieces go to the next buyer.`,
+            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or ${preorder.quantity === 1 ? 'the piece goes' : 'the pieces go'} to the next buyer.`,
             className: 'font-sans-bold text-emerald-700',
         };
     }
@@ -482,7 +482,7 @@ function PreorderRow({
                 >
                     {cancelling ? <ActivityIndicator size="small" color="#b91c1c" /> : <XCircle size={16} color="#b91c1c" />}
                     <Text className="font-sans-bold text-sm text-red-700">
-                        {held ? 'I do not want them' : 'Cancel preorder'}
+                        {held ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}` : 'Cancel preorder'}
                     </Text>
                 </Pressable>
             )}
