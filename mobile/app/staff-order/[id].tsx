@@ -8,7 +8,7 @@ import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
-import { ActionButton, CancelSheet, ReadySheet, ReleaseBox } from '@/components/StaffOrderActions';
+import { ActionButton, CancelSheet, ReleaseBox, confirmReady } from '@/components/StaffOrderActions';
 import StaffTag from '@/components/StaffTag';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -31,7 +31,6 @@ export default function StaffOrderScreen() {
     const [done, setDone] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
-    const [confirmingReady, setConfirmingReady] = useState(false);
 
     const load = useCallback(
         () =>
@@ -158,7 +157,7 @@ export default function StaffOrderScreen() {
                                 tone="blue"
                                 icon={<PackageCheck size={18} color="#ffffff" />}
                                 busy={busy}
-                                onPress={() => setConfirmingReady(true)}
+                                onPress={() => confirmReady(order, () => void run('ready'))}
                             >
                                 Ready for pickup
                             </ActionButton>
@@ -194,17 +193,6 @@ export default function StaffOrderScreen() {
                         }}
                         busy={busy}
                         error={error}
-                    />
-
-                    <ReadySheet
-                        order={order}
-                        open={confirmingReady}
-                        onClose={() => setConfirmingReady(false)}
-                        onConfirm={async () => {
-                            await run('ready');
-                            setConfirmingReady(false);
-                        }}
-                        busy={busy}
                     />
                 </>
             )}
