@@ -27,6 +27,18 @@ class FilterAdminDashboardRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'tab' => 'Choose Coming, Ongoing or Completed.',
+            'search' => 'Type an Order # of up to 40 characters.',
+            'period' => 'Choose All time, This week, This month or This year.',
+        ];
+    }
+
     /** The Top sellers period: all time (the default), this week, this month or this year. */
     public function period(): string
     {

@@ -366,7 +366,14 @@ test('the school admin sees the top sellers of the week, month or year and what 
         ->has('overview.sales.top_sellers.data', 1)
         ->where('overview.sales.top_sellers.data.0.product_name', 'BSIT Polo'));
 
-    $this->get(route('dashboard', ['period' => 'decade']))->assertSessionHasErrors('period');
+    // A wrong period or tab typed in the address opens the dashboard without
+    // it and says what was wrong.
+    $this->get(route('dashboard', ['period' => 'decade']))
+        ->assertRedirect(route('dashboard'))
+        ->assertInertiaFlash('toast.message', 'Choose All time, This week, This month or This year. The list is shown without its filters.');
+    $this->get(route('dashboard', ['tab' => 'xyz']))
+        ->assertRedirect(route('dashboard'))
+        ->assertInertiaFlash('toast.message', 'Choose Coming, Ongoing or Completed. The list is shown without its filters.');
 });
 
 test('the top sellers show 5 products a page', function () {
