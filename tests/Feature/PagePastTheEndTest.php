@@ -24,12 +24,14 @@ test('a list opened past its last page opens the last page instead of saying it 
 });
 
 test('the last page keeps the filters, also when the page itself asks for it', function () {
-    PurchaseOrder::factory()->count(3)->create();
+    foreach (['30001', '30002', '30003'] as $orderNumber) {
+        PurchaseOrder::factory()->create(['order_number' => $orderNumber]);
+    }
 
     $this->actingAs($this->specialist)
         ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(request())])
-        ->get(route('purchase-orders.index', ['search' => '3', 'page' => 4]))
-        ->assertRedirect(route('purchase-orders.index', ['search' => '3', 'page' => 1]));
+        ->get(route('purchase-orders.index', ['search' => '3000', 'page' => 4]))
+        ->assertRedirect(route('purchase-orders.index', ['search' => '3000', 'page' => 1]));
 });
 
 test('an empty list still says it is empty, on any page', function () {

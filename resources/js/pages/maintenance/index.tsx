@@ -55,10 +55,7 @@ export default function Maintenance({
                     description="Settings that change how PROWARE works. Changes apply right away, on the website and the phone app."
                 />
 
-                <Panel
-                    title="Orders"
-                    description="How orders are handled."
-                >
+                <Panel title="Orders" description="How orders are handled.">
                     <HoldDaysSetting setting={holdDays} />
                 </Panel>
 
