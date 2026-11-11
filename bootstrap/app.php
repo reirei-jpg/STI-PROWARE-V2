@@ -43,7 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // the page itself (Inertia visits) keep going back as usual.
         $exceptions->render(function (ValidationException $exception, Request $request) {
             $routeName = (string) $request->route()?->getName();
-            $isListPage = str_ends_with($routeName, '.index') || in_array($routeName, ['home', 'products.stock', 'orders.slip'], true);
+            $isListPage = str_ends_with($routeName, '.index') || in_array($routeName, ['home', 'dashboard', 'products.stock', 'orders.slip'], true);
 
             if (! $isListPage || ! $request->isMethod('GET') || $request->expectsJson() || $request->hasHeader('X-Inertia')) {
                 return null;
