@@ -1,6 +1,8 @@
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import { CheckCircle2, Gift, Hourglass, LoaderCircle, X } from 'lucide-react';
+import { useState } from 'react';
 import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { TableHeading } from '@/components/panel';
 import {
@@ -103,7 +105,6 @@ export default function FreeUniformGroupDialog({
                                         {details.students.map((student) => (
                                             <StudentRow
                                                 key={student.id}
-                                                groupId={details.id}
                                                 student={student}
                                                 showSet={mixedSets(
                                                     details.students,
@@ -168,11 +169,9 @@ function GroupStatus({ students }: { students: Student[] }) {
 }
 
 function StudentRow({
-    groupId,
     student,
     showSet,
 }: {
-    groupId: number;
     student: Student;
     showSet: boolean;
 }) {
@@ -204,7 +203,7 @@ function StudentRow({
             {owed && (
                 <tr className="bg-amber-50/50">
                     <td colSpan={showSet ? 4 : 3} className="px-5 pb-4">
-                        <GiveRest groupId={groupId} student={student} />
+                        <GiveRest student={student} />
                     </td>
                 </tr>
             )}
@@ -248,7 +247,7 @@ function PieceStatus({ piece }: { piece: FreeUniformPiece }) {
  * Give the pieces still to give: each in the size recorded, or another
  * size of the same top or bottom that is in stock.
  */
-function GiveRest({ groupId, student }: { groupId: number; student: Student }) {
+function GiveRest({ student }: { student: Student }) {
     const form = useForm({
         top_variant_id: student.top.given ? '' : String(student.top.variant_id),
         pants_variant_id: student.pants.given
@@ -256,6 +255,38 @@ function GiveRest({ groupId, student }: { groupId: number; student: Student }) {
             : String(student.pants.variant_id),
     });
     const errors = form.errors as Record<string, string | undefined>;
+
+    // Giving takes the pieces out of stock at once, so the Specialist
+    // answers first. A size that is out of stock stays still to give.
+    const [confirming, setConfirming] = useState(false);
+    const chosen = (
+        [
+            [student.top, form.data.top_variant_id],
+            [student.pants, form.data.pants_variant_id],
+        ] as const
+    )
+        .filter(([piece]) => !piece.given)
+        .map(([piece, variantId]) => {
+            const size = piece.sizes.find(
+                (option) => String(option.id) === variantId,
+            );
+
+            return {
+                label: `${piece.name} (${size?.label ?? piece.size})`,
+                inStock: (size?.free_to_sell ?? 0) > 0,
+            };
+        });
+    const leaving = chosen.filter((piece) => piece.inStock);
+    const stayingOwed = chosen.filter((piece) => !piece.inStock);
+    // The group's details only come when asked for, so the answer asks for
+    // them again: without that, a refusal ("Still out of stock: …") left the
+    // pop-up loading forever and the message was never seen.
+    const give = () =>
+        form.post(FreeUniformController.giveRest(student.id).url, {
+            preserveScroll: true,
+            only: ['details', 'groups', 'summary'],
+            onFinish: () => setConfirming(false),
+        });
 
     const sizeSelect = (
         piece: FreeUniformPiece,
@@ -295,17 +326,9 @@ function GiveRest({ groupId, student }: { groupId: number; student: Student }) {
                     type="button"
                     disabled={form.processing}
                     onClick={() =>
-                        form.post(
-                            FreeUniformController.giveRest(student.id).url,
-                            {
-                                preserveScroll: true,
-                                onSuccess: () =>
-                                    router.reload({
-                                        data: { details: groupId },
-                                        only: ['details'],
-                                    }),
-                            },
-                        )
+                        // Nothing in stock: nothing leaves, and the server
+                        // says what is still out of stock.
+                        leaving.length === 0 ? give() : setConfirming(true)
                     }
                     className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -323,6 +346,16 @@ function GiveRest({ groupId, student }: { groupId: number; student: Student }) {
                     errors.top_variant_id ??
                     errors.pants_variant_id
                 }
+            />
+            <ConfirmDialog
+                open={confirming}
+                title={`Give ${student.name} the rest of the free set?`}
+                description={`${leaving.map((piece) => piece.label).join(' and ')} ${leaving.length === 1 ? 'leaves' : 'leave'} the stock now, as Free (promo).${stayingOwed.length > 0 ? ` ${stayingOwed.map((piece) => piece.label).join(' and ')} ${stayingOwed.length === 1 ? 'is' : 'are'} out of stock and ${stayingOwed.length === 1 ? 'stays' : 'stay'} Still to give.` : ''} This cannot be undone.`}
+                cancelLabel="Check again"
+                confirmLabel="Give now"
+                busy={form.processing}
+                onConfirm={give}
+                onClose={() => setConfirming(false)}
             />
         </div>
     );

@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
 import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/PurchaseOrderDeliveryController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
 import {
@@ -164,8 +165,8 @@ function DeliveryForm({
     orderLabel: string;
     onSaved: () => void;
 }) {
-    const { groups, today } = waiting;
-    const delivery = useRecordDelivery(groups, today, purchaseOrderId);
+    const { groups } = waiting;
+    const delivery = useRecordDelivery(groups, purchaseOrderId);
     const {
         draft,
         data,
@@ -176,7 +177,6 @@ function DeliveryForm({
         splitGroups,
         rowErrors,
         rowProblem,
-        dateProblem,
         receivedNowOf,
         totalReceived,
         groupReceivedNow,
@@ -204,15 +204,43 @@ function DeliveryForm({
     const stillToCome = rows.filter(
         (row) => row.quantity_remaining - receivedNowOf(row) > 0,
     ).length;
+    // Saving adds the stock and serves and notifies waiting buyers at once,
+    // and cannot be undone, so the Specialist answers first.
+    const [confirming, setConfirming] = useState(false);
 
     return (
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                submit({ stayOnPage: true, onSaved });
+                setConfirming(true);
             }}
             className="flex min-h-0 flex-1 flex-col"
         >
+            <ConfirmDialog
+                open={confirming}
+                title={`Record this delivery for ${orderLabel}?`}
+                description={
+                    <>
+                        {additions.length > 0
+                            ? `It adds ${additions.join(', ')} to stock now. `
+                            : 'It is recorded on the order. '}
+                        Buyers waiting for these items are served first and
+                        notified.{' '}
+                        {stillToCome === 0
+                            ? `${orderLabel} becomes Completed. `
+                            : ''}
+                        This cannot be undone.
+                    </>
+                }
+                cancelLabel="Check again"
+                confirmLabel="Record delivery"
+                busy={processing}
+                onConfirm={() => {
+                    setConfirming(false);
+                    submit({ stayOnPage: true, onSaved });
+                }}
+                onClose={() => setConfirming(false)}
+            />
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {draft.restored && (
                     <div className="px-6 pt-4">
@@ -222,25 +250,7 @@ function DeliveryForm({
                         />
                     </div>
                 )}
-                <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Field
-                        label="Date Received"
-                        error={dateProblem ?? errors.received_on}
-                    >
-                        <input
-                            type="date"
-                            value={data.received_on}
-                            max={today}
-                            onChange={(event) =>
-                                setData('received_on', event.target.value)
-                            }
-                            aria-invalid={
-                                dateProblem !== null ||
-                                Boolean(errors.received_on)
-                            }
-                            className={deliveryInputClasses}
-                        />
-                    </Field>
+                <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 sm:grid-cols-3">
                     <Field
                         label="SI # (optional)"
                         error={errors.sales_invoice_number}

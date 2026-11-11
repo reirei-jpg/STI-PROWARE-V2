@@ -136,6 +136,9 @@ export type StorefrontUniformSet = {
 export type CartLine = {
     id: number;
     product_id: number;
+    /** What Undo after Remove puts back (the same as Add to Cart sends). */
+    product_variant_id: number;
+    product_pack_id: number | null;
     product_name: string;
     photo_url: string | null;
     variant_label: string | null;
@@ -161,6 +164,11 @@ export type CartLine = {
         for_label: string;
         /** One set today (top and bottom together); null when it cannot be bought now. */
         price_centavos: number | null;
+        /** What Undo after Remove puts back (the same as adding the set sends). */
+        uniform_set_id: number | null;
+        for: string;
+        top_variant_id: number | null;
+        bottom_variant_id: number | null;
     } | null;
 };
 

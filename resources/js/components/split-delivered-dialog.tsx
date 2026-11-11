@@ -1,6 +1,8 @@
 import { useForm } from '@inertiajs/react';
 import { Boxes, LoaderCircle, X } from 'lucide-react';
+import { useState } from 'react';
 import ItemLinkController from '@/actions/App/Http/Controllers/ItemLinkController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import {
     Dialog,
@@ -69,17 +71,39 @@ function SplitForm({
         form.post(ItemLinkController.split().url, {
             preserveScroll: true,
             onSuccess: onClose,
+            onFinish: () => setConfirming(false),
         });
     };
+
+    // The pieces go into stock at once and waiting buyers are served, so the
+    // Specialist answers first.
+    const [confirming, setConfirming] = useState(false);
+    const split = item.split_into
+        .filter((variant) => (Number(data.counts[variant.id]) || 0) > 0)
+        .map(
+            (variant) =>
+                `${variant.label} ${formatUnits(Number(data.counts[variant.id]), 'Piece')}`,
+        )
+        .join(', ');
 
     return (
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                submit();
+                setConfirming(true);
             }}
             className="flex min-h-0 flex-col"
         >
+            <ConfirmDialog
+                open={confirming}
+                title={`Add ${formatUnits(counted, 'Piece')} of ${item.product_name} to stock?`}
+                description={`${split} go into stock now, and buyers waiting for them are served first and notified. This cannot be undone.`}
+                cancelLabel="Check again"
+                confirmLabel="Add to Stock"
+                busy={processing}
+                onConfirm={submit}
+                onClose={() => setConfirming(false)}
+            />
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">

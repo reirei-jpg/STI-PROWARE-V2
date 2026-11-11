@@ -10,7 +10,6 @@ import type { WaitingItemGroup, WaitingItemRow } from '@/types';
 const MOST_RECEIVED = 1_000_000;
 
 type DeliveryForm = {
-    received_on: string;
     sales_invoice_number: string;
     delivery_receipt_number: string;
     note: string;
@@ -38,11 +37,9 @@ export function wholeNumber(value: string | undefined): number | null {
  */
 export function useRecordDelivery(
     groups: WaitingItemGroup[],
-    today: string,
     purchaseOrderId: number,
 ) {
     const form = useForm<DeliveryForm>({
-        received_on: today,
         sales_invoice_number: '',
         delivery_receipt_number: '',
         note: '',
@@ -161,16 +158,7 @@ export function useRecordDelivery(
         return null;
     };
 
-    // The date is checked as it is typed: a day that has not come yet is refused.
-    const dateProblem =
-        data.received_on === ''
-            ? 'Choose the date the delivery arrived.'
-            : data.received_on > today
-              ? 'The date received cannot be in the future.'
-              : null;
-
     const hasProblems =
-        dateProblem !== null ||
         rows.some((row) => rowProblem(row) !== null) ||
         splitGroups.some((group) => splitProblem(group) !== null);
 
@@ -252,7 +240,6 @@ export function useRecordDelivery(
         options: { stayOnPage?: boolean; onSaved?: () => void } = {},
     ) => {
         form.transform((current) => ({
-            received_on: current.received_on,
             sales_invoice_number: current.sales_invoice_number,
             delivery_receipt_number: current.delivery_receipt_number,
             note: current.note,
@@ -294,7 +281,6 @@ export function useRecordDelivery(
         splitGroups,
         rowErrors,
         rowProblem,
-        dateProblem,
         receivedNowOf,
         totalReceived,
         groupReceivedNow,

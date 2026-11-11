@@ -1,6 +1,6 @@
-import { Banknote, Check, PackageCheck, XCircle } from 'lucide-react-native';
+import { Banknote, Check, XCircle } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import BottomSheet from '@/components/BottomSheet';
 import CancelReasonList from '@/components/CancelReasonList';
@@ -96,68 +96,54 @@ export function ReleaseBox({
                 icon={busy ? <ActivityIndicator color="#ffffff" /> : <Banknote size={18} color="#ffffff" />}
                 busy={busy}
                 disabled={!paid}
-                onPress={onRelease}
+                onPress={() => confirmRelease(order, onRelease)}
             >
                 Release the items
             </ActionButton>
-            {!paid && (
-                <Text className="font-sans-semibold text-xs text-emerald-900/70">
-                    Tick the box above after checking the cashier receipt.
-                </Text>
-            )}
+            <Text className="font-sans-semibold text-xs text-emerald-900/70">
+                {!paid ? 'Tick the box above after checking the cashier receipt. ' : ''}
+                The items leave the stock at once. This cannot be undone.
+            </Text>
         </View>
     );
 }
 
 /**
- * "Mark Order PW-0042 as ready for pickup?": the student is notified at once
- * and it cannot be taken back, so a mis-tap asks first, like the website.
+ * "Release Order PW-0042 to Juan Dela Cruz?": the items leave the stock and a
+ * release is final, so the Specialist answers first, like the website.
  */
-export function ReadySheet({
-    order,
-    open,
-    onClose,
-    onConfirm,
-    busy,
-}: {
-    order: SpecialistOrder;
-    open: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    busy: boolean;
-}) {
-    return (
-        <BottomSheet
-            open={open}
-            onClose={onClose}
-            title={`Mark ${order.number} as ready for pickup?`}
-            subtitle={`${order.student_name} · ${formatPeso(order.total_centavos)}`}
-            icon={<PackageCheck size={20} color="#1d4ed8" />}
-            footer={
-                <View className="flex-row gap-3">
-                    <Pressable
-                        onPress={onClose}
-                        accessibilityRole="button"
-                        className="flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white py-4"
-                    >
-                        <Text className="font-sans-bold text-base text-slate-700">Not yet</Text>
-                    </Pressable>
-                    <Pressable
-                        onPress={onConfirm}
-                        disabled={busy}
-                        accessibilityRole="button"
-                        className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 ${busy ? 'opacity-50' : ''}`}
-                    >
-                        {busy && <ActivityIndicator color="#ffffff" />}
-                        <Text className="font-sans-bold text-base text-white">Mark as ready</Text>
-                    </Pressable>
-                </View>
-            }
-        >
-            <Text className="font-sans text-sm leading-5 text-slate-700">
-                {order.student_name} will be notified to pay at the cashier and collect the order. This cannot be undone.
-            </Text>
-        </BottomSheet>
+function confirmRelease(order: SpecialistOrder, onRelease: () => void): void {
+    const pieces = order.items.reduce((sum, item) => sum + item.quantity * item.pieces_per_unit, 0);
+    const piecesText = `${pieces} ${pieces === 1 ? 'pc' : 'pcs'}`;
+    const first = order.items[0];
+    const what =
+        order.items.length === 1 && first
+            ? `${piecesText} of ${first.product_name}${first.variant_label ? ` (${first.variant_label})` : ''}`
+            : `${order.items.length} items (${piecesText})`;
+
+    Alert.alert(
+        `Release Order ${order.number} to ${order.student_name}?`,
+        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now. This cannot be undone.`,
+        [
+            { text: 'Check again', style: 'cancel' },
+            { text: 'Release', onPress: onRelease },
+        ],
+    );
+}
+
+/**
+ * "Mark Order PW-0042 as ready for pickup?": the student is notified at once
+ * and it cannot be taken back, so a mis-tap asks first, in the middle of the
+ * screen like the website.
+ */
+export function confirmReady(order: SpecialistOrder, onConfirm: () => void): void {
+    Alert.alert(
+        `Mark Order ${order.number} as ready for pickup?`,
+        `${order.student_name} will be notified to pay at the cashier and collect the order. This cannot be undone.`,
+        [
+            { text: 'Not yet', style: 'cancel' },
+            { text: 'Mark as ready', onPress: onConfirm },
+        ],
     );
 }
 

@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
+import { showToast } from '@/components/flash-popup';
 import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cartRows } from '@/lib/cart-rows';
@@ -326,10 +327,60 @@ function CartLineRow({
         );
     };
 
+    // Removing is a toast, not a question: it is easy to put back with Undo.
     const remove = () => {
+        const what = set
+            ? set.name
+            : `${line.product_name}${[
+                  line.variant_label,
+                  line.unit_name !== 'Piece' ? line.unit_name : null,
+              ]
+                  .filter(Boolean)
+                  .join(', ')
+                  .replace(/^(.+)$/, ' ($1)')}`;
+        const undo: {
+            href: string;
+            data: Record<string, string | number | boolean | null>;
+        } =
+            set &&
+            set.uniform_set_id !== null &&
+            set.top_variant_id !== null &&
+            set.bottom_variant_id !== null
+                ? {
+                      href: CartController.storeSet(set.uniform_set_id).url,
+                      data: {
+                          for: set.for,
+                          top_variant_id: set.top_variant_id,
+                          bottom_variant_id: set.bottom_variant_id,
+                      },
+                  }
+                : {
+                      href: CartController.store(line.product_id).url,
+                      data: {
+                          product_variant_id: line.product_variant_id,
+                          product_pack_id: line.product_pack_id,
+                      },
+                  };
+
         setBusy(true);
         router.delete(CartController.destroy(line.id).url, {
             preserveScroll: true,
+            onSuccess: () =>
+                showToast({
+                    type: 'success',
+                    message: `${what} has been removed from your cart.`,
+                    action: {
+                        label: 'Undo',
+                        href: undo.href,
+                        method: 'post',
+                        data: {
+                            ...undo.data,
+                            quantity: line.quantity,
+                            undo_remove: true,
+                            selected: line.selected,
+                        },
+                    },
+                }),
             onFinish: () => setBusy(false),
         });
     };

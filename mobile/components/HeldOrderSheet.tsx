@@ -86,8 +86,8 @@ export default function HeldOrderSheet({
             }
         >
             <Text className="font-sans text-sm text-slate-600">
-                Held for you until {formatDateTime(preorder.held_until)}. Order before then, or the pieces go to the
-                next buyer.
+                Held for you until {formatDateTime(preorder.held_until)}. Order before then, or{' '}
+                {preorder.quantity === 1 ? 'the piece goes' : 'the pieces go'} to the next buyer.
             </Text>
 
             <View className="gap-2">

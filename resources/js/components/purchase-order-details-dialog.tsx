@@ -548,7 +548,7 @@ function CloseShortForm({
                     <p className="mt-0.5 text-sm text-red-700">
                         Use this when Head Office says the rest will not be
                         delivered. The order becomes Completed (some missing),
-                        with your reason.
+                        with your reason. This cannot be undone.
                     </p>
                     <label className="mt-3 grid gap-1.5">
                         <span className="text-sm font-black text-slate-700">

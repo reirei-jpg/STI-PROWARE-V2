@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, ChevronRight, ImageIcon, Package, ShoppingBag, Store } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package, ShoppingBag, Store, XCircle } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -254,7 +254,7 @@ function OrderRow({ order }: { order: StudentOrder }) {
 function preorderNote(preorder: StudentPreorder): { text: string; className: string } {
     if (preorder.status === 'held') {
         return {
-            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or the pieces go to the next buyer.`,
+            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or ${preorder.quantity === 1 ? 'the piece goes' : 'the pieces go'} to the next buyer.`,
             className: 'font-sans-bold text-emerald-700',
         };
     }
@@ -337,7 +337,15 @@ function PreorderRow({
     const held = preorder.status === 'held';
 
     const cancel = (): void => {
-        Alert.alert(held ? 'Give up these pieces?' : 'Cancel this preorder?', preorder.product_name, [
+        // It cannot be undone, so the alert says what will happen.
+        const whatHappens = held
+            ? `The ${preorder.quantity === 1 ? 'piece goes' : `${preorder.quantity} pcs go`} to the next buyer in line, or back on sale. This cannot be undone.`
+            : 'You lose your place in line and any early-bird price. Preordering again puts you at the end of the line. This cannot be undone.';
+
+        Alert.alert(
+            held ? `Give up the ${preorder.quantity === 1 ? 'piece' : 'pieces'} held for you?` : `Cancel your preorder for ${preorder.product_name}?`,
+            whatHappens,
+            [
             { text: 'Keep it', style: 'cancel' },
             {
                 text: held ? 'Give up' : 'Cancel preorder',
@@ -434,7 +442,7 @@ function PreorderRow({
                 <Pressable
                     onPress={() => router.push(`/product/${preorder.product_id}`)}
                     accessibilityRole="button"
-                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2.5"
+                    className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
                 >
                     <Store size={16} color="#ffffff" />
                     <Text className="font-sans-bold text-sm text-white">Buy it in the store</Text>
@@ -445,7 +453,7 @@ function PreorderRow({
                 <Pressable
                     onPress={() => setOrdering(true)}
                     accessibilityRole="button"
-                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2.5"
+                    className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
                 >
                     <ShoppingBag size={16} color="#ffffff" />
                     <Text className="font-sans-bold text-sm text-white">Order now</Text>
@@ -456,7 +464,7 @@ function PreorderRow({
                 <Pressable
                     onPress={() => router.push(`/order/${preorder.order_id}`)}
                     accessibilityRole="button"
-                    className="flex-row items-center justify-center gap-2 self-start rounded-xl bg-brand px-4 py-2.5"
+                    className={`${PREORDER_BUTTON} border-brand bg-brand`}
                 >
                     <ShoppingBag size={16} color="#ffffff" />
                     <Text className="font-sans-bold text-sm text-white">Open order {preorder.order_number}</Text>
@@ -470,17 +478,20 @@ function PreorderRow({
                     onPress={cancel}
                     disabled={cancelling}
                     accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 self-start rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 ${cancelling ? 'opacity-60' : ''}`}
+                    className={`${PREORDER_BUTTON} border-red-200 bg-red-50 ${cancelling ? 'opacity-60' : ''}`}
                 >
-                    {cancelling && <ActivityIndicator size="small" color="#b91c1c" />}
+                    {cancelling ? <ActivityIndicator size="small" color="#b91c1c" /> : <XCircle size={16} color="#b91c1c" />}
                     <Text className="font-sans-bold text-sm text-red-700">
-                        {held ? 'I do not want them' : 'Cancel preorder'}
+                        {held ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}` : 'Cancel preorder'}
                     </Text>
                 </Pressable>
             )}
         </View>
     );
 }
+
+/** Every button on a preorder card: full width, the same height and text size. */
+const PREORDER_BUTTON = 'w-full flex-row items-center justify-center gap-2 rounded-xl border px-4 py-3';
 
 function SwitchButton({
     chosen,

@@ -151,6 +151,34 @@ test('a student adds a set: its top and bottom go in as one, at what the two cos
     );
 });
 
+test('Undo after removing a set puts both pieces back as one set, ticked as before', function () {
+    $set = bsitSaleSet();
+    $this->actingAs($this->student)->post(route('cart.store-set', $set), boysSet($set));
+
+    $cart = $this->get(route('cart.index'));
+    $setInfo = $cart->viewData('page')['props']['lines'][0]['set'];
+    expect($setInfo)->toMatchArray([
+        'uniform_set_id' => $set->id,
+        'for' => 'boys',
+        'top_variant_id' => pieceSize($set->polo_product_id, 'M')->id,
+        'bottom_variant_id' => pieceSize($set->pants_product_id, 'S')->id,
+    ]);
+
+    $this->patch(route('cart.select'), ['cart_item_ids' => [CartItem::query()->value('id')], 'selected' => false]);
+    $this->delete(route('cart.destroy', CartItem::query()->value('id')));
+    expect(CartItem::query()->count())->toBe(0);
+
+    $this->post(route('cart.store-set', $set), [
+        'for' => $setInfo['for'], 'top_variant_id' => $setInfo['top_variant_id'], 'bottom_variant_id' => $setInfo['bottom_variant_id'],
+        'quantity' => 1, 'undo_remove' => true, 'selected' => false,
+    ])->assertInertiaFlash('toast.message', '1 BSIT Uniform Set (For Boys: BSIT Polo (M), BSIT Pants (S)) is back in your cart.');
+
+    $lines = CartItem::query()->orderBy('id')->get();
+    expect($lines)->toHaveCount(2)
+        ->and($lines[0]->set_key)->toBe($lines[1]->set_key)
+        ->and($lines->pluck('selected')->all())->toBe([false, false]);
+});
+
 test('a set is cheaper while one of its pieces is on sale', function () {
     $set = bsitSaleSet();
     Product::query()->whereKey($set->polo_product_id)->update(['status' => ProductStatus::OnSale, 'sale_price_centavos' => 40000]);

@@ -17,7 +17,10 @@ import { useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
 import IssuanceSlip from '@/components/issuance-slip';
-import { ConfirmReadyDialog } from '@/components/order-details-dialog';
+import {
+    ConfirmReadyDialog,
+    ConfirmReleaseDialog,
+} from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import SlipScanBox from '@/components/slip-scan-box';
@@ -184,6 +187,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
     const [busy, setBusy] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const [confirmingReady, setConfirmingReady] = useState(false);
+    const [confirmingRelease, setConfirmingRelease] = useState(false);
     const isOpen = order.status === 'placed' || order.status === 'ready';
 
     const act = (url: string, data: Record<string, boolean> = {}) => {
@@ -194,7 +198,10 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                 setPaid(false);
                 setConfirmingReady(false);
             },
-            onFinish: () => setBusy(false),
+            onFinish: () => {
+                setBusy(false);
+                setConfirmingRelease(false);
+            },
         });
     };
 
@@ -286,11 +293,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                         <button
                             type="button"
                             disabled={!paid || busy}
-                            onClick={() =>
-                                act(OrderController.release(order.id).url, {
-                                    paid: true,
-                                })
-                            }
+                            onClick={() => setConfirmingRelease(true)}
                             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                         >
                             {busy ? (
@@ -303,6 +306,10 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                             )}
                             Release the items
                         </button>
+                        <p className="mt-2 text-center text-xs font-semibold text-slate-500">
+                            The items leave the stock at once. This cannot be
+                            undone.
+                        </p>
                     </ReleaseStep>
                 </ol>
             )}
@@ -349,6 +356,15 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                 busy={busy}
                 onConfirm={() => act(OrderController.ready(order.id).url)}
                 onClose={() => setConfirmingReady(false)}
+            />
+
+            <ConfirmReleaseDialog
+                order={confirmingRelease ? order : null}
+                busy={busy}
+                onConfirm={() =>
+                    act(OrderController.release(order.id).url, { paid: true })
+                }
+                onClose={() => setConfirmingRelease(false)}
             />
         </aside>
     );
