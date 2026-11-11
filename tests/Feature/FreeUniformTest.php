@@ -2,6 +2,7 @@
 
 use App\Enums\StockMovementType;
 use App\Enums\UniformBottom;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\FreeUniformGroup;
 use App\Models\FreeUniformStudent;
 use App\Models\Product;
@@ -181,6 +182,35 @@ test('a piece out of stock is still to give, and is given when it arrives, in an
 
     $this->post(route('free-uniforms.give', $owed))
         ->assertSessionHasErrors(['pieces' => 'Student 5 already got the whole set.']);
+});
+
+test('Give now answers with the group details, so a refusal shows in the open pop-up and a success says what was given', function () {
+    $set = bsitSet(tops: ['S' => 0, 'M' => 4], pants: ['28' => 10, '30' => 10]);
+    $this->actingAs($this->specialist)
+        ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5)])
+        ->assertSessionHasNoErrors();
+    $owed = FreeUniformStudent::query()->stillOwed()->sole();
+    $groupPopup = route('free-uniforms.index', ['details' => $owed->free_uniform_group_id, 'show' => 'still_to_give']);
+
+    // As the pop-up sends it: the details come back with the answer.
+    $this->withHeaders([
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(request()),
+        'X-Inertia-Partial-Component' => 'free-uniforms/index',
+        'X-Inertia-Partial-Data' => 'details,groups,summary',
+    ]);
+
+    $this->from($groupPopup)->followingRedirects()->post(route('free-uniforms.give', $owed))
+        ->assertOk()
+        ->assertJsonPath('props.details.id', $owed->free_uniform_group_id)
+        ->assertJsonPath('props.errors.pieces', 'Still out of stock: Polo M. Choose another size, or give it when it arrives.');
+
+    uniformSize($set->polo_product_id, 'S')->forceFill(['stock_on_hand' => 3])->save();
+    $this->from($groupPopup)->followingRedirects()->post(route('free-uniforms.give', $owed), ['top_variant_id' => uniformSize($set->polo_product_id, 'S')->id])
+        ->assertOk()
+        ->assertJsonPath('props.details.id', $owed->free_uniform_group_id)
+        ->assertJsonPath('props.summary.still_to_give', 0)
+        ->assertJsonPath('flash.toast.message', '1 piece has been given to Student 5.');
 });
 
 test('pieces held for students\' orders are not given away', function () {
