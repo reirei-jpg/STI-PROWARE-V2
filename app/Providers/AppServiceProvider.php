@@ -6,6 +6,8 @@ use App\Services\Auth\SignInExpiry;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -22,7 +24,38 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->configurePastTheEndPages();
+    }
+
+    /**
+     * A list page opened at a page past its last one (an old link, a typed
+     * address, or the last item of the last page gone) opens the last page
+     * instead of saying the list is empty. Every list's page comes from the
+     * query's paginate(), which makes its paginator here. The phone app and
+     * popups loading data (JSON) keep the plain empty page they ask for.
+     */
+    protected function configurePastTheEndPages(): void
+    {
+        $this->app->bind(LengthAwarePaginator::class, function ($app, array $parameters): LengthAwarePaginator {
+            $paginator = new LengthAwarePaginator(
+                $parameters['items'],
+                $parameters['total'],
+                $parameters['perPage'],
+                $parameters['currentPage'] ?? null,
+                $parameters['options'] ?? [],
+            );
+
+            $request = request();
+            $isPage = $request->isMethod('GET') && ! $request->is('api/*') && (! $request->expectsJson() || $request->hasHeader('X-Inertia'));
+
+            if ($isPage && $paginator->total() > 0 && $paginator->currentPage() > $paginator->lastPage()) {
+                throw new HttpResponseException(redirect()->to(
+                    $request->fullUrlWithQuery([$paginator->getPageName() => $paginator->lastPage()]),
+                ));
+            }
+
+            return $paginator;
+        });
     }
 
     /**
