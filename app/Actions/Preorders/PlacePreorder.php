@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\PreorderPlaced;
 use App\Notifications\PreorderReceived;
 use App\Services\Preorders\EarlyBird;
+use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Illuminate\Support\Facades\DB;
@@ -40,11 +41,15 @@ class PlacePreorder
             $saved = [];
 
             foreach ($items as $item) {
+                $variant = $product->variants()->findOrFail($item['product_variant_id'])->setRelation('product', $product);
+
                 $saved[] = $student->preorders()->create([
                     'product_variant_id' => $item['product_variant_id'],
                     'status' => PreorderStatus::Active,
                     'product_id' => $product->id,
                     'quantity' => $item['quantity'],
+                    // Shown as "Preordered at ₱500 each"; the price paid is the one on the day it is ordered.
+                    'price_centavos' => ShopPrice::perUnit($variant, null),
                 ]);
             }
 

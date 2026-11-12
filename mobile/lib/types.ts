@@ -243,6 +243,8 @@ export type StudentPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
+    /** Price per piece on the day it was preordered (null for older preorders). */
+    preordered_price_centavos: number | null;
     status: 'active' | 'arrived' | 'cancelled' | 'not_restocked' | 'held' | 'ordered' | 'hold_ended';
     status_label: string;
     /** When the student was told it arrived. */
@@ -306,6 +308,9 @@ export type StudentNotificationData =
           held: number;
           preordered: number;
           held_until: string | null;
+          price_centavos?: number | null;
+          early_bird_pieces?: number;
+          early_bird_price_centavos?: number | null;
       }
     | {
           kind: 'preorder_hold_ended';

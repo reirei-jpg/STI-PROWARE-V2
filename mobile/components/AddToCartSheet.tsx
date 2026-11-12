@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
+import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
 import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { CartView, StorefrontProductDetails } from '@/lib/types';
 
@@ -373,7 +374,7 @@ export default function AddToCartSheet({
                     <Text className="font-sans text-xs leading-5 text-amber-900">
                         This {hasChoices ? 'size or color' : 'item'} is out of stock. Preorder it:
                         when it is back in stock, your pieces are held for you for 24 hours and you are
-                        notified. There is nothing to pay now.
+                        notified. There is nothing to pay now. {PREORDER_PRICE_MAY_CHANGE}
                     </Text>
                 </View>
             )}

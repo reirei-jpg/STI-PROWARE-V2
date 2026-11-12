@@ -26,6 +26,7 @@ import { formatPeso } from '@/lib/format';
 import { MAX_PER_ITEM } from '@/lib/number-input';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
+import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
 import { formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
@@ -504,7 +505,8 @@ function PickerForm({
                         This {hasChoices ? 'size or color' : 'item'} is out of
                         stock. Preorder it: when it is back in stock, your
                         pieces are held for you for 24 hours and you are
-                        notified. There is nothing to pay now.
+                        notified. There is nothing to pay now.{' '}
+                        {PREORDER_PRICE_MAY_CHANGE}
                     </p>
                 )}
 

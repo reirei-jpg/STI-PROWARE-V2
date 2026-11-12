@@ -25,6 +25,7 @@ import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import SignInPrompt from '@/components/SignInPrompt';
 import { dueDateTier, formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
+import { preorderPriceNote } from '@/lib/preorder-price';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
@@ -420,6 +421,11 @@ function PreorderRow({
                         {formatUnits(preorder.quantity, 'Piece')}
                     </Text>
                     <Text className={`text-xs ${closing.className}`}>{closing.text}</Text>
+                    {preorder.status === 'active' && (
+                        <Text className="font-sans text-xs text-slate-600">
+                            {preorderPriceNote(preorder.preordered_price_centavos)}
+                        </Text>
+                    )}
                     {preorder.expected_arrival && (
                         <Text className="font-sans text-xs text-slate-600">
                             Expected to arrive {preorder.expected_arrival}
@@ -429,6 +435,7 @@ function PreorderRow({
                         <Text className="font-sans-bold text-xs text-red-600">
                             {formatUnits(preorder.early_bird_pieces, 'Piece')} at the early-bird price of{' '}
                             {formatPeso(preorder.early_bird_price_centavos)} each
+                            {(preorder.status === 'active' || preorder.status === 'held') && ' (kept for you)'}
                         </Text>
                     )}
                 </View>

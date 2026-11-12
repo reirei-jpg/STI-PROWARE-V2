@@ -16,6 +16,7 @@ import LoadingState from '@/components/LoadingState';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import { noticeTarget } from '@/lib/notice-target';
+import { heldPriceText } from '@/lib/preorder-price';
 import { useNotifications } from '@/lib/notifications';
 import type { StudentNotification, StudentNotificationData } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
@@ -88,7 +89,7 @@ function describe(data: StudentNotificationData): {
         case 'preorder_held':
             return {
                 title: `Your preorder has arrived: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
-                body: `Held for you until ${formatDateTime(data.held_until)}. ${data.held === data.preordered ? `Order the ${formatUnits(data.held, 'Piece')}` : `Order the ${data.held} of your ${formatUnits(data.preordered, 'Piece')} that arrived`} in My Preorders before then.`,
+                body: `Held for you until ${formatDateTime(data.held_until)}. ${data.held === data.preordered ? `Order the ${formatUnits(data.held, 'Piece')}` : `Order the ${data.held} of your ${formatUnits(data.preordered, 'Piece')} that arrived`} in My Preorders before then.${heldPriceText(data.price_centavos, data.early_bird_pieces, data.early_bird_price_centavos)}`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };

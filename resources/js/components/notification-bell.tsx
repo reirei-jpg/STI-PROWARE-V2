@@ -8,6 +8,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { heldPriceText } from '@/lib/preorder-price';
 import { formatUnits } from '@/lib/units';
 import type { StaffNotification } from '@/types';
 import { isBuyer } from '@/lib/roles';
@@ -359,6 +360,11 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                         : `${data.held} of your ${formatUnits(data.preordered, 'Piece')} arrived and ${data.held === 1 ? 'is' : 'are'} held for you`}{' '}
                     until {formatDateTime(data.held_until)}. Order in My
                     Preorders before then.
+                    {heldPriceText(
+                        data.price_centavos,
+                        data.early_bird_pieces,
+                        data.early_bird_price_centavos,
+                    )}
                 </span>
             </>
         );

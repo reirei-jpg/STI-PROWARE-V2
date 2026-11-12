@@ -52,6 +52,21 @@ test('a student can preorder a size, and preordering it again goes behind those 
         ->status->toBe(PreorderStatus::Active);
 });
 
+test('a preorder keeps the price on the day it was placed, to show if the price changes later', function () {
+    [$product, $small] = preorderShirt();
+    $product->update(['price_centavos' => 50000]);
+
+    $this->actingAs($this->student)
+        ->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '2'])
+        ->assertSessionHasNoErrors();
+    expect(Preorder::sole()->price_centavos)->toBe(50000);
+
+    $product->update(['price_centavos' => 52000]);
+
+    $this->get(route('my-preorders.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('preorders.data.0.preordered_price_centavos', 50000));
+});
+
 test('the student is told their preorder was received, with each size', function () {
     Notification::fake();
     [$product, $small, $large] = preorderShirt();

@@ -19,6 +19,7 @@ import ConfirmDialog from '@/components/confirm-dialog';
 import QuantityInput from '@/components/quantity-input';
 import Pagination from '@/components/pagination';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { preorderPriceNote } from '@/lib/preorder-price';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
@@ -30,6 +31,8 @@ type MyPreorder = {
     photo_url: string | null;
     variant_label: string | null;
     quantity: number;
+    /** One piece's price on the day it was preordered; null for older preorders. */
+    preordered_price_centavos: number | null;
     status:
         | 'active'
         | 'arrived'
@@ -559,11 +562,16 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
 
     if (preorder.waiting_for_restock) {
         return (
-            <p className="mt-1 text-xs leading-5 font-medium">
-                It is out of stock. No payment is needed. When it is back in
-                stock, your pieces are held for you for 24 hours and you are
-                notified.
-            </p>
+            <>
+                <p className="mt-1 text-xs leading-5 font-medium">
+                    It is out of stock. No payment is needed. When it is back in
+                    stock, your pieces are held for you for 24 hours and you are
+                    notified.
+                </p>
+                <p className="mt-1 text-xs leading-5 font-bold">
+                    {preorderPriceNote(preorder.preordered_price_centavos)}
+                </p>
+            </>
         );
     }
 
@@ -571,6 +579,9 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
         <>
             <p className="mt-1 text-xs leading-5 font-medium">
                 No payment is needed yet. You are notified when it arrives.
+            </p>
+            <p className="mt-1 text-xs leading-5 font-bold">
+                {preorderPriceNote(preorder.preordered_price_centavos)}
             </p>
             {preorder.preorders_close_on && (
                 <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2">
@@ -608,6 +619,9 @@ function StatusDetails({ preorder }: { preorder: MyPreorder }) {
                     {formatUnits(preorder.early_bird_pieces, 'Piece')} at the
                     early-bird price of{' '}
                     {formatPeso(preorder.early_bird_price_centavos)} each
+                    {(preorder.status === 'active' ||
+                        preorder.status === 'held') &&
+                        ' (kept for you)'}
                 </p>
             )}
         </>

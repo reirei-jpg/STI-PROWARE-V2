@@ -10,6 +10,7 @@ import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatPeso, unitWord } from '@/lib/format';
+import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
 import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
 
@@ -194,6 +195,7 @@ export default function PreorderSheet({
                 )}
                 <View className="flex-1 justify-center gap-1">
                     <PriceLines price={product.price} />
+                    <Text className="font-sans text-xs text-slate-600">{PREORDER_PRICE_MAY_CHANGE}</Text>
                     {restock &&
                         (product.available_soon ? (
                             <Text className="font-sans-bold text-xs text-blue-700">Available soon</Text>
@@ -213,7 +215,7 @@ export default function PreorderSheet({
                     {!restock && product.early_bird && (
                         <Text className="font-sans-bold text-xs text-red-600">
                             {product.early_bird.pieces_left > 0
-                                ? `Early bird: ${formatPeso(product.early_bird.price_centavos)} each for the next ${product.early_bird.pieces_left} pcs preordered`
+                                ? `Early bird: ${formatPeso(product.early_bird.price_centavos)} each, kept for the next ${product.early_bird.pieces_left} pcs preordered`
                                 : 'The early-bird pieces are all taken.'}
                         </Text>
                     )}

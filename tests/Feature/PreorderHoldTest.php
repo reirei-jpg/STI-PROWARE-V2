@@ -67,9 +67,9 @@ test('arriving pieces make the product Available and are held first come, first 
     expect($rest->quantity)->toBe(2)->and($rest->created_at->equalTo($this->second->created_at))->toBeTrue();
 
     Notification::assertSentTo($this->first->student, PreorderHeld::class, fn (PreorderHeld $notice) => $notice->toPush($this->first->student)['body']
-        === '3 pcs are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next buyer.');
+        === '3 pcs are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next buyer. Price now: ₱750.00 each, but the early-bird price of ₱650.00 stays for 2 pcs.');
     Notification::assertSentTo($this->second->student, PreorderHeld::class, fn (PreorderHeld $notice) => $notice->toPush($this->second->student)['body']
-        === '2 of your 4 pcs have arrived and are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next buyer. You will be notified when the other 2 arrive.');
+        === '2 of your 4 pcs have arrived and are held for you until Nov 21, 9:00 AM. Order them in My Preorders before then, or they go to the next buyer. You will be notified when the other 2 arrive. Price now: ₱750.00 each.');
     Notification::assertNotSentTo($this->third->student, PreorderHeld::class);
 });
 

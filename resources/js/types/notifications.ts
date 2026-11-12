@@ -110,6 +110,11 @@ export type PreorderHeldData = {
     held: number;
     preordered: number;
     held_until: string | null;
+    /** One piece's price when it arrived (what is paid); missing on older notices. */
+    price_centavos?: number | null;
+    /** Held pieces that keep the early-bird price, and that price. */
+    early_bird_pieces?: number;
+    early_bird_price_centavos?: number | null;
 };
 
 /** The held pieces were not ordered in time and went to the next student. */

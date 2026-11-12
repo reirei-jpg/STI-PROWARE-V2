@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { MAX_PER_ITEM } from '@/lib/number-input';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
 import type {
@@ -306,6 +307,9 @@ function PreorderForm({
                     )}
                     <div className="space-y-1">
                         <PriceLines price={details.price} />
+                        <p className="text-xs font-semibold text-slate-600">
+                            {PREORDER_PRICE_MAY_CHANGE}
+                        </p>
                         {restock &&
                             (details.available_soon ? (
                                 <p className="text-xs font-bold text-blue-700">
@@ -330,7 +334,7 @@ function PreorderForm({
                         {!restock && details.early_bird && (
                             <p className="text-xs font-black text-red-600">
                                 {details.early_bird.pieces_left > 0
-                                    ? `Early bird: ${formatPeso(details.early_bird.price_centavos)} each for the next ${details.early_bird.pieces_left} pcs preordered`
+                                    ? `Early bird: ${formatPeso(details.early_bird.price_centavos)} each, kept for the next ${details.early_bird.pieces_left} pcs preordered`
                                     : 'The early-bird pieces are all taken.'}
                             </p>
                         )}
