@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderStatusPill, {
-    dateTierClasses,
     orderNote,
     orderStripeColors,
 } from '@/components/OrderStatusPill';
@@ -26,7 +25,7 @@ import HeldOrderSheet from '@/components/HeldOrderSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import SignInPrompt from '@/components/SignInPrompt';
-import { dueDateTier, formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
+import { formatDateTime, formatPeso } from '@/lib/format';
 import { preorderPriceNote } from '@/lib/preorder-price';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
@@ -268,82 +267,6 @@ function OrderRow({ order }: { order: StudentOrder }) {
     );
 }
 
-/**
- * When preorders close (date-colored while it can still be changed), or
- * where a sold-out size stands: waiting for a restock, or not restocked.
- */
-function preorderNote(preorder: StudentPreorder): { text: string; className: string } {
-    if (preorder.status === 'held') {
-        return {
-            text: `Arrived! Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or ${preorder.quantity === 1 ? 'the piece goes' : 'the pieces go'} to the next buyer.`,
-            className: 'font-sans-bold text-emerald-700',
-        };
-    }
-
-    if (preorder.status === 'ordered') {
-        if (preorder.order_status === 'cancelled') {
-            return { text: `Order ${preorder.order_number} was cancelled`, className: 'font-sans text-slate-500' };
-        }
-
-        return {
-            text: preorder.order_status === 'picked_up' ? `Received in ${preorder.order_number}` : `Ordered in ${preorder.order_number}`,
-            className: 'font-sans-bold text-blue-700',
-        };
-    }
-
-    if (preorder.status === 'hold_ended') {
-        return {
-            text: 'Hold ended: it was not ordered within 24 hours, so it went to the next buyer.',
-            className: 'font-sans text-slate-500',
-        };
-    }
-
-    if (preorder.status === 'cancelled') {
-        return { text: 'Cancelled', className: 'font-sans text-slate-500' };
-    }
-
-    if (preorder.status === 'not_restocked') {
-        return {
-            text: `Not restocked, so this preorder was closed on ${formatDate(preorder.not_restocked_at)}.${preorder.not_restocked_reason ? ` Reason: ${preorder.not_restocked_reason}` : ''}`,
-            className: 'font-sans-bold text-red-700',
-        };
-    }
-
-    if (preorder.waiting_for_restock) {
-        return {
-            text: 'Out of stock. When it is back, your pieces are held for you for 24 hours and you are notified.',
-            className: 'font-sans-bold text-amber-700',
-        };
-    }
-
-    if (preorder.status === 'arrived') {
-        return {
-            text: `Arrived ${formatDate(preorder.arrived_at)}. It is not held for you, so buy it in the store soon.`,
-            className: 'font-sans-bold text-emerald-700',
-        };
-    }
-
-    if (preorder.preorders_close_on === null) {
-        return { text: preorder.status_label, className: 'font-sans text-slate-500' };
-    }
-
-    const tier = dueDateTier(preorder.preorders_close_on);
-
-    // Closed preorders still count; there is nothing for the student to do.
-    return tier === 'overdue'
-        ? {
-              text: `Preorders closed ${formatDate(preorder.preorders_close_on)}`,
-              className: 'font-sans text-slate-500',
-          }
-        : {
-              text:
-                  tier === 'today'
-                      ? 'Preorders close today'
-                      : `Preorders close ${formatDate(preorder.preorders_close_on)}`,
-              className: dateTierClasses[tier],
-          };
-}
-
 /** Preorders placed with one press of Preorder, one after another in the list. */
 function batchesOf(preorders: StudentPreorder[]): { key: string; rows: StudentPreorder[] }[] {
     const batches: { key: string; rows: StudentPreorder[] }[] = [];
@@ -362,10 +285,40 @@ function batchesOf(preorders: StudentPreorder[]): { key: string; rows: StudentPr
     return batches;
 }
 
+/** Each status's short words and V1 colors, as a small pill. */
+function statusPill(preorder: StudentPreorder): { text: string; box: string; word: string } {
+    switch (preorder.status) {
+        case 'held':
+            return {
+                text: `Held until ${formatDateTime(preorder.held_until)}`,
+                box: 'border-emerald-200 bg-emerald-50',
+                word: 'text-emerald-700',
+            };
+        case 'arrived':
+            return { text: 'Arrived', box: 'border-emerald-200 bg-emerald-50', word: 'text-emerald-700' };
+        case 'ordered':
+            return preorder.order_status === 'cancelled'
+                ? { text: 'Order cancelled', box: 'border-slate-200 bg-slate-50', word: 'text-slate-500' }
+                : { text: 'Ordered', box: 'border-blue-200 bg-blue-50', word: 'text-blue-700' };
+        case 'cancelled':
+            return { text: 'Cancelled', box: 'border-slate-200 bg-slate-50', word: 'text-slate-500' };
+        case 'hold_ended':
+            return { text: 'Hold ended', box: 'border-slate-200 bg-slate-50', word: 'text-slate-500' };
+        case 'not_restocked':
+            return { text: 'Not restocked', box: 'border-red-200 bg-red-50', word: 'text-red-700' };
+        default:
+            return {
+                text: preorder.waiting_for_restock ? 'Waiting for restock' : 'Waiting to arrive',
+                box: 'border-amber-200 bg-amber-50',
+                word: 'text-amber-700',
+            };
+    }
+}
+
 /**
- * One card per press of Preorder: the item once at the top, then each size
- * or color with its own status and buttons (they can arrive at different
- * times). A preorder of one size is the usual card.
+ * One card per press of Preorder, kept minimal like an online shop's order:
+ * the item's photo, name and date once on top, then one line per size or
+ * color with its status and buttons, and the price note once at the bottom.
  */
 function PreorderBatch({
     rows,
@@ -377,10 +330,7 @@ function PreorderBatch({
     onEdit: (preorder: StudentPreorder) => void;
 }) {
     const first = rows[0];
-
-    if (rows.length === 1) {
-        return <PreorderRow preorder={first} onChanged={onChanged} onEdit={onEdit} />;
-    }
+    const waiting = rows.find((row) => row.status === 'active');
 
     return (
         <View className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -388,46 +338,61 @@ function PreorderBatch({
                 onPress={() => router.push(`/product/${first.product_id}`)}
                 accessibilityRole="button"
                 accessibilityLabel={`View ${first.product_name}`}
-                className="flex-row items-center gap-3 p-3.5"
+                className="flex-row items-center gap-3 px-3.5 py-3"
             >
-                <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                <View className="h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
                     {first.photo_url ? (
-                        <Image source={{ uri: first.photo_url }} style={{ width: 56, height: 56 }} resizeMode="cover" />
+                        <Image source={{ uri: first.photo_url }} style={{ width: 44, height: 44 }} resizeMode="cover" />
                     ) : (
-                        <ImageIcon size={20} color="#cbd5e1" />
+                        <ImageIcon size={18} color="#cbd5e1" />
                     )}
                 </View>
-                <View className="flex-1 gap-0.5">
-                    <Text className="font-sans-bold text-base text-slate-900">{first.product_name}</Text>
+                <View className="flex-1">
+                    <Text className="font-sans-bold text-sm text-slate-900" numberOfLines={1}>
+                        {first.product_name}
+                    </Text>
                     <Text className="font-sans text-xs text-slate-500">
-                        Preordered {formatDateTime(first.created_at)} · {rows.length} sizes or colors
+                        Preordered {formatDateTime(first.created_at)}
                     </Text>
                 </View>
             </Pressable>
             {rows.map((row) => (
-                <PreorderRow key={row.id} preorder={row} onChanged={onChanged} onEdit={onEdit} inBatch />
+                <PreorderRow key={row.id} preorder={row} onChanged={onChanged} onEdit={onEdit} />
             ))}
+            {waiting && (
+                <Text className="border-t border-slate-100 px-3.5 py-2 font-sans text-xs text-slate-500">
+                    {preorderPriceNote(waiting.preordered_price_centavos)}
+                </Text>
+            )}
         </View>
     );
 }
 
+/**
+ * One size or color in one line: size and how many with its status, then
+ * its buttons side by side, all the same size.
+ */
 function PreorderRow({
     preorder,
     onChanged,
     onEdit,
-    inBatch = false,
 }: {
     preorder: StudentPreorder;
     onChanged: (preorder: StudentPreorder) => void;
     onEdit: (preorder: StudentPreorder) => void;
-    /** One size of a batch card: the item is shown once, on the card. */
-    inBatch?: boolean;
 }) {
     const { request } = useAuth();
     const [cancelling, setCancelling] = useState(false);
     const [ordering, setOrdering] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const held = preorder.status === 'held';
+    const pill = statusPill(preorder);
+    const hasButtons =
+        preorder.status === 'arrived' ||
+        held ||
+        (preorder.status === 'ordered' && preorder.order_id !== null) ||
+        preorder.can_edit === true ||
+        preorder.can_cancel;
 
     const cancel = (): void => {
         // It cannot be undone, so the alert says what will happen.
@@ -436,192 +401,121 @@ function PreorderRow({
             : 'You lose your place in line and any early-bird price. Preordering again puts you at the end of the line. This cannot be undone.';
 
         Alert.alert(
-            held ? `Give up the ${preorder.quantity === 1 ? 'piece' : 'pieces'} held for you?` : `Cancel your preorder for ${preorder.product_name}?`,
+            held
+                ? `Give up the ${preorder.quantity === 1 ? 'piece' : 'pieces'} held for you?`
+                : `Cancel your preorder for ${preorder.product_name}${preorder.variant_label ? ` (${preorder.variant_label})` : ''}?`,
             whatHappens,
             [
-            { text: 'Keep it', style: 'cancel' },
-            {
-                text: held ? 'Give up' : 'Cancel preorder',
-                style: 'destructive',
-                onPress: async () => {
-                    setCancelling(true);
-                    setError(null);
+                { text: 'Keep it', style: 'cancel' },
+                {
+                    text: held ? 'Give up' : 'Cancel preorder',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setCancelling(true);
+                        setError(null);
 
-                    try {
-                        const result = await request<{ preorder: StudentPreorder }>(
-                            `/preorders/${preorder.id}`,
-                            { method: 'DELETE' },
-                        );
+                        try {
+                            const result = await request<{ preorder: StudentPreorder }>(`/preorders/${preorder.id}`, {
+                                method: 'DELETE',
+                            });
 
-                        onChanged(result.preorder);
-                    } catch (caught) {
-                        setError(
-                            caught instanceof ApiError
-                                ? caught.message
-                                : 'The preorder could not be cancelled. Try again.',
-                        );
-                    } finally {
-                        setCancelling(false);
-                    }
+                            onChanged(result.preorder);
+                        } catch (caught) {
+                            setError(
+                                caught instanceof ApiError ? caught.message : 'The preorder could not be cancelled. Try again.',
+                            );
+                        } finally {
+                            setCancelling(false);
+                        }
+                    },
                 },
-            },
-        ]);
+            ],
+        );
     };
 
-    const closing = preorderNote(preorder);
-
     return (
-        <View
-            style={{
-                borderLeftWidth: 5,
-                borderLeftColor:
-                    preorder.status === 'cancelled' || preorder.status === 'not_restocked'
-                        ? '#f87171'
-                        : preorder.status === 'arrived' || held
-                          ? '#10b981'
-                          : preorder.status === 'ordered'
-                            ? '#3b82f6'
-                            : preorder.status === 'hold_ended'
-                              ? '#94a3b8'
-                              : '#fbbf24',
-            }}
-            className={
-                inBatch
-                    ? `gap-3 border-t border-slate-100 p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`
-                    : `gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`
-            }
-        >
-            <Pressable
-                onPress={() => router.push(`/product/${preorder.product_id}`)}
-                accessibilityRole="button"
-                accessibilityLabel={`View ${preorder.product_name}`}
-                className="flex-row items-center gap-3"
-            >
-                {!inBatch && (
-                    <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
-                        {preorder.photo_url ? (
-                            <Image
-                                source={{ uri: preorder.photo_url }}
-                                style={{ width: 56, height: 56 }}
-                                resizeMode="cover"
-                            />
-                        ) : (
-                            <ImageIcon size={20} color="#cbd5e1" />
-                        )}
-                    </View>
-                )}
-                <View className="flex-1 gap-0.5">
-                    {inBatch ? (
-                        <Text className="font-sans-bold text-base text-slate-900">
-                            {preorder.variant_label ?? 'Standard'} · {formatUnits(preorder.quantity, 'Piece')}
-                        </Text>
-                    ) : (
-                        <>
-                            <Text className="font-sans-bold text-base text-slate-900">
-                                {preorder.product_name}
+        <View className={`gap-2.5 border-t border-slate-100 px-3.5 py-3 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`}>
+            <View className="flex-row items-center justify-between gap-2">
+                <Text className="flex-1 font-sans-bold text-sm text-slate-900" numberOfLines={1}>
+                    {preorder.variant_label ?? 'Standard'}
+                    <Text className="font-sans-semibold text-slate-500">  ×{preorder.quantity}</Text>
+                </Text>
+                <View className={`rounded-full border px-2 py-0.5 ${pill.box}`}>
+                    <Text className={`font-sans-bold text-[11px] ${pill.word}`}>{pill.text}</Text>
+                </View>
+            </View>
+
+            {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
+
+            {hasButtons && (
+                <View className="flex-row gap-2">
+                    {preorder.status === 'arrived' && (
+                        <Pressable
+                            onPress={() => router.push(`/product/${preorder.product_id}`)}
+                            accessibilityRole="button"
+                            className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
+                        >
+                            <Store size={14} color="#ffffff" />
+                            <Text className="font-sans-bold text-sm text-white">Buy it</Text>
+                        </Pressable>
+                    )}
+                    {held && (
+                        <Pressable
+                            onPress={() => setOrdering(true)}
+                            accessibilityRole="button"
+                            className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
+                        >
+                            <ShoppingBag size={14} color="#ffffff" />
+                            <Text className="font-sans-bold text-sm text-white">Order now</Text>
+                        </Pressable>
+                    )}
+                    {preorder.status === 'ordered' && preorder.order_id !== null && (
+                        <Pressable
+                            onPress={() => router.push(`/order/${preorder.order_id}`)}
+                            accessibilityRole="button"
+                            className={`${PREORDER_BUTTON} border-blue-200 bg-blue-50`}
+                        >
+                            <ShoppingBag size={14} color="#1d4ed8" />
+                            <Text className="font-sans-bold text-sm text-blue-700">{preorder.order_number}</Text>
+                        </Pressable>
+                    )}
+                    {preorder.can_edit && (
+                        <Pressable
+                            onPress={() => onEdit(preorder)}
+                            accessibilityRole="button"
+                            className={`${PREORDER_BUTTON} border-slate-300 bg-white`}
+                        >
+                            <Pencil size={14} color="#334155" />
+                            <Text className="font-sans-bold text-sm text-slate-700">Change</Text>
+                        </Pressable>
+                    )}
+                    {preorder.can_cancel && (
+                        <Pressable
+                            onPress={cancel}
+                            disabled={cancelling}
+                            accessibilityRole="button"
+                            className={`${PREORDER_BUTTON} border-red-200 bg-red-50 ${cancelling ? 'opacity-60' : ''}`}
+                        >
+                            {cancelling ? (
+                                <ActivityIndicator size="small" color="#b91c1c" />
+                            ) : (
+                                <XCircle size={14} color="#b91c1c" />
+                            )}
+                            <Text className="font-sans-bold text-sm text-red-700">
+                                {held ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}` : 'Cancel'}
                             </Text>
-                            <Text className="font-sans text-sm text-slate-600">
-                                {preorder.variant_label ? `${preorder.variant_label} · ` : ''}
-                                {formatUnits(preorder.quantity, 'Piece')}
-                            </Text>
-                        </>
-                    )}
-                    <Text className={`text-xs ${closing.className}`}>{closing.text}</Text>
-                    {preorder.edited_at && preorder.status === 'active' && (
-                        <Text className="font-sans text-xs text-slate-500">
-                            Changed {formatDateTime(preorder.edited_at)}
-                        </Text>
-                    )}
-                    {preorder.status === 'active' && (
-                        <Text className="font-sans text-xs text-slate-600">
-                            {preorderPriceNote(preorder.preordered_price_centavos)}
-                        </Text>
-                    )}
-                    {preorder.expected_arrival && (
-                        <Text className="font-sans text-xs text-slate-600">
-                            Expected to arrive {preorder.expected_arrival}
-                        </Text>
-                    )}
-                    {preorder.early_bird_price_centavos !== null && (
-                        <Text className="font-sans-bold text-xs text-red-600">
-                            {formatUnits(preorder.early_bird_pieces, 'Piece')} at the early-bird price of{' '}
-                            {formatPeso(preorder.early_bird_price_centavos)} each
-                            {(preorder.status === 'active' || preorder.status === 'held') && ' (kept for you)'}
-                        </Text>
+                        </Pressable>
                     )}
                 </View>
-            </Pressable>
-
-            {error && (
-                <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
-            )}
-
-            {preorder.status === 'arrived' && (
-                <Pressable
-                    onPress={() => router.push(`/product/${preorder.product_id}`)}
-                    accessibilityRole="button"
-                    className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
-                >
-                    <Store size={16} color="#ffffff" />
-                    <Text className="font-sans-bold text-sm text-white">Buy it in the store</Text>
-                </Pressable>
-            )}
-
-            {held && (
-                <Pressable
-                    onPress={() => setOrdering(true)}
-                    accessibilityRole="button"
-                    className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
-                >
-                    <ShoppingBag size={16} color="#ffffff" />
-                    <Text className="font-sans-bold text-sm text-white">Order now</Text>
-                </Pressable>
-            )}
-
-            {preorder.status === 'ordered' && preorder.order_id !== null && (
-                <Pressable
-                    onPress={() => router.push(`/order/${preorder.order_id}`)}
-                    accessibilityRole="button"
-                    className={`${PREORDER_BUTTON} border-brand bg-brand`}
-                >
-                    <ShoppingBag size={16} color="#ffffff" />
-                    <Text className="font-sans-bold text-sm text-white">Open order {preorder.order_number}</Text>
-                </Pressable>
             )}
 
             {held && <HeldOrderSheet preorder={preorder} open={ordering} onClose={() => setOrdering(false)} />}
-
-            {preorder.can_edit && (
-                <Pressable
-                    onPress={() => onEdit(preorder)}
-                    accessibilityRole="button"
-                    className={`${PREORDER_BUTTON} border-blue-200 bg-blue-50`}
-                >
-                    <Pencil size={16} color="#1d4ed8" />
-                    <Text className="font-sans-bold text-sm text-blue-700">Change size or quantity</Text>
-                </Pressable>
-            )}
-
-            {preorder.can_cancel && (
-                <Pressable
-                    onPress={cancel}
-                    disabled={cancelling}
-                    accessibilityRole="button"
-                    className={`${PREORDER_BUTTON} border-red-200 bg-red-50 ${cancelling ? 'opacity-60' : ''}`}
-                >
-                    {cancelling ? <ActivityIndicator size="small" color="#b91c1c" /> : <XCircle size={16} color="#b91c1c" />}
-                    <Text className="font-sans-bold text-sm text-red-700">
-                        {held ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}` : 'Cancel preorder'}
-                    </Text>
-                </Pressable>
-            )}
         </View>
     );
 }
 
-/** Every button on a preorder card: full width, the same height and text size. */
-const PREORDER_BUTTON = 'w-full flex-row items-center justify-center gap-2 rounded-xl border px-4 py-3';
-
+/** Every button on a preorder line: they share the width, the same height and text size. */
+const PREORDER_BUTTON = 'flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border px-3 py-2';
 function SwitchButton({
     chosen,
     onPress,
