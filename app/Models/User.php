@@ -26,6 +26,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property UserRole $role
  * @property Carbon|null $email_verified_at
  * @property string $password
+ * @property int $failed_sign_ins wrong passwords in a row since the last sign-in (see SignInLock)
+ * @property Carbon|null $locked_until after 5 wrong passwords, no sign-in until then
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -36,7 +38,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $updated_at
  */
 #[Fillable(['name', 'email', 'role', 'password'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
+#[Hidden(['password', 'failed_sign_ins', 'locked_until', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
@@ -67,6 +69,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'locked_until' => 'datetime',
             'role' => UserRole::class,
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
