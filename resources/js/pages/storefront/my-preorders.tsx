@@ -1,7 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
-    CalendarClock,
     CheckCircle2,
     Clock3,
     LoaderCircle,
@@ -19,7 +18,7 @@ import ConfirmDialog from '@/components/confirm-dialog';
 import EditPreorderDialog from '@/components/edit-preorder-dialog';
 import QuantityInput from '@/components/quantity-input';
 import Pagination from '@/components/pagination';
-import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { formatDateTime, formatPeso } from '@/lib/format';
 import { preorderPriceNote } from '@/lib/preorder-price';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -332,10 +331,9 @@ function batchesOf(
 }
 
 /**
- * One card per press of Preorder, laid out like an online shop's order: the
- * item and when it was preordered on top, then one compact row per size or
- * color (they can arrive at different times, so each has its own status and
- * buttons), and the price note once at the bottom.
+ * One card per press of Preorder, kept minimal like an online shop's order:
+ * the item's photo, name and date once on top, then one line per size or
+ * color with its status and buttons, and the price note once at the bottom.
  */
 function PreorderBatch({
     rows,
@@ -345,22 +343,40 @@ function PreorderBatch({
     onEdit: (preorder: MyPreorder) => void;
 }) {
     const first = rows[0];
-    const waiting = rows.some((row) => row.status === 'active');
+    const closed = rows.every(
+        (row) =>
+            row.status === 'cancelled' ||
+            row.status === 'not_restocked' ||
+            row.status === 'hold_ended',
+    );
 
     return (
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-slate-100 bg-slate-50/70 px-5 py-3">
-                <p className="flex min-w-0 items-center gap-2 text-sm font-black text-slate-900">
-                    <CalendarClock
-                        size={16}
-                        className="shrink-0 text-amber-600"
-                    />
-                    <span className="truncate">{first.product_name}</span>
-                </p>
-                <p className="text-xs text-slate-500">
-                    Preordered {formatDateTime(first.created_at)}
-                    {rows.length > 1 && ` · ${rows.length} sizes or colors`}
-                </p>
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3">
+                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                    {first.photo_url ? (
+                        <img
+                            src={first.photo_url}
+                            alt={first.product_name}
+                            className={cn(
+                                'h-full w-full object-cover',
+                                closed && 'grayscale',
+                            )}
+                        />
+                    ) : (
+                        <div className="flex h-full w-full items-center justify-center text-slate-300">
+                            <PackageOpen size={18} />
+                        </div>
+                    )}
+                </div>
+                <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-slate-900">
+                        {first.product_name}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                        Preordered {formatDateTime(first.created_at)}
+                    </p>
+                </div>
             </div>
 
             <div className="divide-y divide-slate-100">
@@ -369,8 +385,8 @@ function PreorderBatch({
                 ))}
             </div>
 
-            {waiting && (
-                <p className="border-t border-slate-100 px-5 py-2.5 text-xs text-slate-500">
+            {rows.some((row) => row.status === 'active') && (
+                <p className="border-t border-slate-100 px-5 py-2 text-xs text-slate-500">
                     {preorderPriceNote(
                         rows.find((row) => row.status === 'active')
                             ?.preordered_price_centavos ?? null,
@@ -382,9 +398,8 @@ function PreorderBatch({
 }
 
 /**
- * One size or color of a preorder, like an item row of an online shop's
- * order: a small photo, the size and how many, one line on what its status
- * means; its status and buttons on the right (below on a narrow screen).
+ * One size or color in one line: size and how many, its status, and its
+ * buttons. Held pieces also get the Order now box.
  */
 function PreorderLine({
     preorder,
@@ -399,12 +414,8 @@ function PreorderLine({
         ? { ...statusLooks.active, label: 'Waiting for Restock' }
         : statusLooks[preorder.status];
     const StatusIcon = look.icon;
-    const closed =
-        preorder.status === 'cancelled' ||
-        preorder.status === 'not_restocked' ||
-        preorder.status === 'hold_ended';
     const button =
-        'inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-bold transition';
+        'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm font-bold transition';
 
     const cancel = () => {
         setCancelling(true);
@@ -418,137 +429,94 @@ function PreorderLine({
     };
 
     return (
-        <div className="px-5 py-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 flex-1 gap-4">
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                        {preorder.photo_url ? (
-                            <img
-                                src={preorder.photo_url}
-                                alt={preorder.product_name}
-                                className={cn(
-                                    'h-full w-full object-cover',
-                                    closed && 'grayscale',
-                                )}
-                            />
-                        ) : (
-                            <div className="flex h-full w-full items-center justify-center text-slate-300">
-                                <PackageOpen size={22} />
-                            </div>
-                        )}
-                    </div>
+        <div className="px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <p className="text-sm font-bold text-slate-900">
+                    {preorder.variant_label ?? 'Standard'}
+                    <span className="ml-2 font-semibold text-slate-500">
+                        ×{preorder.quantity}
+                    </span>
+                </p>
 
-                    <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-slate-900">
-                            {preorder.variant_label ?? 'Standard'}
-                            <span className="ml-2 font-semibold text-slate-500">
-                                ×{preorder.quantity}
-                            </span>
-                        </p>
-                        <p
-                            className={cn(
-                                'mt-1 text-sm leading-5',
-                                closed ? 'text-slate-400' : 'text-slate-600',
-                            )}
-                        >
-                            {lineNote(preorder)}
-                        </p>
-                        {preorder.early_bird_price_centavos !== null && (
-                            <p className="mt-1 text-xs font-bold text-red-600">
-                                {formatUnits(
-                                    preorder.early_bird_pieces,
-                                    'Piece',
-                                )}{' '}
-                                at the early-bird price of{' '}
-                                {formatPeso(preorder.early_bird_price_centavos)}{' '}
-                                each
-                                {(preorder.status === 'active' ||
-                                    preorder.status === 'held') &&
-                                    ' (kept for you)'}
-                            </p>
-                        )}
-                        {preorder.edited_at && preorder.status === 'active' && (
-                            <p className="mt-1 text-xs text-slate-400">
-                                Changed {formatDateTime(preorder.edited_at)}
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex shrink-0 flex-col items-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     <span
                         className={cn(
                             'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black tracking-wide uppercase',
                             look.badge,
                         )}
+                        title={
+                            preorder.status === 'not_restocked'
+                                ? (preorder.not_restocked_reason ?? undefined)
+                                : undefined
+                        }
                     >
                         <StatusIcon size={12} />
-                        {look.label}
+                        {preorder.status === 'held' && preorder.held_until
+                            ? `Held until ${formatDateTime(preorder.held_until)}`
+                            : look.label}
                     </span>
-                    <div className="flex flex-wrap justify-end gap-2">
-                        {preorder.status === 'arrived' && (
+                    {preorder.status === 'arrived' && (
+                        <Link
+                            href={home({
+                                query: { search: preorder.product_name },
+                            })}
+                            className={cn(
+                                button,
+                                'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
+                            )}
+                        >
+                            <Store size={14} />
+                            Buy it
+                        </Link>
+                    )}
+                    {preorder.status === 'ordered' &&
+                        preorder.order_id !== null && (
                             <Link
-                                href={home({
-                                    query: { search: preorder.product_name },
-                                })}
+                                href={StudentOrderController.slip(
+                                    preorder.order_id,
+                                )}
                                 className={cn(
                                     button,
-                                    'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
+                                    'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
                                 )}
                             >
-                                <Store size={15} />
-                                Buy it in the store
+                                <ShoppingBag size={14} />
+                                {preorder.order_number}
                             </Link>
                         )}
-                        {preorder.status === 'ordered' &&
-                            preorder.order_id !== null && (
-                                <Link
-                                    href={StudentOrderController.slip(
-                                        preorder.order_id,
-                                    )}
-                                    className={cn(
-                                        button,
-                                        'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
-                                    )}
-                                >
-                                    <ShoppingBag size={15} />
-                                    Open order {preorder.order_number}
-                                </Link>
+                    {preorder.can_edit && (
+                        <button
+                            type="button"
+                            onClick={() => onEdit(preorder)}
+                            className={cn(
+                                button,
+                                'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
                             )}
-                        {preorder.can_edit && (
-                            <button
-                                type="button"
-                                onClick={() => onEdit(preorder)}
-                                className={cn(
-                                    button,
-                                    'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-                                )}
-                            >
-                                <Pencil size={15} />
-                                Change
-                            </button>
-                        )}
-                        {preorder.can_cancel && (
-                            <button
-                                type="button"
-                                onClick={() => setConfirming(true)}
-                                className={cn(
-                                    button,
-                                    'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
-                                )}
-                            >
-                                <XCircle size={15} />
-                                {preorder.status === 'held'
-                                    ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}`
-                                    : 'Cancel'}
-                            </button>
-                        )}
-                    </div>
+                        >
+                            <Pencil size={14} />
+                            Change
+                        </button>
+                    )}
+                    {preorder.can_cancel && (
+                        <button
+                            type="button"
+                            onClick={() => setConfirming(true)}
+                            className={cn(
+                                button,
+                                'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+                            )}
+                        >
+                            <XCircle size={14} />
+                            {preorder.status === 'held'
+                                ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}`
+                                : 'Cancel'}
+                        </button>
+                    )}
                 </div>
             </div>
 
             {preorder.status === 'held' && (
-                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 pb-3 sm:ml-20 sm:max-w-sm">
+                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 pb-3 sm:max-w-sm">
                     <OrderNowBox preorder={preorder} />
                 </div>
             )}
@@ -577,51 +545,6 @@ function PreorderLine({
             />
         </div>
     );
-}
-/** What the status means for this size, in one line. */
-function lineNote(preorder: MyPreorder): string {
-    switch (preorder.status) {
-        case 'held':
-            return `Held for you until ${formatDateTime(preorder.held_until)}. Order before then, or ${preorder.quantity === 1 ? 'the piece goes' : 'the pieces go'} to the next buyer.`;
-        case 'ordered':
-            if (preorder.order_status === 'cancelled') {
-                return `Order ${preorder.order_number} was cancelled.`;
-            }
-
-            return preorder.order_status === 'picked_up'
-                ? `You received it in order ${preorder.order_number}.`
-                : `Ordered in ${preorder.order_number}. Pay at the cashier, then collect it at the PROWARE office.`;
-        case 'hold_ended':
-            return `Not ordered within 24 hours, so it went to the next buyer on ${formatDateOrdered(preorder.hold_ended_at)}.`;
-        case 'arrived':
-            return `Arrived on ${formatDateOrdered(preorder.arrived_at)}. It is not held for you, so buy it in the store soon.`;
-        case 'cancelled':
-            return 'Cancelled. Nothing to pay.';
-        case 'not_restocked':
-            return `Will not be restocked, so it was closed on ${formatDateOrdered(preorder.not_restocked_at)}.${preorder.not_restocked_reason ? ` Reason: ${preorder.not_restocked_reason}` : ''}`;
-        default:
-            break;
-    }
-
-    if (preorder.waiting_for_restock) {
-        return 'Out of stock. When it is back, it is held for you for 24 hours and you are notified.';
-    }
-
-    const closes = preorder.preorders_close_on
-        ? `Preorders ${
-              preorder.preorders_close_on <
-              new Date().toLocaleDateString('en-CA', {
-                  timeZone: 'Asia/Manila',
-              })
-                  ? 'closed'
-                  : 'close'
-          } ${formatDateOrdered(preorder.preorders_close_on)}.`
-        : '';
-    const arrives = preorder.expected_arrival
-        ? ` Expected to arrive ${preorder.expected_arrival}.`
-        : '';
-
-    return `${closes}${arrives} You are notified when it arrives.`.trim();
 }
 /**
  * Order Now on held pieces: how many (all or fewer; the rest go to the next
