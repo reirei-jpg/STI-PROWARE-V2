@@ -53,6 +53,10 @@ export type PurchaseOrderItemDetails = {
     quantity_ordered: number;
     quantity_received: number;
     quantity_remaining: number;
+    /** How much was ordered for buyers' preorders; null on POs saved before this was tracked. */
+    preorder_quantity: number | null;
+    /** The Specialist's own order (ordered − preorders); null when not tracked. */
+    own_quantity: number | null;
     unit_price_centavos: number;
     amount_centavos: number;
     /** The product its deliveries go into; null while not linked. */

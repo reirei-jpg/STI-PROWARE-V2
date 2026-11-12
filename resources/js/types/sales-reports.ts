@@ -7,6 +7,8 @@ export type SalesSummary = {
     /** What the uploaded eStore orders cost. */
     spent_centavos: number;
     purchase_orders: number;
+    /** The part of it ordered for buyers' preorders. */
+    spent_for_preorders_centavos: number;
     /** What students paid (released orders). */
     price_centavos: number;
     /** What those items cost on the eStore orders (those with a Cost). */
@@ -35,6 +37,10 @@ export type SpentRow = {
     items_count: number;
     total_centavos: number;
     uploaded_by: string;
+    /** All the quantities ordered, as on the eStore order. */
+    quantity_ordered: number;
+    /** How much of it was for buyers' preorders; null on POs saved before this was tracked. */
+    preorder_quantity: number | null;
 };
 
 /** One item sold at one price. */

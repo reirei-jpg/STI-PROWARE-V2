@@ -2,6 +2,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     Download,
+    Eye,
     Gift,
     LoaderCircle,
     Search,
@@ -17,6 +18,7 @@ import SalesReportController from '@/actions/App/Http/Controllers/SalesReportCon
 import DateRangeFilter from '@/components/date-range-filter';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
+import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
@@ -244,7 +246,7 @@ export default function SalesReportsIndex({
                         tone="blue"
                         label="Spent on eStore orders"
                         value={formatPeso(summary.spent_centavos)}
-                        detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} · by Date Ordered`}
+                        detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} · by Date Ordered${summary.spent_for_preorders_centavos > 0 ? ` · ${formatPeso(summary.spent_for_preorders_centavos)} for preorders` : ''}`}
                         onClick={() => show({ tab: 'spent' })}
                     />
                     <Card
@@ -417,8 +419,13 @@ function Empty({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
     );
 }
 
-/** 1. The uploaded eStore orders of the period. */
+/**
+ * 1. The uploaded eStore orders of the period: how much of each was ordered
+ * for buyers' preorders, and a click opens the order with its items.
+ */
 function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
+    const [viewingId, setViewingId] = useState<number | null>(null);
+
     if (rows.data.length === 0) {
         return (
             <Empty icon={ShoppingCart} text="No eStore orders in this period" />
@@ -427,22 +434,33 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
 
     return (
         <>
+            <PurchaseOrderDetailsDialog
+                purchaseOrderId={viewingId}
+                onClose={() => setViewingId(null)}
+            />
             <TableScroll>
-                <table className="w-full min-w-180">
+                <table className="w-full min-w-220">
                     <thead className="bg-slate-50">
                         <tr>
                             <TableHeading>Order #</TableHeading>
                             <TableHeading>Date ordered</TableHeading>
                             <TableHeading align="right">Items</TableHeading>
+                            <TableHeading align="right">
+                                For preorders
+                            </TableHeading>
                             <TableHeading align="right">Amount</TableHeading>
                             <TableHeading>Uploaded by</TableHeading>
+                            <TableHeading align="right">
+                                <span className="sr-only">Actions</span>
+                            </TableHeading>
                         </tr>
                     </thead>
                     <tbody>
                         {rows.data.map((row) => (
                             <tr
                                 key={row.id}
-                                className="border-t border-slate-100 text-sm"
+                                onClick={() => setViewingId(row.id)}
+                                className="cursor-pointer border-t border-slate-100 text-sm transition hover:bg-slate-50"
                             >
                                 <td className="px-5 py-4 font-mono font-black text-blue-700">
                                     {row.order_number
@@ -455,11 +473,51 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                                 <td className="px-5 py-4 text-right text-slate-700">
                                     {row.items_count}
                                 </td>
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                    {row.preorder_quantity === null ? (
+                                        <span className="text-xs font-semibold text-slate-400">
+                                            Not tracked
+                                        </span>
+                                    ) : (
+                                        <span
+                                            className={cn(
+                                                'font-black',
+                                                row.preorder_quantity > 0
+                                                    ? 'text-blue-700'
+                                                    : 'text-slate-400',
+                                            )}
+                                        >
+                                            {row.preorder_quantity.toLocaleString(
+                                                'en-PH',
+                                            )}
+                                            <span className="font-semibold text-slate-500">
+                                                {' '}
+                                                of{' '}
+                                                {row.quantity_ordered.toLocaleString(
+                                                    'en-PH',
+                                                )}
+                                            </span>
+                                        </span>
+                                    )}
+                                </td>
                                 <td className="px-5 py-4 text-right text-base font-black text-slate-900">
                                     {formatPeso(row.total_centavos)}
                                 </td>
                                 <td className="px-5 py-4 text-slate-700">
                                     {row.uploaded_by}
+                                </td>
+                                <td className="px-5 py-4 text-right">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setViewingId(row.id);
+                                        }}
+                                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                                    >
+                                        <Eye size={15} />
+                                        View Details
+                                    </button>
                                 </td>
                             </tr>
                         ))}

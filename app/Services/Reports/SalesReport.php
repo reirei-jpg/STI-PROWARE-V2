@@ -9,6 +9,7 @@ use App\Enums\StockMovementType;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,7 +36,7 @@ final class SalesReport
     /**
      * The numbers at the top.
      *
-     * @return array{spent_centavos: int, purchase_orders: int, price_centavos: int, cost_centavos: int, costed_price_centavos: int, profit_centavos: int, orders: int, pieces: int, missing_cost_lines: int, below_cost_lines: int, below_cost_loss_centavos: int, free_pieces: int, free_cost_centavos: int, free_price_centavos: int}
+     * @return array{spent_centavos: int, purchase_orders: int, spent_for_preorders_centavos: int, price_centavos: int, cost_centavos: int, costed_price_centavos: int, profit_centavos: int, orders: int, pieces: int, missing_cost_lines: int, below_cost_lines: int, below_cost_loss_centavos: int, free_pieces: int, free_cost_centavos: int, free_price_centavos: int}
      */
     public static function summary(CarbonImmutable $from, CarbonImmutable $to): array
     {
@@ -56,6 +57,13 @@ final class SalesReport
         return [
             'spent_centavos' => (int) self::purchaseOrders($from, $to)->get()->sum(fn (PurchaseOrder $order): int => self::orderTotal($order)),
             'purchase_orders' => self::purchaseOrders($from, $to)->count(),
+            // The part of it ordered for buyers' preorders (POs from before this was tracked count as own orders).
+            'spent_for_preorders_centavos' => (int) PurchaseOrderItem::query()
+                ->whereIn('purchase_order_id', self::purchaseOrders($from, $to)->select('id'))
+                ->where('preorder_quantity', '>', 0)
+                ->where('quantity_ordered', '>', 0)
+                ->get()
+                ->sum(fn (PurchaseOrderItem $item): int => intdiv($item->amount_centavos * (int) $item->preorder_quantity, $item->quantity_ordered)),
             'price_centavos' => (int) ($sold->price ?? 0),
             'cost_centavos' => (int) ($sold->cost ?? 0),
             // The Price of the sales that have a Cost: what Profit is worked out from.
@@ -75,7 +83,7 @@ final class SalesReport
     /**
      * 1. The eStore purchase orders ordered in the period, newest first.
      *
-     * @return LengthAwarePaginator<int, array{id: int, order_number: string|null, date_ordered: string, items_count: int, total_centavos: int, uploaded_by: string}>
+     * @return LengthAwarePaginator<int, array{id: int, order_number: string|null, date_ordered: string, items_count: int, total_centavos: int, uploaded_by: string, quantity_ordered: int, preorder_quantity: int|null}>
      */
     public static function spent(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
     {
@@ -83,6 +91,9 @@ final class SalesReport
             ->with('uploader')
             ->withCount('items')
             ->withSum('items', 'amount_centavos')
+            ->withSum('items', 'quantity_ordered')
+            ->withSum('items', 'preorder_quantity')
+            ->withCount(['items as untracked_items_count' => fn (Builder $items) => $items->whereNull('preorder_quantity')])
             ->latest('date_ordered')
             ->latest('id')
             ->paginate(20)
@@ -94,6 +105,9 @@ final class SalesReport
                 'items_count' => (int) $order->getAttribute('items_count'),
                 'total_centavos' => self::orderTotal($order),
                 'uploaded_by' => $order->uploader->name,
+                'quantity_ordered' => (int) $order->getAttribute('items_sum_quantity_ordered'),
+                // How much was for buyers' preorders; null on POs saved before this was tracked.
+                'preorder_quantity' => (int) $order->getAttribute('untracked_items_count') > 0 ? null : (int) $order->getAttribute('items_sum_preorder_quantity'),
             ]);
     }
 

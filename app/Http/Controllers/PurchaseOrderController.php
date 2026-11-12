@@ -19,6 +19,7 @@ use App\Services\EstorePo\PendingPurchaseOrderScan;
 use App\Services\EstorePo\ScannedPurchaseOrder;
 use App\Services\EstorePo\ScannedPurchaseOrderItem;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
+use App\Services\Preorders\PreorderDemand;
 use App\Services\Stock\LinkedItems;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -180,6 +181,8 @@ class PurchaseOrderController extends Controller
                 ));
 
                 $purchaseOrder->refreshDeliveryProgress();
+                // How much of it is for buyers' preorders, and how much is the Specialist's own order.
+                PreorderDemand::record($purchaseOrder);
 
                 return $purchaseOrder;
             });
@@ -274,6 +277,9 @@ class PurchaseOrderController extends Controller
                 'quantity_ordered' => $item->quantity_ordered,
                 'quantity_received' => $item->quantity_delivered,
                 'quantity_remaining' => $item->quantityRemaining(),
+                // Null on POs saved before this was tracked.
+                'preorder_quantity' => $item->preorder_quantity,
+                'own_quantity' => $item->preorder_quantity === null ? null : $item->quantity_ordered - $item->preorder_quantity,
                 'unit_price_centavos' => $item->unit_price_centavos,
                 'amount_centavos' => $item->amount_centavos,
                 'stock_target' => $linkedVariants->has($item->item_code) ? LinkedItems::target($linkedVariants->get($item->item_code)) : null,

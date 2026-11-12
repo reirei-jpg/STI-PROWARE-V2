@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $stock_on_hand
  * @property int $quantity_ordered
  * @property int $quantity_delivered
+ * @property int|null $preorder_quantity how much of quantity_ordered was for buyers' preorders (the rest is the Specialist's own order); null when not tracked (saved before this was kept)
  * @property int $unit_price_centavos
  * @property int $amount_centavos
  * @property Carbon|null $created_at

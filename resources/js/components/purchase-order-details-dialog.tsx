@@ -407,13 +407,35 @@ export default function PurchaseOrderDetailsDialog({
  * total at the bottom.
  */
 function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
+    // POs saved before preorder demand was kept have no split.
+    const tracksPreorders = details.items.every(
+        (item) => item.preorder_quantity !== null,
+    );
+    const sum = (pick: (item: PurchaseOrderItemDetails) => number) =>
+        details.items
+            .reduce((total, item) => total + pick(item), 0)
+            .toLocaleString('en-PH');
+
     return (
         <div className="overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full min-w-200 text-sm">
+            <table
+                className={cn(
+                    'w-full text-sm',
+                    tracksPreorders ? 'min-w-240' : 'min-w-200',
+                )}
+            >
                 <thead className="bg-slate-50">
                     <tr>
                         <Heading>Item</Heading>
-                        <Heading right>Ordered</Heading>
+                        {tracksPreorders && (
+                            <>
+                                <Heading right>For preorders</Heading>
+                                <Heading right>Own order</Heading>
+                            </>
+                        )}
+                        <Heading right>
+                            {tracksPreorders ? 'Total ordered' : 'Ordered'}
+                        </Heading>
                         <Heading right>Received</Heading>
                         <Heading right>Remaining</Heading>
                         <Heading right>Unit Price</Heading>
@@ -432,6 +454,33 @@ function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
                                 </p>
                                 <StockTarget item={item} />
                             </td>
+                            {tracksPreorders && (
+                                <>
+                                    <NumberCell
+                                        className={cn(
+                                            'font-black',
+                                            item.preorder_quantity
+                                                ? 'text-blue-700'
+                                                : 'text-slate-400',
+                                        )}
+                                    >
+                                        <Quantity
+                                            value={item.preorder_quantity ?? 0}
+                                            unitName={
+                                                item.stock_target?.unit_name
+                                            }
+                                        />
+                                    </NumberCell>
+                                    <NumberCell className="font-black text-slate-600">
+                                        <Quantity
+                                            value={item.own_quantity ?? 0}
+                                            unitName={
+                                                item.stock_target?.unit_name
+                                            }
+                                        />
+                                    </NumberCell>
+                                </>
+                            )}
                             <NumberCell className="font-black text-slate-800">
                                 <Quantity
                                     value={item.quantity_ordered}
@@ -468,8 +517,24 @@ function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
                 </tbody>
                 <tfoot className="border-t border-slate-200 bg-slate-50">
                     <tr>
+                        {tracksPreorders && (
+                            <>
+                                <td className="px-4 py-3 text-right text-xs font-black tracking-wide text-slate-500 uppercase">
+                                    Total
+                                </td>
+                                <td className="px-4 py-3 text-right font-black whitespace-nowrap text-blue-700">
+                                    {sum((item) => item.preorder_quantity ?? 0)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-black whitespace-nowrap text-slate-600">
+                                    {sum((item) => item.own_quantity ?? 0)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-black whitespace-nowrap text-slate-800">
+                                    {sum((item) => item.quantity_ordered)}
+                                </td>
+                            </>
+                        )}
                         <td
-                            colSpan={5}
+                            colSpan={tracksPreorders ? 3 : 5}
                             className="px-4 py-3 text-right text-xs font-black tracking-wide text-slate-500 uppercase"
                         >
                             Total Amount
