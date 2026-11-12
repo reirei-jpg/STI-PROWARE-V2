@@ -18,6 +18,7 @@ use App\Notifications\PreorderHeld;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-03 10:00', 'Asia/Manila'));
@@ -403,36 +404,16 @@ test('an order cannot be released twice', function () {
         ->and(StockMovement::query()->where('type', StockMovementType::Sale)->count())->toBe(1);
 });
 
-test('the specialist cancels with a reason and the student is told', function () {
+test('only the buyer can cancel an order, not the specialist', function () {
     [, $variant] = ballpen(stock: 10);
     $order = placedOrder($variant, 3);
-    $this->actingAs($this->specialist);
 
-    $this->post(route('orders.cancel', $order), ['reason' => ''])
-        ->assertSessionHasErrors(['reason' => 'Select a reason for cancelling. The buyer will see it.']);
-    $this->post(route('orders.cancel', $order), ['reason' => 'other'])
-        ->assertSessionHasErrors(['note' => 'Describe the reason for cancelling. The buyer will see it.']);
-    $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'x'])
-        ->assertSessionHasErrors(['note' => 'Write at least 5 characters.']);
-    $this->post(route('orders.cancel', $order), ['reason' => 'wrong_size_or_color'])
-        ->assertSessionHasErrors(['reason' => 'Select one of the reasons shown.']);
+    $this->actingAs($this->specialist)->post("/orders/{$order->id}/cancel", ['reason' => 'student_asked'])->assertNotFound();
+    Sanctum::actingAs($this->specialist);
+    $this->postJson("/api/v1/specialist/orders/{$order->id}/cancel", ['reason' => 'student_asked'])->assertNotFound();
 
-    $this->post(route('orders.cancel', $order), ['reason' => 'other', 'note' => 'The ballpens were damaged.'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been cancelled. Juan Dela Cruz has been notified.');
-
-    expect($order->refresh())
-        ->status->toBe(OrderStatus::Cancelled)
-        ->handled_by->toBe($this->specialist->id)
-        ->and($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0)
-        ->and($this->student->notifications()->sole()->data)->toMatchArray(['kind' => 'order_cancelled', 'reason' => 'The ballpens were damaged.']);
-
-    // A released order cannot be cancelled.
-    $released = placedOrder($variant, 1);
-    $this->actingAs($this->specialist)->post(route('orders.release', $released), ['paid' => true]);
-    $this->post(route('orders.cancel', $released), ['reason' => 'student_asked'])
-        ->assertInertiaFlash('toast.message', 'Order PW-0002 has already been released, so it can no longer be cancelled.');
+    expect($order->refresh()->status)->toBe(OrderStatus::Placed);
 });
-
 test('the orders page shows orders waiting for payment by default and finds by order number or student', function () {
     [, $variant] = ballpen();
     placedOrder($variant);

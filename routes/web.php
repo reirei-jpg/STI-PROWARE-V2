@@ -76,7 +76,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('orders/slip', [OrderController::class, 'slip'])->name('orders.slip');
         Route::get('orders/{order}/slip/print', [OrderController::class, 'printSlip'])->name('orders.slip.print');
         Route::post('orders/{order}/release', [OrderController::class, 'release'])->name('orders.release');
-        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
         Route::get('sales-reports', [SalesReportController::class, 'index'])->name('sales-reports.index');
         Route::get('sales-reports/export', [SalesReportController::class, 'export'])->name('sales-reports.export');

@@ -87,7 +87,7 @@ test('an order with nothing left in stock cannot be released', function () {
 
     $this->actingAs($this->specialist)->post(route('orders.release', $second), ['paid' => true]);
     $this->post(route('orders.release', $first), ['paid' => true])
-        ->assertInertiaFlash('toast.message', "Nothing of order {$first->number} is left in stock, so it cannot be released. Cancel it, or wait for a restock.");
+        ->assertInertiaFlash('toast.message', "Nothing of order {$first->number} is left in stock, so it cannot be released. Wait for a restock, or the buyer can cancel it.");
 
     expect($first->refresh()->status)->toBe(OrderStatus::Placed);
 });

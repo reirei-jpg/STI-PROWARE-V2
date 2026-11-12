@@ -2,7 +2,6 @@ import { Head, router, usePoll } from '@inertiajs/react';
 import { Eye, Search, ShoppingBag, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
-import CancelOrderDialog from '@/components/cancel-order-dialog';
 import OrderDetailsDialog from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
@@ -36,8 +35,8 @@ const descriptions: Record<Show, string> = {
  * issuance slip: scan its QR (or type the order number) to open it, check
  * it, and release the items once paid. Below, every order in a table (by
  * status, with a search); View Details opens an order with its items, its
- * history and its steps (Release, Cancel). Orders hold no stock and never
- * expire: whoever pays first gets the items.
+ * history and Release. Orders hold no stock and never expire: whoever pays
+ * first gets the items. Only the buyer can cancel an order.
  */
 export default function OrdersIndex({
     orders,
@@ -53,7 +52,6 @@ export default function OrdersIndex({
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [viewingId, setViewingId] = useState<number | null>(null);
-    const [cancelling, setCancelling] = useState<SpecialistOrder | null>(null);
     const firstRender = useRef(true);
     // The open order follows the list, so it updates after each step. When
     // it moves to another tab (e.g. released), it is asked for again, and
@@ -73,8 +71,8 @@ export default function OrdersIndex({
 
     // The list checks every 10 seconds, so an order released, cancelled or
     // expired elsewhere (the phone, another computer, the buyer) changes by
-    // itself: its Release and Cancel buttons go away, also in an open popup.
-    const watchedId = viewingId ?? cancelling?.id ?? null;
+    // itself: its Release button goes away, also in an open popup.
+    const watchedId = viewingId;
     usePoll(
         10000,
         () =>
@@ -86,17 +84,6 @@ export default function OrdersIndex({
                   },
         { mode: 'rest' },
     );
-
-    // The latest copy of the order whose cancel form is open: when it is no
-    // longer open, the form closes by itself.
-    const cancellingNow =
-        cancelling === null
-            ? null
-            : (orders.data.find((order) => order.id === cancelling.id) ??
-              (viewingAfterStep?.id === cancelling.id
-                  ? viewingAfterStep
-                  : cancelling));
-    const cancellingIsOpen = cancellingNow?.status === 'placed';
 
     const showList = (show: Show, term: string) =>
         router.get(
@@ -300,16 +287,7 @@ export default function OrdersIndex({
             <OrderDetailsDialog
                 order={viewing}
                 onClose={() => setViewingId(null)}
-                onCancel={(order) => {
-                    setViewingId(null);
-                    setCancelling(order);
-                }}
                 onActed={showOrderAfterStep}
-            />
-
-            <CancelOrderDialog
-                order={cancellingIsOpen ? cancellingNow : null}
-                onClose={() => setCancelling(null)}
             />
         </>
     );

@@ -7,7 +7,6 @@ import {
     SearchX,
     ShieldAlert,
     TriangleAlert,
-    XCircle,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
@@ -15,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IssuanceSlipCard from '@/components/IssuanceSlipCard';
 import OrderStatusPill from '@/components/OrderStatusPill';
-import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
+import { ActionButton, ReleaseBox } from '@/components/StaffOrderActions';
 import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -29,7 +28,7 @@ import type { SlipLookup, SpecialistOrder } from '@/lib/types';
  * stop), then the student, the checks, and the release as numbered steps
  * (collect, tick paid, release: the items leave the shelf only then).
  * A release is final, and items already sold to buyers who paid first are
- * released short. Cancel sits below, smaller.
+ * released short. Only the buyer can cancel an order.
  * After a step, Scan the next slip is the main button. Not a PROWARE slip:
  * says so.
  */
@@ -43,7 +42,6 @@ export default function SlipCheckScreen() {
     const [busy, setBusy] = useState(false);
     const [done, setDone] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [cancelling, setCancelling] = useState(false);
 
     const load = useCallback(async (): Promise<void> => {
         try {
@@ -251,24 +249,6 @@ export default function SlipCheckScreen() {
                         />
                     )}
 
-                    {isOpen && (
-                        <View className="flex-row flex-wrap gap-2">
-                            {isOpen && (
-                                <View className="min-w-36 flex-1">
-                                    <ActionButton
-                                        small
-                                        tone="red"
-                                        icon={<XCircle size={16} color="#b91c1c" />}
-                                        busy={busy}
-                                        onPress={() => setCancelling(true)}
-                                    >
-                                        Cancel order
-                                    </ActionButton>
-                                </View>
-                            )}
-                        </View>
-                    )}
-
                     <IssuanceSlipCard slip={result.slip} showQr={false} />
 
                     {!done && (
@@ -277,18 +257,6 @@ export default function SlipCheckScreen() {
                         </ScanNextButton>
                     )}
 
-                    <CancelSheet
-                        order={order}
-                        open={cancelling && isOpen}
-                        onClose={() => setCancelling(false)}
-                        onCancel={async (reason, note) => {
-                            if (await run('cancel', { reason, note })) {
-                                setCancelling(false);
-                            }
-                        }}
-                        busy={busy}
-                        error={error}
-                    />
                 </>
             )}
         </ScrollView>

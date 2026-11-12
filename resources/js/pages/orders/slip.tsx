@@ -9,12 +9,10 @@ import {
     SearchX,
     ShieldAlert,
     TriangleAlert,
-    XCircle,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
-import CancelOrderDialog from '@/components/cancel-order-dialog';
 import IssuanceSlip from '@/components/issuance-slip';
 import { ConfirmReleaseDialog } from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
@@ -40,8 +38,8 @@ type SlipResult = {
  * release this?" (green OK, red stop), then the order beside its slip with
  * the student, the checks, and the release as numbered steps: check the
  * cashier's receipt, tick that it was checked, release the items (they leave
- * the shelf only then, as many as are left; a release is final). Print and
- * Cancel sit below, smaller. Not a PROWARE slip: says so.
+ * the shelf only then, as many as are left; a release is final). Print sits
+ * below, smaller. Only the buyer can cancel an order. Not a PROWARE slip: says so.
  */
 export default function OrderSlip({
     code,
@@ -199,7 +197,6 @@ function ReleaseCard({ result }: { result: SlipResult }) {
     const { order, other_open_orders: otherOpenOrders } = result;
     const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [cancelling, setCancelling] = useState(false);
     const [confirmingRelease, setConfirmingRelease] = useState(false);
     const isOpen = order.status === 'placed';
 
@@ -334,19 +331,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                         Print slip
                     </a>
                 )}
-
-                {isOpen && (
-                    <SmallButton tone="red" onClick={() => setCancelling(true)}>
-                        <XCircle size={16} />
-                        Cancel order
-                    </SmallButton>
-                )}
             </div>
-
-            <CancelOrderDialog
-                order={cancelling && isOpen ? order : null}
-                onClose={() => setCancelling(false)}
-            />
 
             <ConfirmReleaseDialog
                 order={confirmingRelease ? order : null}
@@ -388,40 +373,6 @@ function ReleaseStep({
                 {children}
             </div>
         </li>
-    );
-}
-
-function SmallButton({
-    tone = 'plain',
-    disabled = false,
-    onClick,
-    title,
-    children,
-}: {
-    tone?: 'plain' | 'blue' | 'red';
-    disabled?: boolean;
-    onClick: () => void;
-    title?: string;
-    children: ReactNode;
-}) {
-    return (
-        <button
-            type="button"
-            disabled={disabled}
-            onClick={onClick}
-            title={title}
-            className={cn(
-                'inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-black transition disabled:opacity-60',
-                tone === 'plain' &&
-                    'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
-                tone === 'blue' &&
-                    'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
-                tone === 'red' &&
-                    'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
-            )}
-        >
-            {children}
-        </button>
     );
 }
 

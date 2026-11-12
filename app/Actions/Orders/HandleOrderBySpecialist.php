@@ -18,18 +18,15 @@ use Illuminate\Validation\ValidationException;
 /**
  * What the Specialist does with a buyer's order, from the website or the
  * phone app: Release it when the buyer shows the cashier's receipt and the
- * issuance slip (the items leave the shelf as a Sale; the buyer is told),
- * or cancel it with a reason. Orders do not hold stock, so whoever pays
+ * issuance slip (the items leave the shelf as a Sale; the buyer is told).
+ * Only the buyer can cancel an order. Orders do not hold stock, so whoever pays
  * first gets it: a line with fewer pieces left than ordered is released
  * with what is left, and the rest is marked short. A release is final.
  * Each step answers with what happened, or refuses in words.
  */
 class HandleOrderBySpecialist
 {
-    public function __construct(
-        private CancelOrder $cancelOrder,
-        private LowStockAlerts $lowStockAlerts,
-    ) {}
+    public function __construct(private LowStockAlerts $lowStockAlerts) {}
 
     /**
      * The buyer paid: the items leave the shelf now (one Sale per item),
@@ -67,7 +64,7 @@ class HandleOrderBySpecialist
                 $variant->held_pieces = $holds ? max(0, $variant->held_pieces - $item->pieces()) : $variant->held_pieces;
             }
 
-            $this->refuseUnless(array_sum($given) > 0, "Nothing of order {$order->number} is left in stock, so it cannot be released. Cancel it, or wait for a restock.");
+            $this->refuseUnless(array_sum($given) > 0, "Nothing of order {$order->number} is left in stock, so it cannot be released. Wait for a restock, or the buyer can cancel it.");
 
             $total = 0;
 
@@ -111,20 +108,6 @@ class HandleOrderBySpecialist
 
         return "Order {$order->number} has been released to {$order->student->name}. Paid at the cashier: ₱".number_format($order->total_centavos / 100, 2).'.'
             .($short === [] ? '' : ' Short (already sold to buyers who paid first): '.implode(', ', $short).'.');
-    }
-
-    /**
-     * Cancel an order that was not picked up; the buyer is told why.
-     *
-     * @throws ValidationException when it is no longer open
-     */
-    public function cancel(Order $order, User $specialist, string $reason): string
-    {
-        $this->refuseUnless($order->status->isOpen(), CancelOrderByStudent::closedRefusal($order));
-
-        $this->cancelOrder->handle($order, $specialist, trim($reason));
-
-        return "Order {$order->number} has been cancelled. {$order->student->name} has been notified.";
     }
 
     /**

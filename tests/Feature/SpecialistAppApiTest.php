@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Notifications\OrderCancelled;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
@@ -117,28 +116,8 @@ test('the app refuses a step that no longer fits the order, in words', function 
     $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released."]);
-    $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'student_asked'])
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released, so it can no longer be cancelled."]);
 
     expect($order->refresh()->status)->toBe(OrderStatus::PickedUp);
-});
-
-test('cancelling on the app needs a reason and tells the student', function () {
-    Notification::fake();
-    $order = juansOrder();
-    $variant = $order->items()->sole()->variant;
-    Sanctum::actingAs(User::factory()->specialist()->create());
-
-    $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => ''])
-        ->assertJsonValidationErrors(['reason' => 'Select a reason for cancelling. The buyer will see it.']);
-    expect($order->refresh()->status)->toBe(OrderStatus::Placed);
-
-    $this->postJson(route('api.v1.specialist.orders.cancel', $order), ['reason' => 'item_damaged'])
-        ->assertOk()
-        ->assertJsonPath('order.status', 'cancelled')
-        ->assertJsonPath('order.cancel_reason', 'The item is damaged');
-    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0);
-    Notification::assertSentTo($order->student, OrderCancelled::class);
 });
 
 test('the app shows the same items waiting for delivery and recorded deliveries as the website', function () {

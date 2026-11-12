@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Orders\HandleOrderBySpecialist;
-use App\Http\Requests\CancelOrderRequest;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
 use App\Services\Shop\IssuanceSlip;
@@ -19,8 +18,8 @@ use Inertia\Response;
  * The Specialist's Orders page: buyers' orders waiting for payment, and
  * those released or cancelled. A buyer pays at the cashier and shows the
  * receipt and the order's issuance slip; the Specialist scans (or types)
- * its code, checks it, and releases the items. The steps (Release, Cancel)
- * are in HandleOrderBySpecialist, shared with the phone app.
+ * its code, checks it, and releases the items (HandleOrderBySpecialist,
+ * shared with the phone app). Only the buyer can cancel an order.
  */
 class OrderController extends Controller
 {
@@ -68,11 +67,6 @@ class OrderController extends Controller
     public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
         return $this->respond(fn (): string => $handle->release($order, $request->user()));
-    }
-
-    public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
-    {
-        return $this->respond(fn (): string => $handle->cancel($order, $request->user(), $request->reasonText()));
     }
 
     /**

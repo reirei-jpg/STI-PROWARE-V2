@@ -31,18 +31,16 @@ import type { SpecialistOrderRow } from '@/types';
  * View Details: the student, every item with its price, the total, what
  * happened so far (placed, released or cancelled, and by whom), and only the
  * steps that apply: Release once the buyer has paid (the items leave the
- * shelf only then, as many as are left; a release is final), Open slip, and
- * Cancel (asks for the reason the buyer will see).
+ * shelf only then, as many as are left; a release is final) and Open slip.
+ * Only the buyer can cancel an order.
  */
 export default function OrderDetailsDialog({
     order,
     onClose,
-    onCancel,
     onActed,
 }: {
     order: SpecialistOrderRow | null;
     onClose: () => void;
-    onCancel: (order: SpecialistOrderRow) => void;
     /** After a step worked, e.g. to keep showing the order once it moved tabs. */
     onActed?: (orderId: number) => void;
 }) {
@@ -232,16 +230,6 @@ export default function OrderDetailsDialog({
                                     </Link>
                                 )}
                             </div>
-                            {isOpen && (
-                                <button
-                                    type="button"
-                                    onClick={() => onCancel(order)}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:bg-red-100"
-                                >
-                                    <XCircle size={16} />
-                                    Cancel order
-                                </button>
-                            )}
                         </div>
 
                         <ConfirmReleaseDialog

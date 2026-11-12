@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CircleCheck, XCircle } from 'lucide-react-native';
+import { ArrowLeft, CircleCheck } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
-import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
+import { ReleaseBox } from '@/components/StaffOrderActions';
 import StaffTag from '@/components/StaffTag';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -19,8 +19,7 @@ import type { SpecialistOrder } from '@/lib/types';
 /**
  * One buyer's order on the Specialist's phone, with the website's steps:
  * Release once the buyer has paid (the items leave the shelf only then, as
- * many as are left; a release is final), and Cancel with the reason the
- * buyer will see.
+ * many as are left; a release is final). Only the buyer can cancel an order.
  */
 export default function StaffOrderScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,7 +30,6 @@ export default function StaffOrderScreen() {
     const [busy, setBusy] = useState(false);
     const [done, setDone] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [cancelling, setCancelling] = useState(false);
 
     const load = useCallback(
         () =>
@@ -164,31 +162,8 @@ export default function StaffOrderScreen() {
                                 onRelease={() => void run('release', { paid: true })}
                             />
                         )}
-                        {isOpen && (
-                            <ActionButton
-                                small
-                                tone="red"
-                                icon={<XCircle size={16} color="#b91c1c" />}
-                                busy={busy}
-                                onPress={() => setCancelling(true)}
-                            >
-                                Cancel order
-                            </ActionButton>
-                        )}
                     </View>
 
-                    <CancelSheet
-                        order={order}
-                        open={cancelling && isOpen}
-                        onClose={() => setCancelling(false)}
-                        onCancel={async (reason, note) => {
-                            if (await run('cancel', { reason, note })) {
-                                setCancelling(false);
-                            }
-                        }}
-                        busy={busy}
-                        error={error}
-                    />
                 </>
             )}
         </ScrollView>

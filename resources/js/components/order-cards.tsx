@@ -10,7 +10,6 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
-import CancelOrderDialog from '@/components/cancel-order-dialog';
 import OrderDetailsDialog from '@/components/order-details-dialog';
 import {
     Dialog,
@@ -81,9 +80,6 @@ const cards: Card[] = [
 export default function OrderCards({ data }: { data: OrderCardsData }) {
     const [openKey, setOpenKey] = useState<OrderCardKey | null>(null);
     const [viewingId, setViewingId] = useState<number | null>(null);
-    const [cancelling, setCancelling] = useState<SpecialistOrderRow | null>(
-        null,
-    );
     const newOrder = useNewOrderNotice(data.waiting.orders);
 
     // The order shown in View, wherever it is now (it moves between cards).
@@ -138,15 +134,6 @@ export default function OrderCards({ data }: { data: OrderCardsData }) {
             <OrderDetailsDialog
                 order={viewing}
                 onClose={() => setViewingId(null)}
-                onCancel={(order) => {
-                    setViewingId(null);
-                    setCancelling(order);
-                }}
-            />
-
-            <CancelOrderDialog
-                order={cancelling}
-                onClose={() => setCancelling(null)}
             />
 
             {newOrder.order && (

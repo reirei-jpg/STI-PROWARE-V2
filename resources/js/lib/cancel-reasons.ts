@@ -18,21 +18,6 @@ export const STUDENT_CANCEL_REASONS: CancelReasonOption[] = [
     { value: 'other', label: 'Other' },
 ];
 
-/** The reasons the Specialist can pick when the office cancels an order. */
-export const STAFF_CANCEL_REASONS: CancelReasonOption[] = [
-    { value: 'item_damaged', label: 'The item is damaged' },
-    {
-        value: 'not_enough_stock',
-        label: 'Not enough stock (the count was wrong)',
-    },
-    { value: 'student_asked', label: 'The buyer asked to cancel' },
-    {
-        value: 'duplicate_order',
-        label: 'The same order was placed twice',
-    },
-    { value: 'other', label: 'Other' },
-];
-
 /** The note is needed only for Other, and then at least 5 characters. */
 export function cancelReasonReady(reason: string, note: string): boolean {
     return reason !== '' && (reason !== 'other' || note.trim().length >= 5);

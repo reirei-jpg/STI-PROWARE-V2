@@ -1,10 +1,7 @@
-import { Banknote, Check, XCircle } from 'lucide-react-native';
+import { Banknote, Check } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import BottomSheet from '@/components/BottomSheet';
-import CancelReasonList from '@/components/CancelReasonList';
-import { STAFF_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons';
 import { formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
 
@@ -128,68 +125,5 @@ function confirmRelease(order: SpecialistOrder, onRelease: () => void): void {
             { text: 'Check again', style: 'cancel' },
             { text: 'Release', onPress: onRelease },
         ],
-    );
-}
-
-/** Cancel with the reason the student will see, like the website. */
-export function CancelSheet({
-    order,
-    open,
-    onClose,
-    onCancel,
-    busy,
-    error,
-}: {
-    order: SpecialistOrder;
-    open: boolean;
-    onClose: () => void;
-    onCancel: (reason: string, note: string) => void;
-    busy: boolean;
-    error: string | null;
-}) {
-    const [reason, setReason] = useState('');
-    const [note, setNote] = useState('');
-    const ready = cancelReasonReady(reason, note);
-
-    useEffect(() => {
-        if (open) {
-            setReason('');
-            setNote('');
-        }
-    }, [open]);
-
-    return (
-        <BottomSheet
-            open={open}
-            onClose={onClose}
-            title={`Cancel ${order.number}?`}
-            subtitle={`${order.student_name} · ${formatPeso(order.total_centavos)}`}
-            icon={<XCircle size={20} color="#b91c1c" />}
-            footer={
-                <Pressable
-                    onPress={() => onCancel(reason, note.trim())}
-                    disabled={busy || !ready}
-                    accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-red-600 py-4 ${busy || !ready ? 'opacity-50' : ''}`}
-                >
-                    {busy && <ActivityIndicator color="#ffffff" />}
-                    <Text className="font-sans-bold text-base text-white">Cancel order</Text>
-                </Pressable>
-            }
-        >
-            <Text className="font-sans text-sm leading-5 text-slate-700">
-                Its items go back to stock and {order.student_name} is notified with the reason.
-            </Text>
-            <Text className="font-sans-bold text-sm text-slate-700">Why is it cancelled? (the buyer will see it)</Text>
-            <CancelReasonList
-                reasons={STAFF_CANCEL_REASONS}
-                reason={reason}
-                note={note}
-                onReason={setReason}
-                onNote={setNote}
-                notePlaceholder="e.g. They need another size and will order again."
-            />
-            {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
-        </BottomSheet>
     );
 }

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1\Specialist;
 
 use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\CancelOrderRequest;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
 use App\Services\Shop\SpecialistOrders;
@@ -49,11 +48,6 @@ class OrderController extends Controller
     public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
     {
         return self::done($handle->release($order, $request->user()), $order);
-    }
-
-    public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
-    {
-        return self::done($handle->cancel($order, $request->user(), $request->reasonText()), $order);
     }
 
     private static function done(string $message, Order $order): JsonResponse
