@@ -596,6 +596,7 @@ export default function HomeScreen() {
         <StoreSpotlight items={home?.spotlight ?? null} onOpen={open} />
         <UniformSetSheet
             set={buyingSet}
+            mostPerItem={home?.most_per_item}
             onClose={() => setBuyingSet(null)}
             onAdded={(message) => {
                 setBuyingSet(null);

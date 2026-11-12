@@ -10,12 +10,11 @@ import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
+import { buyerLimitMessage, mostPerItem } from '@/lib/buyer-limit';
 import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
 import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { CartView, StorefrontProductDetails } from '@/lib/types';
 
-/** At most 99 of one item to preorder (PlacePreorderRequest::MAX_QUANTITY on the server). */
-const MOST = 99;
 
 type ProductVariantRow = StorefrontProductDetails['variants'][number];
 type BuyPack = StorefrontProductDetails['buy_packs'][number];
@@ -101,9 +100,13 @@ export default function AddToCartSheet({
 
         return [size, unitText].filter((part) => part !== '').join(' · ') || 'Piece';
     };
-    // The most of this size and unit that still fits in its stock, after the
-    // other lines of the same size.
-    const mostFor = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined, except?: CartLine): number => {
+    // The most of one item this buyer can get (BuyerLimit on the server).
+    const limit = mostPerItem(product.most_per_item);
+    // The most of this size and unit: what still fits in its stock after the
+    // other lines of the same size, and at most the buyer's limit.
+    const mostFor = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined, except?: CartLine): number =>
+        Math.min(limit, stockMostFor(item, itemPack, except));
+    const stockMostFor = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined, except?: CartLine): number => {
         if (item === undefined) {
             return 0;
         }
@@ -127,7 +130,9 @@ export default function AddToCartSheet({
     const existing = added.find(
         (line) => variant !== undefined && line.variantId === variant.id && line.packId === packId,
     );
-    const most = preordering ? MOST : mostFor(variant, pack);
+    const most = preordering ? limit : mostFor(variant, pack);
+    // The buyer's limit stops it before the stock does.
+    const stoppedByLimit = !preordering && variant !== undefined && stockMostFor(variant, pack) > limit;
     const quantity = Number(quantityText) || 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany = !preordering && variant !== undefined && most > 0 && quantity > most;
@@ -151,7 +156,7 @@ export default function AddToCartSheet({
     const chosenNotAdded = added.length > 0 && canAddChosen && existing === undefined;
     const canSend =
         !saving && lines.length > 0 && lines.every((line) => (Number(line.quantity) || 0) >= 1);
-    const canPreorder = preordering && !saving && variant.can_preorder && quantity >= 1 && quantity <= MOST;
+    const canPreorder = preordering && !saving && variant.can_preorder && quantity >= 1 && quantity <= limit;
 
     const addChosen = (): void => {
         if (!canAddChosen || variant === undefined) {
@@ -426,7 +431,8 @@ export default function AddToCartSheet({
                         onChange={setQuantityText}
                         keepTyped={!preordering}
                         invalid={tooMany}
-                        most={variant ? most : MOST}
+                        showLeft={!preordering && !stoppedByLimit}
+                        most={variant ? most : limit}
                         unitText={
                             preordering
                                 ? unitWord(quantity, 'Piece')
@@ -439,7 +445,9 @@ export default function AddToCartSheet({
                     />
                     {tooMany && (
                         <Text className="font-sans-semibold text-sm text-red-600">
-                            Only {formatUnits(most, unitName)} left. Enter {most} or fewer.
+                            {stoppedByLimit
+                                ? buyerLimitMessage(limit)
+                                : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
                         </Text>
                     )}
                     {!preordering && variant && most === 0 && (

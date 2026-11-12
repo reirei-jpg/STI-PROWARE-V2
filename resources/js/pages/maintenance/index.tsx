@@ -1,18 +1,24 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import {
     CircleAlert,
     Clock,
     Gift,
     History,
     LoaderCircle,
+    PackageCheck,
     Save,
+    UserPlus,
+    Users,
 } from 'lucide-react';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel from '@/components/panel';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { formatDateTime } from '@/lib/format';
+import { wholeNumberInput } from '@/lib/number-input';
 import { cn } from '@/lib/utils';
 
 type NumberSetting = {
@@ -21,6 +27,23 @@ type NumberSetting = {
     max: number;
     changed_at: string | null;
     changed_by: string | null;
+};
+
+type LimitSetting = {
+    value: number;
+    min: number;
+    max: number;
+    default: number;
+    changed_at: string | null;
+    changed_by: string | null;
+};
+
+/** A buyer the Specialist allowed more of one item than everyone else. */
+type BuyerAllowedMore = {
+    id: number;
+    name: string;
+    email: string;
+    most_per_item: number;
 };
 
 type ChoiceSetting = {
@@ -40,10 +63,14 @@ export default function Maintenance({
     holdDays,
     followUpDays,
     promoGroupSize,
+    mostPerItem,
+    buyersAllowedMore,
 }: {
     holdDays: NumberSetting;
     followUpDays: ChoiceSetting;
     promoGroupSize: NumberSetting;
+    mostPerItem: LimitSetting;
+    buyersAllowedMore: BuyerAllowedMore[];
 }) {
     return (
         <>
@@ -57,6 +84,15 @@ export default function Maintenance({
 
                 <Panel title="Orders" description="How orders are handled.">
                     <HoldDaysSetting setting={holdDays} />
+                    <div className="border-t border-slate-100">
+                        <MostPerItemSetting setting={mostPerItem} />
+                    </div>
+                    <div className="border-t border-slate-100">
+                        <BuyersAllowedMoreSetting
+                            buyers={buyersAllowedMore}
+                            setting={mostPerItem}
+                        />
+                    </div>
                 </Panel>
 
                 <Panel
@@ -170,6 +206,316 @@ function PromoGroupSizeSetting({ setting }: { setting: NumberSetting }) {
     );
 }
 
+/**
+ * The most of one item every buyer can get at once: in the cart (pieces,
+ * packs or uniform sets) and preordered per size. Typed, since it can be
+ * anything from 1 to 10,000.
+ */
+function MostPerItemSetting({ setting }: { setting: LimitSetting }) {
+    const form = useForm({ most_per_item: String(setting.value) });
+    const typed = Number(form.data.most_per_item) || 0;
+    const changed = form.data.most_per_item !== '' && typed !== setting.value;
+
+    return (
+        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
+            <SettingText
+                icon={<PackageCheck size={19} className="text-blue-600" />}
+                title="Most of one item per buyer"
+                explanation="How many of one item a buyer can get at once: in one cart line (pieces, packs or uniform sets), and preordered per size or color in all. An item in stock also stops at its stock. For a buyer who needs more, add them under Buyers allowed more."
+                example={`Example with ${setting.default}: a buyer can add ${setting.default} lanyards, but not ${setting.default + 1}. They are told: "You can get at most ${setting.default} of one item. Contact the PROWARE office to get more."`}
+                setting={setting}
+            />
+
+            <form
+                className="space-y-3 self-start rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    form.patch(MaintenanceController.updateMostPerItem().url, {
+                        preserveScroll: true,
+                    });
+                }}
+            >
+                <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
+                    Now:{' '}
+                    <span className="text-slate-900">
+                        {setting.value.toLocaleString('en-PH')} of one item
+                    </span>
+                </p>
+                <label className="block space-y-1.5">
+                    <span className="text-sm font-bold text-slate-700">
+                        Most of one item ({setting.min} to{' '}
+                        {setting.max.toLocaleString('en-PH')})
+                    </span>
+                    <input
+                        inputMode="numeric"
+                        value={form.data.most_per_item}
+                        onChange={(event) =>
+                            form.setData(
+                                'most_per_item',
+                                wholeNumberInput(
+                                    event.target.value,
+                                    setting.max,
+                                ),
+                            )
+                        }
+                        aria-invalid={form.errors.most_per_item !== undefined}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                    />
+                </label>
+                <InputError message={form.errors.most_per_item} />
+                <SaveButton disabled={!changed} processing={form.processing} />
+                {!changed && (
+                    <p className="text-center text-xs font-semibold text-slate-500">
+                        Type a different number to save.
+                    </p>
+                )}
+            </form>
+        </div>
+    );
+}
+
+/**
+ * Buyers the Specialist allowed more of one item than everyone else (e.g.
+ * 500 shirts for an event), found by their email. They keep their number
+ * until they are removed.
+ */
+function BuyersAllowedMoreSetting({
+    buyers,
+    setting,
+}: {
+    buyers: BuyerAllowedMore[];
+    setting: LimitSetting;
+}) {
+    const form = useForm({ email: '', most_per_item: '' });
+    const [removing, setRemoving] = useState<BuyerAllowedMore | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    const remove = (buyer: BuyerAllowedMore) => {
+        setBusy(true);
+        router.delete(
+            MaintenanceController.removeBuyerAllowance(buyer.id).url,
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setBusy(false);
+                    setRemoving(null);
+                },
+            },
+        );
+    };
+
+    return (
+        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
+            <div>
+                <h3 className="flex items-center gap-2 font-black text-slate-900">
+                    <Users size={19} className="text-emerald-600" />
+                    Buyers allowed more
+                </h3>
+                <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600">
+                    A buyer who needs more of one item than everyone else, e.g.
+                    500 shirts for an event. They can get up to their own number
+                    until you remove them; everyone else stays at{' '}
+                    {setting.value.toLocaleString('en-PH')}.
+                </p>
+
+                {buyers.length === 0 ? (
+                    <p className="mt-3 max-w-xl rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                        No buyer is allowed more. Everyone can get at most{' '}
+                        {setting.value.toLocaleString('en-PH')} of one item.
+                    </p>
+                ) : (
+                    <div className="mt-3 max-w-xl overflow-hidden rounded-2xl border border-slate-200">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-xs font-black tracking-wide text-slate-500 uppercase">
+                                <tr>
+                                    <th className="px-4 py-2.5">Buyer</th>
+                                    <th className="px-4 py-2.5 text-right">
+                                        Most of one item
+                                    </th>
+                                    <th className="px-4 py-2.5">
+                                        <span className="sr-only">Remove</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {buyers.map((buyer) => (
+                                    <tr key={buyer.id}>
+                                        <td className="px-4 py-3">
+                                            <p className="font-bold text-slate-900">
+                                                {buyer.name}
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                {buyer.email}
+                                            </p>
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-black text-slate-900">
+                                            {buyer.most_per_item.toLocaleString(
+                                                'en-PH',
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setRemoving(buyer)
+                                                }
+                                                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700 transition hover:bg-red-100"
+                                            >
+                                                Remove
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <form
+                className="space-y-3 self-start rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    form.post(MaintenanceController.allowBuyerMore().url, {
+                        preserveScroll: true,
+                        onSuccess: () => form.reset(),
+                    });
+                }}
+            >
+                <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
+                    Allow a buyer more
+                </p>
+                <label className="block space-y-1.5">
+                    <span className="text-sm font-bold text-slate-700">
+                        Buyer's email
+                    </span>
+                    <input
+                        type="email"
+                        value={form.data.email}
+                        onChange={(event) =>
+                            form.setData('email', event.target.value)
+                        }
+                        placeholder="delacruz.123456@sti.edu.ph"
+                        aria-invalid={form.errors.email !== undefined}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                    />
+                </label>
+                <InputError message={form.errors.email} />
+                <label className="block space-y-1.5">
+                    <span className="text-sm font-bold text-slate-700">
+                        Most of one item ({setting.min} to{' '}
+                        {setting.max.toLocaleString('en-PH')})
+                    </span>
+                    <input
+                        inputMode="numeric"
+                        value={form.data.most_per_item}
+                        onChange={(event) =>
+                            form.setData(
+                                'most_per_item',
+                                wholeNumberInput(
+                                    event.target.value,
+                                    setting.max,
+                                ),
+                            )
+                        }
+                        placeholder="500"
+                        aria-invalid={form.errors.most_per_item !== undefined}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                    />
+                </label>
+                <InputError message={form.errors.most_per_item} />
+                <button
+                    type="submit"
+                    disabled={form.processing}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {form.processing ? (
+                        <LoaderCircle size={16} className="animate-spin" />
+                    ) : (
+                        <UserPlus size={16} />
+                    )}
+                    Allow
+                </button>
+            </form>
+
+            {removing && (
+                <ConfirmDialog
+                    open
+                    title={`Remove ${removing.name}?`}
+                    description={`${removing.name} goes back to the limit for everyone: ${setting.value.toLocaleString('en-PH')} of one item. A cart line above it must be lowered before they can order.`}
+                    cancelLabel="Keep"
+                    confirmLabel="Remove"
+                    tone="red"
+                    busy={busy}
+                    onConfirm={() => remove(removing)}
+                    onClose={() => setRemoving(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+/**
+ * The left side of a setting: what it does, an example, and who changed
+ * it last.
+ */
+function SettingText({
+    icon,
+    title,
+    explanation,
+    example,
+    setting,
+}: {
+    icon: ReactNode;
+    title: string;
+    explanation: string;
+    example: string;
+    setting: { changed_at: string | null; changed_by: string | null };
+}) {
+    return (
+        <div>
+            <h3 className="flex items-center gap-2 font-black text-slate-900">
+                {icon}
+                {title}
+            </h3>
+            <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600">
+                {explanation}
+            </p>
+            <p className="mt-2 max-w-xl rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                {example}
+            </p>
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+                <History size={14} />
+                {setting.changed_at
+                    ? `Last changed by ${setting.changed_by ?? 'someone'} on ${formatDateTime(setting.changed_at)}`
+                    : 'Never changed. Using the default.'}
+            </p>
+        </div>
+    );
+}
+
+function SaveButton({
+    disabled,
+    processing,
+}: {
+    disabled: boolean;
+    processing: boolean;
+}) {
+    return (
+        <button
+            type="submit"
+            disabled={disabled || processing}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+            {processing ? (
+                <LoaderCircle size={16} className="animate-spin" />
+            ) : (
+                <Save size={16} />
+            )}
+            Save
+        </button>
+    );
+}
 /**
  * One setting: what it does with an example and who changed it last, then
  * its choices as buttons and Save.

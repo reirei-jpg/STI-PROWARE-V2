@@ -3,8 +3,18 @@
  * endless or unrealistic number. The server checks the same limits again.
  */
 
-/** The most of one item a student can preorder, or uniform sets in one cart line (Cart::MAX_QUANTITY). An item in stock stops at its stock. */
+/**
+ * The most of one item a buyer can get when the server did not say
+ * (BuyerLimit::DEFAULT). The server sends each buyer's own limit as
+ * `most_per_item`: the Specialist's Maintenance setting, or more for a
+ * buyer the Specialist allowed more. An item in stock also stops at its stock.
+ */
 export const MAX_PER_ITEM = 99;
+
+/** "You can get at most 99 of one item. Contact the PROWARE office to get more." (BuyerLimit::message) */
+export function buyerLimitMessage(most: number): string {
+    return `You can get at most ${most.toLocaleString('en-PH')} of one item. Contact the PROWARE office to get more.`;
+}
 
 /** The highest price anyone can type, in pesos (SaveProductRequest::MAX_PRICE_PESOS). */
 export const MAX_PRICE_PESOS = 100000;

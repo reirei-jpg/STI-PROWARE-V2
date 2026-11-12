@@ -31,6 +31,7 @@ import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { cartRows, type CartRow } from '@/lib/cart-rows';
+import { buyerLimitMessage } from '@/lib/buyer-limit';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
 import type { CartLine, CartView, StudentOrder } from '@/lib/types';
 
@@ -580,7 +581,9 @@ function CartLineRow({
             )}
             {tooMany && (
                 <Text className="font-sans-bold text-sm text-red-600">
-                    Only {set ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}` : formatUnits(line.most_allowed, line.unit_name)} left. Enter {line.most_allowed} or fewer.
+                    {line.stopped_by_limit
+                        ? buyerLimitMessage(line.most_allowed)
+                        : `Only ${set ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}` : formatUnits(line.most_allowed, line.unit_name)} left. Enter ${line.most_allowed} or fewer.`}
                 </Text>
             )}
 
@@ -599,6 +602,7 @@ function CartLineRow({
                             void save(quantity);
                         }}
                         most={Math.max(line.most_allowed, 1)}
+                        showLeft={!line.stopped_by_limit}
                         keepTyped
                         invalid={tooMany}
                         unitText={

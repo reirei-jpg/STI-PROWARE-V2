@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Product;
-use App\Services\Shop\Cart;
+use App\Services\Shop\BuyerLimit;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -24,9 +24,6 @@ use Illuminate\Validation\Validator;
  */
 class PlacePreorderRequest extends FormRequest
 {
-    /** The most of one item a student can preorder at once (as on V1). */
-    public const MAX_QUANTITY = Cart::MAX_QUANTITY;
-
     /** The most sizes or colors in one preorder. */
     public const MAX_ITEMS = 50;
 
@@ -40,7 +37,7 @@ class PlacePreorderRequest extends FormRequest
         if (! $this->hasList()) {
             return [
                 'product_variant_id' => ['required', 'integer', $variantExists],
-                'quantity' => ['required', 'integer', 'min:1', 'max:'.self::MAX_QUANTITY],
+                'quantity' => ['required', 'integer', 'min:1', 'max:'.$this->mostPerItem()],
             ];
         }
 
@@ -48,7 +45,7 @@ class PlacePreorderRequest extends FormRequest
             'items' => ['required', 'array', 'min:1', 'max:'.self::MAX_ITEMS],
             'items.*' => ['required', 'array'],
             'items.*.product_variant_id' => ['required', 'integer', 'distinct', $variantExists],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.self::MAX_QUANTITY],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.$this->mostPerItem()],
         ];
     }
 
@@ -57,7 +54,7 @@ class PlacePreorderRequest extends FormRequest
      */
     public function messages(): array
     {
-        $tooMany = 'For more than '.number_format(self::MAX_QUANTITY).', contact the PROWARE office.';
+        $tooMany = BuyerLimit::message($this->mostPerItem());
 
         return [
             'product_variant_id.required' => 'Choose the size or color you want.',
@@ -101,9 +98,9 @@ class PlacePreorderRequest extends FormRequest
                         ->where('status', PreorderStatus::Active)
                         ->sum('quantity');
 
-                    if ($already > 0 && $already + $item['quantity'] > self::MAX_QUANTITY) {
+                    if ($already > 0 && $already + $item['quantity'] > $this->mostPerItem()) {
                         $variant = $product->variants()->findOrFail($item['product_variant_id'])->setRelation('product', $product);
-                        $validator->errors()->add($this->hasList() ? "items.{$index}.quantity" : 'quantity', 'You already preordered '.Units::count($already, 'Piece')." of {$variant->displayName()}. For more than ".number_format(self::MAX_QUANTITY).' in all, contact the PROWARE office.');
+                        $validator->errors()->add($this->hasList() ? "items.{$index}.quantity" : 'quantity', 'You already preordered '.Units::count($already, 'Piece')." of {$variant->displayName()}. You can get at most ".number_format($this->mostPerItem()).' of one item in all. Contact the PROWARE office to get more.');
                     }
                 }
 
@@ -155,6 +152,12 @@ class PlacePreorderRequest extends FormRequest
             'product_variant_id' => (int) $item['product_variant_id'],
             'quantity' => (int) $item['quantity'],
         ], $items));
+    }
+
+    /** The most of one item this buyer can preorder in all (BuyerLimit). */
+    public function mostPerItem(): int
+    {
+        return BuyerLimit::for($this->user());
     }
 
     public function product(): Product

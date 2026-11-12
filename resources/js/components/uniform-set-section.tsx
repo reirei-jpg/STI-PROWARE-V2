@@ -184,6 +184,9 @@ function SetPicker({
     const { data, setData, errors, processing } = form;
     const [bottomId, setBottomId] = useState<number | null>(null);
 
+    // The most sets this buyer can add at once (BuyerLimit on the server).
+    const limit =
+        usePage<{ mostPerItem?: number }>().props.mostPerItem ?? MAX_PER_ITEM;
     const option = set.options.find((item) => item.for === data.for);
     const bottom =
         option?.bottoms.length === 1
@@ -196,9 +199,9 @@ function SetPicker({
         (size) => String(size.variant_id) === data.bottom_variant_id,
     );
     const most = Math.min(
-        MAX_PER_ITEM,
-        topSize?.stock_pieces ?? MAX_PER_ITEM,
-        bottomSize?.stock_pieces ?? MAX_PER_ITEM,
+        limit,
+        topSize?.stock_pieces ?? limit,
+        bottomSize?.stock_pieces ?? limit,
     );
     const quantity = Number(data.quantity) || 0;
     // A set costs what its top and bottom cost (less while one is on sale).

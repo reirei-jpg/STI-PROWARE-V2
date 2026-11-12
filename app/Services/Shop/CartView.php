@@ -26,7 +26,7 @@ final class CartView
      * With the student's saved course/section (for the issuance slip) and,
      * when a guard would refuse the order (too many waiting, or paused), why.
      *
-     * @return array{lines: list<array<string, mixed>>, selected_count: int, total_centavos: int, can_place_order: bool, pick_up_by: string, section: string|null, order_refusal: string|null}
+     * @return array{lines: list<array<string, mixed>>, selected_count: int, total_centavos: int, can_place_order: bool, pick_up_by: string, section: string|null, order_refusal: string|null, buyer_limit: int}
      */
     public static function for(User $student): array
     {
@@ -35,8 +35,9 @@ final class CartView
             ->orderBy('id')
             ->get();
         $setPrices = UniformSetPrice::forCart($cart);
+        $limit = BuyerLimit::for($student);
 
-        $lines = self::joinSets(array_values($cart->map(fn (CartItem $line): array => self::line($line, $cart, $setPrices))->all()));
+        $lines = self::joinSets(array_values($cart->map(fn (CartItem $line): array => self::line($line, $cart, $setPrices, $limit))->all()));
         $ticked = collect($lines)->where('selected', true);
 
         return [
@@ -48,6 +49,8 @@ final class CartView
             'pick_up_by' => OrderRules::holdUntil()->toDateString(),
             'section' => $student->section,
             'order_refusal' => $lines === [] ? null : OrderRules::refusal($student),
+            // The most of one item this buyer can get (BuyerLimit), so a screen can say why a line stops there.
+            'buyer_limit' => $limit,
         ];
     }
 
@@ -69,6 +72,7 @@ final class CartView
 
             $setLines = $bySet->get($line['set']['key']);
             $line['most_allowed'] = (int) $setLines->min('most_allowed');
+            $line['stopped_by_limit'] = $setLines->every(fn (array $setLine): bool => $setLine['stopped_by_limit']);
             $line['problem'] = $setLines->pluck('problem')->filter()->first()
                 ?? ($setLines->count() < 2 ? 'Part of this set is no longer in the store. Remove it.' : null);
 
@@ -79,9 +83,10 @@ final class CartView
     /**
      * @param  Collection<int, CartItem>  $cart
      * @param  array<int, int|null>  $setPrices  today's price per piece of set lines, by line id
-     * @return array{id: int, product_id: int, product_variant_id: int, product_pack_id: int|null, product_name: string, photo_url: string|null, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, selected: bool, most_allowed: int, unit_price_centavos: int|null, on_sale: bool, line_total_centavos: int, problem: string|null, set: array{key: string, name: string, for_label: string, price_centavos: int|null, uniform_set_id: int|null, for: string, top_variant_id: int|null, bottom_variant_id: int|null}|null}
+     * @param  int  $limit  the most of one item this buyer can get
+     * @return array{id: int, product_id: int, product_variant_id: int, product_pack_id: int|null, product_name: string, photo_url: string|null, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, selected: bool, most_allowed: int, stopped_by_limit: bool, unit_price_centavos: int|null, on_sale: bool, line_total_centavos: int, problem: string|null, set: array{key: string, name: string, for_label: string, price_centavos: int|null, uniform_set_id: int|null, for: string, top_variant_id: int|null, bottom_variant_id: int|null}|null}
      */
-    private static function line(CartItem $line, Collection $cart, array $setPrices): array
+    private static function line(CartItem $line, Collection $cart, array $setPrices, int $limit): array
     {
         $variant = $line->variant;
         $product = $variant->product;
@@ -98,10 +103,10 @@ final class CartView
 
         $otherLines = $cart->filter(fn (CartItem $other): bool => $other->product_variant_id === $line->product_variant_id && $other->id !== $line->id);
 
-        // How many more fit in the cart at all (the + button's limit); a set
-        // also stops at Cart::MAX_QUANTITY.
-        $mostAllowed = Cart::mostOf($variant->freeToSell(), (int) $otherLines->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
-        $mostAllowed = $inSet ? min(Cart::MAX_QUANTITY, $mostAllowed) : $mostAllowed;
+        // How many more fit in the cart at all (the + button's limit): the
+        // stock, and at most the buyer's limit (BuyerLimit).
+        $stockMost = Cart::mostOf($variant->freeToSell(), (int) $otherLines->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
+        $mostAllowed = min($limit, $stockMost);
 
         // How many can be ordered with the other ticked lines, as Place
         // Order will take them; lines set aside do not count.
@@ -112,6 +117,7 @@ final class CartView
             $unitPrice === null => 'No longer for sale. Remove it, or untick it to order the rest.',
             $variant->freeToSell() === 0 => 'Out of stock. Remove it, or untick it to order the rest.',
             $mostOrderable === 0 => 'Not enough left for this. Remove it, or untick it to order the rest.',
+            $line->quantity > $limit => 'You can get at most '.number_format($limit).' of one item. Lower the quantity, or contact the PROWARE office to get more.',
             $line->quantity > $mostOrderable => 'Only '.Units::count($mostOrderable, $line->pack->name ?? 'Piece').' can be ordered now. Lower the quantity.',
             default => null,
         };
@@ -133,6 +139,8 @@ final class CartView
             'quantity' => $line->quantity,
             'selected' => $line->selected,
             'most_allowed' => $mostAllowed,
+            // The buyer's limit stops it before the stock does (\"at most 99 of one item\", not \"only 99 left\").
+            'stopped_by_limit' => $stockMost > $limit,
             'unit_price_centavos' => $unitPrice,
             'on_sale' => ! $inSet && ($line->pack === null ? $variant->salePiecePrice() !== null : $product->isOnSale() && $line->pack->sale_price_centavos !== null),
             'line_total_centavos' => ($unitPrice ?? 0) * $line->quantity,

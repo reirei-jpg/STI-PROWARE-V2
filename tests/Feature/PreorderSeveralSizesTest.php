@@ -96,7 +96,7 @@ test('a preorder of several sizes explains what is wrong and saves nothing', fun
     ], 'items.0.quantity', 'The quantity must be at least 1.'],
     'more than 99 of one size' => [fn (array $sizes) => [
         ['product_variant_id' => $sizes['M']->id, 'quantity' => '100'],
-    ], 'items.0.quantity', 'For more than 99, contact the PROWARE office.'],
+    ], 'items.0.quantity', 'You can get at most 99 of one item. Contact the PROWARE office to get more.'],
 ]);
 
 test('a closed preorder refuses the whole list', function () {

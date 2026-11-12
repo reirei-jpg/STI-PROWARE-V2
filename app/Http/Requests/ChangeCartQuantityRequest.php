@@ -31,7 +31,7 @@ class ChangeCartQuantityRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // The most allowed (the stock; a set at most Cart::MAX_QUANTITY) is checked by the cart, with how many are left.
+            // The most allowed (the stock, and at most the buyer's limit) is checked by the cart, with how many are left.
             'quantity' => ['required', 'integer', 'min:1'],
         ];
     }

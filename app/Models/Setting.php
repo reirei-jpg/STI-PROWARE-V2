@@ -27,6 +27,8 @@ class Setting extends Model
 
     public const PROMO_GROUP_SIZE = 'promo_group_size';
 
+    public const MOST_PER_ITEM = 'most_per_item';
+
     protected $primaryKey = 'key';
 
     protected $keyType = 'string';

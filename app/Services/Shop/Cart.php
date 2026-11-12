@@ -26,12 +26,6 @@ use Illuminate\Validation\ValidationException;
  */
 final class Cart
 {
-    /**
-     * The most uniform sets in one cart line, or pieces of one preorder (as on
-     * V1). An item in stock is limited by its stock only.
-     */
-    public const MAX_QUANTITY = 99;
-
     /** What to do after adding to the cart, said after "…added to your cart." */
     private const ADDED_NEXT_STEP = ' Open the cart to place the order.';
 
@@ -44,6 +38,7 @@ final class Cart
             ->first();
 
         $newQuantity = ($line->quantity ?? 0) + $quantity;
+        $this->ensureWithinLimit($student, $variant, $pack, $newQuantity, $line);
         $this->ensureInStock($student, $variant, $pack, $newQuantity, $line);
 
         if ($line === null) {
@@ -77,7 +72,7 @@ final class Cart
             $lines = $existing === null ? collect() : $student->cartItems()->where('set_key', $existing->set_key)->get();
             $newQuantity = ($existing->quantity ?? 0) + $quantity;
 
-            $this->ensureSetLimit($newQuantity);
+            $this->ensureSetLimit($student, $newQuantity);
             $this->ensureInStock($student, $top, null, $newQuantity, $lines->firstWhere('product_variant_id', $top->id));
             $this->ensureInStock($student, $bottom, null, $newQuantity, $lines->firstWhere('product_variant_id', $bottom->id));
 
@@ -240,6 +235,7 @@ final class Cart
     public function changeQuantity(CartItem $line, int $quantity): void
     {
         if ($line->set_key === null) {
+            $this->ensureWithinLimit($line->student, $line->variant, $line->pack, $quantity, $line);
             $this->ensureInStock($line->student, $line->variant, $line->pack, $quantity, $line);
 
             $line->update(['quantity' => $quantity]);
@@ -247,7 +243,7 @@ final class Cart
             return;
         }
 
-        $this->ensureSetLimit($quantity);
+        $this->ensureSetLimit($line->student, $quantity);
 
         $lines = $line->student->cartItems()->with(['variant.product', 'pack'])->where('set_key', $line->set_key)->get();
 
@@ -277,12 +273,27 @@ final class Cart
     }
 
     /**
-     * A uniform set line holds at most Cart::MAX_QUANTITY sets.
+     * A uniform set line holds at most the buyer's limit of sets.
      */
-    private function ensureSetLimit(int $quantity): void
+    private function ensureSetLimit(User $student, int $quantity): void
     {
-        if ($quantity > self::MAX_QUANTITY) {
-            throw ValidationException::withMessages(['quantity' => 'For more than '.number_format(self::MAX_QUANTITY).', contact the PROWARE office.']);
+        $limit = BuyerLimit::for($student);
+
+        if ($quantity > $limit) {
+            throw ValidationException::withMessages(['quantity' => BuyerLimit::message($limit)]);
+        }
+    }
+
+    /**
+     * A line holds at most the buyer's limit. When the stock is the lower
+     * of the two, the stock check says how many are left instead.
+     */
+    private function ensureWithinLimit(User $student, ProductVariant $variant, ?ProductPack $pack, int $quantity, ?CartItem $line): void
+    {
+        $limit = BuyerLimit::for($student);
+
+        if ($quantity > $limit && $limit < $this->mostAllowed($student, $variant, $pack, $line)) {
+            throw ValidationException::withMessages(['quantity' => BuyerLimit::message($limit)]);
         }
     }
 

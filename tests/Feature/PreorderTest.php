@@ -94,7 +94,7 @@ test('preordering a size again cannot go past 99 in all', function () {
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '98']);
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '2'])
-        ->assertSessionHasErrors(['quantity' => 'You already preordered 98 pcs of 42nd Anniversary Shirt (S/M). For more than 99 in all, contact the PROWARE office.']);
+        ->assertSessionHasErrors(['quantity' => 'You already preordered 98 pcs of 42nd Anniversary Shirt (S/M). You can get at most 99 of one item in all. Contact the PROWARE office to get more.']);
 
     expect(Preorder::sole()->quantity)->toBe(98);
 });
@@ -111,7 +111,7 @@ test('the preorder form explains what is wrong', function (Closure $payload, str
     'no size chosen' => [fn (ProductVariant $small) => ['quantity' => '1'], 'product_variant_id', 'Choose the size or color you want.'],
     'a size of another product' => [fn (ProductVariant $small) => ['product_variant_id' => ProductVariant::factory()->create()->id, 'quantity' => '1'], 'product_variant_id', 'Choose one of this item\'s sizes or colors.'],
     'none' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '0'], 'quantity', 'The quantity must be at least 1.'],
-    'more than 99' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '100'], 'quantity', 'For more than 99, contact the PROWARE office.'],
+    'more than 99' => [fn (ProductVariant $small) => ['product_variant_id' => $small->id, 'quantity' => '100'], 'quantity', 'You can get at most 99 of one item. Contact the PROWARE office to get more.'],
 ]);
 
 test('preorders are taken until the end of the close date', function (string $closesOn, bool $open) {

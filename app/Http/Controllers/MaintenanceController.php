@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\Setting;
+use App\Models\User;
 use App\Services\Deliveries\FollowUp;
 use App\Services\FreeUniforms\PromoRules;
+use App\Services\Shop\BuyerLimit;
 use App\Services\Shop\OrderRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,8 +19,9 @@ use Inertia\Response;
  * The Specialist's Maintenance page: settings that change how PROWARE
  * works without changing its code, each with who changed it last: how many
  * days a new order holds its items before it expires, after how many days
- * a purchase order not complete is to be followed up, and how many students
- * must enroll together to get free uniforms.
+ * a purchase order not complete is to be followed up, how many students
+ * must enroll together to get free uniforms, and the most of one item a
+ * buyer can get (with the buyers the Specialist allowed more).
  */
 class MaintenanceController extends Controller
 {
@@ -34,6 +39,19 @@ class MaintenanceController extends Controller
                 'choices' => FollowUp::CHOICES,
                 ...Setting::lastChange(Setting::DELIVERY_FOLLOW_UP_DAYS),
             ],
+            'mostPerItem' => [
+                'value' => BuyerLimit::everyone(),
+                'min' => BuyerLimit::MIN,
+                'max' => BuyerLimit::MAX,
+                'default' => BuyerLimit::DEFAULT,
+                ...Setting::lastChange(Setting::MOST_PER_ITEM),
+            ],
+            'buyersAllowedMore' => User::query()
+                ->whereNotNull('most_per_item')
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'most_per_item'])
+                ->map(fn (User $buyer): array => ['id' => $buyer->id, 'name' => $buyer->name, 'email' => $buyer->email, 'most_per_item' => (int) $buyer->most_per_item])
+                ->all(),
             'promoGroupSize' => [
                 'value' => PromoRules::groupSize(),
                 'min' => PromoRules::MIN_GROUP_SIZE,
@@ -109,5 +127,89 @@ class MaintenanceController extends Controller
         ]);
 
         return back();
+    }
+
+    /**
+     * The most of one item every buyer can get at once (in the cart, per
+     * uniform set line, and preordered per size). Buyers allowed more keep
+     * their own number.
+     */
+    public function updateMostPerItem(Request $request): RedirectResponse
+    {
+        $most = (int) $request->validate(
+            ['most_per_item' => ['required', 'integer', 'between:'.BuyerLimit::MIN.','.BuyerLimit::MAX]],
+            self::mostMessages('most_per_item'),
+        )['most_per_item'];
+
+        Setting::put(Setting::MOST_PER_ITEM, $most, $request->user());
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Buyers can now get at most '.number_format($most).' of one item. Buyers allowed more keep their own number.',
+        ]);
+
+        return back();
+    }
+
+    /**
+     * Let one buyer get more of one item than everyone else (e.g. 500
+     * shirts for an event), found by their email.
+     */
+    public function allowBuyerMore(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'most_per_item' => ['required', 'integer', 'between:'.BuyerLimit::MIN.','.BuyerLimit::MAX],
+        ], [
+            'email.required' => 'Enter the buyer\'s email.',
+            'email.email' => 'Enter a valid email, e.g. delacruz.123456@sti.edu.ph.',
+            ...self::mostMessages('most_per_item'),
+        ]);
+
+        $buyer = User::query()
+            ->whereRaw('lower(email) = ?', [mb_strtolower(trim((string) $validated['email']))])
+            ->whereIn('role', [UserRole::Student, UserRole::Employee])
+            ->first();
+
+        if ($buyer === null) {
+            throw ValidationException::withMessages(['email' => 'No buyer has this email. Check it, or ask the buyer to register first.']);
+        }
+
+        $most = (int) $validated['most_per_item'];
+        $buyer->forceFill(['most_per_item' => $most])->save();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$buyer->name} can now get at most ".number_format($most).' of one item.',
+        ]);
+
+        return back();
+    }
+
+    /**
+     * The buyer goes back to the limit for everyone.
+     */
+    public function removeBuyerAllowance(User $buyer): RedirectResponse
+    {
+        abort_if($buyer->most_per_item === null, 404);
+
+        $buyer->forceFill(['most_per_item' => null])->save();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$buyer->name} is back to the limit for everyone: ".number_format(BuyerLimit::everyone()).' of one item.',
+        ]);
+
+        return back();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function mostMessages(string $field): array
+    {
+        $message = 'Enter a whole number from '.number_format(BuyerLimit::MIN).' to '.number_format(BuyerLimit::MAX).'.';
+
+        return ["{$field}.required" => $message, "{$field}.integer" => $message, "{$field}.between" => $message];
     }
 }

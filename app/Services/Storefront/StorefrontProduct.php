@@ -8,7 +8,9 @@ use App\Models\ProductOption;
 use App\Models\ProductPack;
 use App\Models\ProductPhoto;
 use App\Models\ProductVariant;
+use App\Models\User;
 use App\Services\Preorders\EarlyBird;
+use App\Services\Shop\BuyerLimit;
 use App\Services\Shop\ShopPrice;
 
 /**
@@ -65,15 +67,19 @@ final class StorefrontProduct
 
     /**
      * One product's view as students get it (website pop-up and phone app):
-     * Draft products do not exist for students.
+     * Draft products do not exist for students. With the most of one item
+     * the buyer looking at it can get (BuyerLimit; everyone's for guests).
      *
      * @return array<string, mixed>
      */
-    public static function forStudents(Product $product): array
+    public static function forStudents(Product $product, ?User $buyer = null): array
     {
         abort_if($product->status === ProductStatus::Draft, 404);
 
-        return self::details($product->load([...StorefrontFeed::RELATIONS, 'photos', 'options']));
+        return [
+            ...self::details($product->load([...StorefrontFeed::RELATIONS, 'photos', 'options'])),
+            'most_per_item' => BuyerLimit::for($buyer),
+        ];
     }
 
     /**

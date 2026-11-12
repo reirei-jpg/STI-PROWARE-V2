@@ -23,7 +23,7 @@ import {
 import OptionRow from '@/components/option-row';
 import QuantityInput from '@/components/quantity-input';
 import { formatPeso } from '@/lib/format';
-import { MAX_PER_ITEM } from '@/lib/number-input';
+import { buyerLimitMessage, MAX_PER_ITEM } from '@/lib/number-input';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
 import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
@@ -253,9 +253,16 @@ function PickerForm({
     const piecesOf = (line: CartLine) =>
         (Number(line.quantity) || 0) *
         (packOf(line.product_pack_id)?.pieces ?? 1);
-    // The most of this size and unit that still fits in its stock, after
-    // the other lines of the same size.
+    // The most of one item this buyer can get (BuyerLimit on the server).
+    const limit = details.most_per_item ?? MAX_PER_ITEM;
+    // The most of this size and unit: what still fits in its stock after
+    // the other lines of the same size, and at most the buyer's limit.
     const mostFor = (
+        item: PickerVariant | undefined,
+        itemPack: StorefrontBuyPack | undefined,
+        except?: CartLine,
+    ) => Math.min(limit, stockMostFor(item, itemPack, except));
+    const stockMostFor = (
         item: PickerVariant | undefined,
         itemPack: StorefrontBuyPack | undefined,
         except?: CartLine,
@@ -293,7 +300,12 @@ function PickerForm({
             line.product_variant_id === String(variant.id) &&
             line.product_pack_id === unit,
     );
-    const most = preordering ? MAX_PER_ITEM : mostFor(variant, pack);
+    const most = preordering ? limit : mostFor(variant, pack);
+    // The buyer's limit stops it before the stock does.
+    const stoppedByLimit =
+        !preordering &&
+        variant !== undefined &&
+        stockMostFor(variant, pack) > limit;
     const quantity = Number(quantityText) || 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany =
@@ -563,7 +575,7 @@ function PickerForm({
                                 value={quantityText}
                                 onChange={setQuantityText}
                                 label="How many"
-                                most={variant ? most : MAX_PER_ITEM}
+                                most={variant ? most : limit}
                                 tone={preordering ? 'amber' : 'blue'}
                                 keepTyped={!preordering}
                                 invalid={tooMany}
@@ -590,8 +602,9 @@ function PickerForm({
                         </div>
                         {tooMany ? (
                             <p className="text-sm font-bold text-red-600">
-                                Only {formatUnits(most, unitName)} left. Enter{' '}
-                                {most} or fewer.
+                                {stoppedByLimit
+                                    ? buyerLimitMessage(limit)
+                                    : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
                             </p>
                         ) : (
                             !preordering &&
@@ -599,8 +612,9 @@ function PickerForm({
                             most > 0 &&
                             quantity === most && (
                                 <p className="text-sm font-bold text-amber-700">
-                                    Only {formatUnits(most, unitName)} left to
-                                    add.
+                                    {stoppedByLimit
+                                        ? `You can get at most ${limit.toLocaleString('en-PH')} of one item.`
+                                        : `Only ${formatUnits(most, unitName)} left to add.`}
                                 </p>
                             )
                         )}

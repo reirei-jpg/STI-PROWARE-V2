@@ -197,6 +197,8 @@ function PreorderForm({
     // An item for sale that is out of stock: only its sizes that can be
     // preordered. A Coming Soon product: any size, nothing is in stock yet.
     const restock = details.status !== 'preorder';
+    // The most of one size this buyer can preorder (BuyerLimit on the server).
+    const limit = details.most_per_item ?? MAX_PER_ITEM;
     const canPreorder = (variant: { can_preorder: boolean }) =>
         !restock || variant.can_preorder;
     const [picked, setPicked] = useState<Picked>(() =>
@@ -254,7 +256,7 @@ function PreorderForm({
                                 ...line,
                                 quantity: String(
                                     Math.min(
-                                        MAX_PER_ITEM,
+                                        limit,
                                         (Number(line.quantity) || 0) + quantity,
                                     ),
                                 ),
@@ -375,6 +377,7 @@ function PreorderForm({
                             onChange={setQuantityText}
                             label="How many"
                             tone="amber"
+                            most={limit}
                         />
                         {hasChoices && (
                             <button
@@ -420,6 +423,7 @@ function PreorderForm({
                                                 )
                                             }
                                             label={`How many ${labelOf(line.product_variant_id)}`}
+                                            most={limit}
                                             small
                                             tone="amber"
                                         />

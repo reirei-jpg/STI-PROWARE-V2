@@ -76,6 +76,8 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
         pieces: number;
         price_centavos: number;
     }[];
+    /** The most of one item this buyer can get (the Maintenance setting, or more when the Specialist allowed them). */
+    most_per_item?: number;
 };
 
 /** A page of a long list (Laravel's paginator). */
@@ -102,6 +104,8 @@ export type CartLine = {
     /** Ticked for the next Place Order (the same on the website). */
     selected: boolean;
     most_allowed: number;
+    /** The buyer's limit stops it before the stock does. */
+    stopped_by_limit?: boolean;
     unit_price_centavos: number | null;
     on_sale: boolean;
     line_total_centavos: number;
@@ -532,6 +536,8 @@ export type StorefrontHome = {
     coming_soon: StorefrontTileProduct[];
     on_sale: StorefrontTileProduct[];
     uniform_sets: StorefrontUniformSet[];
+    /** The most uniform sets this buyer can add at once (BuyerLimit on the server). */
+    most_per_item?: number;
     /** The store pop-up, never narrowed by the search. */
     spotlight: StorefrontSpotlightItem[];
 };

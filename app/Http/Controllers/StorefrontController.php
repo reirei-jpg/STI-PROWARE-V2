@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterStorefrontRequest;
 use App\Models\Product;
+use App\Services\Shop\BuyerLimit;
 use App\Services\Storefront\StorefrontFeed;
 use App\Services\Storefront\StorefrontProduct;
 use App\Services\Storefront\StorefrontUniformSets;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,6 +30,8 @@ class StorefrontController extends Controller
             'comingSoon' => StorefrontFeed::comingSoon($search),
             'onSale' => StorefrontFeed::onSale($search),
             'uniformSets' => StorefrontUniformSets::all($search),
+            // The most uniform sets this buyer can add at once (BuyerLimit).
+            'mostPerItem' => BuyerLimit::for($request->user()),
             'spotlight' => StorefrontFeed::spotlight(),
             'merchandise' => Inertia::scroll(fn () => StorefrontFeed::merchandise($search, $show, $find)
                 ->paginate(20)
@@ -45,8 +49,8 @@ class StorefrontController extends Controller
      * Everything the view pop-up shows. Draft products do not exist for
      * students.
      */
-    public function show(Product $product): JsonResponse
+    public function show(Request $request, Product $product): JsonResponse
     {
-        return response()->json(StorefrontProduct::forStudents($product));
+        return response()->json(StorefrontProduct::forStudents($product, $request->user()));
     }
 }

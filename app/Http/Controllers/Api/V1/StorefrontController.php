@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterStorefrontRequest;
 use App\Models\Product;
+use App\Services\Shop\BuyerLimit;
 use App\Services\Storefront\StorefrontFeed;
 use App\Services\Storefront\StorefrontProduct;
 use App\Services\Storefront\StorefrontUniformSets;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * The storefront on the phone app: the same sections and product views as
@@ -29,6 +31,8 @@ class StorefrontController extends Controller
             'coming_soon' => StorefrontFeed::comingSoon($search),
             'on_sale' => StorefrontFeed::onSale($search),
             'uniform_sets' => StorefrontUniformSets::all($search),
+            // The most uniform sets this buyer can add at once (BuyerLimit).
+            'most_per_item' => BuyerLimit::for($request->user('sanctum')),
             'spotlight' => StorefrontFeed::spotlight(),
         ]);
     }
@@ -49,8 +53,8 @@ class StorefrontController extends Controller
      * One product's view: photos, options, sizes or colors with today's
      * prices and stock, and the packs students can buy.
      */
-    public function show(Product $product): JsonResponse
+    public function show(Request $request, Product $product): JsonResponse
     {
-        return response()->json(StorefrontProduct::forStudents($product));
+        return response()->json(StorefrontProduct::forStudents($product, $request->user('sanctum')));
     }
 }

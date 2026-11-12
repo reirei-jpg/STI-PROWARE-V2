@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
+use App\Services\Shop\BuyerLimit;
 use App\Services\Shop\OrderRules;
 use App\Services\Shop\ShopPrice;
 use App\Services\Shop\UniformSetPrice;
@@ -68,7 +69,7 @@ class PlaceOrder
             $cart->each(fn (CartItem $line) => $line->setRelation('variant', $variants->get($line->product_variant_id)));
             $setPrices = UniformSetPrice::forCart($cart);
 
-            $this->ensureCanBeOrdered($cart->all(), $variants->all(), $setPrices);
+            $this->ensureCanBeOrdered($cart->all(), $variants->all(), $setPrices, BuyerLimit::for($student));
 
             $order = $student->orders()->create([
                 'student_section' => $section ?? $student->section,
@@ -141,13 +142,15 @@ class PlaceOrder
     /**
      * Every item must still be for sale at a price (a set as a whole, with
      * both its pieces ticked), and the pieces asked for each size or color
-     * must be free to sell (not held for other orders).
+     * must be free to sell (not held for other orders). No line can hold more
+     * than the buyer's limit (it may have been lowered since it was added).
      *
      * @param  array<int, CartItem>  $cart
      * @param  array<int, ProductVariant>  $variants  locked, by id
      * @param  array<int, int|null>  $setPrices  today's price per piece of set lines, by line id
+     * @param  int  $limit  the most of one item this buyer can get
      */
-    private function ensureCanBeOrdered(array $cart, array $variants, array $setPrices): void
+    private function ensureCanBeOrdered(array $cart, array $variants, array $setPrices, int $limit): void
     {
         $piecesWanted = [];
         $linesPerSet = collect($cart)->whereNotNull('set_key')->countBy('set_key');
@@ -162,6 +165,10 @@ class PlaceOrder
 
             if (! ShopPrice::canBuy($variant->product) || ShopPrice::perUnit($variant, $line->pack) === null) {
                 throw ValidationException::withMessages(['cart' => "{$name} is no longer for sale. Remove it from your cart."]);
+            }
+
+            if ($line->quantity > $limit) {
+                throw ValidationException::withMessages(['cart' => 'You can get at most '.number_format($limit).' of one item, and your cart has '.number_format($line->quantity).' of '.($line->set_key === null ? $name : ($line->uniformSet?->displayName() ?? 'a uniform set')).'. Lower the quantity, or contact the PROWARE office to get more.']);
             }
 
             $piecesWanted[$variant->id] = ($piecesWanted[$variant->id] ?? 0) + $line->pieces();

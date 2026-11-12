@@ -110,8 +110,9 @@ test('an impossible quantity says how many are left', function (string $quantity
     'longer than a number can be' => ['23213123123132132132132132131'],
 ]);
 
-test('a student can add as many as are in stock, even more than 99', function () {
+test('a buyer allowed more can add as many as are in stock, even more than 99', function () {
     [$product, $variant] = ballpen(stock: 250);
+    $this->student->forceFill(['most_per_item' => 500])->save();
     $this->actingAs($this->student);
 
     $this->post(route('cart.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '251'])

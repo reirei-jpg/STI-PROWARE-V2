@@ -87,6 +87,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('maintenance/hold-days', [MaintenanceController::class, 'updateHoldDays'])->name('maintenance.hold-days');
         Route::patch('maintenance/follow-up-days', [MaintenanceController::class, 'updateFollowUpDays'])->name('maintenance.follow-up-days');
         Route::patch('maintenance/promo-group-size', [MaintenanceController::class, 'updatePromoGroupSize'])->name('maintenance.promo-group-size');
+        Route::patch('maintenance/most-per-item', [MaintenanceController::class, 'updateMostPerItem'])->name('maintenance.most-per-item');
+        Route::post('maintenance/buyers-allowed-more', [MaintenanceController::class, 'allowBuyerMore'])->name('maintenance.buyers-allowed-more.store');
+        Route::delete('maintenance/buyers-allowed-more/{buyer}', [MaintenanceController::class, 'removeBuyerAllowance'])->name('maintenance.buyers-allowed-more.destroy');
 
         Route::get('free-uniforms', [FreeUniformController::class, 'index'])->name('free-uniforms.index');
         Route::post('free-uniforms', [FreeUniformController::class, 'store'])->name('free-uniforms.store');

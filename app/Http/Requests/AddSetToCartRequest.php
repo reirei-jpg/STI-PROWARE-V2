@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\UniformSetFor;
 use App\Models\ProductVariant;
 use App\Models\UniformSet;
-use App\Services\Shop\Cart;
+use App\Services\Shop\BuyerLimit;
 use App\Services\Shop\ShopPrice;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,7 +28,7 @@ class AddSetToCartRequest extends FormRequest
             'for' => ['required', Rule::enum(UniformSetFor::class)],
             'top_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
             'bottom_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
-            'quantity' => ['required', 'integer', 'min:1', 'max:'.Cart::MAX_QUANTITY],
+            'quantity' => ['required', 'integer', 'min:1', 'max:'.BuyerLimit::for($this->user())],
             // Undo after Remove: put the set back, ticked as it was.
             'undo_remove' => ['sometimes', 'boolean'],
             'selected' => ['sometimes', 'boolean'],
@@ -50,7 +50,7 @@ class AddSetToCartRequest extends FormRequest
             'quantity.required' => 'Enter how many sets you want.',
             'quantity.integer' => 'Enter a whole number.',
             'quantity.min' => 'The quantity must be at least 1.',
-            'quantity.max' => 'For more than '.Cart::MAX_QUANTITY.', contact the PROWARE office.',
+            'quantity.max' => BuyerLimit::message(BuyerLimit::for($this->user())),
         ];
     }
 

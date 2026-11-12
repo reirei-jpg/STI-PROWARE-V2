@@ -7,6 +7,7 @@ import ChoiceChip from '@/components/ChoiceChip';
 import QuantityStepper from '@/components/QuantityStepper';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { mostPerItem } from '@/lib/buyer-limit';
 import { useCart } from '@/lib/cart';
 import { formatPeso } from '@/lib/format';
 import type { CartView, StorefrontSetPiece, StorefrontUniformSet } from '@/lib/types';
@@ -19,10 +20,13 @@ import type { CartView, StorefrontSetPiece, StorefrontUniformSet } from '@/lib/t
  */
 export default function UniformSetSheet({
     set,
+    mostPerItem: mostFromServer,
     onClose,
     onAdded,
 }: {
     set: StorefrontUniformSet | null;
+    /** The most sets this buyer can add at once (BuyerLimit on the server). */
+    mostPerItem?: number;
     onClose: () => void;
     onAdded: (message: string) => void;
 }) {
@@ -55,7 +59,8 @@ export default function UniformSetSheet({
             : option?.bottoms.find((item) => item.product_id === bottomProductId);
     const topSize = option?.top.sizes.find((size) => size.variant_id === topId);
     const bottomSize = bottom?.sizes.find((size) => size.variant_id === bottomId);
-    const most = Math.min(99, topSize?.stock_pieces ?? 99, bottomSize?.stock_pieces ?? 99);
+    const limit = mostPerItem(mostFromServer);
+    const most = Math.min(limit, topSize?.stock_pieces ?? limit, bottomSize?.stock_pieces ?? limit);
     const quantity = Number(quantityText) || 0;
     // A set costs what its top and bottom cost (less while one is on sale).
     const setPrice =
@@ -193,6 +198,8 @@ export default function UniformSetSheet({
                     value={quantityText}
                     onChange={setQuantityText}
                     most={Math.max(most, 1)}
+                    // "Only N left" only when the stock, not the buyer's limit, stops it.
+                    showLeft={most < limit}
                     unitText={quantity === 1 ? 'set' : 'sets'}
                 />
                 {missing.length > 0 && (

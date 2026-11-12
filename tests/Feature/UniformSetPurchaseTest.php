@@ -251,9 +251,9 @@ test('a set still stops at 99 in the cart, even with more in stock', function ()
     $this->actingAs($this->student)->post(route('cart.store-set', $set), boysSet($set, quantity: '60'))->assertSessionHasNoErrors();
 
     $this->post(route('cart.store-set', $set), boysSet($set, quantity: '60'))
-        ->assertSessionHasErrors(['quantity' => 'For more than 99, contact the PROWARE office.']);
+        ->assertSessionHasErrors(['quantity' => 'You can get at most 99 of one item. Contact the PROWARE office to get more.']);
     $this->patch(route('cart.update', CartItem::query()->first()), ['quantity' => '100'])
-        ->assertSessionHasErrors(['quantity' => 'For more than 99, contact the PROWARE office.']);
+        ->assertSessionHasErrors(['quantity' => 'You can get at most 99 of one item. Contact the PROWARE office to get more.']);
     expect(CartItem::query()->pluck('quantity')->all())->toBe([60, 60]);
 
     $this->patch(route('cart.update', CartItem::query()->first()), ['quantity' => '99'])->assertSessionHasNoErrors();

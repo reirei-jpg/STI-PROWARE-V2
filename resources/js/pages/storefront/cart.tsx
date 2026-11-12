@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cartRows } from '@/lib/cart-rows';
 import type { CartRow } from '@/lib/cart-rows';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
-import { wholeNumberInput } from '@/lib/number-input';
+import { buyerLimitMessage, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
@@ -542,7 +542,12 @@ function CartLineRow({
                             line.pieces_per_unit > 1 &&
                             ` = ${formatUnits(current * line.pieces_per_unit, 'Piece')}`}
                     </p>
-                    {tooMany && (
+                    {tooMany && line.stopped_by_limit && (
+                        <p className="max-w-44 text-center text-xs font-bold text-red-600">
+                            {buyerLimitMessage(line.most_allowed)}
+                        </p>
+                    )}
+                    {tooMany && !line.stopped_by_limit && (
                         <p className="max-w-44 text-center text-xs font-bold text-red-600">
                             Only{' '}
                             {set
@@ -554,18 +559,29 @@ function CartLineRow({
                             left. Enter {line.most_allowed} or fewer.
                         </p>
                     )}
-                    {current === line.most_allowed && line.most_allowed > 0 && (
-                        <p className="text-center text-xs font-bold text-amber-700">
-                            Only{' '}
-                            {set
-                                ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
-                                : formatUnits(
-                                      line.most_allowed,
-                                      line.unit_name,
-                                  )}{' '}
-                            left
-                        </p>
-                    )}
+                    {current === line.most_allowed &&
+                        line.most_allowed > 0 &&
+                        line.stopped_by_limit && (
+                            <p className="max-w-44 text-center text-xs font-bold text-amber-700">
+                                At most{' '}
+                                {line.most_allowed.toLocaleString('en-PH')} of
+                                one item
+                            </p>
+                        )}
+                    {current === line.most_allowed &&
+                        line.most_allowed > 0 &&
+                        !line.stopped_by_limit && (
+                            <p className="text-center text-xs font-bold text-amber-700">
+                                Only{' '}
+                                {set
+                                    ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
+                                    : formatUnits(
+                                          line.most_allowed,
+                                          line.unit_name,
+                                      )}{' '}
+                                left
+                            </p>
+                        )}
                 </div>
 
                 <p className="w-24 text-right font-black text-slate-900">

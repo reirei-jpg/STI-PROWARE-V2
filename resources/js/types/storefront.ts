@@ -86,6 +86,8 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
     }[];
     /** Packs students can buy now, at today's price. */
     buy_packs: StorefrontBuyPack[];
+    /** The most of one item this buyer can get (the Maintenance setting, or more when the Specialist allowed them). */
+    most_per_item: number;
 };
 
 export type StorefrontBuyPack = {
@@ -150,6 +152,8 @@ export type CartLine = {
     selected: boolean;
     /** The most of this piece or pack that can be ordered now. */
     most_allowed: number;
+    /** The buyer's limit stops it before the stock does. */
+    stopped_by_limit: boolean;
     unit_price_centavos: number | null;
     on_sale: boolean;
     line_total_centavos: number;
