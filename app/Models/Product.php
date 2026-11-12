@@ -39,6 +39,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $expected_arrival_to last day a Preorder product is expected to arrive
  * @property int|null $early_bird_price_centavos lower price per piece for the first pieces preordered
  * @property int|null $early_bird_pieces how many pieces get the early-bird price
+ * @property int|null $preorder_alert_left_at pieces preordered when the Specialist chose Leave it on the dashboard's Ready to order (null: not left)
  * @property Carbon|null $new_until when the NEW tag ends: 3 days after its stock first arrived (null: never had stock)
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -68,6 +69,7 @@ class Product extends Model
             'expected_arrival_to' => 'date',
             'early_bird_price_centavos' => 'integer',
             'early_bird_pieces' => 'integer',
+            'preorder_alert_left_at' => 'integer',
             'new_until' => 'datetime',
         ];
     }

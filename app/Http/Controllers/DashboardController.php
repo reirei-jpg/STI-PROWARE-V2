@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Requests\FilterAdminDashboardRequest;
 use App\Services\Dashboard\SchoolAdminOverview;
 use App\Services\Dashboard\SpecialistTasks;
+use App\Services\Dashboard\StockCards;
 use App\Services\Shop\SpecialistOrders;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -20,7 +21,7 @@ use Inertia\Response;
  */
 class DashboardController extends Controller
 {
-    public function __invoke(FilterAdminDashboardRequest $request, SpecialistTasks $tasks, SchoolAdminOverview $overview): Response|RedirectResponse
+    public function __invoke(FilterAdminDashboardRequest $request, SpecialistTasks $tasks, SchoolAdminOverview $overview, StockCards $stockCards): Response|RedirectResponse
     {
         $user = $request->user();
 
@@ -31,6 +32,7 @@ class DashboardController extends Controller
         return Inertia::render('dashboard', [
             'tasks' => $user?->role === UserRole::Specialist ? $tasks->all() : null,
             'orderCards' => $user?->role === UserRole::Specialist ? SpecialistOrders::dashboardCards() : null,
+            'stockCards' => $user?->role === UserRole::Specialist ? $stockCards->all() : null,
             'overview' => $user?->role === UserRole::SchoolAdmin ? $overview->all($request->tab(), $request->search(), $request->period()) : null,
         ]);
     }

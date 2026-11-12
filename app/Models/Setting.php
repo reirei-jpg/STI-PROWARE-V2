@@ -27,6 +27,8 @@ class Setting extends Model
 
     public const MOST_PER_ITEM = 'most_per_item';
 
+    public const PREORDERS_BEFORE_ORDERING = 'preorders_before_ordering';
+
     protected $primaryKey = 'key';
 
     protected $keyType = 'string';

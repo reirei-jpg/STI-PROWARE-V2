@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Dashboard\StockCards;
 use App\Services\Deliveries\FollowUp;
 use App\Services\FreeUniforms\PromoRules;
 use App\Services\Shop\BuyerLimit;
@@ -44,6 +45,13 @@ class MaintenanceController extends Controller
                 ->get(['id', 'name', 'email', 'most_per_item'])
                 ->map(fn (User $buyer): array => ['id' => $buyer->id, 'name' => $buyer->name, 'email' => $buyer->email, 'most_per_item' => (int) $buyer->most_per_item])
                 ->all(),
+            'preordersBeforeOrdering' => [
+                'value' => StockCards::preordersBeforeOrdering(),
+                'min' => StockCards::MIN_PREORDERS_BEFORE_ORDERING,
+                'max' => StockCards::MAX_PREORDERS_BEFORE_ORDERING,
+                'default' => StockCards::DEFAULT_PREORDERS_BEFORE_ORDERING,
+                ...Setting::lastChange(Setting::PREORDERS_BEFORE_ORDERING),
+            ],
             'promoGroupSize' => [
                 'value' => PromoRules::groupSize(),
                 'min' => PromoRules::MIN_GROUP_SIZE,
@@ -117,6 +125,30 @@ class MaintenanceController extends Controller
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => 'Buyers can now get at most '.number_format($most).' of one item. Buyers allowed more keep their own number.',
+        ]);
+
+        return back();
+    }
+
+    /**
+     * How many pieces must be waiting for a Coming Soon item before it
+     * shows on the dashboard as Ready to order.
+     */
+    public function updatePreordersBeforeOrdering(Request $request): RedirectResponse
+    {
+        $min = StockCards::MIN_PREORDERS_BEFORE_ORDERING;
+        $max = StockCards::MAX_PREORDERS_BEFORE_ORDERING;
+        $message = 'Enter a whole number from '.number_format($min).' to '.number_format($max).'.';
+        $pieces = (int) $request->validate(
+            ['preorders_before_ordering' => ['required', 'integer', "between:{$min},{$max}"]],
+            ['preorders_before_ordering.required' => $message, 'preorders_before_ordering.integer' => $message, 'preorders_before_ordering.between' => $message],
+        )['preorders_before_ordering'];
+
+        Setting::put(Setting::PREORDERS_BEFORE_ORDERING, $pieces, $request->user());
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Coming Soon items now show as Ready to order on the dashboard once '.number_format($pieces).' '.($pieces === 1 ? 'piece is' : 'pieces are').' preordered.',
         ]);
 
         return back();

@@ -68,7 +68,7 @@ test('the to-do list is the website dashboard\'s, and says which phone screen op
         ->assertJsonPath('now.0.target', ['screen' => 'stock', 'id' => $lanyard->id])
         ->assertJsonPath('order_cards.waiting.count', 1)
         ->assertJsonPath('order_cards.waiting.orders.0.id', $order->id);
-    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week', 'order_cards']);
+    expect(array_keys($tasks->json()))->toBe(['now', 'today', 'week', 'order_cards', 'stock_cards']);
 });
 
 test('the app lists the Specialist\'s orders exactly as the website does', function () {

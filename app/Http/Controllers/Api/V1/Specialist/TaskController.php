@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Specialist;
 
 use App\Http\Controllers\Controller;
 use App\Services\Dashboard\SpecialistTasks;
+use App\Services\Dashboard\StockCards;
 use App\Services\Shop\SpecialistOrders;
 use Illuminate\Http\JsonResponse;
 
@@ -15,11 +16,12 @@ use Illuminate\Http\JsonResponse;
  */
 class TaskController extends Controller
 {
-    public function __invoke(SpecialistTasks $tasks): JsonResponse
+    public function __invoke(SpecialistTasks $tasks, StockCards $stockCards): JsonResponse
     {
         return response()->json([
             ...$tasks->all(),
             'order_cards' => SpecialistOrders::dashboardCards(),
+            'stock_cards' => $stockCards->all(),
         ]);
     }
 }

@@ -25,6 +25,7 @@ import BottomSheet from '@/components/BottomSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import StaffOrderRow from '@/components/StaffOrderRow';
+import StockCards from '@/components/StockCards';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useNotifications } from '@/lib/notifications';
@@ -238,6 +239,8 @@ export default function TodoScreen() {
                                 ))}
                             </View>
                         </View>
+
+                        {tasks.stock_cards && <StockCards data={tasks.stock_cards} onChanged={() => void load()} />}
 
                         <View className="gap-2.5">
                             <SectionTitle title="Your tasks" hint="Tap a card to see its tasks." />

@@ -23,6 +23,8 @@ import OrderCards from '@/components/order-cards';
 import type { OrderCardsData } from '@/components/order-cards';
 import PageHeader from '@/components/page-header';
 import SchoolAdminOverview from '@/components/school-admin-overview';
+import StockCards from '@/components/stock-cards';
+import type { StockCardsData } from '@/components/stock-cards';
 import type { SchoolAdminOverviewData } from '@/components/school-admin-overview';
 import {
     Dialog,
@@ -95,11 +97,14 @@ export default function Dashboard({
     tasks,
     overview,
     orderCards,
+    stockCards,
 }: {
     tasks: SpecialistTasks | null;
     overview: SchoolAdminOverviewData | null;
     /** The Specialist's student order cards; null for the School Admin. */
     orderCards: OrderCardsData | null;
+    /** Low stock, best sellers and ready to order; null for the School Admin. */
+    stockCards: StockCardsData | null;
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const firstName = auth.user.name.split(' ')[0];
@@ -110,7 +115,7 @@ export default function Dashboard({
     // tasks and notices (the bell), without reloading the page.
     usePoll(
         30000,
-        { only: ['orderCards', 'tasks', 'notifications'] },
+        { only: ['orderCards', 'stockCards', 'tasks', 'notifications'] },
         { autoStart: tasks !== null },
     );
 
@@ -190,6 +195,8 @@ export default function Dashboard({
                 </section>
 
                 {orderCards && <OrderCards data={orderCards} />}
+
+                {stockCards && <StockCards data={stockCards} />}
 
                 <section className="space-y-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">

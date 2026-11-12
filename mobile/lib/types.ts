@@ -425,6 +425,22 @@ export type SpecialistTasks = {
     week: SpecialistTask[];
     /** The website dashboard's order cards: how many, and the first few. */
     order_cards: Record<OrderCardKey, { count: number; orders: SpecialistOrder[] }>;
+    /** Low stock, best sellers and ready to order (missing on an older server). */
+    stock_cards?: StockCardsData;
+};
+
+/** The dashboard's stock cards (StockCards on the server). */
+export type StockCardsData = {
+    low_stock: {
+        count: number;
+        items: { product_id: number; product_name: string; pieces_left: number; out_of_stock: boolean; warn_at: number }[];
+    };
+    best_sellers: { from: string; items: { product_id: number; product_name: string; pieces: number }[] };
+    ready_to_order: {
+        threshold: number;
+        count: number;
+        items: { product_id: number; product_name: string; pieces: number; preorders_close_on: string | null }[];
+    };
 };
 
 export type OrderCardKey = 'waiting' | 'released_today';
