@@ -12,6 +12,7 @@ import { ActionButton, CancelSheet, ReleaseBox, confirmReady } from '@/component
 import StaffTag from '@/components/StaffTag';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useLiveReload } from '@/lib/use-live-reload';
 import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
 
@@ -52,6 +53,10 @@ export default function StaffOrderScreen() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    // Up to date by itself while the order is open: once it is released,
+    // cancelled or expires elsewhere, Release and Cancel go away.
+    useLiveReload(load, (order?.status === 'placed' || order?.status === 'ready') && !busy);
 
     const run = async (path: string, body?: Record<string, unknown>): Promise<boolean> => {
         if (!order) {
@@ -184,7 +189,7 @@ export default function StaffOrderScreen() {
 
                     <CancelSheet
                         order={order}
-                        open={cancelling}
+                        open={cancelling && isOpen}
                         onClose={() => setCancelling(false)}
                         onCancel={async (reason, note) => {
                             if (await run('cancel', { reason, note })) {

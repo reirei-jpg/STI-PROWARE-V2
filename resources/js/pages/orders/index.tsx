@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePoll } from '@inertiajs/react';
 import { Eye, Search, ShoppingBag, Unlock, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
@@ -83,6 +83,34 @@ export default function OrdersIndex({
 
     const showOrderAfterStep = (orderId: number) =>
         router.reload({ only: ['viewing'], data: { viewing: orderId } });
+
+    // The list checks every 10 seconds, so an order released, cancelled or
+    // expired elsewhere (the phone, another computer, the buyer) changes by
+    // itself: its Release and Cancel buttons go away, also in an open popup.
+    const watchedId = viewingId ?? cancelling?.id ?? null;
+    usePoll(
+        10000,
+        () =>
+            watchedId === null
+                ? { only: ['orders', 'counts'] }
+                : {
+                      only: ['orders', 'counts', 'viewing'],
+                      data: { viewing: watchedId },
+                  },
+        { mode: 'rest' },
+    );
+
+    // The latest copy of the order whose cancel form is open: when it is no
+    // longer open, the form closes by itself.
+    const cancellingNow =
+        cancelling === null
+            ? null
+            : (orders.data.find((order) => order.id === cancelling.id) ??
+              (viewingAfterStep?.id === cancelling.id
+                  ? viewingAfterStep
+                  : cancelling));
+    const cancellingIsOpen =
+        cancellingNow?.status === 'placed' || cancellingNow?.status === 'ready';
 
     const showList = (show: Show, term: string) =>
         router.get(
@@ -295,7 +323,7 @@ export default function OrdersIndex({
             />
 
             <CancelOrderDialog
-                order={cancelling}
+                order={cancellingIsOpen ? cancellingNow : null}
                 onClose={() => setCancelling(null)}
             />
         </>

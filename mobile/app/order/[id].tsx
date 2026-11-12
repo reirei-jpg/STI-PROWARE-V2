@@ -18,6 +18,7 @@ import { STUDENT_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons'
 import { useAuth } from '@/lib/auth';
 import { dueDateTier, formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { StudentOrder } from '@/lib/types';
+import { useLiveReload } from '@/lib/use-live-reload';
 
 /**
  * One order, opened from My Orders: what to do next, its issuance slip to
@@ -54,6 +55,10 @@ export default function OrderScreen() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    // Up to date by itself while the order is open: once the office
+    // prepares or releases it, Cancel goes away without reloading.
+    useLiveReload(load, (order?.status === 'placed' || order?.status === 'ready') && !cancelling);
 
     // Cancel opens a sheet to pick why, like in online shops.
     const [sheetOpen, setSheetOpen] = useState(false);

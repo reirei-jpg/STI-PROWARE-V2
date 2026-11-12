@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePoll } from '@inertiajs/react';
 import {
     ArrowLeft,
     Ban,
@@ -10,7 +10,7 @@ import {
     X,
     XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import CancelReasonPicker from '@/components/cancel-reason-picker';
@@ -46,6 +46,28 @@ export default function StudentIssuanceSlip({
     /** True while the office has not prepared the order yet. */
     canCancel: boolean;
 }) {
+    // While the order is open the page checks it every 10 seconds, so once
+    // the office prepares or releases it the Cancel button is gone by
+    // itself, without reloading the page.
+    const isOpen = slip.status === 'placed' || slip.status === 'ready';
+    const { start, stop } = usePoll(
+        10000,
+        { only: ['slip', 'canCancel'] },
+        { autoStart: false, mode: 'rest' },
+    );
+
+    useEffect(() => {
+        if (isOpen) {
+            start();
+        } else {
+            stop();
+        }
+
+        return stop;
+        // start and stop are new on every render; the order's state decides.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
+
     return (
         <>
             <Head title={`Issuance Slip ${slip.number ?? ''}`} />

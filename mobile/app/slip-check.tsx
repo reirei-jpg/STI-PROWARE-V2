@@ -20,6 +20,7 @@ import { ActionButton, CancelSheet, ReleaseBox, confirmReady } from '@/component
 import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useLiveReload } from '@/lib/use-live-reload';
 import { formatDate, formatDateTime } from '@/lib/format';
 import type { SlipLookup, SpecialistOrder } from '@/lib/types';
 
@@ -66,6 +67,10 @@ export default function SlipCheckScreen() {
         setError(null);
         void load();
     }, [load]);
+
+    // Up to date by itself while the order is open: once it is released,
+    // cancelled or expires elsewhere, Release and Cancel go away.
+    useLiveReload(load, (result?.order.status === 'placed' || result?.order.status === 'ready') && !busy);
 
     const run = async (path: string, body?: Record<string, unknown>): Promise<boolean> => {
         if (!result) {
@@ -288,7 +293,7 @@ export default function SlipCheckScreen() {
 
                     <CancelSheet
                         order={order}
-                        open={cancelling}
+                        open={cancelling && isOpen}
                         onClose={() => setCancelling(false)}
                         onCancel={async (reason, note) => {
                             if (await run('cancel', { reason, note })) {

@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePoll } from '@inertiajs/react';
 import {
     ArrowLeft,
     Ban,
@@ -13,7 +13,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
 import IssuanceSlip from '@/components/issuance-slip';
@@ -54,6 +54,29 @@ export default function OrderSlip({
     code: string;
     result: SlipResult | null;
 }) {
+    // While the order is open the page checks it every 10 seconds, so when
+    // it is released, cancelled or expires elsewhere (the phone, another
+    // computer, the buyer) its Release and Cancel buttons are gone by itself.
+    const isOpen =
+        result?.order.status === 'placed' || result?.order.status === 'ready';
+    const { start, stop } = usePoll(
+        10000,
+        { only: ['result'] },
+        { autoStart: false, mode: 'rest' },
+    );
+
+    useEffect(() => {
+        if (isOpen) {
+            start();
+        } else {
+            stop();
+        }
+
+        return stop;
+        // start and stop are new on every render; the order's state decides.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
+
     return (
         <>
             <Head
@@ -347,7 +370,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
             </div>
 
             <CancelOrderDialog
-                order={cancelling ? order : null}
+                order={cancelling && isOpen ? order : null}
                 onClose={() => setCancelling(false)}
             />
 
