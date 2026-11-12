@@ -45,7 +45,7 @@ class SalesReportController extends Controller
     /**
      * The period's sales as a CSV file for Excel, like a report card: a
      * title with the period, every sale (one row per item of a released
-     * order) from the oldest to the newest with its date and time, a TOTAL
+     * order) with its date, in the order they happened (morning first), a TOTAL
      * row, and the summary at the bottom (sales, cost, profit, and the
      * eStore orders spent on in the same period).
      */
@@ -70,12 +70,11 @@ class SalesReportController extends Controller
             $row(['STI PROWARE Sales Report']);
             $row(['Period', $from->format('M j, Y').' to '.$to->format('M j, Y')]);
             $row([]);
-            $row(['Date', 'Time', 'Order #', 'Buyer', 'Item', 'Size / Color', 'Unit', 'Quantity Sold', 'Pieces', 'Price Each (PHP)', 'Lower Price Because', 'Total Price (PHP)', 'Total Cost (PHP)', 'Profit (PHP)']);
+            $row(['Date', 'Order #', 'Buyer', 'Item', 'Size / Color', 'Unit', 'Quantity Sold', 'Pieces', 'Price Each (PHP)', 'Lower Price Because', 'Total Price (PHP)', 'Total Cost (PHP)', 'Profit (PHP)']);
 
             foreach ($sales as $sale) {
                 $row([
                     $sale['sold_at']->format('M j, Y'),
-                    $sale['sold_at']->format('g:i A'),
                     $sale['order_number'] ?? '',
                     $sale['buyer'],
                     $sale['set_name'] ? "{$sale['product_name']} ({$sale['set_name']})" : $sale['product_name'],
@@ -93,7 +92,7 @@ class SalesReportController extends Controller
 
             $costed = array_filter($sales, fn (array $sale): bool => $sale['cost_total_centavos'] !== null);
             $row([
-                'TOTAL', '', '', '', '', '', '',
+                'TOTAL', '', '', '', '', '',
                 array_sum(array_column($sales, 'quantity')),
                 array_sum(array_column($sales, 'pieces')),
                 '', '',

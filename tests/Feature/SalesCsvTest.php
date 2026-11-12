@@ -26,7 +26,7 @@ function releasedSale(string $releasedAt, string $buyer, array $item): Order
     return $order;
 }
 
-test('the CSV lists every sale of the chosen dates, the oldest first, then a total and the summary', function () {
+test('the CSV lists every sale of the chosen dates with its date, in the order they happened, then a total and the summary', function () {
     $afternoon = releasedSale('2026-11-12 14:30', 'Bea Villareal', ['product_name' => 'STI Lanyard', 'quantity' => 2, 'unit_price_centavos' => 8000, 'line_total_centavos' => 16000, 'cost_centavos' => 10000]);
     $morning = releasedSale('2026-11-12 08:15', 'Juan Dela Cruz', ['product_name' => 'STI Umbrella', 'variant_label' => 'Black', 'quantity' => 1, 'unit_price_centavos' => 25000, 'line_total_centavos' => 25000, 'cost_centavos' => 18000]);
     // Released short: 3 ordered, 1 handed over.
@@ -42,11 +42,11 @@ test('the CSV lists every sale of the chosen dates, the oldest first, then a tot
 
     expect($lines[0])->toBe('"STI PROWARE Sales Report"')
         ->and($lines[1])->toBe('Period,"Nov 11, 2026 to Nov 12, 2026"')
-        ->and($lines[2])->toStartWith('Date,Time,"Order #",Buyer,Item,')
-        ->and($lines[3])->toBe("\"Nov 12, 2026\",\"8:15 AM\",{$morning->number},\"Juan Dela Cruz\",\"STI Umbrella\",Black,Piece,1,1,250.00,,250.00,180.00,70.00")
-        ->and($lines[4])->toBe("\"Nov 12, 2026\",\"2:30 PM\",{$afternoon->number},\"Bea Villareal\",\"STI Lanyard\",,Piece,2,2,80.00,,160.00,100.00,60.00")
+        ->and($lines[2])->toStartWith('Date,"Order #",Buyer,Item,')
+        ->and($lines[3])->toBe("\"Nov 12, 2026\",{$morning->number},\"Juan Dela Cruz\",\"STI Umbrella\",Black,Piece,1,1,250.00,,250.00,180.00,70.00")
+        ->and($lines[4])->toBe("\"Nov 12, 2026\",{$afternoon->number},\"Bea Villareal\",\"STI Lanyard\",,Piece,2,2,80.00,,160.00,100.00,60.00")
         ->and($lines[5])->toContain('"STI Hoodie",,Piece,1,1,750.00,,750.00,,')
-        ->and($lines[6])->toBe('TOTAL,,,,,,,4,4,,,1160.00,280.00,130.00')
+        ->and($lines[6])->toBe('TOTAL,,,,,,4,4,,,1160.00,280.00,130.00')
         ->and($lines[7])->toBe('SUMMARY')
         ->and($csv)->not->toContain('STI Cap')
         ->toContain('"Orders released",3')
