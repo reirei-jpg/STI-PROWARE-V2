@@ -18,6 +18,7 @@ import { STUDENT_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons'
 import { useAuth } from '@/lib/auth';
 import { dueDateTier, formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { StudentOrder } from '@/lib/types';
+import { useBackFromOrder } from '@/lib/use-back-from-order';
 import { useLiveReload } from '@/lib/use-live-reload';
 
 /**
@@ -92,6 +93,10 @@ export default function OrderScreen() {
         }
     };
 
+    // Released: Back goes to the store (also the phone's back button).
+    const released = order?.status === 'picked_up';
+    const goBack = useBackFromOrder(released);
+
     return (
         <ScrollView
             className="flex-1 bg-page"
@@ -103,12 +108,12 @@ export default function OrderScreen() {
             }}
         >
             <Pressable
-                onPress={() => router.back()}
+                onPress={goBack}
                 accessibilityRole="button"
                 className="flex-row items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2"
             >
                 <ArrowLeft size={17} color="#334155" />
-                <Text className="font-sans-bold text-sm text-slate-700">Back</Text>
+                <Text className="font-sans-bold text-sm text-slate-700">{released ? 'Back to the store' : 'Back'}</Text>
             </Pressable>
 
             {loadError && order === null ? (

@@ -28,6 +28,7 @@ import {
 } from '@/lib/cancel-reasons';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { home } from '@/routes';
 import type { IssuanceSlipData } from '@/types';
 
 /**
@@ -84,12 +85,19 @@ export default function StudentIssuanceSlip({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        {/* Released: nothing left to track, so back to the store. */}
                         <Link
-                            href={StudentOrderController.index()}
+                            href={
+                                slip.status === 'picked_up'
+                                    ? home()
+                                    : StudentOrderController.index()
+                            }
                             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm hover:bg-slate-50"
                         >
                             <ArrowLeft size={17} />
-                            Back to My Orders
+                            {slip.status === 'picked_up'
+                                ? 'Back to the store'
+                                : 'Back to My Orders'}
                         </Link>
                         {slip.status !== 'cancelled' && (
                             <a

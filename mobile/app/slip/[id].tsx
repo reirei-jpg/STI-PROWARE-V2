@@ -11,6 +11,7 @@ import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatPeso } from '@/lib/format';
 import type { IssuanceSlipData } from '@/lib/types';
+import { useBackFromOrder } from '@/lib/use-back-from-order';
 
 /**
  * The student's issuance slip for an order, like the website's: show it at
@@ -50,6 +51,10 @@ export default function SlipScreen() {
         setRefreshing(false);
     };
 
+    // Released: Back goes to the store (also the phone's back button).
+    const released = slip?.status === 'picked_up';
+    const goBack = useBackFromOrder(released);
+
     return (
         <ScrollView
             className="flex-1 bg-page"
@@ -62,12 +67,12 @@ export default function SlipScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullToRefresh} />}
         >
             <Pressable
-                onPress={() => router.back()}
+                onPress={goBack}
                 accessibilityRole="button"
                 className="flex-row items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2"
             >
                 <ArrowLeft size={17} color="#334155" />
-                <Text className="font-sans-bold text-sm text-slate-700">Back</Text>
+                <Text className="font-sans-bold text-sm text-slate-700">{released ? 'Back to the store' : 'Back'}</Text>
             </Pressable>
 
             {loadError && slip === null ? (
