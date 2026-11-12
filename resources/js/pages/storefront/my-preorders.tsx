@@ -12,7 +12,6 @@ import {
     XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
-import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import EditPreorderDialog from '@/components/edit-preorder-dialog';
@@ -469,21 +468,6 @@ function PreorderLine({
                             Buy it
                         </Link>
                     )}
-                    {preorder.status === 'ordered' &&
-                        preorder.order_id !== null && (
-                            <Link
-                                href={StudentOrderController.slip(
-                                    preorder.order_id,
-                                )}
-                                className={cn(
-                                    button,
-                                    'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
-                                )}
-                            >
-                                <ShoppingBag size={14} />
-                                {preorder.order_number}
-                            </Link>
-                        )}
                     {preorder.can_edit && (
                         <button
                             type="button"

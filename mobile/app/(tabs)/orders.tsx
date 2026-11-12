@@ -390,7 +390,6 @@ function PreorderRow({
     const hasButtons =
         preorder.status === 'arrived' ||
         held ||
-        (preorder.status === 'ordered' && preorder.order_id !== null) ||
         preorder.can_edit === true ||
         preorder.can_cancel;
 
@@ -467,16 +466,6 @@ function PreorderRow({
                         >
                             <ShoppingBag size={14} color="#ffffff" />
                             <Text className="font-sans-bold text-sm text-white">Order now</Text>
-                        </Pressable>
-                    )}
-                    {preorder.status === 'ordered' && preorder.order_id !== null && (
-                        <Pressable
-                            onPress={() => router.push(`/order/${preorder.order_id}`)}
-                            accessibilityRole="button"
-                            className={`${PREORDER_BUTTON} border-blue-200 bg-blue-50`}
-                        >
-                            <ShoppingBag size={14} color="#1d4ed8" />
-                            <Text className="font-sans-bold text-sm text-blue-700">{preorder.order_number}</Text>
                         </Pressable>
                     )}
                     {preorder.can_edit && (
