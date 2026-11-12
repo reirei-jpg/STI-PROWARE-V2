@@ -7,6 +7,7 @@ import {
     LoaderCircle,
     PackageOpen,
     PackageX,
+    Pencil,
     ShoppingBag,
     Store,
     Truck,
@@ -16,6 +17,7 @@ import { useState } from 'react';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import ConfirmDialog from '@/components/confirm-dialog';
+import EditPreorderDialog from '@/components/edit-preorder-dialog';
 import QuantityInput from '@/components/quantity-input';
 import Pagination from '@/components/pagination';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
@@ -27,6 +29,10 @@ import type { Paginated } from '@/types';
 
 type MyPreorder = {
     id: number;
+    /** Preorders placed with one press of Preorder share it (one card). */
+    batch: string;
+    product_id: number;
+    product_variant_id: number;
     product_name: string;
     photo_url: string | null;
     variant_label: string | null;
@@ -51,6 +57,10 @@ type MyPreorder = {
     /** A sold-out size of an item for sale, waiting to be back in stock. */
     waiting_for_restock: boolean;
     can_cancel: boolean;
+    /** Its size, color or quantity can still be changed. */
+    can_edit: boolean;
+    /** When the buyer last changed it. */
+    edited_at: string | null;
     created_at: string | null;
     /** When the student was told it arrived. */
     arrived_at: string | null;
@@ -131,6 +141,7 @@ export default function MyPreorders({
 }) {
     const count = (status: MyPreorder['status']) =>
         preorders.data.filter((preorder) => preorder.status === status).length;
+    const [editing, setEditing] = useState<MyPreorder | null>(null);
 
     return (
         <>
@@ -217,14 +228,20 @@ export default function MyPreorders({
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {preorders.data.map((preorder) => (
-                                <PreorderCard
-                                    key={preorder.id}
-                                    preorder={preorder}
+                            {batchesOf(preorders.data).map((batch) => (
+                                <PreorderBatch
+                                    key={batch.key}
+                                    rows={batch.rows}
+                                    onEdit={setEditing}
                                 />
                             ))}
                         </div>
                     )}
+
+                    <EditPreorderDialog
+                        preorder={editing}
+                        onClose={() => setEditing(null)}
+                    />
 
                     {preorders.last_page > 1 && (
                         <div className="mt-4 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -296,11 +313,95 @@ function SummaryCard({
     );
 }
 
+/** Preorders placed with one press of Preorder, one after another in the list. */
+function batchesOf(
+    preorders: MyPreorder[],
+): { key: string; rows: MyPreorder[] }[] {
+    const batches: { key: string; rows: MyPreorder[] }[] = [];
+
+    for (const preorder of preorders) {
+        const last = batches[batches.length - 1];
+
+        if (last && last.key === preorder.batch) {
+            last.rows.push(preorder);
+        } else {
+            batches.push({ key: preorder.batch, rows: [preorder] });
+        }
+    }
+
+    return batches;
+}
+
+/**
+ * One card per press of Preorder: the item once at the top, then each size
+ * or color with its own status and buttons (they can arrive at different
+ * times). A preorder of one size is the usual card.
+ */
+function PreorderBatch({
+    rows,
+    onEdit,
+}: {
+    rows: MyPreorder[];
+    onEdit: (preorder: MyPreorder) => void;
+}) {
+    const first = rows[0];
+
+    if (rows.length === 1) {
+        return <PreorderCard preorder={first} onEdit={onEdit} />;
+    }
+
+    return (
+        <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+            <div className="flex items-center gap-4 p-5 sm:px-6">
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                    {first.photo_url ? (
+                        <img
+                            src={first.photo_url}
+                            alt={first.product_name}
+                            className="h-full w-full object-cover"
+                        />
+                    ) : (
+                        <div className="flex h-full w-full items-center justify-center text-slate-300">
+                            <PackageOpen size={24} />
+                        </div>
+                    )}
+                </div>
+                <div className="min-w-0">
+                    <h3 className="truncate text-lg font-black text-slate-900">
+                        {first.product_name}
+                    </h3>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                        Preordered {formatDateTime(first.created_at)} ·{' '}
+                        {rows.length} sizes or colors
+                    </p>
+                </div>
+            </div>
+            {rows.map((row) => (
+                <PreorderCard
+                    key={row.id}
+                    preorder={row}
+                    onEdit={onEdit}
+                    inBatch
+                />
+            ))}
+        </article>
+    );
+}
+
 /**
  * One preorder, as on V1: photo, status badge, item, size and quantity on
- * the left; on the right, what the status means and its action.
+ * the left; on the right, what the status means and its action. In a batch
+ * card the item is shown once, on the card.
  */
-function PreorderCard({ preorder }: { preorder: MyPreorder }) {
+function PreorderCard({
+    preorder,
+    onEdit,
+    inBatch = false,
+}: {
+    preorder: MyPreorder;
+    onEdit: (preorder: MyPreorder) => void;
+    inBatch?: boolean;
+}) {
     const [confirming, setConfirming] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const look = preorder.waiting_for_restock
@@ -319,11 +420,24 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
         });
     };
 
+    const Wrapper = inBatch ? 'div' : 'article';
+
     return (
-        <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+        <Wrapper
+            className={
+                inBatch
+                    ? 'border-t border-slate-100'
+                    : 'overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md'
+            }
+        >
             <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-center">
                 <div className="flex min-w-0 flex-1 gap-4">
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                    <div
+                        className={cn(
+                            'h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100',
+                            inBatch && 'hidden',
+                        )}
+                    >
                         {preorder.photo_url ? (
                             <img
                                 src={preorder.photo_url}
@@ -352,12 +466,22 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                             <StatusIcon size={13} />
                             {look.label}
                         </span>
-                        <h3 className="mt-2 truncate text-lg font-black text-slate-900">
-                            {preorder.product_name}
-                        </h3>
-                        <p className="mt-1 text-xs font-medium text-slate-500">
-                            Preordered {formatDateTime(preorder.created_at)}
-                        </p>
+                        {!inBatch && (
+                            <>
+                                <h3 className="mt-2 truncate text-lg font-black text-slate-900">
+                                    {preorder.product_name}
+                                </h3>
+                                <p className="mt-1 text-xs font-medium text-slate-500">
+                                    Preordered{' '}
+                                    {formatDateTime(preorder.created_at)}
+                                </p>
+                            </>
+                        )}
+                        {preorder.edited_at && preorder.status === 'active' && (
+                            <p className="mt-1 text-xs font-medium text-slate-500">
+                                Changed {formatDateTime(preorder.edited_at)}
+                            </p>
+                        )}
                         <div className="mt-4 flex flex-wrap gap-5 text-sm">
                             <div>
                                 <span className="text-slate-400">Size</span>
@@ -424,6 +548,17 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                                 </Link>
                             )}
 
+                        {preorder.can_edit && (
+                            <button
+                                type="button"
+                                onClick={() => onEdit(preorder)}
+                                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
+                            >
+                                <Pencil size={16} />
+                                Change size or quantity
+                            </button>
+                        )}
+
                         {preorder.can_cancel && (
                             <button
                                 type="button"
@@ -464,7 +599,7 @@ function PreorderCard({ preorder }: { preorder: MyPreorder }) {
                     </div>
                 </div>
             </div>
-        </article>
+        </Wrapper>
     );
 }
 
