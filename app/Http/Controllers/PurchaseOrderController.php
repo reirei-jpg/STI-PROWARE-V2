@@ -202,7 +202,7 @@ class PurchaseOrderController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => "Order #{$purchaseOrder->order_number} has been saved and is now waiting to arrive. When it arrives, record it on the Deliveries page."
+            'message' => "Order #{$purchaseOrder->order_number} has been saved and is now waiting to arrive. When it arrives, record it on the Stock In page."
                 .match ($newCodes) {
                     0 => '',
                     1 => ' 1 item in it is new to PROWARE: link it to its product.',

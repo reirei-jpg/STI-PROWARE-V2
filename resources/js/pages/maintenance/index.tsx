@@ -96,7 +96,7 @@ export default function Maintenance({
                 </Panel>
 
                 <Panel
-                    title="Deliveries"
+                    title="Stock In"
                     description="How purchase orders from Head Office are followed up."
                 >
                     <FollowUpDaysSetting setting={followUpDays} />
@@ -156,7 +156,7 @@ function FollowUpDaysSetting({ setting }: { setting: ChoiceSetting }) {
         <SettingRow
             icon={<CircleAlert size={19} className="text-red-600" />}
             title="Days before a purchase order is followed up"
-            explanation="Head Office gives no delivery date. A purchase order not fully delivered this many days after its Date Ordered is shown as Not complete on the Deliveries page and the dashboards, so you know to ask Head Office about the rest."
+            explanation="Head Office gives no delivery date. A purchase order not fully delivered this many days after its Date Ordered is shown as Not complete on the Stock In page and the dashboards, so you know to ask Head Office about the rest."
             example="Example with 30 days: an order dated Sep 29 that has not fully arrived shows from Oct 29."
             setting={setting}
             choices={setting.choices}

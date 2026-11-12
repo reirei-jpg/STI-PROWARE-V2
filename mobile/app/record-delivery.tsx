@@ -184,11 +184,11 @@ export default function RecordDeliveryScreen() {
             notLinked > 0 ? `${notLinked === 1 ? '1 item is' : `${notLinked} items are`} not linked to a product, so only recorded. ` : '';
 
         Alert.alert(
-            'Record this delivery?',
+            'Stock in this delivery?',
             `${added}${unlinked}Buyers waiting for these items are served first and notified. This cannot be undone.`,
             [
                 { text: 'Check again', style: 'cancel' },
-                { text: 'Record delivery', onPress: () => void record() },
+                { text: 'Stock in', onPress: () => void record() },
             ],
         );
     };
@@ -279,7 +279,7 @@ export default function RecordDeliveryScreen() {
                 </Pressable>
 
                 <View>
-                    <Text className="font-sans-bold text-2xl text-slate-900">Record Delivery</Text>
+                    <Text className="font-sans-bold text-2xl text-slate-900">Stock In</Text>
                     <Text className="mt-1 font-sans text-sm text-slate-500">
                         Count what arrived and type it below. PROWARE fills the oldest order first.
                     </Text>
@@ -381,7 +381,7 @@ export default function RecordDeliveryScreen() {
                         className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4 ${canSave ? '' : 'opacity-50'}`}
                     >
                         {saving ? <ActivityIndicator color="#ffffff" /> : <PackagePlus size={18} color="#ffffff" />}
-                        <Text className="font-sans-bold text-base text-white">Record Delivery</Text>
+                        <Text className="font-sans-bold text-base text-white">Stock In</Text>
                     </Pressable>
                 </View>
             )}

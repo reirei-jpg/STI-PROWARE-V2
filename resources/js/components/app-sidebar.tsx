@@ -57,7 +57,7 @@ function useStaffMenuItems(): NavItem[] {
     // The School Admin monitors what arrived (view only).
     if (auth.user.role === 'school_admin') {
         items.push({
-            title: 'Deliveries',
+            title: 'Stock In',
             href: DeliveryController.index(),
             icon: Truck,
         });
@@ -76,7 +76,7 @@ function useStaffMenuItems(): NavItem[] {
                 icon: FileScan,
             },
             {
-                title: 'Deliveries',
+                title: 'Stock In',
                 href: DeliveryController.index(),
                 icon: Truck,
             },

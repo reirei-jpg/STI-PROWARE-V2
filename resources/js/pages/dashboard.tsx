@@ -155,7 +155,7 @@ export default function Dashboard({
                         </span>
                         <span className="min-w-0 flex-1">
                             <span className="block text-lg font-black">
-                                Record Delivery
+                                Stock In
                             </span>
                             <span className="block text-sm text-blue-50">
                                 Count what arrived from the supplier and add it

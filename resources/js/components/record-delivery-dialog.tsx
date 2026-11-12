@@ -96,7 +96,7 @@ export default function RecordDeliveryDialog({
                 <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                     <div>
                         <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
-                            Record Delivery
+                            Stock In
                         </p>
                         <DialogTitle className="mt-1 text-xl font-black text-slate-900">
                             {waiting?.order_number
@@ -218,7 +218,7 @@ function DeliveryForm({
         >
             <ConfirmDialog
                 open={confirming}
-                title={`Record this delivery for ${orderLabel}?`}
+                title={`Stock in this delivery for ${orderLabel}?`}
                 description={
                     <>
                         {additions.length > 0
@@ -233,7 +233,7 @@ function DeliveryForm({
                     </>
                 }
                 cancelLabel="Check again"
-                confirmLabel="Record delivery"
+                confirmLabel="Stock in"
                 busy={processing}
                 onConfirm={() => {
                     setConfirming(false);

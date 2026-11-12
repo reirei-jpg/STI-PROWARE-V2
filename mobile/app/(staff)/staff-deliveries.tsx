@@ -60,7 +60,7 @@ export default function StaffDeliveriesScreen() {
     const header = (
         <View className="gap-3 pb-2">
             <View>
-                <Text className="font-sans-bold text-2xl text-slate-900">Deliveries</Text>
+                <Text className="font-sans-bold text-2xl text-slate-900">Stock In</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
                     Record what arrived from Head Office, right at the counter.
                 </Text>
@@ -72,7 +72,7 @@ export default function StaffDeliveriesScreen() {
                 className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
             >
                 <PackagePlus size={20} color="#ffffff" />
-                <Text className="font-sans-bold text-base text-white">Record Delivery</Text>
+                <Text className="font-sans-bold text-base text-white">Stock In</Text>
             </Pressable>
 
             <View className="flex-row items-center gap-2 rounded-full border border-slate-200 bg-white px-4">
@@ -134,7 +134,7 @@ export default function StaffDeliveriesScreen() {
                     <NoResults
                         icon={<Truck size={40} color="#cbd5e1" />}
                         title="No deliveries recorded yet."
-                        hint="Tap Record Delivery above when Head Office delivers."
+                        hint="Tap Stock In above when Head Office delivers."
                     />
                 )
             }

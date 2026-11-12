@@ -135,7 +135,7 @@ test('the scan page points out items still waiting on another order, and saving 
     // Order #30722: 3,000 forms, 1,000 arrived so far.
     $this->post(route('purchase-orders.scan.store'), ['email_text' => estoreOrderEmail()]);
     $this->post(route('purchase-orders.store'))
-        ->assertInertiaFlash('toast.message', 'Order #30722 has been saved and is now waiting to arrive. When it arrives, record it on the Deliveries page. 1 item in it is new to PROWARE: link it to its product.')
+        ->assertInertiaFlash('toast.message', 'Order #30722 has been saved and is now waiting to arrive. When it arrives, record it on the Stock In page. 1 item in it is new to PROWARE: link it to its product.')
         ->assertInertiaFlash('toast.action', ['label' => 'Link the new items', 'href' => route('item-links.index')]);
     PurchaseOrder::sole()->items()->update(['quantity_delivered' => 1000]);
 

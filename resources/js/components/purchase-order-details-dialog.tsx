@@ -147,7 +147,7 @@ export default function PurchaseOrderDetailsDialog({
                                         className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
                                     >
                                         <Truck size={16} />
-                                        Record Delivery
+                                        Stock In
                                     </button>
                                     <button
                                         type="button"

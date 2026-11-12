@@ -43,7 +43,7 @@ export default function StaffTabsLayout() {
             <Tabs.Screen
                 name="staff-deliveries"
                 options={{
-                    title: 'Deliveries',
+                    title: 'Stock In',
                     tabBarIcon: ({ color, size }) => <Truck color={color} size={size} />,
                 }}
             />

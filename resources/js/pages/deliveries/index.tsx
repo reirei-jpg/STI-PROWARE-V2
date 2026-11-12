@@ -158,11 +158,11 @@ export default function DeliveriesIndex({
 
     return (
         <>
-            <Head title="Deliveries" />
+            <Head title="Stock In" />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Deliveries"
+                    title="Stock In"
                     description={
                         canRecord
                             ? 'What arrived from Head Office and what is still to come. Recording a delivery adds its items to stock and updates their purchase orders.'
@@ -175,7 +175,7 @@ export default function DeliveriesIndex({
                                 className={primaryButtonClasses}
                             >
                                 <Plus size={18} />
-                                Record Delivery
+                                Stock In
                             </Link>
                         )
                     }
@@ -499,7 +499,7 @@ function ReceivedTable({
                             className={`mt-6 ${primaryButtonClasses}`}
                         >
                             <Plus size={17} />
-                            Record Delivery
+                            Stock In
                         </Link>
                     )
                 )}
@@ -732,7 +732,7 @@ function WaitingTable({
                                                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-3.5 text-sm font-black whitespace-nowrap text-white transition hover:bg-blue-700"
                                             >
                                                 <Truck size={15} />
-                                                Record Delivery
+                                                Stock In
                                             </button>
                                         )}
                                         <Link

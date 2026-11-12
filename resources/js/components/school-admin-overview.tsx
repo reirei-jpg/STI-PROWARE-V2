@@ -247,7 +247,7 @@ export default function SchoolAdminOverview({
                 />
 
                 <Panel
-                    title="Deliveries"
+                    title="Stock In"
                     description="Every eStore order the Specialist uploaded, by what has arrived. Open one for its items and Delivery History."
                     actions={
                         <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:w-72">

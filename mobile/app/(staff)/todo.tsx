@@ -72,7 +72,7 @@ const taskLooks: Record<string, { icon: LucideIcon; box: string; color: string }
 /** What the button does on the phone. */
 function openLabel(target: NonNullable<SpecialistTask['target']>): string {
     if (target.screen === 'record_delivery') {
-        return 'Record Delivery';
+        return 'Stock In';
     }
 
     return target.id ? 'See stock' : 'See low stock';
@@ -203,7 +203,7 @@ export default function TodoScreen() {
                             className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-blue-300 bg-white/15 py-3.5"
                         >
                             <Truck size={18} color="#ffffff" />
-                            <Text className="font-sans-bold text-sm text-white">Record Delivery</Text>
+                            <Text className="font-sans-bold text-sm text-white">Stock In</Text>
                         </Pressable>
                     </View>
                 </View>

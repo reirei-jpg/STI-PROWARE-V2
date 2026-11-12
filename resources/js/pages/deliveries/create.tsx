@@ -72,11 +72,11 @@ export default function RecordDelivery({
 
     return (
         <>
-            <Head title="Record Delivery" />
+            <Head title="Stock In" />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Record Delivery"
+                    title="Stock In"
                     description="Which order arrived? Choose it to enter what came for that order."
                     actions={
                         <Link
