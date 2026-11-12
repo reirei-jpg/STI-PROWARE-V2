@@ -11,6 +11,7 @@ use App\Services\Preorders\PreorderHolds;
 use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
  * while preorders for the product are still open, or while a sold-out size
  * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, product_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null}
+ * @phpstan-type PreorderRow array{id: int, batch: string, product_id: int, product_variant_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, can_edit: bool, edited_at: string|null, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -78,21 +79,42 @@ class CancelPreorderByStudent
     }
 
     /**
-     * A page of the student's My Preorders (website and phone app): waiting
-     * ones first, then arrived, then closed or cancelled, newest first, 20
-     * at a time.
+     * A page of the student's My Preorders (website and phone app), 20
+     * batches at a time (the preorders placed with one press of Preorder):
+     * batches with held or waiting preorders first, then arrived, then
+     * closed or cancelled, newest first. The rows of each batch come one
+     * after another, in the order they were placed.
      *
      * @return LengthAwarePaginator<int, PreorderRow>
      */
     public static function studentPage(User $student): LengthAwarePaginator
     {
-        return $student->preorders()
-            ->with(['product.mainPhoto', 'variant.product', 'order'])
-            ->orderByRaw("case when status = 'held' then 0 when status = 'active' then 1 when status in ('arrived', 'ordered') then 2 else 3 end")
-            ->latest('id')
+        $rank = "case when status = 'held' then 0 when status = 'active' then 1 when status in ('arrived', 'ordered') then 2 else 3 end";
+
+        $batches = $student->preorders()
+            ->select('batch')
+            ->groupBy('batch')
+            ->orderByRaw("min({$rank})")
+            ->orderByRaw('max(id) desc')
             ->paginate(20)
-            ->withQueryString()
-            ->through(fn (Preorder $preorder): array => self::row($preorder));
+            ->withQueryString();
+
+        $keys = collect($batches->items())->map(fn (Preorder $batch): string => $batch->batch)->all();
+        $preorders = $student->preorders()
+            ->with(['product.mainPhoto', 'variant.product', 'order'])
+            ->whereIn('batch', $keys)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('batch');
+
+        $rows = collect($keys)
+            ->flatMap(fn (string $key) => $preorders->get($key, collect())->map(fn (Preorder $preorder): array => self::row($preorder)))
+            ->values();
+
+        return new Paginator($rows, $batches->total(), $batches->perPage(), $batches->currentPage(), [
+            'path' => $batches->path(),
+            'query' => request()->query(),
+        ]);
     }
 
     /**
@@ -104,7 +126,10 @@ class CancelPreorderByStudent
     {
         return [
             'id' => $preorder->id,
+            // Preorders placed with one press of Preorder: one card on My Preorders.
+            'batch' => $preorder->batch,
             'product_id' => $preorder->product_id,
+            'product_variant_id' => $preorder->product_variant_id,
             'product_name' => $preorder->product->name,
             'photo_url' => $preorder->product->mainPhoto?->url(),
             'variant_label' => $preorder->variant->choices === [] ? null : $preorder->variant->label(),
@@ -123,6 +148,8 @@ class CancelPreorderByStudent
             // A sold-out size of a product for sale, not a Coming Soon product.
             'waiting_for_restock' => $preorder->status === PreorderStatus::Active && LowStockAlerts::isSold($preorder->product),
             'can_cancel' => self::refusal($preorder) === null,
+            'can_edit' => EditPreorderByStudent::refusal($preorder) === null,
+            'edited_at' => $preorder->edited_at?->toIso8601String(),
             'created_at' => $preorder->created_at?->toIso8601String(),
             'arrived_at' => $preorder->arrived_at?->toIso8601String(),
             'not_restocked_at' => $preorder->not_restocked_at?->toIso8601String(),

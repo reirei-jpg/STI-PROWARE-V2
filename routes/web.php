@@ -36,6 +36,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:student,employee')->group(function () {
         Route::get('my-preorders', [StudentPreorderController::class, 'index'])->name('my-preorders.index');
         Route::post('merchandise/{product}/preorder', [StudentPreorderController::class, 'store'])->name('my-preorders.store');
+        Route::patch('my-preorders/{preorder}', [StudentPreorderController::class, 'update'])->name('my-preorders.update');
         Route::delete('my-preorders/{preorder}', [StudentPreorderController::class, 'destroy'])->name('my-preorders.destroy');
         Route::post('my-preorders/{preorder}/order', [StudentPreorderController::class, 'order'])->name('my-preorders.order');
 

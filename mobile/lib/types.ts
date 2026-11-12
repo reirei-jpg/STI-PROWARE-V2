@@ -242,7 +242,10 @@ export type IssuanceSlipData = {
 /** A student's preorder (a reservation; nothing to pay). */
 export type StudentPreorder = {
     id: number;
+    /** Preorders placed with one press of Preorder share it (one card). */
+    batch?: string;
     product_id: number;
+    product_variant_id: number;
     product_name: string;
     photo_url: string | null;
     variant_label: string | null;
@@ -262,6 +265,10 @@ export type StudentPreorder = {
     /** A sold-out size of an item for sale, waiting to be back in stock. */
     waiting_for_restock: boolean;
     can_cancel: boolean;
+    /** Its size, color or quantity can still be changed. */
+    can_edit?: boolean;
+    /** When the buyer last changed it. */
+    edited_at?: string | null;
     created_at: string | null;
     /** When the student was told it will not be restocked. */
     not_restocked_at: string | null;

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * A student's reservation of a Preorder product, or of a sold-out size of a
@@ -34,10 +35,12 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $held_until while Held: the end of the student's 24 hours to order
  * @property Carbon|null $hold_ended_at when the hold ended without an order
  * @property int|null $order_id the order the held pieces went into
+ * @property string $batch preorders placed with one press of Preorder share it (one card on My Preorders)
+ * @property Carbon|null $edited_at when the buyer last changed its size, color or quantity
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'price_centavos', 'early_bird_pieces', 'status', 'cancelled_at', 'arrived_at', 'not_restocked_at', 'not_restocked_reason', 'held_until', 'hold_ended_at', 'order_id'])]
+#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'price_centavos', 'early_bird_pieces', 'status', 'cancelled_at', 'arrived_at', 'not_restocked_at', 'not_restocked_reason', 'held_until', 'hold_ended_at', 'order_id', 'batch', 'edited_at'])]
 class Preorder extends Model
 {
     /** @use HasFactory<PreorderFactory> */
@@ -57,7 +60,18 @@ class Preorder extends Model
             'hold_ended_at' => 'datetime',
             'arrived_at' => 'datetime',
             'not_restocked_at' => 'datetime',
+            'edited_at' => 'datetime',
         ];
+    }
+
+    /**
+     * A preorder placed on its own is a batch of one.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Preorder $preorder): void {
+            $preorder->batch ??= (string) Str::uuid();
+        });
     }
 
     /**

@@ -15,6 +15,7 @@ use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 
 /**
  * A student preorders sizes or colors (website or phone app): of a Preorder
@@ -39,6 +40,8 @@ class PlacePreorder
     {
         $preorders = DB::transaction(function () use ($student, $product, $items): array {
             $saved = [];
+            // One press of Preorder is one batch: one card on My Preorders.
+            $batch = (string) Str::uuid();
 
             foreach ($items as $item) {
                 $variant = $product->variants()->findOrFail($item['product_variant_id'])->setRelation('product', $product);
@@ -50,6 +53,7 @@ class PlacePreorder
                     'quantity' => $item['quantity'],
                     // Shown as "Preordered at ₱500 each"; the price paid is the one on the day it is ordered.
                     'price_centavos' => ShopPrice::perUnit($variant, null),
+                    'batch' => $batch,
                 ]);
             }
 

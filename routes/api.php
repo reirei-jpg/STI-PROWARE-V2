@@ -58,6 +58,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');
         Route::post('products/{product}/preorder', [PreorderController::class, 'store'])->name('preorders.store');
+        Route::patch('preorders/{preorder}', [PreorderController::class, 'update'])->name('preorders.update');
         Route::delete('preorders/{preorder}', [PreorderController::class, 'destroy'])->name('preorders.destroy');
         Route::post('preorders/{preorder}/order', [PreorderController::class, 'order'])->name('preorders.order');
     });

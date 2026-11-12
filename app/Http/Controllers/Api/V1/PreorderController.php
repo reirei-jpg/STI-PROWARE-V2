@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Orders\PlaceOrder;
 use App\Actions\Preorders\CancelPreorderByStudent;
+use App\Actions\Preorders\EditPreorderByStudent;
 use App\Actions\Preorders\OrderHeldPreorder;
 use App\Actions\Preorders\PlacePreorder;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\EditPreorderRequest;
 use App\Http\Requests\OrderHeldPreorderRequest;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
@@ -56,6 +58,19 @@ class PreorderController extends Controller
             'message' => PlaceOrder::message($order),
             'order' => OrderRow::forStudent($order->load(['items', 'student'])),
         ], 201);
+    }
+
+    /**
+     * Change the size, color or quantity of a waiting preorder (as on the website).
+     */
+    public function update(EditPreorderRequest $request, Preorder $preorder, EditPreorderByStudent $editPreorder): JsonResponse
+    {
+        $moved = $editPreorder->handle($preorder, $request->variant(), $request->integer('quantity'));
+
+        return response()->json([
+            'message' => EditPreorderByStudent::message($preorder, $moved),
+            'preorder' => CancelPreorderByStudent::row($preorder->refresh()->load(['product.mainPhoto', 'variant', 'order'])),
+        ]);
     }
 
     public function destroy(Request $request, Preorder $preorder, CancelPreorderByStudent $cancelPreorder): JsonResponse

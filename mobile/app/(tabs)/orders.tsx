@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, ChevronRight, ImageIcon, Package, ShoppingBag, Store, XCircle } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package, Pencil, ShoppingBag, Store, XCircle } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -20,6 +20,8 @@ import OrderStatusPill, {
 } from '@/components/OrderStatusPill';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import CenteredToast, { type ToastMessage } from '@/components/CenteredToast';
+import EditPreorderSheet from '@/components/EditPreorderSheet';
 import HeldOrderSheet from '@/components/HeldOrderSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
@@ -68,6 +70,10 @@ function OrdersScreen() {
     const counts = orders.extra?.counts;
     const preorders = usePagedList<StudentPreorder>('/preorders');
     const [refreshing, setRefreshing] = useState(false);
+    // The preorder being changed, and what happened after.
+    const [editing, setEditing] = useState<StudentPreorder | null>(null);
+    const [toast, setToast] = useState<ToastMessage | null>(null);
+    const closeToast = useCallback(() => setToast(null), []);
 
     const active = show === 'orders' ? orders : preorders;
     const { reload } = active;
@@ -191,27 +197,41 @@ function OrdersScreen() {
             }
         />
     ) : (
-        <FlatList
-            {...common}
-            key="preorders"
-            data={preorders.items ?? []}
-            keyExtractor={(preorder) => String(preorder.id)}
-            renderItem={({ item }) => (
-                <PreorderRow preorder={item} onChanged={preorders.replaceItem} />
-            )}
-            onEndReached={preorders.loadMore}
-            ListEmptyComponent={
-                preorders.error || preorders.items === null ? (
-                    preorders.error ? null : <LoadingState />
-                ) : (
-                    <EmptyBox
-                        icon={<CalendarClock size={40} color="#cbd5e1" />}
-                        title="No preorders yet"
-                        text="Tap Preorder on an item under Coming Soon to reserve it."
-                    />
-                )
-            }
-        />
+        <View className="flex-1">
+            <FlatList
+                {...common}
+                key="preorders"
+                data={batchesOf(preorders.items ?? [])}
+                keyExtractor={(batch) => batch.key}
+                renderItem={({ item }) => (
+                    <PreorderBatch rows={item.rows} onChanged={preorders.replaceItem} onEdit={setEditing} />
+                )}
+                onEndReached={preorders.loadMore}
+                ListEmptyComponent={
+                    preorders.error || preorders.items === null ? (
+                        preorders.error ? null : <LoadingState />
+                    ) : (
+                        <EmptyBox
+                            icon={<CalendarClock size={40} color="#cbd5e1" />}
+                            title="No preorders yet"
+                            text="Tap Preorder on an item under Coming Soon to reserve it."
+                        />
+                    )
+                }
+            />
+            <EditPreorderSheet
+                preorder={editing}
+                onClose={() => setEditing(null)}
+                onSaved={(message, changed) => {
+                    setEditing(null);
+                    preorders.replaceItem(changed);
+                    setToast({ type: 'success', message });
+                    // Early-bird pieces of the other preorders may have moved too.
+                    void preorders.reload();
+                }}
+            />
+            <CenteredToast toast={toast} onClose={closeToast} />
+        </View>
     );
 }
 
@@ -324,12 +344,84 @@ function preorderNote(preorder: StudentPreorder): { text: string; className: str
           };
 }
 
+/** Preorders placed with one press of Preorder, one after another in the list. */
+function batchesOf(preorders: StudentPreorder[]): { key: string; rows: StudentPreorder[] }[] {
+    const batches: { key: string; rows: StudentPreorder[] }[] = [];
+
+    for (const preorder of preorders) {
+        const key = preorder.batch ?? `preorder-${preorder.id}`;
+        const last = batches[batches.length - 1];
+
+        if (last && last.key === key) {
+            last.rows.push(preorder);
+        } else {
+            batches.push({ key, rows: [preorder] });
+        }
+    }
+
+    return batches;
+}
+
+/**
+ * One card per press of Preorder: the item once at the top, then each size
+ * or color with its own status and buttons (they can arrive at different
+ * times). A preorder of one size is the usual card.
+ */
+function PreorderBatch({
+    rows,
+    onChanged,
+    onEdit,
+}: {
+    rows: StudentPreorder[];
+    onChanged: (preorder: StudentPreorder) => void;
+    onEdit: (preorder: StudentPreorder) => void;
+}) {
+    const first = rows[0];
+
+    if (rows.length === 1) {
+        return <PreorderRow preorder={first} onChanged={onChanged} onEdit={onEdit} />;
+    }
+
+    return (
+        <View className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <Pressable
+                onPress={() => router.push(`/product/${first.product_id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${first.product_name}`}
+                className="flex-row items-center gap-3 p-3.5"
+            >
+                <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                    {first.photo_url ? (
+                        <Image source={{ uri: first.photo_url }} style={{ width: 56, height: 56 }} resizeMode="cover" />
+                    ) : (
+                        <ImageIcon size={20} color="#cbd5e1" />
+                    )}
+                </View>
+                <View className="flex-1 gap-0.5">
+                    <Text className="font-sans-bold text-base text-slate-900">{first.product_name}</Text>
+                    <Text className="font-sans text-xs text-slate-500">
+                        Preordered {formatDateTime(first.created_at)} · {rows.length} sizes or colors
+                    </Text>
+                </View>
+            </Pressable>
+            {rows.map((row) => (
+                <PreorderRow key={row.id} preorder={row} onChanged={onChanged} onEdit={onEdit} inBatch />
+            ))}
+        </View>
+    );
+}
+
 function PreorderRow({
     preorder,
     onChanged,
+    onEdit,
+    inBatch = false,
 }: {
     preorder: StudentPreorder;
     onChanged: (preorder: StudentPreorder) => void;
+    onEdit: (preorder: StudentPreorder) => void;
+    /** One size of a batch card: the item is shown once, on the card. */
+    inBatch?: boolean;
 }) {
     const { request } = useAuth();
     const [cancelling, setCancelling] = useState(false);
@@ -393,7 +485,11 @@ function PreorderRow({
                               ? '#94a3b8'
                               : '#fbbf24',
             }}
-            className={`gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`}
+            className={
+                inBatch
+                    ? `gap-3 border-t border-slate-100 p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`
+                    : `gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${preorder.status === 'cancelled' ? 'opacity-60' : ''}`
+            }
         >
             <Pressable
                 onPress={() => router.push(`/product/${preorder.product_id}`)}
@@ -401,26 +497,41 @@ function PreorderRow({
                 accessibilityLabel={`View ${preorder.product_name}`}
                 className="flex-row items-center gap-3"
             >
-                <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
-                    {preorder.photo_url ? (
-                        <Image
-                            source={{ uri: preorder.photo_url }}
-                            style={{ width: 56, height: 56 }}
-                            resizeMode="cover"
-                        />
-                    ) : (
-                        <ImageIcon size={20} color="#cbd5e1" />
-                    )}
-                </View>
+                {!inBatch && (
+                    <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                        {preorder.photo_url ? (
+                            <Image
+                                source={{ uri: preorder.photo_url }}
+                                style={{ width: 56, height: 56 }}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <ImageIcon size={20} color="#cbd5e1" />
+                        )}
+                    </View>
+                )}
                 <View className="flex-1 gap-0.5">
-                    <Text className="font-sans-bold text-base text-slate-900">
-                        {preorder.product_name}
-                    </Text>
-                    <Text className="font-sans text-sm text-slate-600">
-                        {preorder.variant_label ? `${preorder.variant_label} · ` : ''}
-                        {formatUnits(preorder.quantity, 'Piece')}
-                    </Text>
+                    {inBatch ? (
+                        <Text className="font-sans-bold text-base text-slate-900">
+                            {preorder.variant_label ?? 'Standard'} · {formatUnits(preorder.quantity, 'Piece')}
+                        </Text>
+                    ) : (
+                        <>
+                            <Text className="font-sans-bold text-base text-slate-900">
+                                {preorder.product_name}
+                            </Text>
+                            <Text className="font-sans text-sm text-slate-600">
+                                {preorder.variant_label ? `${preorder.variant_label} · ` : ''}
+                                {formatUnits(preorder.quantity, 'Piece')}
+                            </Text>
+                        </>
+                    )}
                     <Text className={`text-xs ${closing.className}`}>{closing.text}</Text>
+                    {preorder.edited_at && preorder.status === 'active' && (
+                        <Text className="font-sans text-xs text-slate-500">
+                            Changed {formatDateTime(preorder.edited_at)}
+                        </Text>
+                    )}
                     {preorder.status === 'active' && (
                         <Text className="font-sans text-xs text-slate-600">
                             {preorderPriceNote(preorder.preordered_price_centavos)}
@@ -479,6 +590,17 @@ function PreorderRow({
             )}
 
             {held && <HeldOrderSheet preorder={preorder} open={ordering} onClose={() => setOrdering(false)} />}
+
+            {preorder.can_edit && (
+                <Pressable
+                    onPress={() => onEdit(preorder)}
+                    accessibilityRole="button"
+                    className={`${PREORDER_BUTTON} border-blue-200 bg-blue-50`}
+                >
+                    <Pencil size={16} color="#1d4ed8" />
+                    <Text className="font-sans-bold text-sm text-blue-700">Change size or quantity</Text>
+                </Pressable>
+            )}
 
             {preorder.can_cancel && (
                 <Pressable

@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Actions\Orders\PlaceOrder;
 use App\Actions\Preorders\CancelPreorderByStudent;
+use App\Actions\Preorders\EditPreorderByStudent;
 use App\Actions\Preorders\OrderHeldPreorder;
 use App\Actions\Preorders\PlacePreorder;
+use App\Http\Requests\EditPreorderRequest;
 use App\Http\Requests\OrderHeldPreorderRequest;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
@@ -61,6 +63,22 @@ class StudentPreorderController extends Controller
         ]);
 
         return to_route('my-orders.slip', $order);
+    }
+
+    /**
+     * Change the size, color or quantity of a waiting preorder. Lowering the
+     * quantity keeps its place in line; anything else moves it to the end.
+     */
+    public function update(EditPreorderRequest $request, Preorder $preorder, EditPreorderByStudent $editPreorder): RedirectResponse
+    {
+        $moved = $editPreorder->handle($preorder, $request->variant(), $request->integer('quantity'));
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => EditPreorderByStudent::message($preorder, $moved),
+        ]);
+
+        return back();
     }
 
     /**
