@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
+    ChevronDown,
     LayoutDashboard,
     LogOut,
     Package,
@@ -16,6 +17,13 @@ import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderC
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import { AddToCartProvider } from '@/components/add-to-cart-dialog';
 import NotificationBell from '@/components/notification-bell';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useInitials } from '@/hooks/use-initials';
 import { PreorderProvider } from '@/components/preorder-dialog';
 import {
     MicrosoftLogo,
@@ -61,14 +69,21 @@ export default function StorefrontLayout({
     );
 }
 
+/**
+ * The store's top bar, like an online shop's: the logo, a wide search, then
+ * only icons: the cart with its count, the bell, and the buyer's name with
+ * a menu (My Orders, My Preorders, My Account, Log out).
+ */
 function StorefrontTopBar() {
     const { auth, cart_count: cartCount } = usePage().props;
     const openSignIn = useSignInPrompt();
     const isStudent = isBuyer(auth.user);
+    const iconButton =
+        'relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700';
 
     return (
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-            <div className="mx-auto flex h-18 max-w-7xl items-center gap-3 px-4 md:gap-6 md:px-8">
+            <div className="mx-auto flex h-18 max-w-7xl items-center gap-2 px-4 sm:gap-3 md:gap-5 md:px-8">
                 <Link
                     href={home()}
                     className="flex shrink-0 items-center gap-3"
@@ -78,7 +93,7 @@ function StorefrontTopBar() {
                         alt="STI College"
                         className="h-11 w-11 rounded-xl object-cover shadow-sm"
                     />
-                    <span className="hidden text-xl font-black tracking-tight text-[#0D6EFD] sm:block">
+                    <span className="hidden text-xl font-black tracking-tight text-[#0D6EFD] md:block">
                         PROWARE
                     </span>
                 </Link>
@@ -88,14 +103,13 @@ function StorefrontTopBar() {
                 {isStudent ? (
                     <Link
                         href={CartController.index()}
-                        className="relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
+                        className={iconButton}
                         aria-label="Cart"
                         title="Cart"
                     >
-                        <ShoppingCart size={18} />
-                        <span className="hidden sm:inline">Cart</span>
+                        <ShoppingCart size={19} />
                         {cartCount !== null && cartCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white ring-2 ring-white">
+                            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white ring-2 ring-white">
                                 {cartCount > 99 ? '99+' : cartCount}
                             </span>
                         )}
@@ -106,11 +120,11 @@ function StorefrontTopBar() {
                         <button
                             type="button"
                             onClick={openSignIn}
-                            className="relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
+                            className={iconButton}
                             aria-label="Cart"
+                            title="Cart"
                         >
-                            <ShoppingCart size={18} />
-                            <span className="hidden sm:inline">Cart</span>
+                            <ShoppingCart size={19} />
                         </button>
                     )
                 )}
@@ -118,42 +132,7 @@ function StorefrontTopBar() {
                 {isStudent && <NotificationBell />}
 
                 {isStudent ? (
-                    <>
-                        <Link
-                            href={StudentOrderController.index()}
-                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white transition hover:bg-blue-700"
-                        >
-                            <Package size={17} />
-                            <span className="hidden sm:inline">My Orders</span>
-                        </Link>
-                        <Link
-                            href={StudentPreorderController.index()}
-                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-amber-400 px-4 text-sm font-black text-amber-950 transition hover:bg-amber-300"
-                        >
-                            <CalendarClock size={17} />
-                            <span className="hidden sm:inline">
-                                My Preorders
-                            </span>
-                        </Link>
-                        <Link
-                            href={ProfileController.edit()}
-                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-                            title="Your name and password"
-                        >
-                            <UserRound size={17} />
-                            <span className="hidden lg:inline">My Account</span>
-                        </Link>
-                        <Link
-                            href={logout()}
-                            method="post"
-                            as="button"
-                            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-                            title={`Signed in as ${auth.user.name}`}
-                        >
-                            <LogOut size={17} />
-                            <span className="hidden sm:inline">Log out</span>
-                        </Link>
-                    </>
+                    <BuyerMenu />
                 ) : auth.user ? (
                     <Link
                         href={dashboard()}
@@ -177,6 +156,94 @@ function StorefrontTopBar() {
     );
 }
 
+/**
+ * The buyer's name in the top bar, opening a menu with their orders,
+ * preorders, account and Log out.
+ */
+function BuyerMenu() {
+    const { auth } = usePage().props;
+    const getInitials = useInitials();
+    const item =
+        'flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 focus:bg-blue-50 focus:text-blue-700';
+
+    if (auth.user === null) {
+        return null;
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button
+                    type="button"
+                    className="flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pr-2 pl-1 transition outline-none hover:border-blue-200 hover:bg-blue-50/50 focus-visible:ring-2 focus-visible:ring-blue-300"
+                    aria-label="Your account"
+                >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0D6EFD] text-xs font-black text-white">
+                        {getInitials(auth.user.name)}
+                    </span>
+                    <span className="hidden max-w-28 truncate text-sm font-bold text-slate-800 lg:block">
+                        {auth.user.name.split(' ')[0]}
+                    </span>
+                    <ChevronDown size={15} className="text-slate-400" />
+                </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+                align="end"
+                className="w-64 overflow-hidden rounded-2xl border-slate-200 p-0 shadow-xl shadow-slate-900/10"
+            >
+                <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="truncate text-sm font-black text-slate-900">
+                        {auth.user.name}
+                    </p>
+                    <p className="truncate text-xs text-slate-500">
+                        {auth.user.email}
+                    </p>
+                </div>
+                <div className="p-2">
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={StudentOrderController.index()}
+                            className={item}
+                        >
+                            <Package size={17} />
+                            My Orders
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={StudentPreorderController.index()}
+                            className={item}
+                        >
+                            <CalendarClock size={17} />
+                            My Preorders
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href={ProfileController.edit()} className={item}>
+                            <UserRound size={17} />
+                            My Account
+                        </Link>
+                    </DropdownMenuItem>
+                </div>
+                <div className="border-t border-slate-100 p-2">
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={logout()}
+                            method="post"
+                            as="button"
+                            onClick={() => router.flushAll()}
+                            className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 focus:bg-red-50 focus:text-red-600"
+                        >
+                            <LogOut size={17} />
+                            Log out
+                        </Link>
+                    </DropdownMenuItem>
+                </div>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
 /**
  * The one merchandise search, in the top bar. On the storefront it filters
  * every section as the visitor types; on other pages (Cart, My Orders)

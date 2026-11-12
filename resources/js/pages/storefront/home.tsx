@@ -1,13 +1,5 @@
 import { Head, InfiniteScroll, router, usePage } from '@inertiajs/react';
-import {
-    Clock,
-    Flame,
-    Search,
-    Shirt,
-    ShoppingBag,
-    Store,
-    X,
-} from 'lucide-react';
+import { Clock, Flame, Search, ShoppingBag, Store, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
@@ -86,11 +78,7 @@ export default function StorefrontHome({
                 {isSearching ? (
                     <SearchResultsLine filters={filters} />
                 ) : (
-                    <WelcomeBanner
-                        comingSoon={comingSoon.length}
-                        onSale={onSale.length}
-                        uniformSets={uniformSets.length}
-                    />
+                    <WelcomeBanner />
                 )}
 
                 {(!isSearching || comingSoon.length > 0) && (
@@ -128,56 +116,16 @@ export default function StorefrontHome({
 }
 
 /**
- * The banner at the top: who the store is for, how ordering works, and
- * shortcuts that jump to Coming Soon, On Sale and All Merchandise. A
- * signed-in student is greeted by name.
+ * The banner at the top: who the store is for and how ordering works. A
+ * signed-in buyer is greeted by name.
  */
-function WelcomeBanner({
-    comingSoon,
-    onSale,
-    uniformSets,
-}: {
-    comingSoon: number;
-    onSale: number;
-    uniformSets: number;
-}) {
+function WelcomeBanner() {
     const { auth } = usePage().props;
     const firstName =
         auth.user !== null && isBuyer(auth.user)
             ? auth.user.name.split(' ')[0]
             : null;
     const isStaff = auth.user !== null && !isBuyer(auth.user);
-
-    const shortcuts = [
-        {
-            href: '#coming-soon',
-            label: 'Coming Soon',
-            count: comingSoon,
-            icon: <Clock size={15} />,
-        },
-        {
-            href: '#on-sale',
-            label: 'On Sale',
-            count: onSale,
-            icon: <Flame size={15} />,
-        },
-        ...(uniformSets > 0
-            ? [
-                  {
-                      href: '#uniform-sets',
-                      label: 'Uniform Sets',
-                      count: uniformSets,
-                      icon: <Shirt size={15} />,
-                  },
-              ]
-            : []),
-        {
-            href: '#all-merchandise',
-            label: 'All Merchandise',
-            count: null,
-            icon: <Store size={15} />,
-        },
-    ];
 
     return (
         <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-[#0D6EFD] via-blue-600 to-blue-800 px-6 py-8 text-white shadow-xl shadow-blue-500/20 md:px-10 md:py-10">
@@ -212,27 +160,6 @@ function WelcomeBanner({
                           ? 'You are signed in with a PROWARE Specialist or School Admin account, so you can browse the store as buyers see it. Buying is for students and STI staff.'
                           : 'Browse freely. You only need to sign in with your STI Microsoft 365 account when you add something to your cart.'}
                 </p>
-
-                <nav
-                    aria-label="Sections"
-                    className="mt-5 flex flex-wrap gap-2"
-                >
-                    {shortcuts.map((shortcut) => (
-                        <a
-                            key={shortcut.href}
-                            href={shortcut.href}
-                            className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-blue-700 shadow-sm transition hover:bg-yellow-100"
-                        >
-                            {shortcut.icon}
-                            {shortcut.label}
-                            {shortcut.count !== null && (
-                                <span className="rounded-full bg-blue-100 px-2 text-xs">
-                                    {shortcut.count}
-                                </span>
-                            )}
-                        </a>
-                    ))}
-                </nav>
             </div>
         </section>
     );
