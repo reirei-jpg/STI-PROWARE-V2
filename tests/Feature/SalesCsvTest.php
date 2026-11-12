@@ -47,12 +47,11 @@ test('the CSV lists every sale of the chosen dates with its date, in the order t
         ->and($lines[4])->toBe("\"Nov 12, 2026\",{$afternoon->number},\"Bea Villareal\",\"STI Lanyard\",,Piece,2,2,80.00,,160.00,100.00,60.00")
         ->and($lines[5])->toContain('"STI Hoodie",,Piece,1,1,750.00,,750.00,,')
         ->and($lines[6])->toBe('TOTAL,,,,,,4,4,,,1160.00,280.00,130.00')
-        ->and($lines[7])->toBe('SUMMARY')
+        ->and($lines[7])->toBe('SUMMARY,"Nov 11, 2026 to Nov 12, 2026"')
         ->and($csv)->not->toContain('STI Cap')
-        ->toContain('"Orders released",3')
-        ->toContain('"Pieces sold",4')
-        ->toContain('"Total sales (PHP)",1160.00')
-        ->toContain('"Spent on eStore orders, expenses (PHP)",0.00')
-        ->toContain('"Sales minus expenses (PHP)",1160.00')
+        ->toContain("Sales\n\"Orders released\",3\n\"Pieces sold\",4\n\"Total sales\",\"₱1,160.00\"")
+        ->toContain("Profit\n\"Cost of the items sold\",₱280.00\nProfit,₱130.00")
+        ->toContain("Expenses\n\"Spent on eStore orders\",₱0.00\n\"Sales minus expenses\",\"₱1,160.00\"")
+        ->not->toContain('Lost on items sold below cost')
         ->toContain('1 sold item has no Cost yet');
 });

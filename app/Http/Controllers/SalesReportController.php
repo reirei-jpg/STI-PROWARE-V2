@@ -101,21 +101,32 @@ class SalesReportController extends Controller
                 $peso(array_sum(array_column($costed, 'profit_centavos'))),
             ]);
 
+            // The summary reads like a report card: three groups, amounts in pesos.
+            $money = fn (int $centavos): string => ($centavos < 0 ? '-₱' : '₱').number_format(abs($centavos) / 100, 2);
             $row([]);
-            $row(['SUMMARY']);
+            $row([]);
+            $row(['SUMMARY', $from->format('M j, Y').' to '.$to->format('M j, Y')]);
+            $row([]);
+            $row(['Sales']);
             $row(['Orders released', $summary['orders']]);
             $row(['Pieces sold', $summary['pieces']]);
-            $row(['Total sales (PHP)', $peso($summary['price_centavos'])]);
-            $row(['Cost of the items sold (PHP)', $peso($summary['cost_centavos'])]);
-            $row(['Profit (PHP)', $peso($summary['profit_centavos'])]);
-            $row(['Spent on eStore orders, expenses (PHP)', $peso($summary['spent_centavos'])]);
-            $row(['Sales minus expenses (PHP)', $peso($summary['price_centavos'] - $summary['spent_centavos'])]);
-            $row(['Sold below cost, loss (PHP)', $peso($summary['below_cost_loss_centavos'])]);
+            $row(['Total sales', $money($summary['price_centavos'])]);
+            $row([]);
+            $row(['Profit']);
+            $row(['Cost of the items sold', $money($summary['cost_centavos'])]);
+            $row(['Profit', $money($summary['profit_centavos'])]);
+            if ($summary['below_cost_loss_centavos'] > 0) {
+                $row(['Lost on items sold below cost', $money($summary['below_cost_loss_centavos'])]);
+            }
+            $row([]);
+            $row(['Expenses']);
+            $row(['Spent on eStore orders', $money($summary['spent_centavos'])]);
+            $row(['Sales minus expenses', $money($summary['price_centavos'] - $summary['spent_centavos'])]);
 
             if ($summary['missing_cost_lines'] > 0) {
+                $row([]);
                 $row(['Note', "{$summary['missing_cost_lines']} sold ".($summary['missing_cost_lines'] === 1 ? 'item has' : 'items have').' no Cost yet, so Cost and Profit count only the items with a Cost. Set their Cost on Sales Reports.']);
             }
-
             fclose($file);
         }, "sales-{$from->toDateString()}-to-{$to->toDateString()}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
