@@ -25,7 +25,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $set_key the same on the set's two items
  * @property string $unit_name "Piece" or the pack's name
  * @property int $pieces_per_unit
- * @property int $quantity
+ * @property int $quantity how many were ordered
+ * @property int $quantity_short how many were not released because they were sold to buyers who paid first
  * @property int $unit_price_centavos
  * @property int $line_total_centavos
  * @property int|null $normal_unit_price_centavos the regular price when ordered; lower unit_price_centavos means it was on sale or an early-bird price (null: not recorded)
@@ -34,7 +35,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['product_id', 'product_variant_id', 'product_name', 'variant_label', 'set_name', 'set_key', 'unit_name', 'pieces_per_unit', 'quantity', 'unit_price_centavos', 'normal_unit_price_centavos', 'lower_price_reason', 'line_total_centavos'])]
+#[Fillable(['product_id', 'product_variant_id', 'product_name', 'variant_label', 'set_name', 'set_key', 'unit_name', 'pieces_per_unit', 'quantity', 'quantity_short', 'unit_price_centavos', 'normal_unit_price_centavos', 'lower_price_reason', 'line_total_centavos'])]
 class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */

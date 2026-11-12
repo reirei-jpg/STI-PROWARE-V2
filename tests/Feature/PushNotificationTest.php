@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Notifications\LowStockAlert;
 use App\Notifications\OrderCancelled;
 use App\Notifications\OrderPlaced;
-use App\Notifications\OrderReady;
 use App\Notifications\OrderReleased;
 use App\Notifications\PreorderArrived;
 use App\Notifications\PurchaseOrderUploaded;
@@ -203,14 +202,14 @@ test('a student stops pushes to one phone, and signing out does the same', funct
     expect(DeviceToken::query()->count())->toBe(0);
 });
 
-test('an order that is ready is pushed through Firebase with the bell\'s words', function () {
+test('a released order is pushed through Firebase with the bell\'s words', function () {
     $credentials = pushFakeCredentials();
     pushFakeFirebase();
     $student = User::factory()->student()->create();
     DeviceToken::factory()->for($student)->create(['token' => 'fcm-token-1']);
     $order = Order::factory()->for($student, 'student')->create(['total_centavos' => 105000]);
 
-    $student->notify(new OrderReady($order));
+    $student->notify(new OrderReleased($order));
 
     expect($student->notifications()->count())->toBe(1);
     Http::assertSent(function (Request $request) use ($credentials) {
@@ -229,11 +228,11 @@ test('an order that is ready is pushed through Firebase with the bell\'s words',
     expect(pushMessagesSent())->toBe([[
         'token' => 'fcm-token-1',
         'notification' => [
-            'title' => "Order {$order->number} is ready for pickup",
-            'body' => 'Pay ₱1,050.00 at the cashier, then show the receipt and the issuance slip at the PROWARE office by Oct 6, 2026.',
+            'title' => "Order {$order->number} has been released to you",
+            'body' => 'Thank you for your order.',
         ],
         'android' => ['priority' => 'HIGH', 'notification' => ['channel_id' => 'orders']],
-        'data' => ['kind' => 'order_ready', 'order_id' => (string) $order->id],
+        'data' => ['kind' => 'order_released', 'order_id' => (string) $order->id],
     ]]);
 });
 
@@ -289,7 +288,7 @@ test('every phone of the student gets the push and other students do not', funct
     DeviceToken::factory()->for($student)->create(['token' => 'tablet-token']);
     DeviceToken::factory()->create(['token' => 'someone-elses-token']);
 
-    $student->notify(new OrderReady(Order::factory()->for($student, 'student')->create()));
+    $student->notify(new OrderReleased(Order::factory()->for($student, 'student')->create()));
 
     expect(collect(pushMessagesSent())->pluck('token')->sort()->values()->all())->toBe(['phone-token', 'tablet-token']);
 });
@@ -315,7 +314,7 @@ test('the Specialist\'s notices are pushed with the bell\'s words', function (Cl
             return new OrderPlaced($order);
         },
         'New order PW-0007',
-        'Juan Dela Cruz · 1 item · ₱700.00 to pay at the cashier. Prepare it, then mark it Ready for pickup.',
+        'Juan Dela Cruz · 1 item · ₱700.00 to pay at the cashier. Release it when they show the receipt.',
         'order_placed',
     ],
     'low stock' => [
@@ -357,7 +356,7 @@ test('a notice made inside work that is undone is not pushed', function () {
     $order = Order::factory()->for($student, 'student')->create();
 
     rescue(fn () => DB::transaction(function () use ($student, $order): void {
-        $student->notify(new OrderReady($order));
+        $student->notify(new OrderReleased($order));
 
         throw new RuntimeException('The Specialist\'s change failed.');
     }), report: false);
@@ -373,7 +372,7 @@ test('the Firebase access token is reused for later pushes', function () {
     DeviceToken::factory()->for($student)->create();
     $order = Order::factory()->for($student, 'student')->create();
 
-    $student->notify(new OrderReady($order));
+    $student->notify(new OrderReleased($order));
     $student->notify(new OrderCancelled($order));
 
     expect(collect(Http::recorded())->filter(fn (array $pair) => $pair[0]->url() === 'https://oauth2.googleapis.com/token'))->toHaveCount(1)
@@ -385,7 +384,7 @@ test('nothing is sent when the student has no registered phone', function () {
     pushFakeFirebase();
     $student = User::factory()->student()->create();
 
-    $student->notify(new OrderReady(Order::factory()->for($student, 'student')->create()));
+    $student->notify(new OrderReleased(Order::factory()->for($student, 'student')->create()));
 
     Http::assertNothingSent();
 });
@@ -396,7 +395,7 @@ test('the notice is still saved when Firebase is not set up', function () {
     $student = User::factory()->student()->create();
     DeviceToken::factory()->for($student)->create();
 
-    $student->notify(new OrderReady(Order::factory()->for($student, 'student')->create()));
+    $student->notify(new OrderReleased(Order::factory()->for($student, 'student')->create()));
 
     Http::assertNothingSent();
     expect($student->notifications()->count())->toBe(1)
@@ -412,7 +411,7 @@ test('a dead phone token is forgotten', function () {
     $student = User::factory()->student()->create();
     DeviceToken::factory()->for($student)->create();
 
-    $student->notify(new OrderReady(Order::factory()->for($student, 'student')->create()));
+    $student->notify(new OrderReleased(Order::factory()->for($student, 'student')->create()));
 
     expect(DeviceToken::query()->count())->toBe(0);
 });
@@ -423,7 +422,7 @@ test('a Firebase or network failure keeps the phone and never loses the notice',
     $student = User::factory()->student()->create();
     DeviceToken::factory()->for($student)->create();
 
-    $student->notify(new OrderReady(Order::factory()->for($student, 'student')->create()));
+    $student->notify(new OrderReleased(Order::factory()->for($student, 'student')->create()));
 
     expect($student->notifications()->count())->toBe(1)
         ->and(DeviceToken::query()->count())->toBe(1);
@@ -444,7 +443,7 @@ test('a refused access token is dropped so the next push asks for a new one', fu
     $student = User::factory()->student()->create();
     DeviceToken::factory()->for($student)->create();
 
-    $student->notify(new OrderReady(Order::factory()->for($student, 'student')->create()));
+    $student->notify(new OrderReleased(Order::factory()->for($student, 'student')->create()));
 
     expect(Cache::has('fcm.access_token'))->toBeFalse();
 });

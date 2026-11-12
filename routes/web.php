@@ -75,8 +75,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/slip', [OrderController::class, 'slip'])->name('orders.slip');
         Route::get('orders/{order}/slip/print', [OrderController::class, 'printSlip'])->name('orders.slip.print');
-        Route::post('students/{student}/lift-pause', [OrderController::class, 'liftPause'])->name('students.lift-pause');
-        Route::post('orders/{order}/ready', [OrderController::class, 'ready'])->name('orders.ready');
         Route::post('orders/{order}/release', [OrderController::class, 'release'])->name('orders.release');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
@@ -85,7 +83,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('sales-reports/variants/{variant}/price', [SalesReportController::class, 'setPrice'])->name('sales-reports.price');
 
         Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
-        Route::patch('maintenance/hold-days', [MaintenanceController::class, 'updateHoldDays'])->name('maintenance.hold-days');
         Route::patch('maintenance/follow-up-days', [MaintenanceController::class, 'updateFollowUpDays'])->name('maintenance.follow-up-days');
         Route::patch('maintenance/promo-group-size', [MaintenanceController::class, 'updatePromoGroupSize'])->name('maintenance.promo-group-size');
         Route::patch('maintenance/most-per-item', [MaintenanceController::class, 'updateMostPerItem'])->name('maintenance.most-per-item');

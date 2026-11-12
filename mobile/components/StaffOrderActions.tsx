@@ -123,26 +123,10 @@ function confirmRelease(order: SpecialistOrder, onRelease: () => void): void {
 
     Alert.alert(
         `Release Order ${order.number} to ${order.student_name}?`,
-        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now. This cannot be undone.`,
+        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now, as many as are left (items already sold to buyers who paid first are released short). This cannot be undone.`,
         [
             { text: 'Check again', style: 'cancel' },
             { text: 'Release', onPress: onRelease },
-        ],
-    );
-}
-
-/**
- * "Mark Order PW-0042 as ready for pickup?": the student is notified at once
- * and it cannot be taken back, so a mis-tap asks first, in the middle of the
- * screen like the website.
- */
-export function confirmReady(order: SpecialistOrder, onConfirm: () => void): void {
-    Alert.alert(
-        `Mark Order ${order.number} as ready for pickup?`,
-        `${order.student_name} will be notified to pay at the cashier and collect the order. This cannot be undone.`,
-        [
-            { text: 'Not yet', style: 'cancel' },
-            { text: 'Mark as ready', onPress: onConfirm },
         ],
     );
 }

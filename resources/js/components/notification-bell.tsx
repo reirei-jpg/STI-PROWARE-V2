@@ -94,7 +94,7 @@ export default function NotificationBell() {
                             {auth.user.role === 'specialist'
                                 ? 'You will be notified here when stock runs low or a sale is ending.'
                                 : isBuyer(auth.user)
-                                  ? 'You will be notified here when your order is ready for pickup, or when an item you preordered arrives.'
+                                  ? 'You will be notified here when your order is released or cancelled, or when an item you preordered arrives.'
                                   : 'You will be notified here when the Specialist uploads a purchase order, records a delivery, or closes an order short.'}
                         </p>
                     </div>
@@ -251,7 +251,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     {data.student_name} · {data.items_count}{' '}
                     {data.items_count === 1 ? 'item' : 'items'} ·{' '}
                     {formatPeso(data.total_centavos)} to pay at the cashier.
-                    Prepare it, then mark it Ready for pickup.
+                    Release it when they show the receipt.
                 </span>
             </>
         );

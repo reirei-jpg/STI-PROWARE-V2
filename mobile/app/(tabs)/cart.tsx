@@ -151,7 +151,7 @@ function CartScreen() {
     const allTicked = ticked.length === rows.length;
     const tickedTooMany = ticked.some((row) => tooMany.includes(row.key));
     const tickedHaveProblems = tickedTooMany || ticked.some((row) => row.line.problem !== null);
-    const canPlaceOrder = cart !== null && cart.can_place_order && cart.order_refusal === null && !tickedTooMany;
+    const canPlaceOrder = cart !== null && cart.can_place_order && !tickedTooMany;
 
     // The tick changes at once; the total follows when the server answers.
     const selectLines = async (ids: number[], selected: boolean): Promise<void> => {
@@ -288,7 +288,7 @@ function CartScreen() {
                         </View>
 
                         <View className="gap-5 p-4">
-                            <OrderSteps pickUpBy={cart.pick_up_by} />
+                            <OrderSteps />
 
                         </View>
                     </View>
@@ -303,17 +303,7 @@ function CartScreen() {
                     {error && (
                         <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>
                     )}
-                    {cart.order_refusal !== null ? (
-                        <View
-                            style={{ borderLeftWidth: 4, borderLeftColor: '#ef4444' }}
-                            className="flex-row items-start gap-2 rounded-xl bg-red-50 px-3 py-2.5"
-                        >
-                            <TriangleAlert size={17} color="#b91c1c" />
-                            <Text className="flex-1 font-sans text-sm leading-5 text-red-800">
-                                {cart.order_refusal}
-                            </Text>
-                        </View>
-                    ) : ticked.length === 0 ? (
+                    {ticked.length === 0 ? (
                         <Text className="font-sans-semibold text-sm text-slate-600">
                             Tick the items you want to order.
                         </Text>
@@ -664,7 +654,7 @@ function OrderPlaced({
                 <Text className="font-sans-bold text-xs uppercase tracking-wide text-slate-500">
                     What happens next
                 </Text>
-                <OrderSteps pickUpBy={order.pick_up_by} placed />
+                <OrderSteps placed />
             </View>
 
             <Pressable

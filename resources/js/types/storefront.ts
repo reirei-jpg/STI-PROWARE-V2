@@ -176,7 +176,8 @@ export type CartLine = {
     } | null;
 };
 
-export type OrderStatus = 'placed' | 'ready' | 'picked_up' | 'cancelled';
+/** Waiting for payment, released, or cancelled. Orders hold no stock: whoever pays first gets it. */
+export type OrderStatus = 'placed' | 'picked_up' | 'cancelled';
 
 export type OrderRow = {
     id: number;
@@ -199,13 +200,14 @@ export type OrderRow = {
         unit_name: string;
         pieces_per_unit: number;
         quantity: number;
+        /** How many were not released because buyers who paid first got them. */
+        quantity_short: number;
         unit_price_centavos: number;
         line_total_centavos: number;
     }[];
     placed_at: string | null;
-    /** The last day to pick it up, "2026-10-06". */
-    pick_up_by: string;
-    ready_at: string | null;
+    /** The old last day to pick it up; only on orders from before orders stopped holding stock. */
+    pick_up_by: string | null;
     picked_up_at: string | null;
     cancelled_at: string | null;
     /** True when it was not released by its pick-up date. */
@@ -247,7 +249,8 @@ export type IssuanceSlipData = {
     total_centavos: number;
     status: OrderStatus;
     status_label: string;
-    pick_up_by: string;
+    /** Only on orders from before orders stopped holding stock. */
+    pick_up_by: string | null;
     /** The day the items were handed over; null until released. */
     released_on: string | null;
     /** The Specialist who released the items. */

@@ -3,7 +3,6 @@ import {
     ArrowLeft,
     Ban,
     CircleCheck,
-    PackageCheck,
     ScanLine,
     SearchX,
     ShieldAlert,
@@ -16,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IssuanceSlipCard from '@/components/IssuanceSlipCard';
 import OrderStatusPill from '@/components/OrderStatusPill';
-import { ActionButton, CancelSheet, ReleaseBox, confirmReady } from '@/components/StaffOrderActions';
+import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
 import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -29,7 +28,8 @@ import type { SlipLookup, SpecialistOrder } from '@/lib/types';
  * first a large banner that answers "can I release this?" (green OK, red
  * stop), then the student, the checks, and the release as numbered steps
  * (collect, tick paid, release: the items leave the shelf only then).
- * A release is final. Ready for pickup and Cancel sit below, smaller.
+ * A release is final, and items already sold to buyers who paid first are
+ * released short. Cancel sits below, smaller.
  * After a step, Scan the next slip is the main button. Not a PROWARE slip:
  * says so.
  */
@@ -70,7 +70,7 @@ export default function SlipCheckScreen() {
 
     // Up to date by itself while the order is open: once it is released,
     // cancelled or expires elsewhere, Release and Cancel go away.
-    useLiveReload(load, (result?.order.status === 'placed' || result?.order.status === 'ready') && !busy);
+    useLiveReload(load, result?.order.status === 'placed' && !busy);
 
     const run = async (path: string, body?: Record<string, unknown>): Promise<boolean> => {
         if (!result) {
@@ -110,7 +110,7 @@ export default function SlipCheckScreen() {
     };
 
     const order = result?.order;
-    const isOpen = order?.status === 'placed' || order?.status === 'ready';
+    const isOpen = order?.status === 'placed';
 
     return (
         <ScrollView
@@ -210,10 +210,9 @@ export default function SlipCheckScreen() {
                     {(isOpen || result.other_open_orders.length > 0) && (
                         <View className="gap-2">
                             {isOpen && (
-                                <Check tone="green">
-                                    Pick up by{' '}
-                                    <Text className="font-sans-bold">{formatDate(order.pick_up_by)}</Text>. Its
-                                    items are held for it.
+                                <Check tone="amber">
+                                    Nothing is set aside for this order: whoever pays first gets the items.
+                                    Items already sold are released short.
                                 </Check>
                             )}
                             {result.other_open_orders.length > 0 && (
@@ -252,21 +251,8 @@ export default function SlipCheckScreen() {
                         />
                     )}
 
-                    {(order.status === 'placed' || isOpen) && (
+                    {isOpen && (
                         <View className="flex-row flex-wrap gap-2">
-                            {order.status === 'placed' && (
-                                <View className="min-w-36 flex-1">
-                                    <ActionButton
-                                        small
-                                        tone="plain"
-                                        icon={<PackageCheck size={16} color="#1d4ed8" />}
-                                        busy={busy}
-                                        onPress={() => confirmReady(order, () => void run('ready'))}
-                                    >
-                                        Ready for pickup
-                                    </ActionButton>
-                                </View>
-                            )}
                             {isOpen && (
                                 <View className="min-w-36 flex-1">
                                     <ActionButton
@@ -322,7 +308,7 @@ function initials(name: string): string {
  * over twice) or the order was cancelled or expired.
  */
 function ReleaseVerdict({ order }: { order: SpecialistOrder }) {
-    const ok = order.status === 'placed' || order.status === 'ready';
+    const ok = order.status === 'placed';
     const title = ok
         ? 'OK to release'
         : order.status === 'picked_up'
@@ -331,13 +317,11 @@ function ReleaseVerdict({ order }: { order: SpecialistOrder }) {
             ? 'Do not release: expired'
             : 'Do not release: cancelled';
     const text =
-        order.status === 'ready'
-            ? 'Ready for pickup and not released yet.'
-            : order.status === 'placed'
-              ? 'Not released yet. The office is still preparing it.'
-              : order.status === 'picked_up'
-                ? `Released ${formatDateTime(order.picked_up_at)}${order.handled_by ? ` by ${order.handled_by}` : ''}. Do not hand the items over again.`
-                : `${order.expired ? `Not released by ${formatDate(order.pick_up_by)}.` : `Cancelled ${formatDateTime(order.cancelled_at)}.`} This slip can no longer be used.${!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}`;
+        order.status === 'placed'
+            ? 'Not released yet. Check the cashier receipt, then release what is in stock.'
+            : order.status === 'picked_up'
+              ? `Released ${formatDateTime(order.picked_up_at)}${order.handled_by ? ` by ${order.handled_by}` : ''}. Do not hand the items over again.`
+              : `${order.expired ? `Not released by ${order.pick_up_by ? formatDate(order.pick_up_by) : 'its pick-up date'}.` : `Cancelled ${formatDateTime(order.cancelled_at)}.`} This slip can no longer be used.${!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}`;
 
     return (
         <View className={`flex-row items-center gap-4 rounded-3xl p-5 ${ok ? 'bg-emerald-600' : 'bg-red-600'}`}>

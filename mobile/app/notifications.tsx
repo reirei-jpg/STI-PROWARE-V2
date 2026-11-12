@@ -150,7 +150,7 @@ function describe(data: StudentNotificationData): {
         case 'order_placed':
             return {
                 title: `New order ${data.order_number}`,
-                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay at the cashier. Prepare it, then mark it Ready for pickup.`,
+                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay at the cashier. Release it when they show the receipt.`,
                 titleClass: 'text-blue-800',
                 stripe: '#3b82f6',
             };

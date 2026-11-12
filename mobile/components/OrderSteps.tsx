@@ -1,35 +1,27 @@
-import { CalendarDays } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
-import { formatDate } from '@/lib/format';
 
 /**
  * What happens after Place Order, as three numbered steps (cart and the
  * "Order placed" screen): place it, pay at the cashier, then show the
- * receipt and the issuance slip at the PROWARE office by the pick-up date.
+ * receipt and the issuance slip at the PROWARE office. Nothing is set aside
+ * for an order: whoever pays first gets the items.
  */
-export default function OrderSteps({ pickUpBy, placed = false }: { pickUpBy: string; placed?: boolean }) {
+export default function OrderSteps({ placed = false }: { placed?: boolean }) {
     return (
         <View className="gap-3">
             <Step number={1} done={placed}>
                 {placed ? 'Order placed' : 'Place your order'}
             </Step>
             <Step number={2}>Pay at the cashier and keep the official receipt</Step>
-            <Step number={3}>Show the receipt and your issuance slip at the PROWARE office by</Step>
-            <View className="-mt-2 ml-10 flex-row">
-                <View className="flex-row items-center gap-1 rounded-lg bg-blue-50 px-2 py-1">
-                    <CalendarDays size={14} color="#1d4ed8" />
-                    <Text className="font-sans-bold text-sm text-blue-700">{formatDate(pickUpBy)}</Text>
-                </View>
-            </View>
+            <Step number={3}>Show the receipt and your issuance slip at the PROWARE office to get your items</Step>
             <Text className="ml-10 font-sans text-xs text-slate-500">
-                Not picked up by then? The order is cancelled.
+                Items are not set aside for your order: whoever pays first gets them, so pay soon.
             </Text>
         </View>
     );
 }
-
 function Step({ number, done = false, children }: { number: number; done?: boolean; children: ReactNode }) {
     return (
         <View className="flex-row items-center gap-3">

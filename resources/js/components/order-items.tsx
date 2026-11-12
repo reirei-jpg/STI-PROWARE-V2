@@ -5,12 +5,10 @@ import type { OrderRow, OrderStatus } from '@/types';
 
 /**
  * V1's status colors, which the user chose for the whole system: amber is
- * waiting (placed, not paid yet), green is good news (ready, picked up),
- * red is cancelled.
+ * waiting for payment, green is released, red is cancelled.
  */
 const statusClasses: Record<OrderStatus, string> = {
     placed: 'bg-amber-100 text-amber-700',
-    ready: 'bg-emerald-100 text-emerald-700',
     picked_up: 'bg-emerald-100 text-emerald-700',
     cancelled: 'bg-red-100 text-red-700',
 };
@@ -31,6 +29,7 @@ export function OrderStatusBadge({ order }: { order: OrderRow }) {
 /**
  * An order's items, each with its unit and the price when it was ordered
  * ("2 Packs of 50 (100 pcs) × ₱900.00"), the uniform set it was bought in,
+ * how many were short when it was released (sold to buyers who paid first),
  * and the total.
  */
 export default function OrderItems({ order }: { order: OrderRow }) {
@@ -63,6 +62,15 @@ export default function OrderItems({ order }: { order: OrderRow }) {
                                     : formatUnits(item.quantity, 'Piece')}{' '}
                                 × {formatPeso(item.unit_price_centavos)}
                             </p>
+                            {item.quantity_short > 0 && (
+                                <p className="text-xs font-bold text-red-600">
+                                    {formatUnits(
+                                        item.quantity_short,
+                                        item.unit_name,
+                                    )}{' '}
+                                    short: sold to buyers who paid first
+                                </p>
+                            )}
                         </div>
                         <p className="shrink-0 font-black text-slate-900">
                             {formatPeso(item.line_total_centavos)}

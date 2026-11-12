@@ -35,7 +35,6 @@ class CancelOrderByStudent
     {
         return match ($order->status) {
             OrderStatus::Placed => null,
-            OrderStatus::Ready => "Order {$order->number} has already been prepared, so it can no longer be cancelled here. Contact the PROWARE office.",
             default => self::closedRefusal($order),
         };
     }

@@ -1,11 +1,8 @@
-import { Link, router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import {
     ArrowRight,
     CheckCircle2,
     Eye,
-    Hourglass,
-    LoaderCircle,
-    PackageCheck,
     QrCode,
     ShoppingBag,
     X,
@@ -14,9 +11,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
-import OrderDetailsDialog, {
-    ConfirmReadyDialog,
-} from '@/components/order-details-dialog';
+import OrderDetailsDialog from '@/components/order-details-dialog';
 import {
     Dialog,
     DialogClose,
@@ -25,11 +20,11 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import StaffTag from '@/components/staff-tag';
-import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { SpecialistOrderRow } from '@/types';
 
-export type OrderCardKey = 'new' | 'ready' | 'last_day' | 'released_today';
+export type OrderCardKey = 'waiting' | 'released_today';
 
 export type OrderCardsData = Record<
     OrderCardKey,
@@ -40,50 +35,29 @@ type Card = {
     key: OrderCardKey;
     title: string;
     icon: LucideIcon;
-    /** What the number means: "to prepare". */
+    /** What the number means: "to pay at the cashier". */
     detail: (count: number) => string;
     popupTitle: string;
     emptyText: string;
     iconClassName: string;
     hoverClassName: string;
     /** Student Orders opened on the matching tab. */
-    listShow: 'placed' | 'ready' | 'picked_up' | 'all';
+    listShow: 'placed' | 'picked_up';
 };
 
-/** The four cards, in V1's colors: amber waiting, blue in progress, red last day, green done. */
+/** The two cards, in V1's colors: amber waiting, green done. */
 const cards: Card[] = [
     {
-        key: 'new',
-        title: 'New',
+        key: 'waiting',
+        title: 'Waiting for payment',
         icon: ShoppingBag,
-        detail: () => 'to prepare',
-        popupTitle: 'New orders to prepare',
-        emptyText: 'No new orders. You are notified when one comes in.',
+        detail: () => 'to pay at the cashier',
+        popupTitle: 'Waiting for payment',
+        emptyText:
+            'No orders are waiting for payment. You are notified when one comes in.',
         iconClassName: 'bg-amber-50 text-amber-600',
         hoverClassName: 'hover:border-amber-300',
         listShow: 'placed',
-    },
-    {
-        key: 'ready',
-        title: 'Ready for pickup',
-        icon: PackageCheck,
-        detail: () => 'waiting for the buyer',
-        popupTitle: 'Ready for pickup',
-        emptyText: 'No orders are waiting for pickup.',
-        iconClassName: 'bg-blue-50 text-blue-600',
-        hoverClassName: 'hover:border-blue-300',
-        listShow: 'ready',
-    },
-    {
-        key: 'last_day',
-        title: 'Last day today',
-        icon: Hourglass,
-        detail: () => 'cancels tonight if not picked up',
-        popupTitle: 'Last day to pick up',
-        emptyText: 'No order is on its last day.',
-        iconClassName: 'bg-red-50 text-red-600',
-        hoverClassName: 'hover:border-red-300',
-        listShow: 'all',
     },
     {
         key: 'released_today',
@@ -97,11 +71,10 @@ const cards: Card[] = [
         listShow: 'picked_up',
     },
 ];
-
 /**
- * The student order cards on the Specialist's dashboard: New, Ready for
- * pickup, Last day today and Released today. A card opens a popup with its
- * orders and the button for that stage (Ready for pickup, Open slip, View).
+ * The order cards on the Specialist's dashboard: Waiting for payment and
+ * Released today. A card opens a popup with its orders and their buttons
+ * (Open slip to release one, View).
  * When the dashboard refreshes and a new order has come in, a small
  * "New order" popup says so.
  */
@@ -111,7 +84,7 @@ export default function OrderCards({ data }: { data: OrderCardsData }) {
     const [cancelling, setCancelling] = useState<SpecialistOrderRow | null>(
         null,
     );
-    const newOrder = useNewOrderNotice(data.new.orders);
+    const newOrder = useNewOrderNotice(data.waiting.orders);
 
     // The order shown in View, wherever it is now (it moves between cards).
     const viewing =
@@ -134,7 +107,7 @@ export default function OrderCards({ data }: { data: OrderCardsData }) {
                         Click a card to see its orders. Updates by itself.
                     </p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                     {cards.map((card) => (
                         <OrderCard
                             key={card.key}
@@ -324,23 +297,6 @@ function OrderList({
     onView: (orderId: number) => void;
 }) {
     const Icon = card.icon;
-    const [readying, setReadying] = useState<number | null>(null);
-    const [confirmingReady, setConfirmingReady] =
-        useState<SpecialistOrderRow | null>(null);
-
-    const markReady = (order: SpecialistOrderRow) => {
-        setReadying(order.id);
-        router.post(
-            OrderController.ready(order.id).url,
-            {},
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => setConfirmingReady(null),
-                onFinish: () => setReadying(null),
-            },
-        );
-    };
 
     return (
         <>
@@ -360,9 +316,7 @@ function OrderList({
                         </DialogTitle>
                         <DialogDescription className="text-sm text-slate-500">
                             {count} {count === 1 ? 'order' : 'orders'}
-                            {card.key === 'new' || card.key === 'ready'
-                                ? ', the nearest pick-up date first'
-                                : ''}
+                            {card.key === 'waiting' ? ', the oldest first' : ''}
                         </DialogDescription>
                     </div>
                 </div>
@@ -411,34 +365,11 @@ function OrderList({
                                         · {formatPeso(order.total_centavos)} ·{' '}
                                         {card.key === 'released_today'
                                             ? `released${order.handled_by ? ` by ${order.handled_by}` : ''}`
-                                            : `pick up by ${formatDateOrdered(order.pick_up_by)}`}
-                                        {card.key === 'last_day' &&
-                                            ` · ${order.status_label}`}
+                                            : 'to pay at the cashier'}
                                     </p>
                                 </div>
                                 <div className="flex shrink-0 gap-2">
-                                    {card.key === 'new' && (
-                                        <button
-                                            type="button"
-                                            disabled={readying !== null}
-                                            onClick={() =>
-                                                setConfirmingReady(order)
-                                            }
-                                            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-3.5 text-sm font-black whitespace-nowrap text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
-                                        >
-                                            {readying === order.id ? (
-                                                <LoaderCircle
-                                                    size={15}
-                                                    className="animate-spin"
-                                                />
-                                            ) : (
-                                                <PackageCheck size={15} />
-                                            )}
-                                            Ready for pickup
-                                        </button>
-                                    )}
-                                    {(card.key === 'ready' ||
-                                        card.key === 'last_day') && (
+                                    {card.key === 'waiting' && (
                                         <Link
                                             href={OrderController.slip({
                                                 query: {
@@ -482,13 +413,6 @@ function OrderList({
                     Close
                 </DialogClose>
             </div>
-
-            <ConfirmReadyDialog
-                order={confirmingReady}
-                busy={readying !== null}
-                onConfirm={() => confirmingReady && markReady(confirmingReady)}
-                onClose={() => setConfirmingReady(null)}
-            />
         </>
     );
 }

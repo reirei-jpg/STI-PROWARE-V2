@@ -11,13 +11,13 @@ use Illuminate\Validation\Rule;
 
 /**
  * The Specialist's list of students' orders (website Orders page and phone
- * app): by status, New orders by default, with a search by order number or
- * student name. Open orders come by pick-up date, the most urgent first;
- * others newest first.
+ * app): by status, Waiting for payment by default, with a search by order
+ * number or buyer name. Orders waiting for payment come oldest first; others
+ * newest first.
  */
 final class SpecialistOrders
 {
-    public const SHOW = ['placed', 'ready', 'picked_up', 'cancelled', 'all'];
+    public const SHOW = ['placed', 'picked_up', 'cancelled', 'all'];
 
     /**
      * @return array{show: string, search: string|null}
@@ -47,7 +47,7 @@ final class SpecialistOrders
             ->when($search !== null, fn (Builder $query) => $query->where(fn (Builder $matches) => $matches
                 ->whereLike('number', "%{$search}%")
                 ->orWhereHas('student', fn (Builder $students) => $students->whereLike('name', "%{$search}%"))))
-            ->when(in_array($show, ['placed', 'ready'], true), fn (Builder $query) => $query->orderBy('pick_up_by')->orderBy('id'))
+            ->when($show === 'placed', fn (Builder $query) => $query->orderBy('id'))
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -126,20 +126,16 @@ final class SpecialistOrders
 
     /**
      * The order cards on the Specialist's dashboard, each with how many
-     * orders it has and the first ones for its popup: new orders to
-     * prepare and orders ready for pickup (nearest pick-up date first),
-     * orders on their last pickup day, and orders released today.
+     * orders it has and the first ones for its popup: orders waiting for
+     * payment (the oldest first) and orders released today.
      *
-     * @return array<'new'|'ready'|'last_day'|'released_today', array{count: int, orders: list<array<string, mixed>>}>
+     * @return array<'waiting'|'released_today', array{count: int, orders: list<array<string, mixed>>}>
      */
     public static function dashboardCards(): array
     {
-        $today = now()->toDateString();
         $groups = [
-            'new' => fn () => Order::query()->where('status', OrderStatus::Placed)->orderBy('pick_up_by')->orderBy('id'),
-            'ready' => fn () => Order::query()->where('status', OrderStatus::Ready)->orderBy('pick_up_by')->orderBy('id'),
-            'last_day' => fn () => Order::query()->open()->whereDate('pick_up_by', $today)->orderBy('id'),
-            'released_today' => fn () => Order::query()->where('status', OrderStatus::PickedUp)->whereDate('picked_up_at', $today)->latest('picked_up_at')->latest('id'),
+            'waiting' => fn () => Order::query()->open()->orderBy('id'),
+            'released_today' => fn () => Order::query()->where('status', OrderStatus::PickedUp)->whereDate('picked_up_at', now()->toDateString())->latest('picked_up_at')->latest('id'),
         ];
 
         return array_map(fn (callable $orders): array => [
@@ -156,7 +152,7 @@ final class SpecialistOrders
     /**
      * How many orders there are of each status, for the tabs.
      *
-     * @return array{placed: int, ready: int, picked_up: int, cancelled: int}
+     * @return array{placed: int, picked_up: int, cancelled: int}
      */
     public static function counts(): array
     {
@@ -164,7 +160,6 @@ final class SpecialistOrders
 
         return [
             'placed' => (int) ($counts[OrderStatus::Placed->value] ?? 0),
-            'ready' => (int) ($counts[OrderStatus::Ready->value] ?? 0),
             'picked_up' => (int) ($counts[OrderStatus::PickedUp->value] ?? 0),
             'cancelled' => (int) ($counts[OrderStatus::Cancelled->value] ?? 0),
         ];

@@ -235,7 +235,7 @@ function OrdersScreen() {
 }
 
 function OrderRow({ order }: { order: StudentOrder }) {
-    const isOpen = order.status === 'placed' || order.status === 'ready';
+    const isOpen = order.status === 'placed';
     const note = orderNote(order);
     const itemCount = order.items.length;
 

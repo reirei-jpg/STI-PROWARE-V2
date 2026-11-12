@@ -43,6 +43,11 @@ export default function OrderItemsList({
                                 : ''}{' '}
                             × {formatPeso(item.unit_price_centavos)}
                         </Text>
+                        {(item.quantity_short ?? 0) > 0 && (
+                            <Text className="font-sans-bold text-xs text-red-600">
+                                {formatUnits(item.quantity_short, item.unit_name)} short: sold to buyers who paid first
+                            </Text>
+                        )}
                     </View>
                     <Text className="font-sans-bold text-sm text-slate-900">
                         {formatPeso(item.line_total_centavos)}

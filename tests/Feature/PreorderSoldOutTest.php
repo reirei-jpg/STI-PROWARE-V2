@@ -116,13 +116,15 @@ test('students waiting for a size are notified when a delivery puts it back in s
         && $notice->toPush($this->student)['title'] === 'Your preorder has arrived: BSIT Polo (XS)');
 });
 
-test('students waiting for a size are notified when a cancelled order gives the last piece back', function () {
+test('students waiting for a size are notified when a cancelled order of an arrived preorder gives the last piece back', function () {
     Notification::fake();
     [$product, $extraSmall] = soldOutPolo();
     $extraSmall->forceFill(['stock_on_hand' => 1, 'held_pieces' => 1])->save();
     $waiting = Preorder::factory()->forVariant($extraSmall)->for($this->student, 'student')->create();
     $order = Order::factory()->for(User::factory()->student()->create(), 'student')->create(['status' => OrderStatus::Placed]);
     OrderItem::factory()->for($order)->for($extraSmall, 'variant')->create(['quantity' => 1]);
+    // Only an order of an arrived preorder's pieces holds them.
+    Preorder::factory()->forVariant($extraSmall)->for($order->student, 'student')->create(['status' => PreorderStatus::Ordered, 'order_id' => $order->id]);
 
     app(CancelOrder::class)->handle($order, $this->specialist, 'Test order for the restock check');
 

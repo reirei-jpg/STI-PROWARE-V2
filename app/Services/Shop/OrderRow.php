@@ -33,9 +33,8 @@ final class OrderRow
     }
 
     /**
-     * A page of the student's My Orders (website and phone app): Waiting
-     * orders by pick-up date, the most urgent first, or Past orders newest
-     * first, 20 at a time.
+     * A page of the buyer's My Orders (website and phone app): orders waiting
+     * for payment, the oldest first, or Past orders newest first, 20 at a time.
      *
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
@@ -45,8 +44,8 @@ final class OrderRow
             ->with(['items.variant.product.mainPhoto', 'student'])
             ->when(
                 $show === 'waiting',
-                fn (Builder $query) => $query->open()->orderBy('pick_up_by')->orderBy('id'),
-                fn (Builder $query) => $query->whereNotIn('status', [OrderStatus::Placed, OrderStatus::Ready])->latest('id'),
+                fn (Builder $query) => $query->open()->orderBy('id'),
+                fn (Builder $query) => $query->where('status', '!=', OrderStatus::Placed)->latest('id'),
             )
             ->paginate(20)
             ->withQueryString()
@@ -69,7 +68,7 @@ final class OrderRow
      * How many of the student's orders are in each status, for the cards at
      * the top of My Orders.
      *
-     * @return array{placed: int, ready: int, picked_up: int, cancelled: int}
+     * @return array{placed: int, picked_up: int, cancelled: int}
      */
     public static function studentStatusCounts(User $student): array
     {
@@ -77,7 +76,6 @@ final class OrderRow
 
         return [
             'placed' => (int) ($counts[OrderStatus::Placed->value] ?? 0),
-            'ready' => (int) ($counts[OrderStatus::Ready->value] ?? 0),
             'picked_up' => (int) ($counts[OrderStatus::PickedUp->value] ?? 0),
             'cancelled' => (int) ($counts[OrderStatus::Cancelled->value] ?? 0),
         ];
@@ -103,7 +101,7 @@ final class OrderRow
      * student's course/section. For an STI staff buyer (is_staff), student_id
      * is their Employee ID and student_section their office/department.
      *
-     * @return array{id: int, number: string|null, slip_code: string|null, status: string, status_label: string, student_name: string, student_id: string|null, student_section: string|null, is_staff: bool, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, pieces_per_unit: int, quantity: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string, ready_at: string|null, picked_up_at: string|null, cancelled_at: string|null, expired: bool, cancel_reason: string|null}
+     * @return array{id: int, number: string|null, slip_code: string|null, status: string, status_label: string, student_name: string, student_id: string|null, student_section: string|null, is_staff: bool, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, pieces_per_unit: int, quantity: int, quantity_short: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string|null, picked_up_at: string|null, cancelled_at: string|null, expired: bool, cancel_reason: string|null}
      */
     public static function of(Order $order): array
     {
@@ -127,12 +125,14 @@ final class OrderRow
                 'unit_name' => $item->unit_name,
                 'pieces_per_unit' => $item->pieces_per_unit,
                 'quantity' => $item->quantity,
+                // Not released because buyers who paid first got them.
+                'quantity_short' => $item->quantity_short,
                 'unit_price_centavos' => $item->unit_price_centavos,
                 'line_total_centavos' => $item->line_total_centavos,
             ])->all()),
             'placed_at' => $order->created_at?->toIso8601String(),
-            'pick_up_by' => $order->pick_up_by->toDateString(),
-            'ready_at' => $order->ready_at?->toIso8601String(),
+            // Only on orders placed before orders stopped holding stock.
+            'pick_up_by' => $order->pick_up_by?->toDateString(),
             'picked_up_at' => $order->picked_up_at?->toIso8601String(),
             'cancelled_at' => $order->cancelled_at?->toIso8601String(),
             'expired' => $order->expired_at !== null,

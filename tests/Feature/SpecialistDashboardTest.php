@@ -28,15 +28,14 @@ test('an empty to-do list is all clear, with empty order cards', function () {
             ->where('tasks.today', [])
             ->where('tasks.week', [])
             ->missing('tasks.cash')
-            ->where('orderCards.new', ['count' => 0, 'orders' => []])
-            ->where('orderCards.released_today', ['count' => 0, 'orders' => []])
+            ->where('orderCards', ['waiting' => ['count' => 0, 'orders' => []], 'released_today' => ['count' => 0, 'orders' => []]])
         );
 });
 
-test('the to-do list puts each task in its group, and the order cards show the student orders', function () {
+test('the to-do list puts each task in its group, and the order cards show orders waiting for payment and released today', function () {
     $student = User::factory()->student()->create(['name' => 'Juan Dela Cruz']);
-    $order = Order::factory()->for($student, 'student')->create(['total_centavos' => 27000, 'pick_up_by' => '2026-10-06 23:59:59']);
-    Order::factory()->for($student, 'student')->create(['status' => OrderStatus::Ready, 'total_centavos' => 30000, 'pick_up_by' => '2026-10-03 23:59:59']);
+    $order = Order::factory()->for($student, 'student')->create(['total_centavos' => 27000]);
+    Order::factory()->for($student, 'student')->create(['total_centavos' => 30000]);
     Order::factory()->for($student, 'student')->create(['status' => OrderStatus::PickedUp, 'total_centavos' => 15000, 'picked_up_at' => now()]);
 
     $lanyard = Product::factory()->create(['name' => 'STI Lanyard', 'status' => ProductStatus::Available, 'low_stock_alert_at' => 5]);
@@ -59,12 +58,10 @@ test('the to-do list puts each task in its group, and the order cards show the s
             ->has('tasks.today', 1)
             ->where('tasks.week.0.title', 'Preorders for Anniversary Shirt close Mon, Oct 5')
             ->where('tasks.week.0.detail', '3 pcs preordered so far. Order them in the eStore after it closes.')
-            ->where('orderCards.new.count', 1)
-            ->where('orderCards.new.orders.0.number', $order->number)
-            ->where('orderCards.new.orders.0.student_name', 'Juan Dela Cruz')
-            ->where('orderCards.ready.count', 1)
-            ->where('orderCards.last_day.count', 1)
-            ->where('orderCards.last_day.orders.0.status', 'ready')
+            ->where('orderCards.waiting.count', 2)
+            ->where('orderCards.waiting.orders.0.number', $order->number)
+            ->where('orderCards.waiting.orders.0.student_name', 'Juan Dela Cruz')
+            ->where('orderCards.waiting.orders.0.status_label', 'Waiting for payment')
             ->where('orderCards.released_today.count', 1)
         );
 
@@ -74,10 +71,9 @@ test('the to-do list puts each task in its group, and the order cards show the s
         ->assertJsonPath('now.0.title', 'Low stock: STI Lanyard')
         ->assertJsonCount(1, 'now')
         ->assertJsonCount(1, 'today')
-        ->assertJsonPath('order_cards.new.count', 1)
-        ->assertJsonPath('order_cards.new.orders.0.number', $order->number)
-        ->assertJsonPath('order_cards.new.orders.0.student_name', 'Juan Dela Cruz')
-        ->assertJsonPath('order_cards.last_day.count', 1)
+        ->assertJsonPath('order_cards.waiting.count', 2)
+        ->assertJsonPath('order_cards.waiting.orders.0.number', $order->number)
+        ->assertJsonPath('order_cards.waiting.orders.0.student_name', 'Juan Dela Cruz')
         ->assertJsonPath('order_cards.released_today.count', 1);
 });
 
@@ -87,8 +83,8 @@ test('an order card lists the first orders and counts them all', function () {
     $this->actingAs($this->specialist)
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('orderCards.new.count', 10)
-            ->has('orderCards.new.orders', 8));
+            ->where('orderCards.waiting.count', 10)
+            ->has('orderCards.waiting.orders', 8));
 });
 
 test('low stock is one row per product, naming its variants', function () {
@@ -161,17 +157,6 @@ test('preorders closing this week show the preordered products first, and how ma
             ->where('tasks.week.5.hidden', 2)
             ->where('tasks.week.5.action.url', route('preorders.index', ['stage' => 'open']))
         );
-});
-
-test('the ready for pickup button on the dashboard marks the order ready', function () {
-    $order = Order::factory()->create();
-
-    $this->actingAs($this->specialist)
-        ->from(route('dashboard'))
-        ->post(route('orders.ready', $order))
-        ->assertRedirect(route('dashboard'));
-
-    expect($order->refresh()->status)->toBe(OrderStatus::Ready);
 });
 
 test('the school admin dashboard has no to-do list', function () {

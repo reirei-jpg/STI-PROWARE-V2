@@ -1,7 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
-    CalendarDays,
     ImageIcon,
     LoaderCircle,
     Minus,
@@ -19,7 +18,7 @@ import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cartRows } from '@/lib/cart-rows';
 import type { CartRow } from '@/lib/cart-rows';
-import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { formatPeso } from '@/lib/format';
 import { buyerLimitMessage, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -55,16 +54,11 @@ export default function Cart({
     selected_count: selectedCount,
     total_centavos: total,
     can_place_order: canPlaceOrder,
-    pick_up_by: pickUpBy,
-    order_refusal: orderRefusal,
 }: {
     lines: CartLine[];
     selected_count: number;
     total_centavos: number;
     can_place_order: boolean;
-    pick_up_by: string;
-    /** Why Place Order would be refused (too many waiting, or paused). */
-    order_refusal: string | null;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const placeOrder = useForm({});
@@ -181,30 +175,17 @@ export default function Cart({
                                     </Step>
                                     <Step number={3}>
                                         Show the receipt and your issuance slip
-                                        at the PROWARE office by{' '}
-                                        <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 font-black text-blue-700">
-                                            <CalendarDays size={14} />
-                                            {formatDateOrdered(pickUpBy)}
-                                        </span>{' '}
-                                        to get your items
+                                        at the PROWARE office to get your items
                                     </Step>
                                 </ol>
                                 <p className="-mt-2 pl-10 text-xs text-slate-500">
-                                    Not picked up by then? The order is
-                                    cancelled.
+                                    Items are not set aside for your order:
+                                    whoever pays first gets them, so pay soon.
                                 </p>
 
                                 <InputError message={errors.cart} />
 
-                                {orderRefusal !== null ? (
-                                    <p className="flex gap-2 rounded-xl border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">
-                                        <TriangleAlert
-                                            size={18}
-                                            className="mt-0.5 shrink-0"
-                                        />
-                                        {orderRefusal}
-                                    </p>
-                                ) : selectedCount === 0 ? (
+                                {selectedCount === 0 ? (
                                     <p className="text-sm text-slate-600">
                                         Tick the items you want to order.
                                     </p>
@@ -222,7 +203,6 @@ export default function Cart({
                                     disabled={
                                         !canPlaceOrder ||
                                         tickedTooMany ||
-                                        orderRefusal !== null ||
                                         placeOrder.processing
                                     }
                                     onClick={() =>

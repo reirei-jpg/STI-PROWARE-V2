@@ -3,51 +3,46 @@
 namespace App\Enums;
 
 /**
- * Where a student's order is. Students pay at the cashier and show the
- * receipt at the PROWARE office when they pick it up.
+ * Where a buyer's order is. The buyer pays at the cashier, then shows the
+ * receipt and the issuance slip at the PROWARE office, where it is released.
+ * An order does not hold stock: whoever pays first gets it.
  */
 enum OrderStatus: string
 {
-    /** The student placed it; its items are held for them. */
+    /** Placed by the buyer; waiting for them to pay and pick it up. */
     case Placed = 'placed';
 
-    /** The Specialist prepared it; the student can pick it up. */
-    case Ready = 'ready';
-
     /**
-     * Released: the Specialist scanned the issuance slip, the student paid
-     * and received the items, and they left the shelf.
+     * Released: the Specialist checked the receipt and the issuance slip,
+     * and the items left the shelf.
      */
     case PickedUp = 'picked_up';
 
-    /** Cancelled by the student, the Specialist, or because it was not released in time; its hold ended. */
+    /** Cancelled by the buyer or the Specialist. */
     case Cancelled = 'cancelled';
 
     public function label(): string
     {
         return match ($this) {
-            self::Placed => 'Placed',
-            self::Ready => 'Ready for pickup',
+            self::Placed => 'Waiting for payment',
             self::PickedUp => 'Released',
             self::Cancelled => 'Cancelled',
         };
     }
 
     /**
-     * How the Specialist's screens name it: a just-placed order is "New"
-     * (to prepare), as on the Student Orders tab and the dashboard card.
-     * Students keep "Placed".
+     * How the Specialist's screens name it (the same words as the buyer's).
      */
     public function staffLabel(): string
     {
-        return $this === self::Placed ? 'New' : $this->label();
+        return $this->label();
     }
 
     /**
-     * Still waiting to be released, so its items are held.
+     * Still waiting to be paid for and released.
      */
     public function isOpen(): bool
     {
-        return $this === self::Placed || $this === self::Ready;
+        return $this === self::Placed;
     }
 }

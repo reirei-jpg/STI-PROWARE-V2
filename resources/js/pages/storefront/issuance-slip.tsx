@@ -5,7 +5,6 @@ import {
     CheckCircle2,
     Clock,
     LoaderCircle,
-    PackageCheck,
     Printer,
     X,
     XCircle,
@@ -44,13 +43,13 @@ export default function StudentIssuanceSlip({
     canCancel,
 }: {
     slip: IssuanceSlipData;
-    /** True while the office has not prepared the order yet. */
+    /** True while the order is not released or cancelled yet. */
     canCancel: boolean;
 }) {
     // While the order is open the page checks it every 10 seconds, so once
-    // the office prepares or releases it the Cancel button is gone by
-    // itself, without reloading the page.
-    const isOpen = slip.status === 'placed' || slip.status === 'ready';
+    // the office releases it the Cancel button is gone by itself, without
+    // reloading the page.
+    const isOpen = slip.status === 'placed';
     const { start, stop } = usePoll(
         10000,
         { only: ['slip', 'canCancel'] },
@@ -244,23 +243,11 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
         case 'placed':
             return (
                 <Notice tone="amber" icon={<Clock size={20} />}>
-                    The PROWARE office is preparing your order. Pay{' '}
-                    <strong>{formatPeso(slip.total_centavos)}</strong> at the
-                    cashier, then show the receipt and this slip at the PROWARE
-                    office by{' '}
-                    <strong>{formatDateOrdered(slip.pick_up_by)}</strong> to get
-                    your items. You can show the slip on your phone or print it.
-                </Notice>
-            );
-        case 'ready':
-            return (
-                <Notice tone="green" icon={<PackageCheck size={20} />}>
-                    Your order is ready. Pay{' '}
-                    <strong>{formatPeso(slip.total_centavos)}</strong> at the
-                    cashier, then show the receipt and this slip at the PROWARE
-                    office by{' '}
-                    <strong>{formatDateOrdered(slip.pick_up_by)}</strong> to get
-                    your items.
+                    Pay <strong>{formatPeso(slip.total_centavos)}</strong> at
+                    the cashier, then show the receipt and this slip at the
+                    PROWARE office to get your items. They are not set aside for
+                    you, so whoever pays first gets them: pay soon. You can show
+                    the slip on your phone or print it.
                 </Notice>
             );
         case 'picked_up':

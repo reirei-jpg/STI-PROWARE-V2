@@ -221,14 +221,13 @@ export type StockVariant = {
     sent_by: string | null;
 };
 
-/** Pieces held on the shelf for a student's open order. */
+/** Pieces held on the shelf for an order of an arrived preorder (other orders hold nothing). */
 export type StockHold = {
     order_id: number;
     order_number: string | null;
     student_name: string;
     variant_label: string;
     pieces: number;
-    pick_up_by: string;
 };
 
 /** One change to a variant's stock, in pieces. */

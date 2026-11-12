@@ -162,18 +162,6 @@ test('cancelling a preorder twice says it is already cancelled', function () {
         ->assertInertiaFlash('toast.message', 'Your preorder for STI Planner is already cancelled.');
 });
 
-test('a pause cannot be lifted from a student who is not paused', function () {
-    $this->student->update(['name' => 'Kevin Abellana']);
-
-    $this->actingAs($this->specialist)
-        ->post(route('students.lift-pause', $this->student))
-        ->assertInertiaFlash('toast.type', 'error')
-        ->assertInertiaFlash('toast.message', 'Kevin Abellana is not paused, so there is nothing to lift.');
-
-    expect($this->student->refresh()->ordering_resumed_at)->toBeNull();
-    Notification::assertNothingSentTo($this->student);
-});
-
 test('the course or section accepts ordinary text only', function (string $section, bool $accepted) {
     $response = $this->actingAs($this->student)->post(route('my-orders.store'), ['section' => $section]);
 

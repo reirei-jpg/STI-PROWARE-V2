@@ -4,7 +4,6 @@ import {
     CheckCircle2,
     Circle,
     LoaderCircle,
-    PackageCheck,
     QrCode,
     ShoppingBag,
     X,
@@ -30,10 +29,10 @@ import type { SpecialistOrderRow } from '@/types';
 /**
  * One student's order on the Specialist's Student Orders page, opened with
  * View Details: the student, every item with its price, the total, what
- * happened so far (placed, ready, released or cancelled, and by whom), and
- * only the steps that apply: Ready for pickup, Release once the student
- * has paid (the items leave the shelf only then; a release is final), Open
- * slip, and Cancel (asks for the reason the student will see).
+ * happened so far (placed, released or cancelled, and by whom), and only the
+ * steps that apply: Release once the buyer has paid (the items leave the
+ * shelf only then, as many as are left; a release is final), Open slip, and
+ * Cancel (asks for the reason the buyer will see).
  */
 export default function OrderDetailsDialog({
     order,
@@ -49,7 +48,6 @@ export default function OrderDetailsDialog({
 }) {
     const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [confirmingReady, setConfirmingReady] = useState(false);
     const [confirmingRelease, setConfirmingRelease] = useState(false);
 
     // A fresh tick for every order and every change of status.
@@ -63,8 +61,6 @@ export default function OrderDetailsDialog({
         router.post(url, data, {
             preserveScroll: true,
             onSuccess: () => {
-                setConfirmingReady(false);
-
                 if (orderId !== undefined) {
                     onActed?.(orderId);
                 }
@@ -76,7 +72,7 @@ export default function OrderDetailsDialog({
         });
     };
 
-    const isOpen = order?.status === 'placed' || order?.status === 'ready';
+    const isOpen = order?.status === 'placed';
 
     return (
         <Dialog
@@ -141,27 +137,11 @@ export default function OrderDetailsDialog({
                                 <ol className="mt-2 space-y-2.5">
                                     <HistoryStep done>
                                         Placed {formatDateTime(order.placed_at)}
-                                        <span className="text-slate-500">
-                                            {' '}
-                                            · pick up by{' '}
-                                            {formatDateOrdered(
-                                                order.pick_up_by,
-                                            )}
-                                        </span>
                                     </HistoryStep>
-                                    {order.status !== 'cancelled' && (
-                                        <HistoryStep
-                                            done={order.ready_at !== null}
-                                        >
-                                            {order.ready_at
-                                                ? `Ready for pickup ${formatDateTime(order.ready_at)}`
-                                                : 'Ready for pickup: not yet'}
-                                        </HistoryStep>
-                                    )}
                                     {order.status === 'cancelled' ? (
                                         <HistoryStep done tone="red">
                                             {order.expired
-                                                ? `Expired: not released by ${formatDateOrdered(order.pick_up_by)}`
+                                                ? `Expired: not released by ${order.pick_up_by ? formatDateOrdered(order.pick_up_by) : 'its pick-up date'}`
                                                 : `Cancelled ${formatDateTime(order.cancelled_at)}`}
                                             {!order.expired &&
                                                 order.handled_by &&
@@ -224,8 +204,10 @@ export default function OrderDetailsDialog({
                                     <p className="text-xs font-semibold text-emerald-900/70">
                                         {!paid &&
                                             'Tick the box above after checking the cashier receipt. '}
-                                        The items leave the stock at once. This
-                                        cannot be undone.
+                                        The items leave the stock at once. Items
+                                        already sold to buyers who paid first
+                                        are released short. This cannot be
+                                        undone.
                                     </p>
                                 </section>
                             )}
@@ -233,17 +215,6 @@ export default function OrderDetailsDialog({
 
                         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-6 py-4">
                             <div className="flex flex-wrap gap-2">
-                                {order.status === 'placed' && (
-                                    <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() => setConfirmingReady(true)}
-                                        className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-                                    >
-                                        <PackageCheck size={16} />
-                                        Ready for pickup
-                                    </button>
-                                )}
                                 {order.status !== 'cancelled' && (
                                     <Link
                                         href={OrderController.slip({
@@ -273,14 +244,6 @@ export default function OrderDetailsDialog({
                             )}
                         </div>
 
-                        <ConfirmReadyDialog
-                            order={confirmingReady ? order : null}
-                            busy={busy}
-                            onConfirm={() =>
-                                act(OrderController.ready(order.id).url)
-                            }
-                            onClose={() => setConfirmingReady(false)}
-                        />
                         <ConfirmReleaseDialog
                             order={confirmingRelease ? order : null}
                             busy={busy}
@@ -333,35 +296,6 @@ export function ConfirmReleaseDialog({
             cancelLabel="Check again"
             confirmLabel="Release"
             tone="green"
-            busy={busy}
-            onConfirm={onConfirm}
-            onClose={onClose}
-        />
-    );
-}
-
-/**
- * "Mark Order PW-0042 as ready for pickup?": the student is notified at
- * once and it cannot be taken back, so a mis-click asks first.
- */
-export function ConfirmReadyDialog({
-    order,
-    busy,
-    onConfirm,
-    onClose,
-}: {
-    order: Pick<SpecialistOrderRow, 'number' | 'student_name'> | null;
-    busy: boolean;
-    onConfirm: () => void;
-    onClose: () => void;
-}) {
-    return (
-        <ConfirmDialog
-            open={order !== null}
-            title={`Mark Order ${order?.number ?? ''} as ready for pickup?`}
-            description={`${order?.student_name ?? 'The buyer'} will be notified to pay at the cashier and collect the order. This cannot be undone.`}
-            cancelLabel="Not yet"
-            confirmLabel="Mark as ready"
             busy={busy}
             onConfirm={onConfirm}
             onClose={onClose}

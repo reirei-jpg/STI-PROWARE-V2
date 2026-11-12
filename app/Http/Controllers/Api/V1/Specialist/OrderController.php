@@ -46,11 +46,6 @@ class OrderController extends Controller
             : response()->json($slip);
     }
 
-    public function ready(Request $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
-    {
-        return self::done($handle->ready($order, $request->user()), $order);
-    }
-
     public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse
     {
         return self::done($handle->release($order, $request->user()), $order);

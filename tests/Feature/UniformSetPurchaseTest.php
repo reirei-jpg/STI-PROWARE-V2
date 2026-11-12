@@ -279,8 +279,8 @@ test('placing the order keeps both pieces at their own price with the set name, 
             ['BSIT Blouse', 2, 110000, 55000],
             ["BSIT Ladies' Pants", 2, 116000, 58000],
         ])
-        ->and(pieceSize($set->blouse_product_id, 'S')->held_pieces)->toBe(2)
-        ->and(pieceSize($set->ladies_pants_product_id, 'M')->held_pieces)->toBe(2)
+        ->and(pieceSize($set->blouse_product_id, 'S')->held_pieces)->toBe(0)
+        ->and(pieceSize($set->ladies_pants_product_id, 'M')->held_pieces)->toBe(0)
         ->and(CartItem::count())->toBe(0)
         ->and(IssuanceSlip::of($order)['items'][0]['item'])->toBe('BSIT Blouse (S) · BSIT Uniform Set (For Girls)');
 });
@@ -292,8 +292,7 @@ test('sales reports show a released set\'s pieces at their own price, not as a s
     $this->post(route('my-orders.store'));
     $order = Order::sole();
 
-    $this->actingAs($specialist)->post(route('orders.ready', $order));
-    $this->post(route('orders.release', $order), ['paid' => '1'])->assertSessionHasNoErrors();
+    $this->actingAs($specialist)->post(route('orders.release', $order), ['paid' => '1'])->assertSessionHasNoErrors();
 
     $this->get(route('sales-reports.index', ['tab' => 'sold']))->assertInertia(fn (Assert $page) => $page
         ->has('sold.data', 2)

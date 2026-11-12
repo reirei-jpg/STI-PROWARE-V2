@@ -6,7 +6,7 @@ use Illuminate\Notifications\DatabaseNotification;
 
 /**
  * A notification as the website's bell and the phone app show it. The data
- * is whatever the notification stored (see OrderReady, PurchaseOrderUploaded
+ * is whatever the notification stored (see OrderReleased, PurchaseOrderUploaded
  * and the others), decoded from the database.
  */
 final class NotificationRow

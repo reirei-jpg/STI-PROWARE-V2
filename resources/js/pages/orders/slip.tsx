@@ -5,7 +5,6 @@ import {
     Banknote,
     CheckCircle2,
     LoaderCircle,
-    PackageCheck,
     Printer,
     SearchX,
     ShieldAlert,
@@ -17,10 +16,7 @@ import { useEffect, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
 import IssuanceSlip from '@/components/issuance-slip';
-import {
-    ConfirmReadyDialog,
-    ConfirmReleaseDialog,
-} from '@/components/order-details-dialog';
+import { ConfirmReleaseDialog } from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
 import SlipScanBox from '@/components/slip-scan-box';
@@ -44,7 +40,7 @@ type SlipResult = {
  * release this?" (green OK, red stop), then the order beside its slip with
  * the student, the checks, and the release as numbered steps: check the
  * cashier's receipt, tick that it was checked, release the items (they leave
- * the shelf only then; a release is final). Ready for pickup, Print and
+ * the shelf only then, as many as are left; a release is final). Print and
  * Cancel sit below, smaller. Not a PROWARE slip: says so.
  */
 export default function OrderSlip({
@@ -57,8 +53,7 @@ export default function OrderSlip({
     // While the order is open the page checks it every 10 seconds, so when
     // it is released, cancelled or expires elsewhere (the phone, another
     // computer, the buyer) its Release and Cancel buttons are gone by itself.
-    const isOpen =
-        result?.order.status === 'placed' || result?.order.status === 'ready';
+    const isOpen = result?.order.status === 'placed';
     const { start, stop } = usePoll(
         10000,
         { only: ['result'] },
@@ -149,15 +144,11 @@ function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
     const verdict = (() => {
         switch (order.status) {
             case 'placed':
-            case 'ready':
                 return {
                     tone: 'green' as const,
                     icon: <CheckCircle2 size={30} />,
                     title: 'OK to release',
-                    text:
-                        order.status === 'ready'
-                            ? 'Ready for pickup and not released yet.'
-                            : 'Not released yet. The office is still preparing it.',
+                    text: 'Not released yet. Check the cashier receipt, then release what is in stock.',
                 };
             case 'picked_up':
                 return {
@@ -175,7 +166,7 @@ function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
                         : 'Do not release: cancelled',
                     text: `${
                         order.expired
-                            ? `Not released by ${formatDateOrdered(order.pick_up_by)}.`
+                            ? `Not released by ${order.pick_up_by ? formatDateOrdered(order.pick_up_by) : 'its pick-up date'}.`
                             : `Cancelled ${formatDateTime(order.cancelled_at)}.`
                     } This slip can no longer be used.${!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}`,
                 };
@@ -209,18 +200,14 @@ function ReleaseCard({ result }: { result: SlipResult }) {
     const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
     const [cancelling, setCancelling] = useState(false);
-    const [confirmingReady, setConfirmingReady] = useState(false);
     const [confirmingRelease, setConfirmingRelease] = useState(false);
-    const isOpen = order.status === 'placed' || order.status === 'ready';
+    const isOpen = order.status === 'placed';
 
     const act = (url: string, data: Record<string, boolean> = {}) => {
         setBusy(true);
         router.post(url, data, {
             preserveScroll: true,
-            onSuccess: () => {
-                setPaid(false);
-                setConfirmingReady(false);
-            },
+            onSuccess: () => setPaid(false),
             onFinish: () => {
                 setBusy(false);
                 setConfirmingRelease(false);
@@ -253,12 +240,10 @@ function ReleaseCard({ result }: { result: SlipResult }) {
             {(isOpen || otherOpenOrders.length > 0) && (
                 <ul className="space-y-2 text-sm">
                     {isOpen && (
-                        <Check tone="green">
-                            Pick up by{' '}
-                            <strong>
-                                {formatDateOrdered(order.pick_up_by)}
-                            </strong>
-                            . Its items are held for it.
+                        <Check tone="amber">
+                            Nothing is set aside for this order: whoever pays
+                            first gets the items. Items already sold are
+                            released short.
                         </Check>
                     )}
                     {otherOpenOrders.length > 0 && (
@@ -330,7 +315,7 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                             Release the items
                         </button>
                         <p className="mt-2 text-center text-xs font-semibold text-slate-500">
-                            The items leave the stock at once. This cannot be
+                            The items in stock leave it at once. This cannot be
                             undone.
                         </p>
                     </ReleaseStep>
@@ -338,17 +323,6 @@ function ReleaseCard({ result }: { result: SlipResult }) {
             )}
 
             <div className="grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
-                {order.status === 'placed' && (
-                    <SmallButton
-                        tone="blue"
-                        disabled={busy}
-                        onClick={() => setConfirmingReady(true)}
-                    >
-                        <PackageCheck size={16} />
-                        Ready for pickup
-                    </SmallButton>
-                )}
-
                 {order.status !== 'cancelled' && (
                     <a
                         href={OrderController.printSlip(order.id).url}
@@ -372,13 +346,6 @@ function ReleaseCard({ result }: { result: SlipResult }) {
             <CancelOrderDialog
                 order={cancelling && isOpen ? order : null}
                 onClose={() => setCancelling(false)}
-            />
-
-            <ConfirmReadyDialog
-                order={confirmingReady ? order : null}
-                busy={busy}
-                onConfirm={() => act(OrderController.ready(order.id).url)}
-                onClose={() => setConfirmingReady(false)}
             />
 
             <ConfirmReleaseDialog

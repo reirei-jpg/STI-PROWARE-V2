@@ -70,7 +70,7 @@ type MyPreorder = {
     /** The order the held pieces went into. */
     order_id: number | null;
     order_number: string | null;
-    order_status: 'placed' | 'ready' | 'picked_up' | 'cancelled' | null;
+    order_status: 'placed' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
 };
 

@@ -15,11 +15,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
- * A student's order, numbered PW-0001, PW-0002… Its items are HELD when it
- * is placed (still on the shelf, but no one else can buy them) until the
- * Specialist scans its issuance slip and releases it; only then do they
- * leave the shelf. Not released by pick_up_by (OrderRules::holdDays), it
- * expires and its items are free to sell again.
+ * A buyer's order, numbered PW-0001, PW-0002… It does not hold stock: its
+ * items stay for sale until the Specialist checks the cashier's receipt and
+ * the issuance slip and releases it, so whoever pays first gets them (an
+ * order of an arrived preorder's pieces keeps them held, see holdsItems).
  *
  * @property int $id
  * @property string|null $number
@@ -28,8 +27,8 @@ use Illuminate\Support\Str;
  * @property string|null $student_section the student's course/section when ordered, for the slip
  * @property OrderStatus $status
  * @property int $total_centavos
- * @property Carbon $pick_up_by
- * @property Carbon|null $ready_at
+ * @property Carbon|null $pick_up_by the old pick-up date (orders placed before orders stopped holding stock)
+ * @property Carbon|null $ready_at when it was marked ready (before that step was removed)
  * @property Carbon|null $picked_up_at when it was released
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $expired_at when it was cancelled for not being released in time
@@ -89,7 +88,7 @@ class Order extends Model
     #[Scope]
     protected function open(Builder $query): void
     {
-        $query->whereIn('status', [OrderStatus::Placed, OrderStatus::Ready]);
+        $query->where('status', OrderStatus::Placed);
     }
 
     /**
@@ -114,5 +113,24 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * The arrived preorder whose held pieces this order is for, if any.
+     *
+     * @return HasMany<Preorder, $this>
+     */
+    public function preorders(): HasMany
+    {
+        return $this->hasMany(Preorder::class);
+    }
+
+    /**
+     * Orders do not hold stock, except an order of an arrived preorder's
+     * pieces: those stay held for it until it is released or cancelled.
+     */
+    public function holdsItems(): bool
+    {
+        return $this->preorders()->exists();
     }
 }

@@ -1,7 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
-    CalendarClock,
     CheckCircle2,
     Clock3,
     History,
@@ -29,7 +28,6 @@ type Show = 'waiting' | 'past';
 
 type StatusCounts = {
     placed: number;
-    ready: number;
     picked_up: number;
     cancelled: number;
 };
@@ -38,8 +36,8 @@ type StatusCounts = {
 type Filter = 'all' | MyOrder['status'];
 
 /**
- * The student's orders, laid out like V1's My Orders: four status cards
- * (Placed, Ready for pickup, Released, Cancelled) that open their list,
+ * The buyer's orders, laid out like V1's My Orders: three status cards
+ * (Waiting for payment, Released, Cancelled) that open their list,
  * Active Orders / Order History, and a card per order with what happens
  * next, a preview of what is in it, the total and its issuance slip.
  */
@@ -69,8 +67,7 @@ export default function MyOrders({
         show === 'waiting'
             ? [
                   { value: 'all', label: 'All active' },
-                  { value: 'placed', label: 'Placed' },
-                  { value: 'ready', label: 'Ready for pickup' },
+                  { value: 'placed', label: 'Waiting for payment' },
               ]
             : [
                   { value: 'all', label: 'All history' },
@@ -92,29 +89,21 @@ export default function MyOrders({
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                         Track your orders. Pay at the cashier, then show the
-                        receipt and the issuance slip at the PROWARE office by
-                        the pick-up date to get your items.
+                        receipt and the issuance slip at the PROWARE office to
+                        get your items. Items are not set aside for an order:
+                        whoever pays first gets them.
                     </p>
                 </div>
 
-                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-4 sm:grid-cols-3">
                     <SummaryCard
-                        title="Placed"
+                        title="Waiting for Payment"
                         value={statusCounts.placed}
-                        description="Set aside for you, waiting for you to pay at the cashier"
+                        description="Pay at the cashier soon: whoever pays first gets the items"
                         icon={Clock3}
                         tone="amber"
                         href={tabHref('waiting')}
                         onClick={() => setFilter('placed')}
-                    />
-                    <SummaryCard
-                        title="Ready for Pickup"
-                        value={statusCounts.ready}
-                        description="Prepared by PROWARE, ready to claim"
-                        icon={PackageCheck}
-                        tone="green"
-                        href={tabHref('waiting')}
-                        onClick={() => setFilter('ready')}
                     />
                     <SummaryCard
                         title="Released"
@@ -128,7 +117,7 @@ export default function MyOrders({
                     <SummaryCard
                         title="Cancelled"
                         value={statusCounts.cancelled}
-                        description="Cancelled, or not picked up in time"
+                        description="Cancelled by you or the PROWARE office"
                         icon={XCircle}
                         tone="red"
                         href={tabHref('past')}
@@ -370,18 +359,12 @@ function TabLink({
 
 /** What the order's status means for the student, in a sentence. */
 function currentStatus(order: MyOrder): { label: string; description: string } {
-    const pickUpBy = formatDateOrdered(order.pick_up_by);
-
     switch (order.status) {
         case 'placed':
             return {
-                label: 'Placed',
-                description: `Your items are set aside for you. Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office by ${pickUpBy}.`,
-            };
-        case 'ready':
-            return {
-                label: 'Ready for Pickup',
-                description: `PROWARE prepared your items. Pay at the cashier, then show the receipt and the issuance slip at the office by ${pickUpBy}.`,
+                label: 'Waiting for payment',
+                description:
+                    'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office. Your items are not set aside, so pay soon: whoever pays first gets them.',
             };
         case 'picked_up':
             return {
@@ -392,7 +375,7 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
             return order.expired
                 ? {
                       label: 'Expired',
-                      description: `It was not picked up by ${pickUpBy}, so the items went back on sale.`,
+                      description: `It was not picked up by ${order.pick_up_by ? formatDateOrdered(order.pick_up_by) : 'its pick-up date'}, so the items went back on sale.`,
                   }
                 : {
                       label: 'Cancelled',
@@ -405,8 +388,8 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
 
 /**
  * One order, as on V1: order # and date, its status and what it means, a
- * preview of the first item, items and pieces, when to pick it up, the
- * total, and its issuance slip.
+ * preview of the first item, items and pieces, the total, and its issuance
+ * slip.
  */
 function OrderCard({ order }: { order: MyOrder }) {
     const status = currentStatus(order);
@@ -415,7 +398,7 @@ function OrderCard({ order }: { order: MyOrder }) {
         (total, item) => total + item.quantity * item.pieces_per_unit,
         0,
     );
-    const open = order.status === 'placed' || order.status === 'ready';
+    const open = order.status === 'placed';
 
     return (
         <article className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md">
@@ -494,8 +477,6 @@ function OrderCard({ order }: { order: MyOrder }) {
                 <InfoBox label="Pieces" value={String(pieces)} />
             </div>
 
-            {open && <PickUpBy date={order.pick_up_by} />}
-
             <div className="mt-5 flex items-end justify-between gap-4 border-t border-slate-100 pt-5">
                 <p className="text-xs text-slate-400">
                     {order.status === 'picked_up'
@@ -524,45 +505,6 @@ function OrderCard({ order }: { order: MyOrder }) {
                 </Link>
             )}
         </article>
-    );
-}
-
-/** The last day to pick it up, in V1's date colors (red passed, amber today, blue later). */
-function PickUpBy({ date }: { date: string }) {
-    const due = new Date(`${date}T00:00:00`).getTime();
-    const now = new Date();
-    const today = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-    ).getTime();
-    const tone =
-        due < today
-            ? 'bg-red-50 text-red-700'
-            : due === today
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-blue-50 text-blue-700';
-
-    return (
-        <div
-            className={cn(
-                'mt-3 flex items-center gap-3 rounded-2xl px-4 py-3',
-                tone,
-            )}
-        >
-            <CalendarClock size={17} className="shrink-0" />
-            <div>
-                <p className="text-xs font-bold tracking-wide uppercase opacity-80">
-                    Pick up by
-                </p>
-                <p className="text-sm font-black">
-                    {due === today
-                        ? 'Today (last day)'
-                        : formatDateOrdered(date)}
-                    {due < today && ' (date passed)'}
-                </p>
-            </div>
-        </div>
     );
 }
 

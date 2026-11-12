@@ -6,11 +6,6 @@ use Illuminate\Support\Facades\Schedule;
 // before a sale ends (from 7:00 AM).
 Schedule::command('sales:check')->everyMinute()->withoutOverlapping();
 
-// Orders not picked up by their pick-up date cancel themselves and their
-// stock goes back.
-Schedule::command('orders:cancel-unclaimed')->hourly()->withoutOverlapping();
-Schedule::command('orders:remind-last-day')->hourly()->withoutOverlapping();
-
 // eStore orders not complete after the follow-up days are reported to the
 // School Admin, once per order.
 Schedule::command('purchase-orders:notify-late')->hourly()->withoutOverlapping();

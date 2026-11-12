@@ -11,7 +11,6 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
 use App\Services\Shop\BuyerLimit;
-use App\Services\Shop\OrderRules;
 use App\Services\Shop\ShopPrice;
 use App\Services\Shop\UniformSetPrice;
 use App\Services\Stock\LowStockAlerts;
@@ -21,12 +20,11 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Turns the ticked items in a student's cart into an order: checks the
- * student may order (OrderRules), that each item can still be bought and
- * enough is free to sell, keeps each line with today's price, HOLDS the
- * pieces for the order (they stay on the shelf until the Specialist
- * releases them), removes them from the cart (unticked items stay) and
- * tells the Specialist. The student's course/section is kept for the
+ * Turns the ticked items in a buyer's cart into an order: checks that each
+ * item can still be bought and enough is on the shelf, keeps each line with
+ * today's price, removes them from the cart (unticked items stay) and tells
+ * the Specialist. The order does not hold stock: whoever pays first gets it
+ * (HandleOrderBySpecialist::release). The student's course/section is kept for the
  * issuance slip. A uniform set's two pieces are ordered at their own
  * prices and keep the set's name.
  */
@@ -36,12 +34,6 @@ class PlaceOrder
 
     public function handle(User $student, ?string $section = null): Order
     {
-        $refusal = OrderRules::refusal($student);
-
-        if ($refusal !== null) {
-            throw ValidationException::withMessages(['cart' => $refusal]);
-        }
-
         $section = $section === null || trim($section) === '' ? null : trim($section);
 
         if ($section !== null && $section !== $student->section) {
@@ -75,7 +67,6 @@ class PlaceOrder
                 'student_section' => $section ?? $student->section,
                 'status' => OrderStatus::Placed,
                 'total_centavos' => 0,
-                'pick_up_by' => OrderRules::holdUntil(),
             ]);
             $order->forceFill(['number' => Order::numberFor($order->id)])->save();
 
@@ -107,9 +98,6 @@ class PlaceOrder
                     'line_total_centavos' => $unitPrice * $line->quantity,
                 ]);
 
-                // Held, not sold: the pieces stay on the shelf until released.
-                $variant->forceFill(['held_pieces' => $variant->held_pieces + $item->pieces()])->save();
-
                 $total += $item->line_total_centavos;
             }
 
@@ -136,7 +124,7 @@ class PlaceOrder
      */
     public static function message(Order $order): string
     {
-        return "Order {$order->number} has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office by {$order->pick_up_by->format('M j, Y')} to collect your items.";
+        return "Order {$order->number} has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. They are not set aside for you, so whoever pays first gets them.";
     }
 
     /**

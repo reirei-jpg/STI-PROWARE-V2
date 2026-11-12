@@ -27,7 +27,7 @@ final class IssuanceSlip
     public const ADDRESS_LINES = ['Ormoc Centrum Bldg., Barangay South 6541', 'Ormoc City, Leyte Philippines'];
 
     /**
-     * @return array{school: string, address_lines: list<string>, order_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, is_staff: bool, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, pick_up_by: string, released_on: string|null, issued_by: string|null, qr_svg: string|null}
+     * @return array{school: string, address_lines: list<string>, order_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, is_staff: bool, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, pick_up_by: string|null, released_on: string|null, issued_by: string|null, qr_svg: string|null}
      */
     public static function of(Order $order): array
     {
@@ -51,7 +51,8 @@ final class IssuanceSlip
             'total_centavos' => $order->total_centavos,
             'status' => $order->status->value,
             'status_label' => $order->status->label(),
-            'pick_up_by' => $order->pick_up_by->toDateString(),
+            // Only on orders placed before orders stopped holding stock.
+            'pick_up_by' => $order->pick_up_by?->toDateString(),
             'released_on' => $order->picked_up_at?->toDateString(),
             'issued_by' => $order->picked_up_at !== null ? $order->handler?->name : null,
             'qr_svg' => $order->slip_code === null ? null : self::qrSvg($order->slip_code),

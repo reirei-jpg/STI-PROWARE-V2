@@ -8,7 +8,7 @@ use App\Notifications\Channels\PushesToPhones;
 use Illuminate\Notifications\Notification;
 
 /**
- * Tells the Specialist a student placed an order, so it can be prepared
+ * Tells the Specialist a buyer placed an order, to be released once paid
  * for pickup.
  */
 class OrderPlaced extends Notification implements PushesToPhones
@@ -35,7 +35,7 @@ class OrderPlaced extends Notification implements PushesToPhones
 
         return [
             'title' => "New order {$order['order_number']}",
-            'body' => "{$order['student_name']} · {$order['items_count']} {$items} · ₱".number_format($order['total_centavos'] / 100, 2).' to pay at the cashier. Prepare it, then mark it Ready for pickup.',
+            'body' => "{$order['student_name']} · {$order['items_count']} {$items} · ₱".number_format($order['total_centavos'] / 100, 2).' to pay at the cashier. Release it when they show the receipt.',
             'data' => ['kind' => 'order_placed', 'order_id' => $order['order_id']],
         ];
     }

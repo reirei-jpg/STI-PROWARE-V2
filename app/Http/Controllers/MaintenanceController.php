@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Services\Deliveries\FollowUp;
 use App\Services\FreeUniforms\PromoRules;
 use App\Services\Shop\BuyerLimit;
-use App\Services\Shop\OrderRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -17,8 +16,7 @@ use Inertia\Response;
 
 /**
  * The Specialist's Maintenance page: settings that change how PROWARE
- * works without changing its code, each with who changed it last: how many
- * days a new order holds its items before it expires, after how many days
+ * works without changing its code, each with who changed it last: after how many days
  * a purchase order not complete is to be followed up, how many students
  * must enroll together to get free uniforms, and the most of one item a
  * buyer can get (with the buyers the Specialist allowed more).
@@ -28,12 +26,6 @@ class MaintenanceController extends Controller
     public function index(): Response
     {
         return Inertia::render('maintenance/index', [
-            'holdDays' => [
-                'value' => OrderRules::holdDays(),
-                'min' => OrderRules::MIN_HOLD_DAYS,
-                'max' => OrderRules::MAX_HOLD_DAYS,
-                ...Setting::lastChange(Setting::ORDER_HOLD_DAYS),
-            ],
             'followUpDays' => [
                 'value' => FollowUp::days(),
                 'choices' => FollowUp::CHOICES,
@@ -59,27 +51,6 @@ class MaintenanceController extends Controller
                 ...Setting::lastChange(Setting::PROMO_GROUP_SIZE),
             ],
         ]);
-    }
-
-    /**
-     * How many days new orders hold their items (1 to 3). Orders already
-     * placed keep their pick-up date.
-     */
-    public function updateHoldDays(Request $request): RedirectResponse
-    {
-        $days = (int) $request->validate(
-            ['hold_days' => ['required', 'integer', 'between:'.OrderRules::MIN_HOLD_DAYS.','.OrderRules::MAX_HOLD_DAYS]],
-            ['hold_days.between' => 'Choose 1, 2 or 3 days.', 'hold_days.required' => 'Choose 1, 2 or 3 days.', 'hold_days.integer' => 'Choose 1, 2 or 3 days.'],
-        )['hold_days'];
-
-        Setting::put(Setting::ORDER_HOLD_DAYS, $days, $request->user());
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => 'New orders now hold their items for '.$days.' '.($days === 1 ? 'day' : 'days').'. Orders already placed keep their pick-up date.',
-        ]);
-
-        return back();
     }
 
     /**

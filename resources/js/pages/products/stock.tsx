@@ -22,7 +22,7 @@ import type {
 
 /**
  * A product's stock: the pieces each variant has on the shelf, how many are
- * held for students' orders (and for whom) and free to sell, and every
+ * held for orders of arrived preorders (and for whom) and free to sell, and every
  * change to the shelf (deliveries, corrections, released orders) with the
  * balance after, newest first. The Specialist corrects the stock here,
  * with a reason.
@@ -65,7 +65,7 @@ export default function ProductStock({
     const summary = [
         `${formatUnits(product.stock_on_hand, 'Piece')} on the shelf`,
         product.held_pieces > 0 &&
-            `${formatUnits(product.held_pieces, 'Piece')} held for orders`,
+            `${formatUnits(product.held_pieces, 'Piece')} held for preorders`,
         product.is_sold
             ? `warned at ${formatUnits(product.low_stock_alert_at, 'Piece')}${product.has_options ? ' each' : ''}`
             : 'not watched for low stock',
@@ -149,8 +149,8 @@ export default function ProductStock({
 
                 {holds.length > 0 && (
                     <Panel
-                        title="Held for Orders"
-                        description={`${formatUnits(product.held_pieces, 'Piece')} on the shelf are kept for these orders until they are released or expire. The nearest pick-up date first.`}
+                        title="Held for Preorders"
+                        description={`${formatUnits(product.held_pieces, 'Piece')} on the shelf are kept for the orders of these arrived preorders until they are released or cancelled. The oldest first.`}
                         className="border-l-4 border-l-amber-500"
                     >
                         <ul className="divide-y divide-slate-100">
@@ -185,8 +185,7 @@ export default function ProductStock({
                                         <strong className="text-slate-900">
                                             {formatUnits(hold.pieces, 'Piece')}
                                         </strong>{' '}
-                                        · pick up by{' '}
-                                        {formatDateOrdered(hold.pick_up_by)}
+                                        · held for this preorder
                                     </p>
                                 </li>
                             ))}

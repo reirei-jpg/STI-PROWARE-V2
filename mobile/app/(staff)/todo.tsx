@@ -8,10 +8,8 @@ import {
     ChevronRight,
     CircleCheck,
     Flame,
-    Hourglass,
     Link2,
     Monitor,
-    PackageCheck,
     ScanLine,
     ShoppingBag,
     Snail,
@@ -35,11 +33,9 @@ import type { OrderCardKey, SpecialistTask, SpecialistTasks } from '@/lib/types'
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** The website dashboard's four student order cards, in its V1 colors. */
+/** The website dashboard's two order cards, in its V1 colors. */
 const orderCards: { key: OrderCardKey; label: string; detail: string; icon: LucideIcon; box: string; color: string }[] = [
-    { key: 'new', label: 'New', detail: 'to prepare', icon: ShoppingBag, box: 'bg-amber-50', color: '#b45309' },
-    { key: 'ready', label: 'Ready for pickup', detail: 'waiting for the buyer', icon: PackageCheck, box: 'bg-blue-50', color: '#1d4ed8' },
-    { key: 'last_day', label: 'Last day today', detail: 'cancels tonight if not picked up', icon: Hourglass, box: 'bg-red-50', color: '#b91c1c' },
+    { key: 'waiting', label: 'Waiting for payment', detail: 'to pay at the cashier', icon: ShoppingBag, box: 'bg-amber-50', color: '#b45309' },
     { key: 'released_today', label: 'Released today', detail: 'paid and handed over', icon: CircleCheck, box: 'bg-emerald-50', color: '#047857' },
 ];
 
@@ -95,7 +91,7 @@ function countTasks(tasks: SpecialistTask[]): number {
 
 /**
  * The Specialist's To-do, the same as the website dashboard: a greeting
- * with today's date, Scan issuance slip and Record Delivery, the four
+ * with today's date, Scan issuance slip and Stock In, the two
  * student order cards, and the Do now / Today / This week task cards. A
  * card opens its orders or tasks in a panel, so the screen stays short.
  * Desk work (linking items, prices) says to do it on the website.

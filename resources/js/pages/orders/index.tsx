@@ -1,9 +1,8 @@
 import { Head, router, usePoll } from '@inertiajs/react';
-import { Eye, Search, ShoppingBag, Unlock, X } from 'lucide-react';
+import { Eye, Search, ShoppingBag, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CancelOrderDialog from '@/components/cancel-order-dialog';
-import ConfirmDialog from '@/components/confirm-dialog';
 import OrderDetailsDialog from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
 import PageHeader from '@/components/page-header';
@@ -16,28 +15,19 @@ import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
 import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
 
-type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
-
-type PausedStudent = {
-    id: number;
-    name: string;
-    email: string;
-    paused_until: string;
-};
+type Show = 'placed' | 'picked_up' | 'cancelled' | 'all';
 
 const chips: { value: Show; label: string }[] = [
-    { value: 'placed', label: 'New' },
-    { value: 'ready', label: 'Ready for pickup' },
+    { value: 'placed', label: 'Waiting for payment' },
     { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
     { value: 'all', label: 'All' },
 ];
 
 const descriptions: Record<Show, string> = {
-    placed: 'Orders to prepare. The nearest pick-up date first.',
-    ready: 'Waiting for the buyer to pay at the cashier and show the receipt and slip. The nearest pick-up date first.',
+    placed: 'Waiting for the buyer to pay at the cashier and show the receipt and slip. Nothing is set aside: whoever pays first gets the items. Oldest first.',
     picked_up: 'Paid and handed over. Newest first.',
-    cancelled: 'Their items are free to sell again. Newest first.',
+    cancelled: 'Cancelled by the buyer or by you. Newest first.',
     all: 'Every order, newest first.',
 };
 
@@ -46,21 +36,18 @@ const descriptions: Record<Show, string> = {
  * issuance slip: scan its QR (or type the order number) to open it, check
  * it, and release the items once paid. Below, every order in a table (by
  * status, with a search); View Details opens an order with its items, its
- * history and its steps (Ready for pickup, Release, Undo, Cancel). Here
- * too: students paused for expired orders. Orders not released by their
- * date expire by themselves (how many days is set on Maintenance).
+ * history and its steps (Release, Cancel). Orders hold no stock and never
+ * expire: whoever pays first gets the items.
  */
 export default function OrdersIndex({
     orders,
     filters,
     counts,
-    pausedStudents,
     viewing: viewingAfterStep = null,
 }: {
     orders: Paginated<SpecialistOrder>;
     filters: { show: Show; search: string | null };
     counts: Record<Exclude<Show, 'all'>, number>;
-    pausedStudents: PausedStudent[];
     /** The open order asked for again after a step, once it left this tab. */
     viewing?: SpecialistOrder | null;
 }) {
@@ -109,8 +96,7 @@ export default function OrdersIndex({
               (viewingAfterStep?.id === cancelling.id
                   ? viewingAfterStep
                   : cancelling));
-    const cancellingIsOpen =
-        cancellingNow?.status === 'placed' || cancellingNow?.status === 'ready';
+    const cancellingIsOpen = cancellingNow?.status === 'placed';
 
     const showList = (show: Show, term: string) =>
         router.get(
@@ -151,14 +137,10 @@ export default function OrdersIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Orders"
-                    description="Orders placed on the storefront by students and STI staff. Scan the buyer's issuance slip and check the cashier's receipt to release the items, or open any order below. Orders not released by their pick-up date expire, and their items are free to sell again."
+                    description="Orders placed on the storefront by students and STI staff. Scan the buyer's issuance slip and check the cashier's receipt to release the items, or open any order below. Nothing is set aside for an order: whoever pays first gets the items."
                 />
 
                 <SlipScanBox />
-
-                {pausedStudents.length > 0 && (
-                    <PausedStudents students={pausedStudents} />
-                )}
 
                 <Panel>
                     <div className="space-y-4 border-b border-slate-100 px-6 py-5">
@@ -284,7 +266,10 @@ export default function OrdersIndex({
                                                     : filters.show ===
                                                         'cancelled'
                                                       ? 'Cancelled'
-                                                      : 'Pick up by'}
+                                                      : filters.show ===
+                                                          'placed'
+                                                        ? 'Waiting'
+                                                        : 'Date'}
                                             </TableHeading>
                                             <TableHeading>Status</TableHeading>
                                             <TableHeading align="right">
@@ -401,38 +386,25 @@ function OrderTableRow({
 }
 
 /**
- * Open orders: the pick-up date in V1's date colors (red passed, amber
- * today, blue later). Others: when they were released or cancelled.
+ * Orders waiting for payment: how long they have waited, in V1's waiting
+ * amber. Others: when they were released or cancelled.
  */
 function OrderDate({ order }: { order: SpecialistOrder }) {
-    if (order.status === 'placed' || order.status === 'ready') {
-        const due = new Date(`${order.pick_up_by}T00:00:00`).getTime();
-        const now = new Date();
-        const today = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-        ).getTime();
+    if (order.status === 'placed') {
+        const placed = new Date(order.placed_at ?? Date.now());
+        const days = Math.max(
+            0,
+            Math.floor((Date.now() - placed.getTime()) / 86_400_000),
+        );
 
         return (
-            <p
-                className={cn(
-                    'text-sm font-black whitespace-nowrap',
-                    due < today
-                        ? 'text-red-600'
-                        : due === today
-                          ? 'text-amber-600'
-                          : 'text-blue-700',
-                )}
-            >
-                {due === today ? 'Today' : formatDateOrdered(order.pick_up_by)}
-                {due < today && (
-                    <span className="block text-xs font-bold">Date passed</span>
-                )}
+            <p className="text-sm font-black whitespace-nowrap text-amber-600">
+                {days === 0
+                    ? 'Today'
+                    : `${days} ${days === 1 ? 'day' : 'days'}`}
             </p>
         );
     }
-
     if (order.status === 'picked_up') {
         return (
             <p className="text-sm whitespace-nowrap text-slate-700">
@@ -453,75 +425,5 @@ function OrderDate({ order }: { order: SpecialistOrder }) {
                 {order.expired ? 'Expired' : (order.handled_by ?? '')}
             </span>
         </p>
-    );
-}
-
-/**
- * Students whose orders expired too often, who cannot order until the date
- * shown, with Lift pause for a mistake or a good reason.
- */
-function PausedStudents({ students }: { students: PausedStudent[] }) {
-    const [confirming, setConfirming] = useState<PausedStudent | null>(null);
-    const [lifting, setLifting] = useState(false);
-
-    const lift = (student: PausedStudent) => {
-        setLifting(true);
-        router.post(
-            OrderController.liftPause(student.id).url,
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => setConfirming(null),
-                onFinish: () => setLifting(false),
-            },
-        );
-    };
-
-    return (
-        <Panel
-            title="Students who cannot order now"
-            description="Their orders expired 3 times in 30 days without being picked up, so ordering is paused for 7 days."
-            className="border-l-4 border-l-amber-500"
-        >
-            <ul className="divide-y divide-slate-100">
-                {students.map((student) => (
-                    <li
-                        key={student.id}
-                        className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div>
-                            <p className="font-black text-slate-900">
-                                {student.name}
-                            </p>
-                            <p className="text-sm text-slate-500">
-                                {student.email} · Paused until{' '}
-                                <strong className="text-amber-700">
-                                    {formatDateOrdered(student.paused_until)}
-                                </strong>
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setConfirming(student)}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                        >
-                            <Unlock size={16} />
-                            Lift pause
-                        </button>
-                    </li>
-                ))}
-            </ul>
-
-            <ConfirmDialog
-                open={confirming !== null}
-                title={`Allow ${confirming?.name ?? 'this student'} to order again?`}
-                description={`Ordering is paused until ${confirming ? formatDateOrdered(confirming.paused_until) : ''}. Lifting the pause allows them to place orders immediately.`}
-                cancelLabel="Keep paused"
-                confirmLabel="Lift pause"
-                busy={lifting}
-                onConfirm={() => confirming && lift(confirming)}
-                onClose={() => setConfirming(null)}
-            />
-        </Panel>
     );
 }

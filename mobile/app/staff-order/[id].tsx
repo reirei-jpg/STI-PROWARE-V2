@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CircleCheck, PackageCheck, XCircle } from 'lucide-react-native';
+import { ArrowLeft, CircleCheck, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderStatusPill, { orderNote, orderStripeColors } from '@/components/OrderStatusPill';
-import { ActionButton, CancelSheet, ReleaseBox, confirmReady } from '@/components/StaffOrderActions';
+import { ActionButton, CancelSheet, ReleaseBox } from '@/components/StaffOrderActions';
 import StaffTag from '@/components/StaffTag';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -17,10 +17,10 @@ import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
 
 /**
- * One student's order on the Specialist's phone, with the website's steps:
- * Ready for pickup (the student is told), Release once the student has
- * paid (the items leave the shelf only then; a release is final), and
- * Cancel with the reason the student will see.
+ * One buyer's order on the Specialist's phone, with the website's steps:
+ * Release once the buyer has paid (the items leave the shelf only then, as
+ * many as are left; a release is final), and Cancel with the reason the
+ * buyer will see.
  */
 export default function StaffOrderScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -56,7 +56,7 @@ export default function StaffOrderScreen() {
 
     // Up to date by itself while the order is open: once it is released,
     // cancelled or expires elsewhere, Release and Cancel go away.
-    useLiveReload(load, (order?.status === 'placed' || order?.status === 'ready') && !busy);
+    useLiveReload(load, order?.status === 'placed' && !busy);
 
     const run = async (path: string, body?: Record<string, unknown>): Promise<boolean> => {
         if (!order) {
@@ -88,7 +88,7 @@ export default function StaffOrderScreen() {
         }
     };
 
-    const isOpen = order?.status === 'placed' || order?.status === 'ready';
+    const isOpen = order?.status === 'placed';
 
     return (
         <ScrollView
@@ -157,16 +157,6 @@ export default function StaffOrderScreen() {
                     </View>
 
                     <View className="gap-3">
-                        {order.status === 'placed' && (
-                            <ActionButton
-                                tone="blue"
-                                icon={<PackageCheck size={18} color="#ffffff" />}
-                                busy={busy}
-                                onPress={() => confirmReady(order, () => void run('ready'))}
-                            >
-                                Ready for pickup
-                            </ActionButton>
-                        )}
                         {isOpen && (
                             <ReleaseBox
                                 order={order}
@@ -210,14 +200,12 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
     const note = orderNote(order);
     const text =
         order.status === 'placed'
-            ? 'New order: prepare it, then mark it Ready for pickup. The buyer is notified.'
-            : order.status === 'ready'
-              ? `Waiting for ${order.student_name} to pay ${formatPeso(order.total_centavos)} at the cashier and show the receipt and the issuance slip.`
-              : order.status === 'picked_up'
-                ? `Released ${formatDateTime(order.picked_up_at)}.`
-                : order.expired
-                  ? `Expired: not released by ${formatDate(order.pick_up_by)}.`
-                  : `Cancelled ${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` · ${order.cancel_reason}` : ''}`;
+            ? `Waiting for ${order.student_name} to pay ${formatPeso(order.total_centavos)} at the cashier and show the receipt and the issuance slip.`
+            : order.status === 'picked_up'
+              ? `Released ${formatDateTime(order.picked_up_at)}.`
+              : order.expired
+                ? `Expired: not released by ${order.pick_up_by ? formatDate(order.pick_up_by) : 'its pick-up date'}.`
+                : `Cancelled ${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` · ${order.cancel_reason}` : ''}`;
 
     return (
         <View
@@ -225,7 +213,7 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
             className="gap-1 rounded-2xl border border-slate-200 bg-white px-4 py-3"
         >
             <Text className="font-sans text-sm leading-5 text-slate-700">{text}</Text>
-            {(order.status === 'placed' || order.status === 'ready') && (
+            {order.status === 'placed' && (
                 <Text className={`text-xs ${note.className}`}>{note.text}</Text>
             )}
         </View>

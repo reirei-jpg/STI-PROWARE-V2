@@ -12,7 +12,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 /**
  * A product's stock as the Specialist sees it (website Stock History page
  * and phone app): how many pieces each variant has on the shelf, how many of
- * those are held for students' open orders (and by whom), how many are free
+ * those are held for orders of arrived preorders (and by whom), how many are free
  * to sell, and every change to the shelf count (deliveries, corrections,
  * released orders) with the balance after, newest first.
  *
@@ -21,7 +21,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 final class ProductStock
 {
     /**
-     * @return array{product: array{id: int, name: string, has_options: bool, stock_on_hand: int, held_pieces: int, free_to_sell: int, low_stock_alert_at: int, is_sold: bool}, variants: list<array{id: int, label: string, stock_on_hand: int, held_pieces: int, free_to_sell: int, estore_item_code: string|null, sent_by: string|null}>, holds: list<array{order_id: int, order_number: string|null, student_name: string, variant_label: string, pieces: int, pick_up_by: string}>}
+     * @return array{product: array{id: int, name: string, has_options: bool, stock_on_hand: int, held_pieces: int, free_to_sell: int, low_stock_alert_at: int, is_sold: bool}, variants: list<array{id: int, label: string, stock_on_hand: int, held_pieces: int, free_to_sell: int, estore_item_code: string|null, sent_by: string|null}>, holds: list<array{order_id: int, order_number: string|null, student_name: string, variant_label: string, pieces: int}>}
      */
     public static function summary(Product $product): array
     {
@@ -52,26 +52,25 @@ final class ProductStock
     }
 
     /**
-     * Who is holding the product's pieces: each open order's items, the
-     * nearest pick-up date first.
+     * Who is holding the product's pieces: the items of open orders of
+     * arrived preorders (other orders hold nothing), the oldest first.
      *
-     * @return list<array{order_id: int, order_number: string|null, student_name: string, variant_label: string, pieces: int, pick_up_by: string}>
+     * @return list<array{order_id: int, order_number: string|null, student_name: string, variant_label: string, pieces: int}>
      */
     private static function holds(Product $product): array
     {
         return array_values(OrderItem::query()
             ->whereIn('product_variant_id', $product->variants()->select('id'))
-            ->whereHas('order', fn (Builder $orders) => $orders->open())
+            ->whereHas('order', fn (Builder $orders) => $orders->open()->whereHas('preorders'))
             ->with(['order.student', 'variant'])
             ->get()
-            ->sortBy(fn (OrderItem $item): string => $item->order->pick_up_by->toIso8601String())
+            ->sortBy('order_id')
             ->map(fn (OrderItem $item): array => [
                 'order_id' => $item->order_id,
                 'order_number' => $item->order->number,
                 'student_name' => $item->order->student->name,
                 'variant_label' => $item->variant->label(),
                 'pieces' => $item->pieces(),
-                'pick_up_by' => $item->order->pick_up_by->toDateString(),
             ])
             ->all());
     }

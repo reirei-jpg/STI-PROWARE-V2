@@ -164,11 +164,8 @@ export type CartView = {
     selected_count: number;
     total_centavos: number;
     can_place_order: boolean;
-    pick_up_by: string;
     /** The course/section the student gave last time, for the slip. */
     section: string | null;
-    /** Why Place Order would be refused (too many waiting, or paused). */
-    order_refusal: string | null;
 };
 
 /** A student's order, with each item at the price it was ordered at. */
@@ -177,7 +174,8 @@ export type StudentOrder = {
     number: string | null;
     /** What the slip's QR holds. */
     slip_code: string | null;
-    status: 'placed' | 'ready' | 'picked_up' | 'cancelled';
+    /** Waiting for payment, released, or cancelled. Orders hold no stock: whoever pays first gets it. */
+    status: 'placed' | 'picked_up' | 'cancelled';
     status_label: string;
     student_name: string;
     /** The student's 11-digit Student ID, or an STI staff buyer's Employee ID (null for older accounts). */
@@ -196,12 +194,14 @@ export type StudentOrder = {
         unit_name: string;
         pieces_per_unit: number;
         quantity: number;
+        /** How many were not released because buyers who paid first got them. */
+        quantity_short: number;
         unit_price_centavos: number;
         line_total_centavos: number;
     }[];
     placed_at: string | null;
-    pick_up_by: string;
-    ready_at: string | null;
+    /** Only on orders from before orders stopped holding stock. */
+    pick_up_by: string | null;
     picked_up_at: string | null;
     cancelled_at: string | null;
     /** Cancelled by itself: not released by its pick-up date. */
@@ -232,7 +232,8 @@ export type IssuanceSlipData = {
     total_centavos: number;
     status: StudentOrder['status'];
     status_label: string;
-    pick_up_by: string;
+    /** Only on orders from before orders stopped holding stock. */
+    pick_up_by: string | null;
     released_on: string | null;
     issued_by: string | null;
     /** The QR (an SVG picture of the slip code); null for old orders. */
@@ -279,7 +280,7 @@ export type StudentPreorder = {
     /** The order the held pieces went into. */
     order_id: number | null;
     order_number: string | null;
-    order_status: 'placed' | 'ready' | 'picked_up' | 'cancelled' | null;
+    order_status: 'placed' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
 };
 
@@ -426,7 +427,7 @@ export type SpecialistTasks = {
     order_cards: Record<OrderCardKey, { count: number; orders: SpecialistOrder[] }>;
 };
 
-export type OrderCardKey = 'new' | 'ready' | 'last_day' | 'released_today';
+export type OrderCardKey = 'waiting' | 'released_today';
 
 /** A student's order on the Specialist's list. */
 export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {

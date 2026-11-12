@@ -10,7 +10,7 @@ use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Notifications\OrderReady;
+use App\Notifications\OrderReleased;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 use Laravel\Sanctum\Sanctum;
@@ -167,12 +167,12 @@ test('placing (with the section), seeing and cancelling an order on the app', fu
 
     $order = $this->postJson(route('api.v1.orders.store'), ['section' => 'BSHM 2-B'])
         ->assertCreated()
-        ->assertJsonPath('message', 'Order PW-0001 has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office by Oct 6, 2026 to collect your items.')
+        ->assertJsonPath('message', 'Order PW-0001 has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. They are not set aside for you, so whoever pays first gets them.')
         ->assertJsonPath('order.student_section', 'BSHM 2-B')
         ->assertJsonPath('order.can_cancel', true)
         ->json('order');
 
-    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(4);
+    expect($variant->refresh())->stock_on_hand->toBe(10)->held_pieces->toBe(0);
 
     $this->getJson(route('api.v1.orders.index'))->assertJsonPath('data.0.number', 'PW-0001');
     $this->getJson(route('api.v1.orders.show', $order['id']))->assertJsonPath('items.0.quantity', 4);
@@ -199,14 +199,14 @@ test('the app shows the student their own order\'s issuance slip with its QR', f
     $this->getJson(route('api.v1.orders.slip', $theirs))->assertNotFound();
 });
 
-test('the app refuses to cancel a prepared order or another student\'s order', function () {
-    $ready = Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Ready]);
+test('the app refuses to cancel a released order or another student\'s order', function () {
+    $ready = Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::PickedUp]);
     $theirs = Order::factory()->create();
     Sanctum::actingAs($this->student);
 
     $this->postJson(route('api.v1.orders.cancel', $ready), ['reason' => 'no_longer_needed'])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['order' => "Order {$ready->number} has already been prepared, so it can no longer be cancelled here. Contact the PROWARE office."]);
+        ->assertJsonValidationErrors(['order' => "Order {$ready->number} has already been released, so it can no longer be cancelled."]);
     $this->postJson(route('api.v1.orders.cancel', $theirs))->assertNotFound();
     $this->getJson(route('api.v1.orders.show', $theirs))->assertNotFound();
 });
@@ -275,7 +275,7 @@ test('the app gets exactly the cart, orders and preorders the website shows', fu
     $appPastOrders = $this->getJson(route('api.v1.orders.index', ['show' => 'past']))->json('data');
     $appPreorders = $this->getJson(route('api.v1.preorders.index'))->json('data');
 
-    expect($appCart)->toBe(Arr::only($websiteCart, ['lines', 'selected_count', 'total_centavos', 'can_place_order', 'pick_up_by', 'section', 'order_refusal', 'buyer_limit']))
+    expect($appCart)->toBe(Arr::only($websiteCart, ['lines', 'selected_count', 'total_centavos', 'can_place_order', 'section', 'buyer_limit']))
         ->and($appCart['lines'])->toHaveCount(2);
     expect($appOrders)->toBe($websiteOrders)->toHaveCount(1);
     expect($appPastOrders)->toBe($websitePastOrders)->toHaveCount(1);
@@ -284,9 +284,9 @@ test('the app gets exactly the cart, orders and preorders the website shows', fu
 
 test('the app gets exactly the notifications the website\'s bell shows', function () {
     $order = Order::factory()->for($this->student, 'student')->create();
-    $this->student->notify(new OrderReady($order));
+    $this->student->notify(new OrderReleased($order));
     $this->travel(5)->minutes();
-    $this->student->notify(new OrderReady($order));
+    $this->student->notify(new OrderReleased($order));
     $this->student->notifications()->latest()->first()->markAsRead();
 
     $website = $this->actingAs($this->student)->get(route('my-orders.index'))->inertiaProps('notifications');
@@ -299,14 +299,14 @@ test('the app gets exactly the notifications the website\'s bell shows', functio
 
 test('the app lists the student\'s notifications and marks them read', function () {
     $order = Order::factory()->for($this->student, 'student')->create();
-    $this->student->notify(new OrderReady($order));
-    $this->student->notify(new OrderReady($order));
+    $this->student->notify(new OrderReleased($order));
+    $this->student->notify(new OrderReleased($order));
     Sanctum::actingAs($this->student);
 
     $page = $this->getJson(route('api.v1.notifications.index'))
         ->assertOk()
         ->assertJsonPath('unread_count', 2)
-        ->assertJsonPath('data.0.data.kind', 'order_ready');
+        ->assertJsonPath('data.0.data.kind', 'order_released');
 
     $this->postJson(route('api.v1.notifications.read', $page->json('data.0.id')))->assertJsonPath('unread_count', 1);
     $this->postJson(route('api.v1.notifications.read-all'))->assertJsonPath('unread_count', 0);

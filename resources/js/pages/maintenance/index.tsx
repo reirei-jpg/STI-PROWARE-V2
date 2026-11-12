@@ -1,7 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     CircleAlert,
-    Clock,
     Gift,
     History,
     LoaderCircle,
@@ -60,13 +59,11 @@ type ChoiceSetting = {
  * website and the phone app.
  */
 export default function Maintenance({
-    holdDays,
     followUpDays,
     promoGroupSize,
     mostPerItem,
     buyersAllowedMore,
 }: {
-    holdDays: NumberSetting;
     followUpDays: ChoiceSetting;
     promoGroupSize: NumberSetting;
     mostPerItem: LimitSetting;
@@ -83,10 +80,7 @@ export default function Maintenance({
                 />
 
                 <Panel title="Orders" description="How orders are handled.">
-                    <HoldDaysSetting setting={holdDays} />
-                    <div className="border-t border-slate-100">
-                        <MostPerItemSetting setting={mostPerItem} />
-                    </div>
+                    <MostPerItemSetting setting={mostPerItem} />
                     <div className="border-t border-slate-100">
                         <BuyersAllowedMoreSetting
                             buyers={buyersAllowedMore}
@@ -110,38 +104,6 @@ export default function Maintenance({
                 </Panel>
             </div>
         </>
-    );
-}
-
-/**
- * How many days a new order holds its items for the student before it
- * expires and the items are free to sell again.
- */
-function HoldDaysSetting({ setting }: { setting: NumberSetting }) {
-    const form = useForm({ hold_days: setting.value });
-    const choices = Array.from(
-        { length: setting.max - setting.min + 1 },
-        (_, index) => setting.min + index,
-    );
-
-    return (
-        <SettingRow
-            icon={<Clock size={19} className="text-amber-600" />}
-            title="Days an order holds its items"
-            explanation="When a student places an order, its items are set aside so no one else can buy them. The student must pay at the cashier and show the receipt and the issuance slip within this many days; otherwise the order expires and the items go back on sale."
-            example="Example with 2 days: an order placed on Monday must be picked up by the end of Wednesday. Changing this affects new orders only; orders already placed keep their pick-up date."
-            setting={setting}
-            choices={choices}
-            chosen={form.data.hold_days}
-            onChoose={(days) => form.setData('hold_days', days)}
-            error={form.errors.hold_days}
-            processing={form.processing}
-            onSave={() =>
-                form.patch(MaintenanceController.updateHoldDays().url, {
-                    preserveScroll: true,
-                })
-            }
-        />
     );
 }
 

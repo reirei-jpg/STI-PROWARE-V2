@@ -12,7 +12,6 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
 use App\Services\Preorders\PreorderHolds;
-use App\Services\Shop\OrderRules;
 use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\RestockedPreorders;
@@ -38,12 +37,6 @@ class OrderHeldPreorder
 
     public function handle(User $student, Preorder $preorder, int $quantity, ?string $section = null): Order
     {
-        $refusal = OrderRules::refusal($student);
-
-        if ($refusal !== null) {
-            throw ValidationException::withMessages(['quantity' => $refusal]);
-        }
-
         $section = $section === null || trim($section) === '' ? null : trim($section);
 
         if ($section !== null && $section !== $student->section) {
@@ -73,7 +66,6 @@ class OrderHeldPreorder
                 'student_section' => $section ?? $student->section,
                 'status' => OrderStatus::Placed,
                 'total_centavos' => 0,
-                'pick_up_by' => OrderRules::holdUntil(),
             ]);
             $order->forceFill(['number' => Order::numberFor($order->id)])->save();
 

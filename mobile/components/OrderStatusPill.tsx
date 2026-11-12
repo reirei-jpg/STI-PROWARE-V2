@@ -1,35 +1,24 @@
 import { Text, View } from 'react-native';
 
-import { dueDateTier, formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import type { StudentOrder } from '@/lib/types';
 
 type OrderDates = Pick<
     StudentOrder,
-    'status' | 'pick_up_by' | 'picked_up_at' | 'cancelled_at' | 'expired'
+    'status' | 'placed_at' | 'picked_up_at' | 'cancelled_at' | 'expired'
 >;
 
 /**
- * One line under an order (student's and Specialist's lists): when to pick
- * it up, in the date colors, or how it ended.
+ * One line under an order (buyer's and Specialist's lists): when it was
+ * placed and that whoever pays first gets the items, or how it ended.
  */
 export function orderNote(order: OrderDates): { text: string; className: string } {
-    if (order.status === 'placed' || order.status === 'ready') {
-        const tier = dueDateTier(order.pick_up_by);
-        const ready = order.status === 'ready' ? 'Ready · ' : '';
-        const when =
-            tier === 'overdue'
-                ? `pick-up date passed (${formatDate(order.pick_up_by)})`
-                : tier === 'today'
-                  ? 'last day to pick up is today'
-                  : `pick up by ${formatDate(order.pick_up_by)}`;
-        const text = `${ready}${when}`;
-
+    if (order.status === 'placed') {
         return {
-            text: text.charAt(0).toUpperCase() + text.slice(1),
-            className: dateTierClasses[tier],
+            text: `Placed ${formatDate(order.placed_at)} · whoever pays first gets the items`,
+            className: 'font-sans-bold text-amber-600',
         };
     }
-
     return order.status === 'picked_up'
         ? { text: `Released ${formatDate(order.picked_up_at)}`, className: 'font-sans text-slate-500' }
         : {
@@ -42,12 +31,11 @@ export function orderNote(order: OrderDates): { text: string; className: string 
 
 /*
  * V1's status colors, which the user chose for the whole system (website
- * and phone): amber is waiting (placed, not paid yet), green is good news
- * (ready, released), red is cancelled.
+ * and phone): amber is waiting for payment, green is released, red is
+ * cancelled.
  */
 const statusClasses: Record<StudentOrder['status'], [string, string]> = {
     placed: ['bg-amber-100', 'text-amber-700'],
-    ready: ['bg-emerald-100', 'text-emerald-700'],
     picked_up: ['bg-emerald-100', 'text-emerald-700'],
     cancelled: ['bg-red-100', 'text-red-700'],
 };
@@ -55,7 +43,6 @@ const statusClasses: Record<StudentOrder['status'], [string, string]> = {
 /** The stripe down a card's left edge, in its status color. */
 export const orderStripeColors: Record<StudentOrder['status'], string> = {
     placed: '#f59e0b',
-    ready: '#10b981',
     picked_up: '#10b981',
     cancelled: '#f87171',
 };
@@ -67,7 +54,7 @@ export const dateTierClasses = {
     later: 'font-sans-bold text-blue-700',
 } as const;
 
-/** "Placed", "Ready for pickup", "Released" or "Cancelled", in color. */
+/** "Waiting for payment", "Released" or "Cancelled", in color. */
 export default function OrderStatusPill({
     order,
 }: {

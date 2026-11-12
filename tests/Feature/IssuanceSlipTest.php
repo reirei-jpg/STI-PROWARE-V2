@@ -7,8 +7,6 @@ use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Models\User;
-use App\Notifications\OrderingResumed;
-use App\Services\Shop\OrderRules;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -81,8 +79,8 @@ test('a student cannot see another student\'s slip', function () {
 });
 
 test('a released slip shows when it was released and who issued it', function () {
-    $order = juansHoodieOrder(OrderStatus::Ready);
-    $order->items()->update(['product_variant_id' => ProductVariant::factory()->create(['stock_on_hand' => 5, 'held_pieces' => 2])->id]);
+    $order = juansHoodieOrder();
+    $order->items()->update(['product_variant_id' => ProductVariant::factory()->create(['stock_on_hand' => 5])->id]);
     $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
 
     $this->actingAs($this->student)->get(route('my-orders.slip', $order))->assertInertia(fn (Assert $page) => $page
@@ -132,76 +130,22 @@ test('only the Specialist can look up and print slips', function () {
     $this->actingAs(User::factory()->schoolAdmin()->create())->get(route('orders.slip', ['code' => $order->slip_code]))->assertForbidden();
 });
 
-test('the Specialist sets how many days new orders hold their items on the Maintenance page', function () {
-    $this->actingAs($this->specialist)->get(route('maintenance.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('maintenance/index')
-            ->where('holdDays.value', 2)
-            ->where('holdDays.changed_by', null));
-
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 4])
-        ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 'two'])
-        ->assertSessionHasErrors(['hold_days' => 'Choose 1, 2 or 3 days.']);
-
-    $this->patch(route('maintenance.hold-days'), ['hold_days' => 3])
-        ->assertInertiaFlash('toast.message', 'New orders now hold their items for 3 days. Orders already placed keep their pick-up date.');
-
-    expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 0))->toBe(3)
-        ->and(OrderRules::holdUntil()->toDateString())->toBe('2026-10-12');
-
-    $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('holdDays.value', 3)
-        ->where('holdDays.changed_by', $this->specialist->name)
-        ->where('holdDays.changed_at', now()->toIso8601String()));
-});
-
 test('only the Specialist can open and change Maintenance', function () {
     foreach ([$this->student, User::factory()->schoolAdmin()->create()] as $user) {
         $this->actingAs($user)->get(route('maintenance.index'))->assertForbidden();
-        $this->patch(route('maintenance.hold-days'), ['hold_days' => 1])->assertForbidden();
+        $this->patch(route('maintenance.most-per-item'), ['most_per_item' => 500])->assertForbidden();
     }
 
-    expect(Setting::integer(Setting::ORDER_HOLD_DAYS, 2))->toBe(2);
+    expect(Setting::integer(Setting::MOST_PER_ITEM, 99))->toBe(99);
 });
 
-test('the Specialist sees students paused for expired orders and can let them order again', function () {
-    foreach (['2026-10-01', '2026-10-05', '2026-10-08'] as $day) {
-        Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Cancelled, 'expired_at' => "{$day} 00:30"]);
-    }
-    // The student's cart says why Place Order is locked.
-    CartItem::factory()->for($this->student, 'student')->create();
-    $this->actingAs($this->student)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('order_refusal', 'Ordering is paused until Oct 15, 2026, because 3 of your orders expired without being picked up. Ask the PROWARE office if this is a mistake.'));
-    $this->actingAs($this->specialist);
-
-    $this->get(route('orders.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('pausedStudents', [['id' => $this->student->id, 'name' => 'Juan Dela Cruz', 'email' => $this->student->email, 'paused_until' => '2026-10-15']])
-    );
-
-    $this->post(route('students.lift-pause', $this->student))
-        ->assertInertiaFlash('toast.message', 'Juan Dela Cruz can now place orders again.');
-
-    $this->get(route('orders.index'))->assertInertia(fn (Assert $page) => $page->where('pausedStudents', []));
-    $this->post(route('students.lift-pause', $this->specialist))->assertNotFound();
-
-    // The student is told, and can order again.
-    expect($this->student->notifications()->sole())
-        ->type->toBe(OrderingResumed::class)
-        ->data->toBe(['kind' => 'ordering_resumed']);
-    $this->actingAs($this->student->refresh())->get(route('cart.index'))
-        ->assertInertia(fn (Assert $page) => $page->where('order_refusal', null));
-});
-
-test('the cart shows the saved section, and why an order would be refused before placing it', function () {
+test('the cart shows the saved section', function () {
     $this->student->forceFill(['section' => 'BSIT 1-A'])->save();
-    foreach (['2026-09-20', '2026-10-01', '2026-10-08'] as $day) {
-        Order::factory()->for($this->student, 'student')->create(['status' => OrderStatus::Cancelled, 'expired_at' => "{$day} 00:30"]);
-    }
     CartItem::factory()->for($this->student, 'student')->create();
 
     $this->actingAs($this->student)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page
         ->where('section', 'BSIT 1-A')
-        ->where('order_refusal', 'Ordering is paused until Oct 15, 2026, because 3 of your orders expired without being picked up. Ask the PROWARE office if this is a mistake.')
+        ->missing('order_refusal')
+        ->missing('pick_up_by')
     );
 });

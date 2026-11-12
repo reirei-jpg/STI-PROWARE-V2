@@ -9,14 +9,11 @@ import CancelReasonList from '@/components/CancelReasonList';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
-import OrderStatusPill, {
-    dateTierClasses,
-    orderStripeColors,
-} from '@/components/OrderStatusPill';
+import OrderStatusPill, { orderStripeColors } from '@/components/OrderStatusPill';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { STUDENT_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons';
 import { useAuth } from '@/lib/auth';
-import { dueDateTier, formatDate, formatDateTime, formatPeso } from '@/lib/format';
+import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { StudentOrder } from '@/lib/types';
 import { useBackFromOrder } from '@/lib/use-back-from-order';
 import { useLiveReload } from '@/lib/use-live-reload';
@@ -58,8 +55,8 @@ export default function OrderScreen() {
     }, [load]);
 
     // Up to date by itself while the order is open: once the office
-    // prepares or releases it, Cancel goes away without reloading.
-    useLiveReload(load, (order?.status === 'placed' || order?.status === 'ready') && !cancelling);
+    // releases it, Cancel goes away without reloading.
+    useLiveReload(load, order?.status === 'placed' && !cancelling);
 
     // Cancel opens a sheet to pick why, like in online shops.
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -213,33 +210,21 @@ export default function OrderScreen() {
 }
 
 function NextStep({ order }: { order: StudentOrder }) {
-    if (order.status === 'placed' || order.status === 'ready') {
-        const ready = order.status === 'ready';
-        const tier = dueDateTier(order.pick_up_by);
-
+    if (order.status === 'placed') {
         return (
             <View
                 style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
-                className={`flex-row items-start gap-3 rounded-2xl border px-4 py-3 ${ready ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}
+                className="flex-row items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
             >
-                <Banknote size={20} color={ready ? '#047857' : '#b45309'} />
-                <Text
-                    className={`flex-1 font-sans text-sm leading-5 ${ready ? 'text-emerald-900' : 'text-amber-900'}`}
-                >
-                    {ready
-                        ? 'Ready at the PROWARE office. '
-                        : 'The PROWARE office is preparing it. '}
+                <Banknote size={20} color="#b45309" />
+                <Text className="flex-1 font-sans text-sm leading-5 text-amber-900">
                     Pay <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> at the
-                    cashier, then show the receipt and the issuance slip there by{' '}
-                    <Text className={dateTierClasses[tier]}>
-                        {tier === 'today' ? 'today' : formatDate(order.pick_up_by)}
-                    </Text>
-                    .
+                    cashier, then show the receipt and the issuance slip at the PROWARE office. Your items are
+                    not set aside, so pay soon: whoever pays first gets them.
                 </Text>
             </View>
         );
     }
-
     return (
         <View
             style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
@@ -249,7 +234,7 @@ function NextStep({ order }: { order: StudentOrder }) {
                 {order.status === 'picked_up'
                     ? `Released ${formatDateTime(order.picked_up_at)}.`
                     : order.expired
-                      ? `Expired: not released by ${formatDate(order.pick_up_by)}, so its items went back on sale.`
+                      ? `Expired: not released by ${order.pick_up_by ? formatDate(order.pick_up_by) : 'its pick-up date'}, so its items went back on sale.`
                       : `Cancelled ${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` · ${order.cancel_reason}` : ''}`}
             </Text>
         </View>

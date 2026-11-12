@@ -39,7 +39,7 @@ test('an STI teacher buys on the website, and the Specialist sees a Staff order 
     $order = Order::query()->sole();
     expect($order->user_id)->toBe($this->teacher->id)
         ->and($order->student_section)->toBe('Faculty - IT')
-        ->and($variant->refresh()->held_pieces)->toBe(2);
+        ->and($variant->refresh()->held_pieces)->toBe(0);
 
     $this->actingAs(User::factory()->specialist()->create())
         ->get(route('orders.index'))

@@ -6,9 +6,7 @@ use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Http\Requests\CancelOrderRequest;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
-use App\Models\User;
 use App\Services\Shop\IssuanceSlip;
-use App\Services\Shop\OrderRules;
 use App\Services\Shop\SpecialistOrders;
 use Closure;
 use Illuminate\Http\RedirectResponse;
@@ -18,20 +16,18 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The Specialist's Orders page: students' orders to prepare and hand over.
- * A student shows the order's issuance slip; the Specialist scans (or
- * types) its code, checks it, and releases the items once paid. The steps
- * (Ready for pickup, Release, Cancel) are in
- * HandleOrderBySpecialist, shared with the phone app.
+ * The Specialist's Orders page: buyers' orders waiting for payment, and
+ * those released or cancelled. A buyer pays at the cashier and shows the
+ * receipt and the order's issuance slip; the Specialist scans (or types)
+ * its code, checks it, and releases the items. The steps (Release, Cancel)
+ * are in HandleOrderBySpecialist, shared with the phone app.
  */
 class OrderController extends Controller
 {
     /**
-     * Orders by status (New orders by default), with a search by order
-     * number or student name, and the students who cannot order now
-     * because their orders kept expiring. How long orders hold their items
-     * is set on the Maintenance page. The open order's popup asks for it
-     * again after each step, so it stays open when the order moves tabs.
+     * Orders by status (Waiting for payment by default), with a search by
+     * order number or buyer name. The open order's popup asks for it again
+     * after each step, so it stays open when the order moves tabs.
      */
     public function index(Request $request): Response
     {
@@ -41,7 +37,6 @@ class OrderController extends Controller
             'orders' => SpecialistOrders::page($filters['show'], $filters['search']),
             'filters' => $filters,
             'counts' => SpecialistOrders::counts(),
-            'pausedStudents' => OrderRules::pausedStudents(),
             'viewing' => Inertia::optional(fn (): ?array => SpecialistOrders::one($request->integer('viewing'))),
         ]);
     }
@@ -70,11 +65,6 @@ class OrderController extends Controller
         ]);
     }
 
-    public function ready(Request $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
-    {
-        return $this->respond(fn (): string => $handle->ready($order, $request->user()));
-    }
-
     public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
         return $this->respond(fn (): string => $handle->release($order, $request->user()));
@@ -83,24 +73,6 @@ class OrderController extends Controller
     public function cancel(CancelOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): RedirectResponse
     {
         return $this->respond(fn (): string => $handle->cancel($order, $request->user(), $request->reasonText()));
-    }
-
-    /**
-     * Let a student whose orders kept expiring order again.
-     */
-    public function liftPause(User $student): RedirectResponse
-    {
-        abort_unless($student->isBuyer(), 404);
-
-        return $this->respond(function () use ($student): string {
-            if (OrderRules::pausedUntil($student) === null) {
-                throw ValidationException::withMessages(['order' => "{$student->name} is not paused, so there is nothing to lift."]);
-            }
-
-            OrderRules::liftPause($student);
-
-            return "{$student->name} can now place orders again.";
-        });
     }
 
     /**

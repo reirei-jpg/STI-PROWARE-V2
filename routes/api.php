@@ -70,7 +70,6 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('orders', [SpecialistOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [SpecialistOrderController::class, 'show'])->name('orders.show');
         Route::get('slips/{code}', [SpecialistOrderController::class, 'slip'])->name('slips.show');
-        Route::post('orders/{order}/ready', [SpecialistOrderController::class, 'ready'])->name('orders.ready');
         Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');
         Route::post('orders/{order}/cancel', [SpecialistOrderController::class, 'cancel'])->name('orders.cancel');
 

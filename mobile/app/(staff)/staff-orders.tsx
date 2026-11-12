@@ -20,11 +20,10 @@ import StaffOrderRow from '@/components/StaffOrderRow';
 import type { SpecialistOrder, SpecialistOrderCounts } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
-type Show = 'placed' | 'ready' | 'picked_up' | 'cancelled' | 'all';
+type Show = 'placed' | 'picked_up' | 'cancelled' | 'all';
 
 const TABS: { value: Show; label: string }[] = [
-    { value: 'placed', label: 'New' },
-    { value: 'ready', label: 'Ready' },
+    { value: 'placed', label: 'Waiting for payment' },
     { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
     { value: 'all', label: 'All' },
@@ -32,10 +31,9 @@ const TABS: { value: Show; label: string }[] = [
 
 /**
  * Students' orders on the Specialist's phone, like the website's Orders
- * page: Scan issuance slip at the top, then New orders by default (nearest
- * pick-up date first), Ready, Released, Cancelled or All, with a search by
- * order number or student. Tapping an order opens it with Ready for pickup,
- * Release and Cancel.
+ * page: Scan issuance slip at the top, then orders Waiting for payment by
+ * default (oldest first), Released, Cancelled or All, with a search by order
+ * number or buyer. Tapping an order opens it with Release and Cancel.
  */
 export default function StaffOrdersScreen() {
     const insets = useSafeAreaInsets();
@@ -81,7 +79,7 @@ export default function StaffOrdersScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    Prepare, mark ready, and release when the buyer pays.
+                    Release an order when the buyer shows the cashier's receipt.
                 </Text>
             </View>
 

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Ban, CircleCheck, Clock, PackageCheck } from 'lucide-react-native';
+import { ArrowLeft, Ban, CircleCheck, Clock } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -102,22 +102,11 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
         case 'placed':
             return (
                 <Notice tone="amber" icon={<Clock size={20} color="#b45309" />}>
-                    The PROWARE office is preparing your order. Pay{' '}
-                    <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at the cashier,
-                    then show the receipt and this slip at the PROWARE office by{' '}
-                    <Text className="font-sans-bold">{formatDate(slip.pick_up_by)}</Text> to get your items.
+                    Pay <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at the cashier,
+                    then show the receipt and this slip at the PROWARE office to get your items. They are not
+                    set aside for you, so whoever pays first gets them: pay soon.
                 </Notice>
-            );
-        case 'ready':
-            return (
-                <Notice tone="green" icon={<PackageCheck size={20} color="#047857" />}>
-                    Your order is ready. Pay{' '}
-                    <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at the cashier,
-                    then show the receipt and this slip at the PROWARE office by{' '}
-                    <Text className="font-sans-bold">{formatDate(slip.pick_up_by)}</Text> to get your items.
-                </Notice>
-            );
-        case 'picked_up':
+            );        case 'picked_up':
             return (
                 <Notice tone="green" icon={<CircleCheck size={20} color="#047857" />}>
                     Released on <Text className="font-sans-bold">{formatDate(slip.released_on)}</Text>
