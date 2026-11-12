@@ -174,8 +174,10 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
 
     $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-09-to-2026-10-09.csv')->streamedContent();
     expect($csv)->toContain('"Lower Price Because"')
-        ->toContain('"STI Jacket",,Piece,3,200.00,350.00,400.00,"On sale",1050.00,600.00,450.00,')
-        ->toContain('"STI Jacket",,Piece,2,200.00,400.00,,,800.00,400.00,400.00,');
+        ->toContain(',Piece,3,3,350.00,"On sale",1050.00,600.00,450.00')
+        ->toContain(',Piece,2,2,400.00,,800.00,400.00,400.00')
+        ->toContain('TOTAL,,,,,,,5,5,,,1850.00,1000.00,850.00')
+        ->toContain('"Total sales (PHP)",1850.00');
 });
 
 test('the report opens on all time, so sales from earlier months show', function () {

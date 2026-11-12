@@ -41,7 +41,7 @@ final class SalesReport
     {
         $sold = self::soldLines($from, $to)
             ->selectRaw('count(distinct order_items.order_id) as orders')
-            ->selectRaw('coalesce(sum(order_items.quantity * order_items.pieces_per_unit), 0) as pieces')
+            ->selectRaw('coalesce(sum((order_items.quantity - order_items.quantity_short) * order_items.pieces_per_unit), 0) as pieces')
             ->selectRaw('coalesce(sum(order_items.line_total_centavos), 0) as price')
             ->selectRaw('coalesce(sum(order_items.cost_centavos), 0) as cost')
             ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.line_total_centavos else 0 end), 0) as costed_price')
@@ -129,6 +129,48 @@ final class SalesReport
     }
 
     /**
+     * Every sale of the period, one row per item of a released order, the
+     * oldest first (an 8:15 AM release comes before a 2:30 PM one): for the
+     * CSV. Only the pieces handed over count (not those short at release).
+     *
+     * @return list<array{sold_at: CarbonImmutable, order_number: string|null, buyer: string, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, quantity: int, pieces: int, price_each_centavos: int, lower_price_label: string|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null}>
+     */
+    public static function salesLog(CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return array_values(self::soldLines($from, $to)
+            ->join('users', 'users.id', '=', 'orders.user_id')
+            ->whereRaw('order_items.quantity > order_items.quantity_short')
+            ->orderBy('orders.picked_up_at')
+            ->orderBy('orders.id')
+            ->orderBy('order_items.id')
+            ->select('order_items.*', 'orders.picked_up_at', 'orders.number as order_number', 'users.name as buyer')
+            ->get()
+            ->map(function (OrderItem $item): array {
+                $normal = $item->normal_unit_price_centavos ?? $item->unit_price_centavos;
+                $reason = $normal > $item->unit_price_centavos ? ($item->lower_price_reason ?? LowerPriceReason::Sale) : null;
+                $soldAt = $item->getAttribute('picked_up_at');
+
+                return [
+                    'sold_at' => CarbonImmutable::parse(is_string($soldAt) || $soldAt instanceof \DateTimeInterface ? $soldAt : 'now'),
+                    'order_number' => is_string($item->getAttribute('order_number')) ? $item->getAttribute('order_number') : null,
+                    'buyer' => (string) $item->getAttribute('buyer'),
+                    'product_name' => $item->product_name,
+                    'variant_label' => $item->variant_label,
+                    'set_name' => $item->set_name,
+                    'unit_name' => $item->unit_name,
+                    'quantity' => $item->quantity - $item->quantity_short,
+                    'pieces' => ($item->quantity - $item->quantity_short) * $item->pieces_per_unit,
+                    'price_each_centavos' => $item->unit_price_centavos,
+                    'lower_price_label' => $reason?->label(),
+                    'price_total_centavos' => $item->line_total_centavos,
+                    'cost_total_centavos' => $item->cost_centavos,
+                    'profit_centavos' => $item->cost_centavos === null ? null : $item->line_total_centavos - $item->cost_centavos,
+                ];
+            })
+            ->all());
+    }
+
+    /**
      * Best sellers: the products that sold the most pieces in the period
      * (all sizes, colors and prices together), most pieces first, with what
      * they sold for, the Profit of the part with a Cost, and the size or
@@ -138,7 +180,8 @@ final class SalesReport
      */
     public static function bestSellers(CarbonImmutable $from, CarbonImmutable $to, int $perPage = 20, string $pageName = 'page'): LengthAwarePaginator
     {
-        $pieces = 'order_items.quantity * order_items.pieces_per_unit';
+        // Pieces short at release (sold to buyers who paid first) were not sold.
+        $pieces = '(order_items.quantity - order_items.quantity_short) * order_items.pieces_per_unit';
 
         $page = self::soldLines($from, $to)
             ->groupBy('order_items.product_id')
@@ -267,10 +310,10 @@ final class SalesReport
             ->selectRaw("{$reason} as lower_price_reason")
             ->selectRaw('max(order_items.product_name) as product_name')
             ->selectRaw('max(order_items.variant_label) as variant_label')
-            ->selectRaw('sum(order_items.quantity) as quantity')
+            ->selectRaw('sum(order_items.quantity - order_items.quantity_short) as quantity')
             ->selectRaw('sum(order_items.line_total_centavos) as price_total')
             ->selectRaw('coalesce(sum(order_items.cost_centavos), 0) as cost_total')
-            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.quantity else 0 end), 0) as costed_quantity')
+            ->selectRaw('coalesce(sum(case when order_items.cost_centavos is not null then order_items.quantity - order_items.quantity_short else 0 end), 0) as costed_quantity')
             ->selectRaw('coalesce(sum(case when order_items.cost_centavos is null then 1 else 0 end), 0) as missing_cost');
     }
 
