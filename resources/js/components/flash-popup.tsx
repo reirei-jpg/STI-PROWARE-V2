@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { FlashToast } from '@/types';
 
 const AUTO_CLOSE_AFTER_MS = 6000;
@@ -146,9 +147,15 @@ export default function FlashPopup() {
     const kind = message.kind ? kinds[message.kind] : null;
     const Icon = kind?.icon ?? style.icon;
 
-    return (
+    // Put on top of the page itself, so it can be read and closed even while
+    // a pop-up form is open (a form turns off clicks everywhere outside it,
+    // and a click here must not count as one outside the form, which would
+    // close the form and lose what was typed).
+    return createPortal(
         <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/20 p-4"
+            className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-black/20 p-4"
+            style={{ pointerEvents: 'auto' }}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={() => setMessage(null)}
         >
             <div
@@ -214,6 +221,7 @@ export default function FlashPopup() {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }
