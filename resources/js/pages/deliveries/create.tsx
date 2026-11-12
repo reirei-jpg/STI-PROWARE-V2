@@ -84,7 +84,7 @@ export default function RecordDelivery({
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black whitespace-nowrap text-slate-700 shadow-sm transition hover:bg-slate-50"
                         >
                             <ArrowLeft size={18} />
-                            Back to Deliveries
+                            Back to Stock In
                         </Link>
                     }
                 />

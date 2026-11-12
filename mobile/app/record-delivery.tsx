@@ -257,7 +257,7 @@ export default function RecordDeliveryScreen() {
                     accessibilityRole="button"
                     className="items-center rounded-2xl bg-brand py-4"
                 >
-                    <Text className="font-sans-bold text-base text-white">Back to Deliveries</Text>
+                    <Text className="font-sans-bold text-base text-white">Back to Stock In</Text>
                 </Pressable>
             </ScrollView>
         );
