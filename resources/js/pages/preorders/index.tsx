@@ -541,6 +541,11 @@ function PreorderTableRow({
                 )}
             >
                 {formatUnits(product.pieces_total, 'Piece')}
+                {product.stage !== 'arrived' && (
+                    <span className="block text-xs font-bold text-emerald-700">
+                        {product.paid_pieces} paid
+                    </span>
+                )}
             </td>
             <td className="px-5 py-4 text-right">
                 <button

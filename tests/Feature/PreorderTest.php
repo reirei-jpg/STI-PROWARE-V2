@@ -205,7 +205,7 @@ test('a student cannot cancel another student\'s preorder', function () {
 test('the specialist sees how many students preordered each size, not counting cancelled ones', function () {
     [$shirt, $small, $large] = preorderShirt('2026-10-20');
     [$hoodie] = preorderShirt('2026-10-10', 'Anniversary Hoodie');
-    Preorder::factory()->forVariant($small)->create(['quantity' => 2]);
+    markPreorderPaid(Preorder::factory()->forVariant($small)->create(['quantity' => 2]));
     Preorder::factory()->forVariant($small)->create(['quantity' => 1]);
     Preorder::factory()->forVariant($large)->create(['quantity' => 4]);
     Preorder::factory()->forVariant($large)->cancelled()->create(['quantity' => 9]);
@@ -219,9 +219,10 @@ test('the specialist sees how many students preordered each size, not counting c
             ->where('products.data.1.name', '42nd Anniversary Shirt')
             ->where('products.data.1.students_count', 3)
             ->where('products.data.1.pieces_total', 7)
+            ->where('products.data.1.paid_pieces', 2)
             ->where('products.data.1.variants', [
-                ['id' => $small->id, 'label' => 'S/M', 'estore_item_code' => null, 'students' => 2, 'pieces' => 3, 'free_to_sell' => 0, 'not_restocked' => false],
-                ['id' => $large->id, 'label' => 'M/L', 'estore_item_code' => null, 'students' => 1, 'pieces' => 4, 'free_to_sell' => 0, 'not_restocked' => false],
+                ['id' => $small->id, 'label' => 'S/M', 'estore_item_code' => null, 'students' => 2, 'pieces' => 3, 'paid_pieces' => 2, 'free_to_sell' => 0, 'not_restocked' => false],
+                ['id' => $large->id, 'label' => 'M/L', 'estore_item_code' => null, 'students' => 1, 'pieces' => 4, 'paid_pieces' => 0, 'free_to_sell' => 0, 'not_restocked' => false],
             ])
             ->where('summary.open', ['products' => 2, 'students' => 3, 'pieces' => 7])
         );

@@ -17,21 +17,22 @@ beforeEach(function () {
 });
 
 /**
- * A Coming Soon item linked to the eStore code, with $pieces waiting in preorders.
+ * A Coming Soon item linked to the eStore code, with $pieces waiting in paid preorders.
  */
 function preorderedItem(string $code, int $pieces): ProductVariant
 {
     $product = Product::factory()->create(['name' => 'STI Batch 2027 Hoodie', 'status' => ProductStatus::Preorder]);
     $variant = ProductVariant::factory()->for($product)->create(['estore_item_code' => $code]);
-    Preorder::factory()->forVariant($variant)->create(['quantity' => $pieces, 'status' => PreorderStatus::Active]);
+    markPreorderPaid(Preorder::factory()->forVariant($variant)->create(['quantity' => $pieces, 'status' => PreorderStatus::Active]));
 
     return $variant;
 }
 
 test('a saved PO keeps how many were ordered for preorders and how many are the Specialist\'s own order', function () {
     $variant = preorderedItem('PRCU01-01', 15);
-    // Cancelled preorders are not waiting.
+    // Cancelled preorders are not waiting, and unpaid ones do not count.
     Preorder::factory()->forVariant($variant)->cancelled()->create(['quantity' => 4]);
+    Preorder::factory()->forVariant($variant)->create(['quantity' => 6, 'status' => PreorderStatus::Active]);
     $this->actingAs($this->specialist);
 
     // The default Word file orders 20 of PRCU01-01.

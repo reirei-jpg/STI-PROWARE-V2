@@ -12,7 +12,7 @@ use App\Services\Stock\LinkedItems;
 /**
  * How much of an eStore PO was ordered because of buyers' preorders, and how
  * much is the Specialist's own order. When a PO is saved, each item's
- * preorder demand is the pieces buyers are still waiting for in preorders of
+ * preorder demand is the PAID pieces buyers are still waiting for in preorders of
  * its products (Coming Soon or a sold-out size), less what earlier POs still
  * on their way already cover, at most what the item orders. It is kept with
  * the item, in the PO's own units, so it does not change later.
@@ -37,6 +37,8 @@ final class PreorderDemand
             $waiting = (int) Preorder::query()
                 ->whereIn('product_variant_id', $variants->modelKeys())
                 ->where('status', PreorderStatus::Active)
+                // Only paid preorders count: unpaid ones may be dropped.
+                ->paid()
                 ->sum('quantity');
             $covered = self::coveredByOtherOrders($item, $piecesPerUnit);
             $demandPieces = max(0, $waiting - $covered);

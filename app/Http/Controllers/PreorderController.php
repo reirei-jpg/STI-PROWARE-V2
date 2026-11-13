@@ -34,7 +34,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * move), and a CSV export of what is still to order. Cancelled and closed
  * preorders are not counted.
  *
- * @phpstan-type VariantCount array{id: int, label: string|null, estore_item_code: string|null, students: int, pieces: int, free_to_sell: int, not_restocked: bool}
+ * @phpstan-type VariantCount array{id: int, label: string|null, estore_item_code: string|null, students: int, pieces: int, paid_pieces: int, free_to_sell: int, not_restocked: bool}
  */
 class PreorderController extends Controller
 {
@@ -421,6 +421,8 @@ class PreorderController extends Controller
         return $query->addSelect([
             'students_count' => $ofProduct(PreorderStatus::Active)->selectRaw('count(distinct user_id)'),
             'pieces_total' => $ofProduct(PreorderStatus::Active)->selectRaw('coalesce(sum(quantity), 0)'),
+            // The waiting pieces already paid at the cashier: the ones to order for.
+            'paid_pieces' => $ofProduct(PreorderStatus::Active)->paid()->selectRaw('coalesce(sum(quantity), 0)'),
             'arrived_students' => $ofProduct(PreorderStatus::Arrived)->selectRaw('count(distinct user_id)'),
             'arrived_pieces' => $ofProduct(PreorderStatus::Arrived)->selectRaw('coalesce(sum(quantity), 0)'),
             'arrived_at' => $ofProduct(PreorderStatus::Arrived)->selectRaw('max(arrived_at)'),
@@ -432,7 +434,7 @@ class PreorderController extends Controller
     }
 
     /**
-     * @return array{id: int, name: string, photo_url: string|null, status: string, status_label: string, stage: string, preorders_close_on: string|null, accepts_preorders: bool, students_count: int, pieces_total: int, arrived_at: string|null}
+     * @return array{id: int, name: string, photo_url: string|null, status: string, status_label: string, stage: string, preorders_close_on: string|null, accepts_preorders: bool, students_count: int, pieces_total: int, paid_pieces: int, arrived_at: string|null}
      */
     private function productSummary(Product $product, string $tab = 'all'): array
     {
@@ -452,6 +454,7 @@ class PreorderController extends Controller
             'accepts_preorders' => $product->acceptsPreorders(),
             'students_count' => (int) $product->getAttribute($stage === 'arrived' ? 'arrived_students' : 'students_count'),
             'pieces_total' => (int) $product->getAttribute($stage === 'arrived' ? 'arrived_pieces' : 'pieces_total'),
+            'paid_pieces' => (int) $product->getAttribute('paid_pieces'),
             'arrived_at' => is_string($arrivedAt) ? CarbonImmutable::parse($arrivedAt)->toIso8601String() : null,
         ];
     }
@@ -472,6 +475,10 @@ class PreorderController extends Controller
             ->selectRaw('product_variant_id, count(distinct user_id) as students, sum(quantity) as pieces')
             ->get()
             ->keyBy('product_variant_id');
+        // Waiting pieces already paid, per size: the ones to order for.
+        $paid = $status === PreorderStatus::Active
+            ? Preorder::query()->where('status', PreorderStatus::Active)->paid()->whereIn('product_id', $productIds)->groupBy('product_variant_id')->selectRaw('product_variant_id, sum(quantity) as pieces')->pluck('pieces', 'product_variant_id')
+            : collect();
 
         return ProductVariant::query()
             ->whereIn('product_id', $productIds)
@@ -484,6 +491,7 @@ class PreorderController extends Controller
                 'estore_item_code' => $variant->estore_item_code,
                 'students' => (int) ($counts->get($variant->id)?->getAttribute('students') ?? 0),
                 'pieces' => (int) ($counts->get($variant->id)?->getAttribute('pieces') ?? 0),
+                'paid_pieces' => (int) ($paid->get($variant->id) ?? 0),
                 'free_to_sell' => $variant->freeToSell(),
                 'not_restocked' => $variant->not_restocked_at !== null,
             ]));

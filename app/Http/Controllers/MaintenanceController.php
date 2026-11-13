@@ -148,7 +148,7 @@ class MaintenanceController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Coming Soon items now show as Ready to order on the dashboard once '.number_format($pieces).' '.($pieces === 1 ? 'piece is' : 'pieces are').' preordered.',
+            'message' => 'Coming Soon items now show as Ready to order on the dashboard once '.number_format($pieces).' '.($pieces === 1 ? 'piece is' : 'pieces are').' preordered and paid.',
         ]);
 
         return back();

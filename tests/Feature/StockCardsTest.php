@@ -20,13 +20,13 @@ beforeEach(function () {
 });
 
 /**
- * A Coming Soon item taking preorders until Nov 30, with $pieces preordered.
+ * A Coming Soon item taking preorders until Nov 30, with $pieces preordered and paid.
  */
 function comingSoonHoodie(int $pieces, string $name = 'STI Batch 2027 Hoodie'): Product
 {
     $product = Product::factory()->create(['name' => $name, 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-11-30']);
     $variant = ProductVariant::factory()->for($product)->create();
-    Preorder::factory()->forVariant($variant)->create(['quantity' => $pieces, 'status' => PreorderStatus::Active]);
+    markPreorderPaid(Preorder::factory()->forVariant($variant)->create(['quantity' => $pieces, 'status' => PreorderStatus::Active]));
 
     return $product;
 }
@@ -73,7 +73,7 @@ test('the number of preorders before ordering is set on Maintenance', function (
     }
 
     $this->patch(route('maintenance.preorders-before-ordering'), ['preorders_before_ordering' => '10'])
-        ->assertInertiaFlash('toast.message', 'Coming Soon items now show as Ready to order on the dashboard once 10 pieces are preordered.');
+        ->assertInertiaFlash('toast.message', 'Coming Soon items now show as Ready to order on the dashboard once 10 pieces are preordered and paid.');
 
     expect(Setting::integer(Setting::PREORDERS_BEFORE_ORDERING, 0))->toBe(10);
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
@@ -86,7 +86,7 @@ test('Create PO closes the item\'s preorders so it moves to To order', function 
     $this->actingAs($this->specialist);
 
     $this->post(route('preorders.create-po', $hoodie))
-        ->assertInertiaFlash('toast.message', 'Preorders for STI Batch 2027 Hoodie are closed: 22 pcs are now in To order on the Preorders page. Order them in the eStore, then scan the PO.');
+        ->assertInertiaFlash('toast.message', 'Preorders for STI Batch 2027 Hoodie are closed: 22 pcs paid are now in To order on the Preorders page. Order them in the eStore, then scan the PO.');
 
     expect($hoodie->refresh()->preorders_close_on->toDateString())->toBe('2026-11-12')
         ->and($hoodie->acceptsPreorders())->toBeFalse();
@@ -99,17 +99,20 @@ test('Create PO closes the item\'s preorders so it moves to To order', function 
         ->assertInertiaFlash('toast.message', 'STI Batch 2027 Hoodie is no longer taking preorders, so there is nothing to change. See it on the Preorders page.');
 });
 
-test('Leave it hides the item until 10 more pieces are preordered', function () {
+test('Leave it hides the item until 10 more pieces are paid for', function () {
     $hoodie = comingSoonHoodie(22);
     $this->actingAs($this->specialist);
 
     $this->post(route('preorders.leave', $hoodie))
-        ->assertInertiaFlash('toast.message', 'STI Batch 2027 Hoodie keeps taking preorders. It shows here again at 32 pcs preordered.');
+        ->assertInertiaFlash('toast.message', 'STI Batch 2027 Hoodie keeps taking preorders. It shows here again at 32 pcs paid.');
 
     expect($hoodie->refresh())->preorder_alert_left_at->toBe(22)->acceptsPreorders()->toBeTrue();
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('stockCards.ready_to_order.count', 0));
 
+    // Unpaid pieces do not bring it back; paid ones do.
     Preorder::factory()->forVariant($hoodie->variants()->sole())->create(['quantity' => 10, 'status' => PreorderStatus::Active]);
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('stockCards.ready_to_order.count', 0));
+    markPreorderPaid(Preorder::factory()->forVariant($hoodie->variants()->sole())->create(['quantity' => 10, 'status' => PreorderStatus::Active]));
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('stockCards.ready_to_order.count', 1)
         ->where('stockCards.ready_to_order.items.0.pieces', 32));
@@ -122,7 +125,7 @@ test('the phone can Create PO and Leave it, as on the website', function () {
 
     $this->postJson(route('api.v1.specialist.preorders.leave', $cap))
         ->assertOk()
-        ->assertJsonPath('message', 'STI Cap keeps taking preorders. It shows here again at 35 pcs preordered.');
+        ->assertJsonPath('message', 'STI Cap keeps taking preorders. It shows here again at 35 pcs paid.');
     $this->postJson(route('api.v1.specialist.preorders.create-po', $hoodie))->assertOk();
     $this->postJson(route('api.v1.specialist.preorders.create-po', $hoodie))
         ->assertUnprocessable()
@@ -136,4 +139,13 @@ test('only the Specialist can Create PO or Leave it', function () {
     $this->actingAs(User::factory()->student()->create())->post(route('preorders.leave', $hoodie))->assertForbidden();
 
     expect($hoodie->refresh())->acceptsPreorders()->toBeTrue()->preorder_alert_left_at->toBeNull();
+});
+
+test('only paid pieces count toward Ready to order', function () {
+    $hoodie = comingSoonHoodie(15);
+    // 30 more preordered but not paid yet.
+    Preorder::factory()->forVariant($hoodie->variants()->sole())->create(['quantity' => 30, 'status' => PreorderStatus::Active]);
+
+    $this->actingAs($this->specialist)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('stockCards.ready_to_order.count', 0));
 });

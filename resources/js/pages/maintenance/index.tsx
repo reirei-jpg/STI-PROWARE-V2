@@ -249,7 +249,7 @@ function MostPerItemSetting({ setting }: { setting: LimitSetting }) {
 }
 
 /**
- * How many pieces must be preordered before a Coming Soon item shows on the
+ * How many pieces must be preordered and paid before a Coming Soon item shows on the
  * dashboard as Ready to order, where the Specialist chooses Create PO or
  * Leave it.
  */
@@ -268,8 +268,8 @@ function PreordersBeforeOrderingSetting({
             <SettingText
                 icon={<ClipboardList size={19} className="text-amber-600" />}
                 title="Preorders before ordering"
-                explanation="When this many pieces of a Coming Soon item are preordered, it shows on the dashboard as Ready to order. There you choose Create PO (its preorders close and it moves to To order) or Leave it (it comes back after 10 more are preordered)."
-                example={`Example with ${setting.default}: a hoodie with 22 pieces preordered shows as Ready to order; one with 19 does not yet.`}
+                explanation="When this many pieces of a Coming Soon item are preordered AND paid, it shows on the dashboard as Ready to order (unpaid preorders do not count). There you choose Create PO (its preorders close and it moves to To order) or Leave it (it comes back after 10 more are paid for)."
+                example={`Example with ${setting.default}: a hoodie with 22 paid pieces shows as Ready to order; one with 19 paid (and any number unpaid) does not yet.`}
                 setting={setting}
             />
 
@@ -293,7 +293,7 @@ function PreordersBeforeOrderingSetting({
                 </p>
                 <label className="block space-y-1.5">
                     <span className="text-sm font-bold text-slate-700">
-                        Pieces preordered ({setting.min} to{' '}
+                        Paid pieces ({setting.min} to{' '}
                         {setting.max.toLocaleString('en-PH')})
                     </span>
                     <input

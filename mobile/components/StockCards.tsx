@@ -124,7 +124,7 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
         // Closing its preorders cannot be undone here, so it asks first.
         Alert.alert(
             `Create a PO for ${item.product_name}?`,
-            `Its preorders close now and ${formatUnits(item.pieces, 'Piece')} move to To order on the Preorders page; buyers can no longer preorder it. Then order them in the eStore and scan the PO.`,
+            `Its preorders close now and ${formatUnits(item.pieces, 'Piece')} paid move to To order on the Preorders page; buyers can no longer preorder it. Then order them in the eStore and scan the PO.`,
             [
                 { text: 'Not yet', style: 'cancel' },
                 { text: 'Create PO', onPress: () => void act('create-po', item.product_id) },
@@ -154,7 +154,7 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                     color="#b45309"
                     label="Ready to order"
                     value={String(data.ready_to_order.count)}
-                    detail={`with ${data.ready_to_order.threshold}+ pieces preordered`}
+                    detail={`with ${data.ready_to_order.threshold}+ paid pieces`}
                     onPress={() => setOpen('ready_to_order')}
                 />
                 <Pressable
@@ -293,13 +293,13 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                 open={open === 'ready_to_order'}
                 onClose={() => setOpen(null)}
                 title={`Ready to order · ${data.ready_to_order.count}`}
-                subtitle={`Coming Soon items with ${data.ready_to_order.threshold}+ pieces preordered.`}
+                subtitle={`Coming Soon items with ${data.ready_to_order.threshold}+ paid pieces. Unpaid preorders do not count.`}
                 icon={<ClipboardList size={20} color="#b45309" />}
                 footer={<CloseButton onPress={() => setOpen(null)} />}
             >
                 {data.ready_to_order.items.length === 0 ? (
                     <Text className="font-sans text-sm text-slate-500">
-                        No Coming Soon item has {data.ready_to_order.threshold} pieces preordered yet.
+                        No Coming Soon item has {data.ready_to_order.threshold} paid pieces yet.
                     </Text>
                 ) : (
                     <View className="gap-2.5">
@@ -309,7 +309,7 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                                     <Text className="font-sans-bold text-sm text-slate-900">{item.product_name}</Text>
                                     <Text className="font-sans text-xs text-slate-500">
                                         <Text className="font-sans-bold text-amber-700">
-                                            {formatUnits(item.pieces, 'Piece')} preordered
+                                            {formatUnits(item.pieces, 'Piece')} paid
                                         </Text>{' '}
                                         ({data.ready_to_order.threshold} needed)
                                         {item.preorders_close_on ? ` · closes ${formatDate(item.preorders_close_on)}` : ''}

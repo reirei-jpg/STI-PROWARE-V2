@@ -71,7 +71,7 @@ export function VariantCounts({
                     <span className="font-bold">{variant.label}:</span>{' '}
                     {variant.students === 0
                         ? '—'
-                        : `${variant.students} ${variant.students === 1 ? 'student' : 'students'} · ${formatUnits(variant.pieces, 'Piece')}`}
+                        : `${variant.students} ${variant.students === 1 ? 'student' : 'students'} · ${formatUnits(variant.pieces, 'Piece')} · ${variant.paid_pieces} paid`}
                 </li>
             ))}
         </ul>

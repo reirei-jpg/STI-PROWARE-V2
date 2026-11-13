@@ -6,6 +6,8 @@ export type PreorderVariantCount = {
     estore_item_code: string | null;
     students: number;
     pieces: number;
+    /** Of those pieces, the ones already paid at the cashier: the ones to order for. */
+    paid_pieces: number;
     /** Pieces students can buy now. */
     free_to_sell: number;
     /** The Specialist said this sold-out size will not be restocked. */
@@ -33,6 +35,8 @@ export type PreorderProductSummary = {
     /** Waiting preorders; arrived ones once the product arrived. */
     students_count: number;
     pieces_total: number;
+    /** Waiting pieces already paid at the cashier: the ones to order for. */
+    paid_pieces: number;
     /** When the students were told it arrived. */
     arrived_at: string | null;
     variants: PreorderVariantCount[];

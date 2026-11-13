@@ -174,7 +174,7 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                         value={data.ready_to_order.count.toLocaleString(
                             'en-PH',
                         )}
-                        detail={`with ${data.ready_to_order.threshold.toLocaleString('en-PH')}+ pieces preordered`}
+                        detail={`with ${data.ready_to_order.threshold.toLocaleString('en-PH')}+ paid pieces`}
                         onOpen={() => setOpen('ready_to_order')}
                     />
                     <Card
@@ -462,13 +462,12 @@ function ReadyToOrderList({ data }: { data: StockCardsData }) {
         <>
             <ListHeader
                 title="Ready to order"
-                description={`Coming Soon items with ${threshold.toLocaleString('en-PH')} or more pieces preordered (set on Maintenance). Create PO closes their preorders; Leave it keeps them open.`}
+                description={`Coming Soon items with ${threshold.toLocaleString('en-PH')} or more paid pieces (set on Maintenance; unpaid preorders do not count). Create PO closes their preorders; Leave it keeps them open.`}
             />
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {items.length === 0 ? (
                     <p className="px-6 py-12 text-center text-sm text-slate-500">
-                        No Coming Soon item has {threshold} pieces preordered
-                        yet.
+                        No Coming Soon item has {threshold} paid pieces yet.
                     </p>
                 ) : (
                     <ul className="divide-y divide-slate-100">
@@ -484,7 +483,7 @@ function ReadyToOrderList({ data }: { data: StockCardsData }) {
                                     <p className="text-sm text-slate-500">
                                         <span className="font-black text-amber-700">
                                             {formatUnits(item.pieces, 'Piece')}{' '}
-                                            preordered
+                                            paid
                                         </span>{' '}
                                         ({threshold} needed)
                                         {item.preorders_close_on &&
@@ -546,7 +545,7 @@ function ReadyToOrderList({ data }: { data: StockCardsData }) {
             <ConfirmDialog
                 open={confirming !== null}
                 title={`Create a PO for ${confirming?.product_name ?? 'this item'}?`}
-                description={`Its preorders close now and ${confirming ? formatUnits(confirming.pieces, 'Piece') : 'the pieces'} move to To order on the Preorders page; buyers can no longer preorder it. Then order them in the eStore and scan the PO.`}
+                description={`Its preorders close now and ${confirming ? formatUnits(confirming.pieces, 'Piece') : 'the pieces'} paid move to To order on the Preorders page; buyers can no longer preorder it. Then order them in the eStore and scan the PO.`}
                 cancelLabel="Not yet"
                 confirmLabel="Create PO"
                 busy={busy !== null}

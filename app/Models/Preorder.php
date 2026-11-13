@@ -114,6 +114,18 @@ class Preorder extends Model
     }
 
     /**
+     * Preorders whose batch was paid at the cashier: the ones that count
+     * when deciding how many to order.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function paid(Builder $query): void
+    {
+        $query->whereIn('batch', PreorderSlip::query()->whereNotNull('paid_at')->select('batch'));
+    }
+
+    /**
      * The slip of its batch, paid at the cashier.
      *
      * @return BelongsTo<PreorderSlip, $this>

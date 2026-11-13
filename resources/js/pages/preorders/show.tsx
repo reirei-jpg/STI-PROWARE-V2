@@ -62,7 +62,7 @@ export default function PreorderShow({
                     <SummaryCard
                         label="Total Pieces"
                         value={formatUnits(product.pieces_total, 'Piece')}
-                        description="How many they reserved in all."
+                        description={`How many they reserved in all; ${product.paid_pieces} paid. Order for the paid ones.`}
                         icon={Users}
                     />
                     <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

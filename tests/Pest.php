@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Preorder;
+use App\Models\PreorderSlip;
 use App\Models\PurchaseOrder;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -211,4 +213,15 @@ function wordTable(array $rows): string
     );
 
     return '<w:tbl>'.implode('', $rowsXml).'</w:tbl>';
+}
+
+/**
+ * The preorder's batch paid at the cashier (as the Specialist marks it), so
+ * it counts when deciding how many to order.
+ */
+function markPreorderPaid(Preorder $preorder): Preorder
+{
+    PreorderSlip::forBatch($preorder)->forceFill(['paid_at' => now(), 'paid_centavos' => 0])->save();
+
+    return $preorder;
 }
