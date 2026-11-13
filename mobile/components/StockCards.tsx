@@ -32,16 +32,19 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
     const [size, setSize] = useState<number>(buyers?.sizes[0] ?? 10);
     const [note, setNote] = useState('');
     const [sending, setSending] = useState(false);
+    // Shown in the sheet: a toast would be hidden behind it.
+    const [tellError, setTellError] = useState<string | null>(null);
     const chosen = buyers?.products.find((product) => product.product_id === productId);
     const recipients = Math.min(size, buyers?.buyers_count ?? 0);
 
     const send = async (): Promise<void> => {
         if (productId === null) {
-            setToast({ type: 'error', message: 'Choose the product to announce.' });
+            setTellError('Choose the product to announce.');
 
             return;
         }
 
+        setTellError(null);
         setSending(true);
 
         try {
@@ -55,7 +58,7 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
             setToast({ type: 'success', message: result.message });
             onChanged();
         } catch (caught) {
-            setToast({ type: 'error', message: caught instanceof ApiError ? caught.message : 'It could not be sent. Try again.' });
+            setTellError(caught instanceof ApiError ? caught.message : 'It could not be sent. Try again.');
         } finally {
             setSending(false);
         }
@@ -336,6 +339,11 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                     icon={<Megaphone size={20} color="#2563eb" />}
                     footer={
                         <View className="gap-2">
+                            {tellError && (
+                                <View className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                                    <Text className="font-sans-semibold text-sm text-red-700">{tellError}</Text>
+                                </View>
+                            )}
                             <Pressable
                                 onPress={() => void send()}
                                 disabled={sending}
@@ -348,7 +356,10 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                                 </Text>
                             </Pressable>
                             <Pressable
-                                onPress={() => setOpen('top_buyers')}
+                                onPress={() => {
+                                    setTellError(null);
+                                    setOpen('top_buyers');
+                                }}
                                 disabled={sending}
                                 accessibilityRole="button"
                                 className="items-center justify-center rounded-2xl border border-slate-200 bg-white py-3.5"
@@ -367,7 +378,10 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                                 return (
                                     <Pressable
                                         key={product.product_id}
-                                        onPress={() => setProductId(product.product_id)}
+                                        onPress={() => {
+                                            setProductId(product.product_id);
+                                            setTellError(null);
+                                        }}
                                         accessibilityRole="radio"
                                         accessibilityState={{ selected: picked }}
                                         className={`rounded-2xl border px-4 py-3 ${picked ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'}`}
