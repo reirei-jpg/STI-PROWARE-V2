@@ -1,12 +1,12 @@
 import { formatPeso, formatUnits } from '@/lib/format';
 
 /**
- * A preorder is paid at the price on the day it is ordered (when it has
- * arrived), which may differ from the price when it was preordered, e.g.
- * after a price rise. Only the early-bird price is kept. Same words as the
+ * A preorder is paid at the cashier with its preorder slip, at the price on
+ * the day it was preordered (early-bird pieces at the early-bird price).
+ * Once paid there is no refund. Same words as the
  * website (resources/js/lib/preorder-price.ts).
  */
-export const PREORDER_PRICE_MAY_CHANGE = 'The price may change before it arrives. You pay the price on the day you order it.';
+export const PREORDER_PRICE_MAY_CHANGE = 'Pay at the cashier with your preorder slip. The price stays as it is today. After paying there is no refund.';
 
 /** "Preordered at ₱500.00 each. The price may change …" (or only the note for older preorders). */
 export function preorderPriceNote(preorderedPriceCentavos: number | null): string {

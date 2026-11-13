@@ -6,6 +6,8 @@ use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
+use App\Models\PreorderSlip;
+use App\Services\Preorders\PreorderPayment;
 use App\Services\Shop\SpecialistOrders;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,9 +42,24 @@ class OrderController extends Controller
     {
         $slip = SpecialistOrders::bySlip($code);
 
-        return $slip === null
+        if ($slip !== null) {
+            return response()->json($slip);
+        }
+
+        // A preorder slip (PR-0001), paid at the cashier.
+        $preorderSlip = PreorderPayment::bySlip($code);
+
+        return $preorderSlip === null
             ? response()->json(['message' => 'This is not a PROWARE issuance slip.'], 404)
-            : response()->json($slip);
+            : response()->json(['kind' => 'preorder', ...$preorderSlip]);
+    }
+
+    /**
+     * Mark a preorder slip Paid, as on the website.
+     */
+    public function preorderPaid(Request $request, PreorderSlip $preorderSlip): JsonResponse
+    {
+        return response()->json(['message' => PreorderPayment::markPaid($preorderSlip, $request->user())]);
     }
 
     public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse

@@ -59,6 +59,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');
+        Route::get('preorders/slips/{preorderSlip}', [PreorderController::class, 'slip'])->name('preorders.slip');
         Route::post('products/{product}/preorder', [PreorderController::class, 'store'])->name('preorders.store');
         Route::patch('preorders/{preorder}', [PreorderController::class, 'update'])->name('preorders.update');
         Route::delete('preorders/{preorder}', [PreorderController::class, 'destroy'])->name('preorders.destroy');
@@ -72,6 +73,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('orders', [SpecialistOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [SpecialistOrderController::class, 'show'])->name('orders.show');
         Route::get('slips/{code}', [SpecialistOrderController::class, 'slip'])->name('slips.show');
+        Route::post('preorder-slips/{preorderSlip}/paid', [SpecialistOrderController::class, 'preorderPaid'])->name('preorder-slips.paid');
         Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');
         Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
         Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');

@@ -70,6 +70,13 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        case 'preorder_paid':
+            return {
+                title: `Preorder paid: ${data.product_name}`,
+                body: `Your payment of ${formatPeso(data.paid_centavos ?? 0)} has been recorded. Preorder slip ${data.number} now says PAID: keep it as your proof of payment.`,
+                titleClass: 'text-emerald-700',
+                stripe: '#10b981',
+            };
         case 'product_announced': {
             const price =
                 data.price_from_centavos === null

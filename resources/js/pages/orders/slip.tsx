@@ -13,6 +13,8 @@ import {
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
+import PreorderSlipController from '@/actions/App/Http/Controllers/PreorderSlipController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import IssuanceSlip from '@/components/issuance-slip';
 import { ConfirmReleaseDialog } from '@/components/order-details-dialog';
 import { OrderStatusBadge } from '@/components/order-items';
@@ -21,7 +23,18 @@ import SlipScanBox from '@/components/slip-scan-box';
 import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { IssuanceSlipData, SpecialistOrderRow } from '@/types';
+import type {
+    IssuanceSlipData,
+    PreorderSlipData,
+    SpecialistOrderRow,
+} from '@/types';
+
+type PreorderSlipResult = {
+    slip: PreorderSlipData;
+    can_mark_paid: boolean;
+    /** Why it cannot be marked paid (already paid, nothing to pay). */
+    refusal: string | null;
+};
 
 type SlipResult = {
     order: SpecialistOrderRow;
@@ -44,9 +57,12 @@ type SlipResult = {
 export default function OrderSlip({
     code,
     result,
+    preorderResult,
 }: {
     code: string;
     result: SlipResult | null;
+    /** A preorder slip (PR-0001) when the code is not an order's. */
+    preorderResult: PreorderSlipResult | null;
 }) {
     // While the order is open the page checks it every 10 seconds, so when
     // it is released, cancelled or expires elsewhere (the phone, another
@@ -97,7 +113,9 @@ export default function OrderSlip({
 
                 <SlipScanBox key={code} />
 
-                {result === null ? (
+                {result === null && preorderResult !== null ? (
+                    <PreorderPayment result={preorderResult} />
+                ) : result === null ? (
                     code !== '' && <NotFound code={code} />
                 ) : (
                     <>
@@ -116,6 +134,148 @@ export default function OrderSlip({
     );
 }
 
+/**
+ * A scanned preorder slip (PR-0001): the answer first (pay now, or
+ * already paid), then the slip beside the payment: check the cashier's
+ * receipt for the amount, then Mark as paid. A payment is final: the
+ * preorder can no longer be changed or cancelled, and there is no refund.
+ */
+function PreorderPayment({ result }: { result: PreorderSlipResult }) {
+    const { slip } = result;
+    const paid = slip.status === 'paid';
+    const [checked, setChecked] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const asSlip: IssuanceSlipData = {
+        ...slip,
+        order_id: slip.slip_id,
+        status: 'placed',
+        pick_up_by: null,
+        released_on: null,
+        issued_by: null,
+    };
+
+    const markPaid = () => {
+        setBusy(true);
+        router.post(
+            PreorderSlipController.paid(slip.slip_id).url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setBusy(false);
+                    setConfirming(false);
+                },
+            },
+        );
+    };
+
+    return (
+        <>
+            <section
+                className={cn(
+                    'flex items-start gap-4 rounded-3xl border px-6 py-5 shadow-sm',
+                    paid
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                        : result.can_mark_paid
+                          ? 'border-amber-200 bg-amber-50 text-amber-900'
+                          : 'border-red-200 bg-red-50 text-red-900',
+                )}
+            >
+                {paid ? (
+                    <CheckCircle2 size={30} className="shrink-0" />
+                ) : result.can_mark_paid ? (
+                    <Banknote size={30} className="shrink-0" />
+                ) : (
+                    <ShieldAlert size={30} className="shrink-0" />
+                )}
+                <div>
+                    <p className="text-lg font-black">
+                        {paid
+                            ? `Preorder ${slip.number} is paid`
+                            : result.can_mark_paid
+                              ? `Preorder ${slip.number}: waiting for payment`
+                              : `Preorder ${slip.number} cannot be paid`}
+                    </p>
+                    <p className="text-sm">
+                        {paid || !result.can_mark_paid
+                            ? result.refusal
+                            : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name}. Check the cashier receipt, then mark it paid.`}
+                    </p>
+                </div>
+            </section>
+
+            <div className="grid items-start gap-6 lg:grid-cols-[1fr_24rem]">
+                <IssuanceSlip
+                    slip={asSlip}
+                    title="PREORDER SLIP"
+                    paid={paid}
+                    className="rounded-2xl shadow-sm"
+                />
+
+                {result.can_mark_paid && (
+                    <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div>
+                            <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
+                                Amount to pay
+                            </p>
+                            <p className="text-3xl font-black text-slate-900">
+                                {formatPeso(slip.total_centavos)}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                                {slip.student_name} · {slip.product_name}
+                            </p>
+                        </div>
+                        <label className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-semibold text-slate-700">
+                            <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(event) =>
+                                    setChecked(event.target.checked)
+                                }
+                                className="mt-0.5 size-4 rounded border-slate-300"
+                            />
+                            I checked the cashier receipt for{' '}
+                            {formatPeso(slip.total_centavos)}.
+                        </label>
+                        <button
+                            type="button"
+                            disabled={!checked || busy}
+                            onClick={() => setConfirming(true)}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {busy ? (
+                                <LoaderCircle
+                                    size={16}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <Banknote size={16} />
+                            )}
+                            Mark as paid
+                        </button>
+                        <p className="text-xs text-slate-500">
+                            After this the preorder can no longer be changed or
+                            cancelled, and there is no refund.
+                        </p>
+                    </section>
+                )}
+            </div>
+
+            <ConfirmDialog
+                open={confirming}
+                title={`Mark ${slip.number} as paid?`}
+                description={`${slip.student_name} paid ${formatPeso(slip.total_centavos)} for ${slip.product_name}. The slip will say PAID, and the preorder can no longer be changed or cancelled. This cannot be undone.`}
+                cancelLabel="Not yet"
+                confirmLabel="Mark as paid"
+                busy={busy}
+                onConfirm={markPaid}
+                onClose={() => setConfirming(false)}
+            />
+        </>
+    );
+}
+
 function NotFound({ code }: { code: string }) {
     return (
         <section className="rounded-3xl border border-l-4 border-slate-200 border-l-red-500 bg-white px-6 py-10 text-center shadow-sm">
@@ -124,10 +284,10 @@ function NotFound({ code }: { code: string }) {
                 Not a PROWARE slip
             </h2>
             <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                No order has the code{' '}
+                No order or preorder has the code{' '}
                 <strong className="break-all text-slate-700">{code}</strong>.
-                Scan the slip again, or type its order number (PW-0042). The
-                student can also open the slip from My Orders.
+                Scan the slip again, or type its number (PW-0042, or PR-0007 for
+                a preorder). The student can also open the slip from My Orders.
             </p>
         </section>
     );

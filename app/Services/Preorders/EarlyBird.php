@@ -5,6 +5,7 @@ namespace App\Services\Preorders;
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Preorder;
+use App\Models\PreorderSlip;
 use App\Models\Product;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,8 @@ use Illuminate\Support\Facades\DB;
  * preorders still short of early-bird pieces. So a student who preorders
  * more later only gets early-bird pieces that are still free, and when an
  * early preorder is cancelled the next ones move up. When N is made smaller,
- * the latest preorders give theirs back first.
+ * the latest preorders give theirs back first. A paid preorder keeps what it
+ * was paid at.
  */
 final class EarlyBird
 {
@@ -61,12 +63,20 @@ final class EarlyBird
             $preorder->early_bird_pieces = min($preorder->early_bird_pieces, $preorder->quantity);
         }
 
+        // A paid preorder keeps the price it was paid at: its early-bird
+        // pieces are neither taken back nor added to.
+        $paid = array_flip(PreorderSlip::query()->where('product_id', $product->id)->whereNotNull('paid_at')->pluck('batch')->all());
+
         // Fewer early-bird pieces than given: the latest give theirs back.
         $over = self::given($preorders) - $limit;
 
         foreach ($preorders->reverse() as $preorder) {
             if ($over <= 0) {
                 break;
+            }
+
+            if (isset($paid[$preorder->batch])) {
+                continue;
             }
 
             $taken = min($over, $preorder->early_bird_pieces);
@@ -80,6 +90,10 @@ final class EarlyBird
         foreach ($preorders as $preorder) {
             if ($free <= 0) {
                 break;
+            }
+
+            if (isset($paid[$preorder->batch])) {
+                continue;
             }
 
             $given = min($free, $preorder->quantity - $preorder->early_bird_pieces);

@@ -265,3 +265,27 @@ export type StorefrontFilters = {
     find: string | null;
     show: 'in_stock' | 'sold_out' | null;
 };
+
+/** A preorder slip (PR-0001): paid at the cashier, then the buyer's proof of payment. */
+export type PreorderSlipData = {
+    kind: 'preorder';
+    school: string;
+    address_lines: string[];
+    slip_id: number;
+    number: string | null;
+    date: string | null;
+    student_name: string;
+    student_id: string | null;
+    section: string | null;
+    is_staff: boolean;
+    product_id: number;
+    product_name: string;
+    items: IssuanceSlipData['items'];
+    total_centavos: number;
+    status: 'waiting_payment' | 'paid';
+    status_label: string;
+    paid_on: string | null;
+    /** The Specialist who marked it paid. */
+    received_by: string | null;
+    qr_svg: string;
+};

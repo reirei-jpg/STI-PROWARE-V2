@@ -9,7 +9,7 @@ import {
     TriangleAlert,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IssuanceSlipCard from '@/components/IssuanceSlipCard';
@@ -19,8 +19,11 @@ import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useLiveReload } from '@/lib/use-live-reload';
-import { formatDate, formatDateTime } from '@/lib/format';
-import type { SlipLookup, SpecialistOrder } from '@/lib/types';
+import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
+import type { PreorderSlipData, SlipLookup, SpecialistOrder } from '@/lib/types';
+
+/** A scanned preorder slip (PR-0001), paid at the cashier. */
+type PreorderLookup = { kind: 'preorder'; slip: PreorderSlipData; can_mark_paid: boolean; refusal: string | null };
 
 /**
  * A scanned issuance slip on the Specialist's phone, like the website's:
@@ -37,6 +40,7 @@ export default function SlipCheckScreen() {
     const insets = useSafeAreaInsets();
     const { request } = useAuth();
     const [result, setResult] = useState<SlipLookup | null>(null);
+    const [preorder, setPreorder] = useState<PreorderLookup | null>(null);
     const [notFound, setNotFound] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -45,7 +49,15 @@ export default function SlipCheckScreen() {
 
     const load = useCallback(async (): Promise<void> => {
         try {
-            setResult(await request<SlipLookup>(`/specialist/slips/${encodeURIComponent(code)}`));
+            const answer = await request<SlipLookup | PreorderLookup>(`/specialist/slips/${encodeURIComponent(code)}`);
+
+            if ('kind' in answer && answer.kind === 'preorder') {
+                setPreorder(answer);
+                setResult(null);
+            } else {
+                setResult(answer as SlipLookup);
+                setPreorder(null);
+            }
             setNotFound(false);
             setLoadError(null);
         } catch (caught) {
@@ -61,6 +73,7 @@ export default function SlipCheckScreen() {
 
     useEffect(() => {
         setResult(null);
+        setPreorder(null);
         setDone(null);
         setError(null);
         void load();
@@ -138,9 +151,9 @@ export default function SlipCheckScreen() {
                         <SearchX size={40} color="#f87171" />
                         <Text className="font-sans-bold text-lg text-slate-900">Not a PROWARE slip</Text>
                         <Text className="text-center font-sans text-sm leading-5 text-slate-500">
-                            No order has the code{' '}
+                            No order or preorder has the code{' '}
                             <Text className="font-sans-bold text-slate-700">{code}</Text>. Scan the slip
-                            again, or type its order number (PW-0042). The buyer can also open the slip
+                            again, or type its number (PW-0042, or PR-0007 for a preorder). The buyer can also open the slip
                             from My Orders.
                         </Text>
                     </View>
@@ -148,6 +161,8 @@ export default function SlipCheckScreen() {
                         Scan again
                     </ScanNextButton>
                 </>
+            ) : preorder ? (
+                <PreorderPayment lookup={preorder} onChanged={load} onScanNext={scanNext} />
             ) : loadError && result === null ? (
                 <Text className="font-sans-semibold text-sm text-red-600">{loadError}</Text>
             ) : result === null || order === undefined ? (
@@ -334,5 +349,128 @@ function Check({ tone, children }: { tone: 'green' | 'amber'; children: ReactNod
             <View className="mt-0.5">{style.icon}</View>
             <Text className={`flex-1 font-sans text-sm leading-5 ${style.text}`}>{children}</Text>
         </View>
+    );
+}
+
+/**
+ * A scanned preorder slip: what to collect at the cashier, then Mark as
+ * paid (asked first: a payment is final, the preorder can no longer be
+ * changed or cancelled, and there is no refund). Once paid the slip says
+ * PAID.
+ */
+function PreorderPayment({
+    lookup,
+    onChanged,
+    onScanNext,
+}: {
+    lookup: PreorderLookup;
+    onChanged: () => Promise<void>;
+    onScanNext: () => void;
+}) {
+    const { request } = useAuth();
+    const { slip } = lookup;
+    const paid = slip.status === 'paid';
+    const [busy, setBusy] = useState(false);
+    const [done, setDone] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const markPaid = async (): Promise<void> => {
+        setBusy(true);
+        setError(null);
+
+        try {
+            const answer = await request<{ message: string }>(`/specialist/preorder-slips/${slip.slip_id}/paid`, { method: 'POST' });
+            setDone(answer.message);
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'It could not be marked as paid. Try again.');
+        } finally {
+            await onChanged();
+            setBusy(false);
+        }
+    };
+
+    const confirm = (): void => {
+        Alert.alert(
+            `Mark ${slip.number} as paid?`,
+            `${slip.student_name} paid ${formatPeso(slip.total_centavos)} for ${slip.product_name}. The slip will say PAID, and the preorder can no longer be changed or cancelled. This cannot be undone.`,
+            [
+                { text: 'Not yet', style: 'cancel' },
+                { text: 'Mark as paid', onPress: () => void markPaid() },
+            ],
+        );
+    };
+
+    return (
+        <>
+            {done ? (
+                <View className="gap-3 rounded-3xl bg-emerald-600 p-5">
+                    <View className="flex-row items-start gap-3">
+                        <CircleCheck size={26} color="#ffffff" />
+                        <Text className="flex-1 font-sans-bold text-base leading-6 text-white">{done}</Text>
+                    </View>
+                    <Pressable
+                        onPress={onScanNext}
+                        accessibilityRole="button"
+                        className="flex-row items-center justify-center gap-2 rounded-2xl bg-white py-3.5"
+                    >
+                        <ScanLine size={18} color="#047857" />
+                        <Text className="font-sans-bold text-base text-emerald-700">Scan the next slip</Text>
+                    </Pressable>
+                </View>
+            ) : (
+                <View
+                    className={`flex-row items-start gap-3 rounded-3xl p-5 ${paid ? 'bg-emerald-600' : lookup.can_mark_paid ? 'bg-amber-500' : 'bg-red-600'}`}
+                >
+                    {paid ? (
+                        <CircleCheck size={26} color="#ffffff" />
+                    ) : lookup.can_mark_paid ? (
+                        <TriangleAlert size={26} color="#ffffff" />
+                    ) : (
+                        <ShieldAlert size={26} color="#ffffff" />
+                    )}
+                    <View className="flex-1">
+                        <Text className="font-sans-bold text-lg text-white">
+                            {paid
+                                ? `Preorder ${slip.number} is paid`
+                                : lookup.can_mark_paid
+                                  ? `Preorder ${slip.number}: waiting for payment`
+                                  : `Preorder ${slip.number} cannot be paid`}
+                        </Text>
+                        <Text className="font-sans text-sm leading-5 text-white">
+                            {paid || !lookup.can_mark_paid
+                                ? lookup.refusal
+                                : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name}. Check the cashier receipt, then mark it paid.`}
+                        </Text>
+                    </View>
+                </View>
+            )}
+
+            {error && (
+                <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                    <Text className="font-sans-semibold text-sm text-red-700">{error}</Text>
+                </View>
+            )}
+
+            {lookup.can_mark_paid && !done && (
+                <Pressable
+                    onPress={confirm}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4 ${busy ? 'opacity-60' : ''}`}
+                >
+                    {busy && <ActivityIndicator size="small" color="#ffffff" />}
+                    <Text className="font-sans-bold text-base text-white">
+                        Mark as paid · {formatPeso(slip.total_centavos)}
+                    </Text>
+                </Pressable>
+            )}
+
+            <IssuanceSlipCard
+                slip={{ ...slip, order_id: slip.slip_id, status: 'placed', pick_up_by: null, released_on: null, issued_by: null }}
+                title="PREORDER SLIP"
+                paid={paid}
+                showQr={false}
+            />
+        </>
     );
 }

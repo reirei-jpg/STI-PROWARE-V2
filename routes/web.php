@@ -10,6 +10,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PreorderController;
 use App\Http\Controllers\PreorderRestockController;
+use App\Http\Controllers\PreorderSlipController;
 use App\Http\Controllers\ProductAnnouncementController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductSaleController;
@@ -37,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('role:student,employee')->group(function () {
         Route::get('my-preorders', [StudentPreorderController::class, 'index'])->name('my-preorders.index');
+        Route::get('my-preorders/slips/{preorderSlip}', [StudentPreorderController::class, 'slip'])->name('my-preorders.slip');
         Route::post('merchandise/{product}/preorder', [StudentPreorderController::class, 'store'])->name('my-preorders.store');
         Route::patch('my-preorders/{preorder}', [StudentPreorderController::class, 'update'])->name('my-preorders.update');
         Route::delete('my-preorders/{preorder}', [StudentPreorderController::class, 'destroy'])->name('my-preorders.destroy');
@@ -104,6 +106,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('preorders/{product}/close-date', [PreorderController::class, 'updateCloseDate'])->name('preorders.close-date');
         Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
         Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');
+        Route::post('preorder-slips/{preorderSlip}/paid', [PreorderSlipController::class, 'paid'])->name('preorder-slips.paid');
         Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');
         Route::post('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'store'])->name('preorders.not-restocked');
         Route::delete('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'destroy'])->name('preorders.allow-restock');

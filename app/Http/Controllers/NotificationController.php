@@ -32,6 +32,7 @@ class NotificationController extends Controller
             'order_ready', 'order_released', 'order_cancelled', 'order_last_day', 'ordering_paused' => to_route('my-orders.index'),
             'preorder_arrived', 'product_announced' => to_route('home', ['search' => $notification->data['product_name']]),
             'preorder_received', 'preorder_not_restocked', 'preorder_arrival_changed', 'preorder_held', 'preorder_hold_ended' => to_route('my-preorders.index'),
+            'preorder_paid' => to_route('my-preorders.slip', $notification->data['slip_id']),
             'preorder_placed' => to_route('preorders.index', ['stage' => 'sold_out', 'search' => $notification->data['product_name']]),
             'ordering_resumed' => to_route('home'),
             default => to_route('purchase-orders.index', ['view' => $notification->data['purchase_order_id'] ?? null]),

@@ -11,15 +11,17 @@ use App\Http\Requests\EditPreorderRequest;
 use App\Http\Requests\OrderHeldPreorderRequest;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
+use App\Models\PreorderSlip;
 use App\Models\Product;
+use App\Services\Preorders\PreorderPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * A student's preorders: reservations of Preorder products (no payment)
- * that tell the Specialist how many to order in the eStore.
+ * A buyer's preorders: reservations of Coming Soon products or sold-out
+ * sizes, each batch paid at the cashier with its preorder slip.
  */
 class StudentPreorderController extends Controller
 {
@@ -30,6 +32,19 @@ class StudentPreorderController extends Controller
     {
         return Inertia::render('storefront/my-preorders', [
             'preorders' => CancelPreorderByStudent::studentPage($request->user()),
+        ]);
+    }
+
+    /**
+     * The preorder slip: what to pay at the cashier, or PAID as the buyer's
+     * proof of payment.
+     */
+    public function slip(Request $request, PreorderSlip $preorderSlip): Response
+    {
+        abort_unless($preorderSlip->user_id === $request->user()->id, 404);
+
+        return Inertia::render('storefront/preorder-slip', [
+            'slip' => PreorderPayment::view($preorderSlip),
         ]);
     }
 

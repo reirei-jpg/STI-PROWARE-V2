@@ -7,6 +7,7 @@ import {
     PackageOpen,
     PackageX,
     Pencil,
+    Receipt,
     ShoppingBag,
     Store,
     XCircle,
@@ -17,8 +18,7 @@ import ConfirmDialog from '@/components/confirm-dialog';
 import EditPreorderDialog from '@/components/edit-preorder-dialog';
 import QuantityInput from '@/components/quantity-input';
 import Pagination from '@/components/pagination';
-import { formatDateTime, formatPeso } from '@/lib/format';
-import { preorderPriceNote } from '@/lib/preorder-price';
+import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
@@ -72,6 +72,13 @@ type MyPreorder = {
     order_number: string | null;
     order_status: 'placed' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
+    /** The batch's preorder slip (PR-0001), paid at the cashier. */
+    slip_id: number | null;
+    slip_number: string | null;
+    slip_paid: boolean;
+    /** What to pay, or what was paid. */
+    slip_amount_centavos: number | null;
+    paid_on: string | null;
 };
 
 /** Each status's words, icon and V1 colors. */
@@ -384,15 +391,56 @@ function PreorderBatch({
                 ))}
             </div>
 
-            {rows.some((row) => row.status === 'active') && (
-                <p className="border-t border-slate-100 px-5 py-2 text-xs text-slate-500">
-                    {preorderPriceNote(
-                        rows.find((row) => row.status === 'active')
-                            ?.preordered_price_centavos ?? null,
-                    )}
-                </p>
-            )}
+            {first.slip_id !== null &&
+                rows.some((row) => row.status === 'active') && (
+                    <PaymentBar preorder={first} />
+                )}
         </article>
+    );
+}
+
+/**
+ * The batch's payment, once at the bottom: what to pay at the cashier with
+ * the preorder slip, or Paid (the slip is the proof of payment).
+ */
+function PaymentBar({ preorder }: { preorder: MyPreorder }) {
+    return (
+        <div
+            className={cn(
+                'flex flex-wrap items-center justify-between gap-2 border-t px-5 py-2.5',
+                preorder.slip_paid
+                    ? 'border-emerald-100 bg-emerald-50/60'
+                    : 'border-amber-100 bg-amber-50/60',
+            )}
+        >
+            <p className="text-xs leading-5">
+                {preorder.slip_paid ? (
+                    <span className="font-black text-emerald-700">
+                        Paid {formatPeso(preorder.slip_amount_centavos ?? 0)}
+                        {preorder.paid_on &&
+                            ` on ${formatDateOrdered(preorder.paid_on)}`}
+                    </span>
+                ) : (
+                    <span className="font-black text-amber-800">
+                        Waiting for payment ·{' '}
+                        {formatPeso(preorder.slip_amount_centavos ?? 0)}
+                    </span>
+                )}
+                <span className="text-slate-500">
+                    {' '}
+                    · slip {preorder.slip_number}
+                    {!preorder.slip_paid &&
+                        '. Pay at the cashier with the slip. No refund after paying.'}
+                </span>
+            </p>
+            <Link
+                href={StudentPreorderController.slip(preorder.slip_id ?? 0)}
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 text-xs font-black text-blue-700 transition hover:bg-blue-50"
+            >
+                <Receipt size={14} />
+                View slip
+            </Link>
+        </div>
     );
 }
 

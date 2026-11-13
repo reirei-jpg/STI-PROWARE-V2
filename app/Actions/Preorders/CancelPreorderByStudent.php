@@ -5,9 +5,11 @@ namespace App\Actions\Preorders;
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Preorder;
+use App\Models\PreorderSlip;
 use App\Models\User;
 use App\Services\Preorders\EarlyBird;
 use App\Services\Preorders\PreorderHolds;
+use App\Services\Preorders\PreorderPayment;
 use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -19,7 +21,7 @@ use Illuminate\Validation\ValidationException;
  * while preorders for the product are still open, or while a sold-out size
  * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, batch: string, product_id: int, product_variant_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, can_edit: bool, edited_at: string|null, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null}
+ * @phpstan-type PreorderRow array{id: int, batch: string, product_id: int, product_variant_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, can_edit: bool, edited_at: string|null, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null, slip_id: int|null, slip_number: string|null, slip_paid: bool, slip_amount_centavos: int|null, paid_on: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -36,6 +38,11 @@ class CancelPreorderByStudent
      */
     public static function refusal(Preorder $preorder): ?string
     {
+        // A paid preorder stays: there is no refund.
+        if ($preorder->status === PreorderStatus::Active && PreorderPayment::isPaid($preorder)) {
+            return "You already paid for your preorder of {$preorder->product->name}, so it can no longer be cancelled. There is no refund.";
+        }
+
         if ($preorder->status === PreorderStatus::Active && ($preorder->product->acceptsPreorders() || LowStockAlerts::isSold($preorder->product))) {
             return null;
         }
@@ -107,8 +114,11 @@ class CancelPreorderByStudent
             ->get()
             ->groupBy('batch');
 
+        $slips = PreorderSlip::query()->whereIn('batch', $keys)->get()->keyBy('batch');
+        $slipInfo = $slips->map(fn (PreorderSlip $slip): array => self::slipInfo($slip));
+
         $rows = collect($keys)
-            ->flatMap(fn (string $key) => $preorders->get($key, collect())->map(fn (Preorder $preorder): array => self::row($preorder)))
+            ->flatMap(fn (string $key) => $preorders->get($key, collect())->map(fn (Preorder $preorder): array => self::row($preorder, $slipInfo->get($key) ?? self::slipInfo(null))))
             ->values();
 
         return new Paginator($rows, $batches->total(), $batches->perPage(), $batches->currentPage(), [
@@ -118,13 +128,33 @@ class CancelPreorderByStudent
     }
 
     /**
-     * The row on the student's My Preorders (website and phone app).
+     * The batch's preorder slip on My Preorders: its number, what to pay or
+     * what was paid, and when.
      *
-     * @return PreorderRow
+     * @return array{slip_id: int|null, slip_number: string|null, slip_paid: bool, slip_amount_centavos: int|null, paid_on: string|null}
      */
-    public static function row(Preorder $preorder): array
+    public static function slipInfo(?PreorderSlip $slip): array
     {
         return [
+            'slip_id' => $slip?->id,
+            'slip_number' => $slip?->number,
+            'slip_paid' => $slip?->isPaid() ?? false,
+            'slip_amount_centavos' => $slip?->amountDue(),
+            'paid_on' => $slip?->paid_at?->toDateString(),
+        ];
+    }
+
+    /**
+     * The row on the student's My Preorders (website and phone app).
+     *
+     * @param  array{slip_id: int|null, slip_number: string|null, slip_paid: bool, slip_amount_centavos: int|null, paid_on: string|null}|null  $slip  the batch's slip, when already looked up
+     * @return PreorderRow
+     */
+    public static function row(Preorder $preorder, ?array $slip = null): array
+    {
+        return [
+            // The batch's preorder slip: its number, what to pay or what was paid.
+            ...($slip ?? self::slipInfo($preorder->slip)),
             'id' => $preorder->id,
             // Preorders placed with one press of Preorder: one card on My Preorders.
             'batch' => $preorder->batch,

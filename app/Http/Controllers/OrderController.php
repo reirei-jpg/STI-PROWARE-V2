@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
+use App\Services\Preorders\PreorderPayment;
 use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\SpecialistOrders;
 use Closure;
@@ -51,6 +52,8 @@ class OrderController extends Controller
         return Inertia::render('orders/slip', [
             'code' => $code,
             'result' => $code === '' ? null : SpecialistOrders::bySlip($code),
+            // A preorder slip (PR-0001), paid at the cashier.
+            'preorderResult' => $code === '' ? null : PreorderPayment::bySlip($code),
         ]);
     }
 

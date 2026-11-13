@@ -25,9 +25,15 @@ const keepColors = {
 export default function IssuanceSlip({
     slip,
     className,
+    title = 'ISSUANCE SLIP',
+    paid = false,
 }: {
     slip: IssuanceSlipData;
     className?: string;
+    /** PREORDER SLIP for a preorder's slip. */
+    title?: string;
+    /** A preorder slip that was paid: stamped PAID, the buyer's proof of payment. */
+    paid?: boolean;
 }) {
     const emptyLines = Math.max(0, PAPER_LINES - slip.items.length);
 
@@ -51,10 +57,10 @@ export default function IssuanceSlip({
             </header>
 
             <p className="mt-3 border-y-2 border-[#1E4E9C] bg-[#F7D44C] py-1.5 text-center text-base font-black tracking-[0.3em]">
-                ISSUANCE SLIP
+                {title}
             </p>
 
-            <SlipStamp status={slip.status} />
+            <SlipStamp status={slip.status} paid={paid} />
 
             <div className="mt-4 grid grid-cols-[1fr_auto] gap-4">
                 <dl className="grid content-start gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -272,11 +278,17 @@ function SignatureLine({
 }
 
 /**
- * CANCELLED in red or RELEASED in green across the slip, so a used or
- * cancelled slip is not taken for an open one.
+ * CANCELLED in red, or RELEASED (or PAID, on a preorder slip) in green across
+ * the slip, so a used or cancelled slip is not taken for an open one.
  */
-function SlipStamp({ status }: { status: IssuanceSlipData['status'] }) {
-    if (status !== 'cancelled' && status !== 'picked_up') {
+function SlipStamp({
+    status,
+    paid,
+}: {
+    status: IssuanceSlipData['status'];
+    paid: boolean;
+}) {
+    if (status !== 'cancelled' && status !== 'picked_up' && !paid) {
         return null;
     }
 
@@ -290,7 +302,7 @@ function SlipStamp({ status }: { status: IssuanceSlipData['status'] }) {
                     : 'border-emerald-600 text-emerald-600',
             )}
         >
-            {status === 'cancelled' ? 'CANCELLED' : 'RELEASED'}
+            {status === 'cancelled' ? 'CANCELLED' : paid ? 'PAID' : 'RELEASED'}
         </p>
     );
 }

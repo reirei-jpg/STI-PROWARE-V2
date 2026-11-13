@@ -377,9 +377,9 @@ export default function AddToCartSheet({
             {preordering && variant.can_preorder && (
                 <View className="rounded-xl bg-amber-50 px-4 py-3">
                     <Text className="font-sans text-xs leading-5 text-amber-900">
-                        This {hasChoices ? 'size or color' : 'item'} is out of stock. Preorder it:
-                        when it is back in stock, your pieces are held for you for 24 hours and you are
-                        notified. There is nothing to pay now. {PREORDER_PRICE_MAY_CHANGE}
+                        This {hasChoices ? 'size or color' : 'item'} is out of stock. Preorder it, then
+                        pay at the cashier with your preorder slip. Once paid, your pieces are kept for you
+                        when it is back in stock and you are notified. {PREORDER_PRICE_MAY_CHANGE}
                     </Text>
                 </View>
             )}

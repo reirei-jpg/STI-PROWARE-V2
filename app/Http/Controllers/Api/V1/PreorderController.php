@@ -12,7 +12,9 @@ use App\Http\Requests\EditPreorderRequest;
 use App\Http\Requests\OrderHeldPreorderRequest;
 use App\Http\Requests\PlacePreorderRequest;
 use App\Models\Preorder;
+use App\Models\PreorderSlip;
 use App\Models\Product;
+use App\Services\Preorders\PreorderPayment;
 use App\Services\Shop\OrderRow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +32,16 @@ class PreorderController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json(CancelPreorderByStudent::studentPage($request->user()));
+    }
+
+    /**
+     * The preorder slip, as on the website.
+     */
+    public function slip(Request $request, PreorderSlip $preorderSlip): JsonResponse
+    {
+        abort_unless($preorderSlip->user_id === $request->user()->id, 404);
+
+        return response()->json(PreorderPayment::view($preorderSlip));
     }
 
     public function store(PlacePreorderRequest $request, Product $product, PlacePreorder $placePreorder): JsonResponse

@@ -240,7 +240,7 @@ export type IssuanceSlipData = {
     qr_svg: string | null;
 };
 
-/** A student's preorder (a reservation; nothing to pay). */
+/** A buyer's preorder; its batch is paid at the cashier with a preorder slip. */
 export type StudentPreorder = {
     id: number;
     /** Preorders placed with one press of Preorder share it (one card). */
@@ -282,6 +282,26 @@ export type StudentPreorder = {
     order_number: string | null;
     order_status: 'placed' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
+    /** The batch's preorder slip (PR-0001); missing on a server from before slips. */
+    slip_id?: number | null;
+    slip_number?: string | null;
+    slip_paid?: boolean;
+    /** What to pay, or what was paid. */
+    slip_amount_centavos?: number | null;
+    paid_on?: string | null;
+};
+
+/** A preorder slip (PR-0001): paid at the cashier, then the buyer's proof of payment. */
+export type PreorderSlipData = Omit<IssuanceSlipData, 'order_id' | 'status' | 'pick_up_by' | 'released_on' | 'issued_by' | 'qr_svg'> & {
+    kind: 'preorder';
+    slip_id: number;
+    product_id: number;
+    product_name: string;
+    status: 'waiting_payment' | 'paid';
+    paid_on: string | null;
+    /** The Specialist who marked it paid. */
+    received_by: string | null;
+    qr_svg: string;
 };
 
 /** What a student's notice is about (the same notices as the website's bell). */
@@ -303,6 +323,14 @@ export type StudentNotificationData =
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
+    | {
+          kind: 'preorder_paid';
+          slip_id: number;
+          number: string | null;
+          product_id: number;
+          product_name: string;
+          paid_centavos: number | null;
+      }
     | {
           kind: 'product_announced';
           product_id: number;

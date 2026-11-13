@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, ChevronRight, ImageIcon, Package, Pencil, ShoppingBag, Store, XCircle } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package, Pencil, Receipt, ShoppingBag, Store, XCircle } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -25,8 +25,7 @@ import HeldOrderSheet from '@/components/HeldOrderSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import SignInPrompt from '@/components/SignInPrompt';
-import { formatDateTime, formatPeso } from '@/lib/format';
-import { preorderPriceNote } from '@/lib/preorder-price';
+import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
@@ -318,7 +317,8 @@ function statusPill(preorder: StudentPreorder): { text: string; box: string; wor
 /**
  * One card per press of Preorder, kept minimal like an online shop's order:
  * the item's photo, name and date once on top, then one line per size or
- * color with its status and buttons, and the price note once at the bottom.
+ * color with its status and buttons, and the payment once at the bottom (what
+ * to pay with the preorder slip, or Paid).
  */
 function PreorderBatch({
     rows,
@@ -359,10 +359,28 @@ function PreorderBatch({
             {rows.map((row) => (
                 <PreorderRow key={row.id} preorder={row} onChanged={onChanged} onEdit={onEdit} />
             ))}
-            {waiting && (
-                <Text className="border-t border-slate-100 px-3.5 py-2 font-sans text-xs text-slate-500">
-                    {preorderPriceNote(waiting.preordered_price_centavos)}
-                </Text>
+            {waiting && first.slip_id != null && (
+                <View
+                    className={`flex-row items-center gap-2 border-t px-3.5 py-2.5 ${first.slip_paid ? 'border-emerald-100 bg-emerald-50' : 'border-amber-100 bg-amber-50'}`}
+                >
+                    <Text className="flex-1 font-sans text-xs leading-5 text-slate-600">
+                        <Text className={`font-sans-bold ${first.slip_paid ? 'text-emerald-700' : 'text-amber-800'}`}>
+                            {first.slip_paid
+                                ? `Paid ${formatPeso(first.slip_amount_centavos ?? 0)}${first.paid_on ? ` on ${formatDate(first.paid_on)}` : ''}`
+                                : `Waiting for payment · ${formatPeso(first.slip_amount_centavos ?? 0)}`}
+                        </Text>
+                        {` · slip ${first.slip_number}`}
+                        {first.slip_paid ? '' : '. Pay at the cashier with the slip. No refund after paying.'}
+                    </Text>
+                    <Pressable
+                        onPress={() => router.push(`/preorder-slip/${first.slip_id}`)}
+                        accessibilityRole="button"
+                        className="flex-row items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5"
+                    >
+                        <Receipt size={13} color="#1d4ed8" />
+                        <Text className="font-sans-bold text-xs text-blue-700">View slip</Text>
+                    </Pressable>
+                </View>
             )}
         </View>
     );

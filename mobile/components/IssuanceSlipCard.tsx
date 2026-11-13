@@ -21,9 +21,15 @@ const BLUE = '#1E4E9C';
 export default function IssuanceSlipCard({
     slip,
     showQr = true,
+    title = 'ISSUANCE SLIP',
+    paid = false,
 }: {
     slip: IssuanceSlipData;
     showQr?: boolean;
+    /** PREORDER SLIP for a preorder's slip. */
+    title?: string;
+    /** A preorder slip that was paid: stamped PAID, the buyer's proof of payment. */
+    paid?: boolean;
 }) {
     return (
         <View className="overflow-hidden rounded-2xl border border-slate-300 bg-white px-4 py-5">
@@ -41,7 +47,7 @@ export default function IssuanceSlipCard({
                 className="mt-3 border-y-2 py-1.5"
             >
                 <Text className="text-center font-sans-bold text-sm tracking-[4px] text-slate-900">
-                    ISSUANCE SLIP
+                    {title}
                 </Text>
             </View>
 
@@ -118,7 +124,7 @@ export default function IssuanceSlipCard({
                 </Text>
             )}
 
-            <SlipStamp status={slip.status} />
+            <SlipStamp status={slip.status} paid={paid} />
         </View>
     );
 }
@@ -155,11 +161,11 @@ function HeadingCell({
 }
 
 /**
- * CANCELLED in red or RELEASED in green across the slip, so a used or
- * cancelled slip is not taken for an open one.
+ * CANCELLED in red, or RELEASED (or PAID, on a preorder slip) in green across
+ * the slip, so a used or cancelled slip is not taken for an open one.
  */
-function SlipStamp({ status }: { status: IssuanceSlipData['status'] }) {
-    if (status !== 'cancelled' && status !== 'picked_up') {
+function SlipStamp({ status, paid }: { status: IssuanceSlipData['status']; paid: boolean }) {
+    if (status !== 'cancelled' && status !== 'picked_up' && !paid) {
         return null;
     }
 
@@ -179,7 +185,7 @@ function SlipStamp({ status }: { status: IssuanceSlipData['status'] }) {
                 <Text
                     className={`font-sans-bold text-4xl tracking-[4px] ${cancelled ? 'text-red-600' : 'text-emerald-600'}`}
                 >
-                    {cancelled ? 'CANCELLED' : 'RELEASED'}
+                    {cancelled ? 'CANCELLED' : paid ? 'PAID' : 'RELEASED'}
                 </Text>
             </View>
         </View>

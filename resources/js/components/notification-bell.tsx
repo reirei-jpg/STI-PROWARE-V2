@@ -332,6 +332,21 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'preorder_paid') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Preorder paid: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Your payment of {formatPeso(data.paid_centavos ?? 0)} has
+                    been recorded. Preorder slip {data.number} now says PAID:
+                    keep it as your proof of payment.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'product_announced') {
         const price =
             data.price_from_centavos === null

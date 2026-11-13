@@ -6,6 +6,7 @@ use App\Enums\PreorderStatus;
 use App\Models\Preorder;
 use App\Models\ProductVariant;
 use App\Services\Preorders\EarlyBird;
+use App\Services\Preorders\PreorderPayment;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +28,10 @@ class EditPreorderByStudent
      */
     public static function refusal(Preorder $preorder): ?string
     {
+        if ($preorder->status === PreorderStatus::Active && PreorderPayment::isPaid($preorder)) {
+            return "You already paid for your preorder of {$preorder->product->name}, so it can no longer be changed.";
+        }
+
         if ($preorder->status === PreorderStatus::Active && ($preorder->product->acceptsPreorders() || LowStockAlerts::isSold($preorder->product))) {
             return null;
         }

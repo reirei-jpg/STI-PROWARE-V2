@@ -16,8 +16,8 @@ use Illuminate\Support\Str;
 /**
  * A student's reservation of a Preorder product, or of a sold-out size of a
  * product for sale (waiting for a restock): which size or color and how
- * many. It tells the Specialist how many to order in the eStore; there is
- * no payment. A student has at most one active preorder per variant;
+ * many. It tells the Specialist how many to order in the eStore. Its batch
+ * is paid at the cashier with a preorder slip (PreorderSlip). A student has at most one active preorder per variant;
  * preordering it again changes the quantity.
  *
  * @property int $id
@@ -111,6 +111,16 @@ class Preorder extends Model
         $query->whereIn('status', $status === PreorderStatus::Arrived
             ? PreorderStatus::arrivedGroup()
             : [$status]);
+    }
+
+    /**
+     * The slip of its batch, paid at the cashier.
+     *
+     * @return BelongsTo<PreorderSlip, $this>
+     */
+    public function slip(): BelongsTo
+    {
+        return $this->belongsTo(PreorderSlip::class, 'batch', 'batch');
     }
 
     /**

@@ -82,6 +82,16 @@ export type PreorderArrivedData = {
     variant_label?: string | null;
 };
 
+/** The buyer's payment for a preorder was recorded: the slip says PAID. */
+export type PreorderPaidData = {
+    kind: 'preorder_paid';
+    slip_id: number;
+    number: string | null;
+    product_id: number;
+    product_name: string;
+    paid_centavos: number | null;
+};
+
 /** The Specialist told the top buyers that a product is in the store now. */
 export type ProductAnnouncedData = {
     kind: 'product_announced';
@@ -257,6 +267,7 @@ export type StaffNotification = {
         | OrderCancelledData
         | PreorderArrivedData
         | ProductAnnouncedData
+        | PreorderPaidData
         | PreorderNotRestockedData
         | PreorderArrivalChangedData
         | PreorderHeldData

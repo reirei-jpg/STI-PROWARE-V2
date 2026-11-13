@@ -5,6 +5,7 @@ namespace App\Actions\Preorders;
 use App\Enums\PreorderStatus;
 use App\Enums\UserRole;
 use App\Models\Preorder;
+use App\Models\PreorderSlip;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\PreorderPlaced;
@@ -58,6 +59,8 @@ class PlacePreorder
             }
 
             EarlyBird::reallocate($product);
+            // The slip the buyer pays with at the cashier (PR-0001).
+            PreorderSlip::query()->create(['batch' => $batch, 'user_id' => $student->id, 'product_id' => $product->id]);
 
             return array_map(fn (Preorder $preorder): Preorder => $preorder->refresh(), $saved);
         });

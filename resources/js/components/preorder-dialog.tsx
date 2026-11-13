@@ -71,7 +71,7 @@ export function usePreorder(): (product: StorefrontTileProduct) => void {
 
 /**
  * The Preorder form: which size or color and how many. A preorder is a
- * reservation (no payment) that tells the PROWARE office how many to order:
+ * reservation, paid at the cashier with its preorder slip, that tells the PROWARE office how many to order:
  * of a Coming Soon product, or of an item for sale that is out of stock
  * (only its sizes that can be preordered; the student is notified when it
  * is back in stock).
@@ -458,8 +458,8 @@ function PreorderForm({
 
                 <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                     {restock
-                        ? 'This item is out of stock. Preorder it: when it is back in stock, your pieces are held for you for 24 hours and you are notified. There is nothing to pay now. If you preorder the same size again, the added pieces wait behind those already in line.'
-                        : 'A preorder reserves the item so the PROWARE office knows how many to order. There is nothing to pay now. If you preorder the same size again, the added pieces wait behind those already in line.'}
+                        ? 'This item is out of stock. Preorder it, then pay at the cashier with your preorder slip. Once you have paid, your pieces are kept for you when it is back in stock and you are notified. If you preorder the same size again, the added pieces wait behind those already in line.'
+                        : 'A preorder reserves the item so the PROWARE office knows how many to order. Pay for it at the cashier with your preorder slip; once paid, your pieces are kept for you. If you preorder the same size again, the added pieces wait behind those already in line.'}
                 </p>
             </div>
 
