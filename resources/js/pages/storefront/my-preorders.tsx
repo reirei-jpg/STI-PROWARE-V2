@@ -172,8 +172,9 @@ export default function MyPreorders({
                     </h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                         Items you reserved before they arrive or while they are
-                        out of stock. There is nothing to pay now; you are
-                        notified when your item arrives.
+                        out of stock. Pay at the cashier with each preorder's
+                        slip; once paid, your pieces are set aside when they
+                        arrive and you are notified. No refund after paying.
                     </p>
                 </div>
 

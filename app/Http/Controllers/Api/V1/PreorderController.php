@@ -20,7 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * The student's preorders on the phone app (reservations, nothing to pay),
+ * The student's preorders on the phone app (paid at the cashier with a preorder slip),
  * with the website's rules (PlacePreorderRequest, PlacePreorder,
  * CancelPreorderByStudent).
  */

@@ -14,8 +14,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * A student's preorder: which sizes or colors and how many of each. There
- * is no payment; it is a reservation. Preorder products take preorders
+ * A student's preorder: which sizes or colors and how many of each. It is
+ * paid at the cashier with its preorder slip. Preorder products take preorders
  * until their close date; a product for sale takes them only for sizes
  * that are sold out and not marked "will not be restocked".
  *
