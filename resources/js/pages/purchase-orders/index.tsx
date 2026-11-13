@@ -14,8 +14,10 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
+import SalesReportController from '@/actions/App/Http/Controllers/SalesReportController';
 import DateRangeFilter from '@/components/date-range-filter';
 import DeliveryProgress from '@/components/delivery-progress';
+import ItemsOrderedDialog from '@/components/items-ordered-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
@@ -26,6 +28,7 @@ import { isSameSearch } from '@/lib/utils';
 import type {
     Auth,
     DeliveryStatus,
+    ItemOrdered,
     Paginated,
     PurchaseOrderFilters,
     PurchaseOrderSort,
@@ -105,6 +108,7 @@ export default function PurchaseOrdersIndex({
     categories,
     openPurchaseOrderId,
     followUpDays,
+    itemsOrdered,
 }: {
     purchaseOrders: Paginated<PurchaseOrderSummary>;
     summary: PurchaseOrderTotals;
@@ -113,6 +117,8 @@ export default function PurchaseOrdersIndex({
     openPurchaseOrderId: number | null;
     /** Days after the Date Ordered an order should be complete (Maintenance). */
     followUpDays: number;
+    /** What Total QTY Ordered is made of; loaded when its card is opened. */
+    itemsOrdered?: ItemOrdered[];
 }) {
     const { auth, errors } = usePage<{
         auth: Auth;
@@ -129,6 +135,8 @@ export default function PurchaseOrdersIndex({
     const [viewingId, setViewingId] = useState<number | null>(
         openPurchaseOrderId,
     );
+    const [showingItems, setShowingItems] = useState(false);
+    const listRef = useRef<HTMLDivElement>(null);
     const [search, setSearch] = useState(filters.search ?? '');
     // Category and Sort are tucked away; they open when one is used.
     const moreFiltersInUse = [
@@ -188,6 +196,30 @@ export default function PurchaseOrdersIndex({
 
     const summaryScope = describeScope(filters);
 
+    const scrollToList = () =>
+        listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const openItems = () => {
+        setShowingItems(true);
+        router.reload({ only: ['itemsOrdered'] });
+    };
+
+    // The same dates on Sales Reports; all time when no full date range is chosen.
+    const openWhatWeSpent = () =>
+        router.visit(
+            SalesReportController.index({
+                query:
+                    filters.date_from && filters.date_to
+                        ? {
+                              tab: 'spent',
+                              period: 'custom',
+                              date_from: filters.date_from,
+                              date_to: filters.date_to,
+                          }
+                        : { tab: 'spent', period: 'all' },
+            }),
+        );
+
     return (
         <>
             <Head title="Purchase Orders" />
@@ -195,6 +227,12 @@ export default function PurchaseOrdersIndex({
             <PurchaseOrderDetailsDialog
                 purchaseOrderId={viewingId}
                 onClose={closeDetails}
+            />
+            <ItemsOrderedDialog
+                open={showingItems}
+                items={itemsOrdered}
+                scope={summaryScope ?? 'All orders'}
+                onClose={() => setShowingItems(false)}
             />
 
             <div className="space-y-7">
@@ -224,6 +262,8 @@ export default function PurchaseOrdersIndex({
                         value={String(summary.orders_count)}
                         description={summaryScope ?? 'From the eStore emails'}
                         icon={ClipboardList}
+                        onClick={scrollToList}
+                        actionLabel="See the list"
                     />
                     <SummaryCard
                         label="Total QTY Ordered"
@@ -232,15 +272,21 @@ export default function PurchaseOrdersIndex({
                         )}
                         description={summaryScope ?? 'Pieces ordered'}
                         icon={Boxes}
+                        onClick={openItems}
+                        actionLabel="See the items"
                     />
                     <SummaryCard
                         label="Total Amount (Ordered)"
                         value={formatPeso(summary.total_amount_centavos)}
                         description={summaryScope ?? 'At Head Office cost'}
                         icon={Wallet}
+                        // Sales Reports are the Specialist's; the School Admin goes to the list.
+                        onClick={isSpecialist ? openWhatWeSpent : scrollToList}
+                        actionLabel={
+                            isSpecialist ? 'Open What we spent' : 'See the list'
+                        }
                     />
                 </section>
-
                 <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:max-w-xs">
@@ -395,6 +441,7 @@ export default function PurchaseOrdersIndex({
                     )}
                 </section>
 
+                <div ref={listRef} className="scroll-mt-24" />
                 <Panel
                     title="Uploaded Purchase Orders"
                     description={`${sortOptions.find((option) => option.value === filters.sort)?.label ?? ''}. Open View Details for its items and deliveries.`}

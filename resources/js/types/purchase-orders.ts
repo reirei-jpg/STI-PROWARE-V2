@@ -63,6 +63,23 @@ export type PurchaseOrderItemDetails = {
     stock_target: StockTarget | null;
 };
 
+/** One Item Code added up over the listed orders (Total QTY Ordered pop-up). */
+export type ItemOrdered = {
+    item_code: string;
+    description: string;
+    orders_count: number;
+    quantity_ordered: number;
+    /** Null when every PO of the item was saved before preorders were tracked. */
+    preorder_quantity: number | null;
+    own_quantity: number | null;
+    /** Some of its POs were saved before preorders were tracked. */
+    partly_tracked: boolean;
+    quantity_received: number;
+    quantity_remaining: number;
+    /** "Piece", "Pack"…; null while not linked to a product. */
+    unit_name: string | null;
+};
+
 export type PurchaseOrderDetails = {
     id: number;
     order_number: string | null;

@@ -96,6 +96,8 @@ class PurchaseOrderController extends Controller
         return Inertia::render('purchase-orders/index', [
             'purchaseOrders' => $purchaseOrders,
             'followUpDays' => FollowUp::days(),
+            // What Total QTY Ordered is made of, for its pop-up.
+            'itemsOrdered' => Inertia::optional(fn (): array => self::itemsOrdered($filtered)),
             'summary' => [
                 'orders_count' => (clone $filtered)->count(),
                 'total_qty_ordered' => (int) PurchaseOrderItem::query()
@@ -119,6 +121,48 @@ class PurchaseOrderController extends Controller
                 ->all(),
             'openPurchaseOrderId' => $request->filled('view') ? $request->integer('view') : null,
         ]);
+    }
+
+    /**
+     * The items of the listed orders added up per Item Code, the most
+     * ordered first: how many were ordered (for preorders and as the
+     * Specialist's own order), received and still to come.
+     *
+     * @param  Builder<PurchaseOrder>  $orders
+     * @return list<array{item_code: string, description: string, orders_count: int, quantity_ordered: int, preorder_quantity: int|null, own_quantity: int|null, partly_tracked: bool, quantity_received: int, quantity_remaining: int, unit_name: string|null}>
+     */
+    private static function itemsOrdered(Builder $orders): array
+    {
+        $rows = PurchaseOrderItem::query()
+            ->whereIn('purchase_order_id', (clone $orders)->select('id'))
+            ->groupBy('item_code')
+            ->selectRaw('item_code, max(description) as description, count(distinct purchase_order_id) as orders_count, sum(quantity_ordered) as quantity_ordered, sum(quantity_delivered) as quantity_received, sum(case when quantity_ordered > quantity_delivered then quantity_ordered - quantity_delivered else 0 end) as quantity_remaining, sum(coalesce(preorder_quantity, 0)) as preorder_quantity, sum(case when preorder_quantity is null then 1 else 0 end) as untracked_lines, count(*) as lines')
+            ->orderByDesc('quantity_ordered')
+            ->orderBy('item_code')
+            ->toBase()
+            ->get();
+
+        $linked = LinkedItems::variantsByCode($rows->pluck('item_code')->all());
+
+        return array_values($rows->map(function (object $row) use ($linked): array {
+            $ordered = (int) $row->quantity_ordered;
+            $untracked = (int) $row->untracked_lines;
+            // Null when every PO of the item was saved before this was kept.
+            $preorders = $untracked === (int) $row->lines ? null : (int) $row->preorder_quantity;
+
+            return [
+                'item_code' => (string) $row->item_code,
+                'description' => (string) $row->description,
+                'orders_count' => (int) $row->orders_count,
+                'quantity_ordered' => $ordered,
+                'preorder_quantity' => $preorders,
+                'own_quantity' => $preorders === null ? null : $ordered - $preorders,
+                'partly_tracked' => $preorders !== null && $untracked > 0,
+                'quantity_received' => (int) $row->quantity_received,
+                'quantity_remaining' => (int) $row->quantity_remaining,
+                'unit_name' => $linked->has($row->item_code) ? LinkedItems::target($linked->get($row->item_code))['unit_name'] : null,
+            ];
+        })->all());
     }
 
     /**

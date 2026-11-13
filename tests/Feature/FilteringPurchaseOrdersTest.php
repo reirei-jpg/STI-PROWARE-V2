@@ -74,6 +74,32 @@ test('the summary cards follow the Date Ordered filter', function () {
         );
 });
 
+test('Total QTY Ordered opens the items of the listed orders added up per item, the most ordered first', function () {
+    $first = PurchaseOrder::factory()->create(['date_ordered' => '2026-11-12']);
+    PurchaseOrderItem::factory()->for($first)->create(['item_code' => 'MTT01-001', 'description' => 'STI Thermal Tumbler', 'quantity_ordered' => 10, 'quantity_delivered' => 4, 'preorder_quantity' => 2]);
+    PurchaseOrderItem::factory()->for($first)->create(['item_code' => 'MLY01-001', 'description' => 'STI Lanyard', 'quantity_ordered' => 5, 'preorder_quantity' => 0]);
+    $second = PurchaseOrder::factory()->create(['date_ordered' => '2026-11-13']);
+    PurchaseOrderItem::factory()->for($second)->create(['item_code' => 'MTT01-001', 'description' => 'STI Thermal Tumbler', 'quantity_ordered' => 6, 'preorder_quantity' => 3]);
+    // Saved before preorders were tracked.
+    PurchaseOrderItem::factory()->for($second)->create(['item_code' => 'PRCU01-01', 'description' => 'Chibi Keychain', 'quantity_ordered' => 3, 'preorder_quantity' => null]);
+    // Outside the chosen dates.
+    PurchaseOrderItem::factory()->for(PurchaseOrder::factory()->create(['date_ordered' => '2026-10-01']))->create(['item_code' => 'MTT01-001', 'quantity_ordered' => 50]);
+
+    $this->get(route('purchase-orders.index', ['date_from' => '2026-11-12', 'date_to' => '2026-11-13']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('itemsOrdered')
+            ->reloadOnly('itemsOrdered', fn (Assert $reload) => $reload
+                ->has('itemsOrdered', 3)
+                ->where('itemsOrdered.0', [
+                    'item_code' => 'MTT01-001', 'description' => 'STI Thermal Tumbler', 'orders_count' => 2,
+                    'quantity_ordered' => 16, 'preorder_quantity' => 5, 'own_quantity' => 11, 'partly_tracked' => false,
+                    'quantity_received' => 4, 'quantity_remaining' => 12, 'unit_name' => null,
+                ])
+                ->where('itemsOrdered.1.item_code', 'MLY01-001')
+                ->where('itemsOrdered.1.own_quantity', 5)
+                ->where('itemsOrdered.2.preorder_quantity', null)));
+});
+
 test('the page links keep the chosen dates', function () {
     PurchaseOrder::factory()->count(21)->create(['date_ordered' => '2026-09-15']);
 
