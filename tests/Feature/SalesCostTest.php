@@ -4,6 +4,7 @@ use App\Enums\ProductStatus;
 use App\Enums\StockCorrectionReason;
 use App\Enums\StockMovementType;
 use App\Models\CartItem;
+use App\Models\FreeUniformGroup;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -323,9 +324,25 @@ test('free uniform sets count in Given free at Cost and at Price, never as a sal
         ->where('summary.free_cost_centavos', 4 * 20000)
         ->where('summary.free_price_centavos', 4 * 40000)
         ->where('summary.price_centavos', 0)
-        ->where('free.data.0.recipient_name', 'Juan Dela Cruz')
-        ->where('free.data.0.enrollment_form_number', '2026-01235')
-        ->where('free.data.0.pieces', 1));
+        // One row for the whole group, not one per piece.
+        ->has('free.data', 1)
+        ->where('free.data.0.group_id', FreeUniformGroup::sole()->id)
+        ->where('free.data.0.students_count', 2)
+        ->where('free.data.0.names', ['Student 1', 'Juan Dela Cruz'])
+        ->where('free.data.0.sets', 'BSIT × 2')
+        ->where('free.data.0.pieces', 4)
+        ->where('free.data.0.cost_centavos', 4 * 20000)
+        ->where('free.data.0.price_centavos', 4 * 40000)
+        ->where('free.data.0.items', []));
+
+    // View Details shows the group's students and their pieces.
+    $this->get(route('sales-reports.index', ['tab' => 'free', 'free_group' => FreeUniformGroup::sole()->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('free_group')
+            ->reloadOnly('free_group', fn (Assert $reload) => $reload
+                ->where('free_group.students.1.name', 'Juan Dela Cruz')
+                ->where('free_group.students.1.enrollment_form_number', '2026-01235')
+                ->where('free_group.students.1.top.given', true)));
 });
 
 test('free uniforms are no longer a reason in Correct Stock, but old ones still count in Given free', function () {
@@ -342,7 +359,7 @@ test('free uniforms are no longer a reason in Correct Stock, but old ones still 
     $this->get(route('products.stock', $variant->product))
         ->assertInertia(fn (Assert $page) => $page->where('reasons', fn ($reasons) => ! collect($reasons)->contains('value', 'given_free')));
     $this->get(route('sales-reports.index', ['tab' => 'free']))
-        ->assertInertia(fn (Assert $page) => $page->where('summary.free_pieces', 1)->where('free.data.0.recipient_name', 'Juan Dela Cruz'));
+        ->assertInertia(fn (Assert $page) => $page->where('summary.free_pieces', 1)->where('free.data.0.group_id', null)->where('free.data.0.items.0.recipient_name', 'Juan Dela Cruz'));
 });
 
 test('only the Specialist sees sales reports and sets eStore prices', function () {

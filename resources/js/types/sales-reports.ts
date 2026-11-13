@@ -85,7 +85,8 @@ export type BestSellerRow = {
     top_variant_pieces: number;
 };
 
-export type FreeRow = {
+/** One piece given free one by one, before there were groups. */
+export type FreePiece = {
     id: number;
     given_at: string | null;
     product_name: string;
@@ -95,7 +96,29 @@ export type FreeRow = {
     enrollment_form_number: string | null;
     cost_centavos: number | null;
     price_centavos: number;
-    recorded_by: string | null;
+};
+
+/** One Free Uniforms group (or one day of pieces given one by one). */
+export type FreeRow = {
+    key: string;
+    /** Null for pieces given one by one, before there were groups. */
+    group_id: number | null;
+    given_at: string;
+    /** The first two students; more_names says how many others. */
+    names: string[];
+    more_names: number;
+    students_count: number;
+    /** e.g. "BSIT × 3 · BSTM × 2"; null outside a group. */
+    sets: string | null;
+    pieces: number;
+    still_to_give: number;
+    cost_centavos: number;
+    /** Pieces whose Cost is not set (left out of Worth at Cost). */
+    missing_cost_pieces: number;
+    price_centavos: number;
+    given_by: string | null;
+    /** The pieces, only for a day of pieces given one by one. */
+    items: FreePiece[];
 };
 
 export type SalesReportFilters = {

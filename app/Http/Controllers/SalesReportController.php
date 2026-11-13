@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\SalesReportRequest;
 use App\Http\Requests\SaveProductRequest;
 use App\Models\ProductVariant;
+use App\Services\FreeUniforms\FreeUniformScreens;
 use App\Services\Reports\SalesReport;
 use App\Services\Stock\StockCost;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +17,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /**
  * The Specialist's Sales Reports for a period: what was spent on eStore
  * orders, what was sold (Cost, Price, Profit), the best sellers, what was
- * sold below cost, and what free uniforms (promo) were worth; setting the Cost of items
+ * sold below cost, and what free uniforms (promo) were worth, by group; setting the Cost of items
  * that have none; and a CSV of the items sold.
  */
 class SalesReportController extends Controller
@@ -32,6 +33,8 @@ class SalesReportController extends Controller
             'sold' => $tab === 'sold' ? SalesReport::sold($from, $to, $request->search()) : null,
             'best' => $tab === 'best' ? SalesReport::bestSellers($from, $to) : null,
             'free' => $tab === 'free' ? SalesReport::free($from, $to) : null,
+            // A group's students and pieces, for its View Details pop-up.
+            'free_group' => Inertia::optional(fn (): ?array => $request->filled('free_group') ? FreeUniformScreens::details($request->integer('free_group')) : null),
             'filters' => [
                 'tab' => $tab,
                 'period' => $request->period(),

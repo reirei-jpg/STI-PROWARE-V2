@@ -17,10 +17,18 @@ import type { ReactNode } from 'react';
 import SalesReportController from '@/actions/App/Http/Controllers/SalesReportController';
 import DateRangeFilter from '@/components/date-range-filter';
 import InputError from '@/components/input-error';
+import FreeUniformGroupDialog from '@/components/free-uniform-group-dialog';
 import PageHeader from '@/components/page-header';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { priceInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
@@ -28,6 +36,7 @@ import { cn, isSameSearch } from '@/lib/utils';
 import type {
     BestSellerRow,
     FreeRow,
+    FreeUniformGroupDetails,
     Paginated,
     SalesPeriod,
     SalesReportFilters,
@@ -65,6 +74,7 @@ export default function SalesReportsIndex({
     sold,
     best,
     free,
+    free_group,
     filters,
 }: {
     summary: SalesSummary;
@@ -72,6 +82,8 @@ export default function SalesReportsIndex({
     sold: Paginated<SoldRow> | null;
     best: Paginated<BestSellerRow> | null;
     free: Paginated<FreeRow> | null;
+    /** The group opened with View Details on Given free; undefined until loaded. */
+    free_group?: FreeUniformGroupDetails | null;
     filters: SalesReportFilters;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
@@ -246,7 +258,7 @@ export default function SalesReportsIndex({
                         tone="blue"
                         label="Spent on eStore orders"
                         value={formatPeso(summary.spent_centavos)}
-                        detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} · by Date Ordered${summary.spent_for_preorders_centavos > 0 ? ` · ${formatPeso(summary.spent_for_preorders_centavos)} for preorders` : ''}`}
+                        detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} · by Date Ordered${summary.spent_for_preorders_centavos > 0 ? ` · Preorders ${formatPeso(summary.spent_for_preorders_centavos)}` : ''}`}
                         onClick={() => show({ tab: 'spent' })}
                     />
                     <Card
@@ -340,7 +352,9 @@ export default function SalesReportsIndex({
                     {spent && <SpentTable rows={spent} />}
                     {sold && <SoldTable rows={sold} />}
                     {best && <BestSellersTable rows={best} />}
-                    {free && <FreeTable rows={free} />}
+                    {free && (
+                        <FreeTable rows={free} groupDetails={free_group} />
+                    )}
                 </Panel>
             </div>
         </>
@@ -445,9 +459,7 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                             <TableHeading>Order #</TableHeading>
                             <TableHeading>Date ordered</TableHeading>
                             <TableHeading align="right">Items</TableHeading>
-                            <TableHeading align="right">
-                                For preorders
-                            </TableHeading>
+                            <TableHeading align="right">Preorders</TableHeading>
                             <TableHeading align="right">Amount</TableHeading>
                             <TableHeading>Uploaded by</TableHeading>
                             <TableHeading align="right">
@@ -813,8 +825,22 @@ function SetCost({ row }: { row: SoldRow }) {
     );
 }
 
-/** 4. Free uniforms given (promo), with who received them. */
-function FreeTable({ rows }: { rows: Paginated<FreeRow> }) {
+/**
+ * 4. Free uniforms given (promo), one row per Free Uniforms group: its
+ * students, sets, pieces and what they were worth. View Details shows each
+ * student with their sizes. Pieces given one by one before there were
+ * groups are one row per day.
+ */
+function FreeTable({
+    rows,
+    groupDetails,
+}: {
+    rows: Paginated<FreeRow>;
+    groupDetails: FreeUniformGroupDetails | null | undefined;
+}) {
+    const [viewingGroupId, setViewingGroupId] = useState<number | null>(null);
+    const [viewingDay, setViewingDay] = useState<FreeRow | null>(null);
+
     if (rows.data.length === 0) {
         return (
             <div className="px-6 py-16 text-center">
@@ -823,85 +849,245 @@ function FreeTable({ rows }: { rows: Paginated<FreeRow> }) {
                     No free uniforms given in this period
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                    To record one, open the item in Products, then Stock,
-                    Correct Stock, and choose "Given free (promo)".
+                    Free uniforms are recorded by group on the Free Uniforms
+                    page.
                 </p>
             </div>
         );
     }
 
+    const view = (row: FreeRow) => {
+        if (row.group_id === null) {
+            setViewingDay(row);
+
+            return;
+        }
+
+        setViewingGroupId(row.group_id);
+        router.reload({
+            data: { free_group: row.group_id },
+            only: ['free_group'],
+        });
+    };
+
     return (
         <>
+            <FreeUniformGroupDialog
+                open={viewingGroupId !== null}
+                // Another group's details (from before) count as loading.
+                details={
+                    groupDetails === null || groupDetails?.id === viewingGroupId
+                        ? groupDetails
+                        : undefined
+                }
+                onClose={() => setViewingGroupId(null)}
+            />
+            <FreePiecesDialog
+                row={viewingDay}
+                onClose={() => setViewingDay(null)}
+            />
             <TableScroll>
-                <table className="w-full min-w-225">
+                <table className="w-full min-w-240">
                     <thead className="bg-slate-50">
                         <tr>
-                            <TableHeading>Date</TableHeading>
-                            <TableHeading>Item</TableHeading>
-                            <TableHeading align="right">Qty</TableHeading>
+                            <TableHeading>Group</TableHeading>
                             <TableHeading>Given to</TableHeading>
+                            <TableHeading align="right">Pieces</TableHeading>
                             <TableHeading align="right">
                                 Worth at Cost
                             </TableHeading>
                             <TableHeading align="right">
                                 Worth at Price
                             </TableHeading>
+                            <TableHeading align="right">
+                                <span className="sr-only">Actions</span>
+                            </TableHeading>
                         </tr>
                     </thead>
                     <tbody>
                         {rows.data.map((row) => (
                             <tr
-                                key={row.id}
-                                className="border-t border-slate-100 align-top text-sm"
+                                key={row.key}
+                                onClick={() => view(row)}
+                                className="cursor-pointer border-t border-slate-100 align-top text-sm transition hover:bg-slate-50"
                             >
-                                <td className="px-5 py-4 whitespace-nowrap text-slate-700">
-                                    {formatDateTime(row.given_at)}
-                                    {row.recorded_by && (
-                                        <span className="block text-xs text-slate-500">
-                                            by {row.recorded_by}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="px-5 py-4">
+                                <td className="px-5 py-4 whitespace-nowrap">
                                     <p className="font-black text-slate-900">
-                                        {row.product_name}
+                                        {row.group_id === null
+                                            ? 'Not in a group'
+                                            : `Group #${row.group_id}`}
                                     </p>
-                                    {row.variant_label && (
+                                    <p className="text-xs text-slate-500">
+                                        {formatDateTime(row.given_at)}
+                                    </p>
+                                    {row.given_by && (
                                         <p className="text-xs text-slate-500">
-                                            {row.variant_label}
+                                            by {row.given_by}
                                         </p>
                                     )}
                                 </td>
-                                <td className="px-5 py-4 text-right font-bold text-slate-700">
-                                    {formatUnits(row.pieces, 'Piece')}
-                                </td>
                                 <td className="px-5 py-4">
                                     <p className="font-bold text-slate-800">
-                                        {row.recipient_name}
+                                        {row.students_count}{' '}
+                                        {row.students_count === 1
+                                            ? 'student'
+                                            : 'students'}
+                                        {row.sets && (
+                                            <span className="font-semibold text-slate-500">
+                                                {' '}
+                                                · {row.sets}
+                                            </span>
+                                        )}
                                     </p>
                                     <p className="text-xs text-slate-500">
-                                        Enrollment form #
-                                        {row.enrollment_form_number}
+                                        {row.names.join(', ')}
+                                        {row.more_names > 0 &&
+                                            ` +${row.more_names} more`}
                                     </p>
                                 </td>
-                                <td className="px-5 py-4 text-right font-black whitespace-nowrap text-slate-900">
-                                    {row.cost_centavos === null ? (
-                                        <span className="text-xs font-bold text-amber-700">
-                                            Cost not set
-                                        </span>
-                                    ) : (
-                                        formatPeso(row.cost_centavos)
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                    <p className="font-black text-slate-800">
+                                        {formatUnits(row.pieces, 'Piece')}
+                                    </p>
+                                    {row.still_to_give > 0 && (
+                                        <p className="text-xs font-bold text-amber-700">
+                                            {row.still_to_give} still to give
+                                        </p>
+                                    )}
+                                </td>
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                    <p className="font-black text-slate-900">
+                                        {formatPeso(row.cost_centavos)}
+                                    </p>
+                                    {row.missing_cost_pieces > 0 && (
+                                        <p className="text-xs font-bold text-amber-700">
+                                            {row.missing_cost_pieces} without a
+                                            Cost
+                                        </p>
                                     )}
                                 </td>
                                 <td className="px-5 py-4 text-right whitespace-nowrap text-slate-700">
                                     {formatPeso(row.price_centavos)}
+                                </td>
+                                <td className="px-5 py-4 text-right">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            view(row);
+                                        }}
+                                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                                    >
+                                        <Eye size={15} />
+                                        View Details
+                                    </button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </TableScroll>
-            <Pagination pagination={rows} itemName="free uniforms" />
+            <Pagination pagination={rows} itemName="groups" />
         </>
+    );
+}
+
+/**
+ * A day of pieces given one by one (before there were groups): each piece
+ * with who received it and what it was worth.
+ */
+function FreePiecesDialog({
+    row,
+    onClose,
+}: {
+    row: FreeRow | null;
+    onClose: () => void;
+}) {
+    return (
+        <Dialog
+            open={row !== null}
+            onOpenChange={(isOpen) => !isOpen && onClose()}
+        >
+            <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-4xl">
+                <div className="border-b border-slate-100 px-6 py-5">
+                    <DialogTitle className="text-lg font-black text-slate-900">
+                        Given free · not in a group
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-slate-500">
+                        {row && formatDateOrdered(row.given_at.slice(0, 10))} ·
+                        given one by one, before there were groups
+                    </DialogDescription>
+                </div>
+                <div className="overflow-y-auto px-6 py-4">
+                    <TableScroll>
+                        <table className="w-full min-w-180 text-sm">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <TableHeading>Given to</TableHeading>
+                                    <TableHeading>Item</TableHeading>
+                                    <TableHeading align="right">
+                                        Qty
+                                    </TableHeading>
+                                    <TableHeading align="right">
+                                        Worth at Cost
+                                    </TableHeading>
+                                    <TableHeading align="right">
+                                        Worth at Price
+                                    </TableHeading>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {row?.items.map((item) => (
+                                    <tr
+                                        key={item.id}
+                                        className="border-t border-slate-100 align-top"
+                                    >
+                                        <td className="px-5 py-3">
+                                            <p className="font-bold text-slate-800">
+                                                {item.recipient_name}
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                Enrollment form #
+                                                {item.enrollment_form_number}
+                                            </p>
+                                        </td>
+                                        <td className="px-5 py-3">
+                                            <p className="font-black text-slate-900">
+                                                {item.product_name}
+                                            </p>
+                                            {item.variant_label && (
+                                                <p className="text-xs text-slate-500">
+                                                    {item.variant_label}
+                                                </p>
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-3 text-right font-bold text-slate-700">
+                                            {formatUnits(item.pieces, 'Piece')}
+                                        </td>
+                                        <td className="px-5 py-3 text-right font-black whitespace-nowrap text-slate-900">
+                                            {item.cost_centavos === null ? (
+                                                <span className="text-xs font-bold text-amber-700">
+                                                    Cost not set
+                                                </span>
+                                            ) : (
+                                                formatPeso(item.cost_centavos)
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-3 text-right whitespace-nowrap text-slate-700">
+                                            {formatPeso(item.price_centavos)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </TableScroll>
+                </div>
+                <footer className="flex justify-end border-t border-slate-200 bg-slate-50/60 px-6 py-3">
+                    <DialogClose className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
+                        Close
+                    </DialogClose>
+                </footer>
+            </DialogContent>
+        </Dialog>
     );
 }

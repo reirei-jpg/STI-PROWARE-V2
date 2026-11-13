@@ -50,15 +50,26 @@ final class FreeUniformScreens
                     'students_count' => (int) $group->getAttribute('students_count'),
                     'names' => array_values($names->take(2)->all()),
                     'more_names' => max(0, $names->count() - 2),
-                    'sets' => $group->students
-                        ->countBy(fn (FreeUniformStudent $student): string => $student->uniformSet->name)
-                        ->map(fn (int $count, string $set): string => "{$set} × {$count}")
-                        ->implode(' · '),
+                    'sets' => self::setsOf($group->students),
+
                     'still_to_give' => (int) $group->getAttribute('still_to_give_count'),
                     'recorded_by' => $group->recorder->name,
                     'recorded_at' => $group->created_at?->toIso8601String(),
                 ];
             });
+    }
+
+    /**
+     * The students' sets, e.g. "BSIT × 3 · BSTM × 2".
+     *
+     * @param  iterable<FreeUniformStudent>  $students
+     */
+    public static function setsOf(iterable $students): string
+    {
+        return collect($students)
+            ->countBy(fn (FreeUniformStudent $student): string => $student->uniformSet->name)
+            ->map(fn (int $count, string $set): string => "{$set} × {$count}")
+            ->implode(' · ');
     }
 
     /**

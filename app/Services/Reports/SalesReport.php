@@ -6,14 +6,18 @@ use App\Enums\LowerPriceReason;
 use App\Enums\OrderStatus;
 use App\Enums\StockCorrectionReason;
 use App\Enums\StockMovementType;
+use App\Models\FreeUniformGroup;
+use App\Models\FreeUniformStudent;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
+use App\Services\FreeUniforms\FreeUniformScreens;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 /**
  * The Sales Reports for a period, in four parts:
@@ -29,6 +33,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * Sales without a Cost yet are left out of the profit and counted, so the
  * Specialist can set their price.
  *
+ * @phpstan-type FreePiece array{id: int, given_at: string|null, product_name: string, variant_label: string|null, pieces: int, recipient_name: string|null, enrollment_form_number: string|null, cost_centavos: int|null, price_centavos: int}
+ * @phpstan-type FreeRow array{key: string, group_id: int|null, given_at: string, names: list<string>, more_names: int, students_count: int, sets: string|null, pieces: int, still_to_give: int, cost_centavos: int, missing_cost_pieces: int, price_centavos: int, given_by: string|null, items: list<FreePiece>}
  * @phpstan-type SoldRow array{key: string, variant_id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, price_each_centavos: int, normal_each_centavos: int|null, lower_price_reason: string|null, lower_price_label: string|null, cost_each_centavos: int|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null, below_cost: bool, loss_centavos: int, missing_cost_lines: int}
  */
 final class SalesReport
@@ -245,18 +251,97 @@ final class SalesReport
     }
 
     /**
-     * 4. Free uniforms given in the period (promo), the newest first.
+     * 4. Free uniforms given in the period (promo), newest first: one row per
+     * Free Uniforms group (its students, sets, pieces and what they were
+     * worth). Pieces given one by one before there were groups (Correct
+     * Stock) are one row per day, with each piece listed.
      *
-     * @return LengthAwarePaginator<int, array{id: int, given_at: string|null, product_name: string, variant_label: string|null, pieces: int, recipient_name: string|null, enrollment_form_number: string|null, cost_centavos: int|null, price_centavos: int, recorded_by: string|null}>
+     * @return LengthAwarePaginator<int, FreeRow>
      */
     public static function free(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
     {
-        return self::givenFree($from, $to)
-            ->with(['variant.product', 'recorder'])
-            ->latest('id')
-            ->paginate(20)
-            ->withQueryString()
-            ->through(fn (StockMovement $movement): array => [
+        $movements = self::givenFree($from, $to)->with('recorder')->get();
+        $groupIdOf = [];
+
+        FreeUniformStudent::query()
+            ->whereIn('top_movement_id', $movements->modelKeys())
+            ->orWhereIn('pants_movement_id', $movements->modelKeys())
+            ->get(['free_uniform_group_id', 'top_movement_id', 'pants_movement_id'])
+            ->each(function (FreeUniformStudent $student) use (&$groupIdOf): void {
+                foreach ([$student->top_movement_id, $student->pants_movement_id] as $movementId) {
+                    if ($movementId !== null) {
+                        $groupIdOf[$movementId] = $student->free_uniform_group_id;
+                    }
+                }
+            });
+
+        $rows = $movements
+            ->groupBy(fn (StockMovement $movement): string => isset($groupIdOf[$movement->id])
+                ? 'group-'.$groupIdOf[$movement->id]
+                : 'day-'.$movement->created_at?->toDateString())
+            ->map(fn (Collection $pieces, string $key): array => self::freeRow($key, $pieces, $groupIdOf[$pieces->first()?->id] ?? null))
+            ->sortByDesc('given_at')
+            ->values();
+
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $pageRows = $rows->forPage($page, 20)->values();
+        $groups = FreeUniformGroup::query()
+            ->with('students.uniformSet')
+            ->findMany($pageRows->pluck('group_id')->filter()->all())
+            ->keyBy('id');
+
+        // A group's students and sets come from the group itself.
+        $pageRows = $pageRows->map(function (array $row) use ($groups): array {
+            $group = $row['group_id'] === null ? null : $groups->get($row['group_id']);
+
+            if ($group === null) {
+                return $row;
+            }
+
+            $names = $group->students->map(fn (FreeUniformStudent $student): string => $student->name);
+
+            return [
+                ...$row,
+                'names' => array_values($names->take(2)->all()),
+                'more_names' => max(0, $names->count() - 2),
+                'students_count' => $names->count(),
+                'sets' => FreeUniformScreens::setsOf($group->students),
+                'still_to_give' => $group->students->sum(fn (FreeUniformStudent $student): int => ($student->top_movement_id === null ? 1 : 0) + ($student->pants_movement_id === null ? 1 : 0)),
+            ];
+        });
+
+        return new LengthAwarePaginator($pageRows, $rows->count(), 20, $page, [
+            'path' => LengthAwarePaginator::resolveCurrentPath(),
+            'query' => request()->query(),
+        ]);
+    }
+
+    /**
+     * A group's (or a day's) pieces added up: when, how many, what they were
+     * worth, and who gave them. A day's pieces are listed one by one.
+     *
+     * @param  Collection<int, StockMovement>  $pieces
+     * @return FreeRow
+     */
+    private static function freeRow(string $key, Collection $pieces, ?int $groupId): array
+    {
+        $recipients = $pieces->map(fn (StockMovement $movement): string => (string) $movement->recipient_name)->filter()->unique()->values();
+
+        return [
+            'key' => $key,
+            'group_id' => $groupId,
+            'given_at' => $pieces->max(fn (StockMovement $movement): string => (string) $movement->created_at?->toIso8601String()),
+            'names' => array_values($recipients->take(2)->all()),
+            'more_names' => max(0, $recipients->count() - 2),
+            'students_count' => $recipients->count(),
+            'sets' => null,
+            'pieces' => (int) $pieces->sum(fn (StockMovement $movement): int => -$movement->quantity),
+            'still_to_give' => 0,
+            'cost_centavos' => (int) $pieces->sum('cost_centavos'),
+            'missing_cost_pieces' => $pieces->whereNull('cost_centavos')->count(),
+            'price_centavos' => (int) $pieces->sum(fn (StockMovement $movement): int => self::freePriceValue($movement)),
+            'given_by' => $pieces->map(fn (StockMovement $movement): ?string => $movement->recorder?->name)->filter()->unique()->implode(', ') ?: null,
+            'items' => $groupId !== null ? [] : array_values($pieces->sortBy('id')->map(fn (StockMovement $movement): array => [
                 'id' => $movement->id,
                 'given_at' => $movement->created_at?->toIso8601String(),
                 'product_name' => $movement->variant->product->name,
@@ -266,8 +351,8 @@ final class SalesReport
                 'enrollment_form_number' => $movement->enrollment_form_number,
                 'cost_centavos' => $movement->cost_centavos,
                 'price_centavos' => self::freePriceValue($movement),
-                'recorded_by' => $movement->recorder?->name,
-            ]);
+            ])->all()),
+        ];
     }
 
     /**

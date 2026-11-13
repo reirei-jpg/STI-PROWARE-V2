@@ -429,7 +429,7 @@ function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
                         <Heading>Item</Heading>
                         {tracksPreorders && (
                             <>
-                                <Heading right>For preorders</Heading>
+                                <Heading right>Preorders</Heading>
                                 <Heading right>Own order</Heading>
                             </>
                         )}
