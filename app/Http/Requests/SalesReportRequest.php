@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Reports\PriceList;
 use App\Services\Reports\SalesReport;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -12,13 +13,13 @@ use Illuminate\Validation\Rule;
  * The Sales Reports filters, read from the page address: the period
  * (all time, today, this week, this month, or chosen dates; all time by
  * default, so every sale shows),
- * which tab, and a product search.
+ * which tab, a product search, and on Prices which products to show.
  */
 class SalesReportRequest extends FormRequest
 {
     public const PERIODS = ['all', 'today', 'week', 'month', 'custom'];
 
-    public const TABS = ['spent', 'sold', 'best', 'free'];
+    public const TABS = ['spent', 'sold', 'best', 'free', 'prices'];
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -31,6 +32,7 @@ class SalesReportRequest extends FormRequest
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from', Rule::requiredIf($this->input('period') === 'custom')],
             'search' => ['nullable', 'string', 'max:120'],
             'tab' => ['nullable', Rule::in(self::TABS)],
+            'show' => ['nullable', Rule::in(PriceList::SHOW)],
         ];
     }
 
@@ -81,6 +83,15 @@ class SalesReportRequest extends FormRequest
             'month' => [$today->startOfMonth(), $today->endOfDay()],
             default => [SalesReport::firstDay(), $today->endOfDay()],
         };
+    }
+
+    /**
+     * Prices: every product, those selling below cost, or those whose
+     * eStore price changed.
+     */
+    public function priceFilter(): string
+    {
+        return $this->string('show')->toString() ?: 'all';
     }
 
     public function search(): ?string

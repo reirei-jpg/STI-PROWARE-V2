@@ -38,6 +38,9 @@ import type {
     FreeRow,
     FreeUniformGroupDetails,
     Paginated,
+    PriceFilter,
+    PriceHistory,
+    PriceRow,
     SalesPeriod,
     SalesReportFilters,
     SalesSummary,
@@ -45,6 +48,12 @@ import type {
     SoldRow,
     SpentRow,
 } from '@/types';
+
+const priceFilters: { value: PriceFilter; label: string }[] = [
+    { value: 'all', label: 'All products' },
+    { value: 'below_cost', label: 'Selling below cost' },
+    { value: 'changed', label: 'eStore price changed' },
+];
 
 const periods: { value: SalesPeriod; label: string }[] = [
     { value: 'all', label: 'All time' },
@@ -59,6 +68,7 @@ const tabs: { value: SalesTab; label: string }[] = [
     { value: 'sold', label: 'What we sold' },
     { value: 'best', label: 'Best sellers' },
     { value: 'free', label: 'Given free' },
+    { value: 'prices', label: 'Prices' },
 ];
 
 /**
@@ -75,6 +85,8 @@ export default function SalesReportsIndex({
     best,
     free,
     free_group,
+    prices,
+    price_history,
     filters,
 }: {
     summary: SalesSummary;
@@ -84,6 +96,9 @@ export default function SalesReportsIndex({
     free: Paginated<FreeRow> | null;
     /** The group opened with View Details on Given free; undefined until loaded. */
     free_group?: FreeUniformGroupDetails | null;
+    prices: Paginated<PriceRow> | null;
+    /** The product opened with View Details on Prices; undefined until loaded. */
+    price_history?: PriceHistory | null;
     filters: SalesReportFilters;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
@@ -124,6 +139,10 @@ export default function SalesReportsIndex({
 
         if (merged.search) {
             query.search = merged.search;
+        }
+
+        if (merged.tab === 'prices' && merged.show !== 'all') {
+            query.show = merged.show;
         }
 
         router.get(SalesReportController.index().url, query, {
@@ -171,7 +190,7 @@ export default function SalesReportsIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Sales Reports"
-                    description="What we spent on eStore orders, what we sold and the profit, our best sellers, what we sold below cost, and what free uniforms were worth."
+                    description="What we spent on eStore orders, what we sold and the profit, our best sellers, what we sold below cost, what free uniforms were worth, and our prices beside the eStore prices."
                 />
 
                 <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -318,7 +337,8 @@ export default function SalesReportsIndex({
                                 </button>
                             ))}
                         </div>
-                        {filters.tab === 'sold' && (
+                        {(filters.tab === 'sold' ||
+                            filters.tab === 'prices') && (
                             <div className="flex flex-col gap-2 sm:flex-row">
                                 <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:w-72">
                                     <Search size={18} className="shrink-0" />
@@ -334,17 +354,19 @@ export default function SalesReportsIndex({
                                         aria-label="Search item"
                                     />
                                 </label>
-                                <a
-                                    href={
-                                        SalesReportController.export({
-                                            query: exportQuery,
-                                        }).url
-                                    }
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                                >
-                                    <Download size={16} />
-                                    Excel (CSV)
-                                </a>
+                                {filters.tab === 'sold' && (
+                                    <a
+                                        href={
+                                            SalesReportController.export({
+                                                query: exportQuery,
+                                            }).url
+                                        }
+                                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    >
+                                        <Download size={16} />
+                                        Excel (CSV)
+                                    </a>
+                                )}
                             </div>
                         )}
                     </div>
@@ -354,6 +376,40 @@ export default function SalesReportsIndex({
                     {best && <BestSellersTable rows={best} />}
                     {free && (
                         <FreeTable rows={free} groupDetails={free_group} />
+                    )}
+                    {prices && (
+                        <>
+                            <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="flex flex-wrap gap-2">
+                                    {priceFilters.map((option) => (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() =>
+                                                show({ show: option.value })
+                                            }
+                                            className={cn(
+                                                'rounded-full border px-3.5 py-1.5 text-sm font-black transition',
+                                                filters.show === option.value
+                                                    ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                                            )}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-slate-500">
+                                    Prices now, from the latest eStore order of
+                                    each item. The dates above do not change
+                                    them.
+                                </p>
+                            </div>
+                            <PricesTable
+                                rows={prices}
+                                history={price_history}
+                            />
+                        </>
                     )}
                 </Panel>
             </div>
@@ -1087,6 +1143,425 @@ function FreePiecesDialog({
                         Close
                     </DialogClose>
                 </footer>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/** "per piece", or "per Pack (10 pcs)" for an item Head Office sends in packs. */
+function perUnit(unitName: string, piecesPerUnit: number): string {
+    return piecesPerUnit > 1
+        ? `per ${unitName} (${piecesPerUnit} pcs)`
+        : 'per piece';
+}
+
+/** "₱450.00", or "₱450.00 – ₱480.00" when sizes have different prices. */
+function priceRange(from: number | null, to: number | null): string {
+    if (from === null || to === null) {
+        return 'No price';
+    }
+
+    return from === to
+        ? formatPeso(from)
+        : `${formatPeso(from)} – ${formatPeso(to)}`;
+}
+
+/**
+ * How Head Office's price moved from the order before: dearer in red,
+ * cheaper in green.
+ */
+function PriceChange({
+    change,
+    since,
+}: {
+    change: number | null;
+    since: string | null;
+}) {
+    if (change === null) {
+        return (
+            <span className="text-xs text-slate-400">First eStore order</span>
+        );
+    }
+
+    if (change === 0) {
+        return (
+            <span className="text-xs font-semibold text-slate-500">
+                Same as PO #{since}
+            </span>
+        );
+    }
+
+    return (
+        <span
+            className={cn(
+                'text-sm font-black',
+                change > 0 ? 'text-red-700' : 'text-emerald-700',
+            )}
+        >
+            {change > 0 ? '↑' : '↓'} {formatPeso(Math.abs(change))}
+            <span className="block text-xs font-semibold text-slate-500">
+                since PO #{since}
+            </span>
+        </span>
+    );
+}
+
+/**
+ * 5. Prices: each product's Unit Price on its latest eStore order beside
+ * what students pay now, the profit on one piece, and how Head Office's
+ * price changed. View Details lists every eStore order of the item.
+ */
+function PricesTable({
+    rows,
+    history,
+}: {
+    rows: Paginated<PriceRow>;
+    history: PriceHistory | null | undefined;
+}) {
+    const [viewingId, setViewingId] = useState<number | null>(null);
+
+    if (rows.data.length === 0) {
+        return <Empty icon={Tag} text="No products to show" />;
+    }
+
+    const view = (productId: number) => {
+        setViewingId(productId);
+        router.reload({
+            data: { history: productId },
+            only: ['price_history'],
+        });
+    };
+
+    return (
+        <>
+            <PriceHistoryDialog
+                open={viewingId !== null}
+                // Another product's history (from before) counts as loading.
+                history={
+                    history === null || history?.product_id === viewingId
+                        ? history
+                        : undefined
+                }
+                onClose={() => setViewingId(null)}
+            />
+            <TableScroll>
+                <table className="w-full min-w-240">
+                    <thead className="bg-slate-50">
+                        <tr>
+                            <TableHeading>Product</TableHeading>
+                            <TableHeading align="right">
+                                eStore Unit Price
+                            </TableHeading>
+                            <TableHeading align="right">
+                                Selling Price
+                            </TableHeading>
+                            <TableHeading align="right">
+                                Profit per piece
+                            </TableHeading>
+                            <TableHeading align="right">
+                                eStore price change
+                            </TableHeading>
+                            <TableHeading align="right">
+                                <span className="sr-only">Actions</span>
+                            </TableHeading>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.data.map((row) => (
+                            <tr
+                                key={row.product_id}
+                                onClick={() => view(row.product_id)}
+                                className="cursor-pointer border-t border-slate-100 align-top text-sm transition hover:bg-slate-50"
+                            >
+                                <td className="min-w-52 px-5 py-4">
+                                    <p className="font-black text-slate-900">
+                                        {row.product_name}
+                                        {row.on_sale && (
+                                            <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700 uppercase">
+                                                On Sale
+                                            </span>
+                                        )}
+                                    </p>
+                                    <p className="font-mono text-xs font-black text-blue-700">
+                                        {row.item_code ?? 'No eStore Item Code'}
+                                    </p>
+                                </td>
+                                <td className="px-5 py-4 text-right">
+                                    {row.unit_price_centavos === null ? (
+                                        <span className="text-xs text-slate-400">
+                                            Not on an eStore order yet
+                                        </span>
+                                    ) : (
+                                        <>
+                                            <p className="font-black whitespace-nowrap text-slate-900">
+                                                {formatPeso(
+                                                    row.unit_price_centavos,
+                                                )}
+                                                <span className="font-semibold text-slate-500">
+                                                    {' '}
+                                                    {perUnit(
+                                                        row.unit_name,
+                                                        row.pieces_per_unit,
+                                                    )}
+                                                </span>
+                                            </p>
+                                            {row.pieces_per_unit > 1 &&
+                                                row.cost_per_piece_centavos !==
+                                                    null && (
+                                                    <p className="text-xs font-bold whitespace-nowrap text-slate-700">
+                                                        ={' '}
+                                                        {formatPeso(
+                                                            row.cost_per_piece_centavos,
+                                                        )}{' '}
+                                                        per piece
+                                                    </p>
+                                                )}{' '}
+                                            <p className="text-xs whitespace-nowrap text-slate-500">
+                                                PO #{row.order_number} ·{' '}
+                                                {row.date_ordered &&
+                                                    formatDateOrdered(
+                                                        row.date_ordered,
+                                                    )}
+                                            </p>
+                                        </>
+                                    )}
+                                </td>
+                                <td className="px-5 py-4 text-right font-black whitespace-nowrap text-slate-900">
+                                    {priceRange(
+                                        row.price_from_centavos,
+                                        row.price_to_centavos,
+                                    )}
+                                </td>
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                    {row.profit_per_piece_centavos === null ? (
+                                        <span className="text-slate-400">
+                                            —
+                                        </span>
+                                    ) : row.below_cost ? (
+                                        <span className="font-black text-red-700">
+                                            −
+                                            {formatPeso(
+                                                Math.abs(
+                                                    row.profit_per_piece_centavos,
+                                                ),
+                                            )}
+                                            <span className="block text-xs font-bold">
+                                                Selling below cost
+                                            </span>
+                                        </span>
+                                    ) : (
+                                        <span className="font-black text-emerald-700">
+                                            {formatPeso(
+                                                row.profit_per_piece_centavos,
+                                            )}
+                                            <span className="block text-xs font-semibold text-slate-500">
+                                                {row.margin_percent}% of the
+                                                price
+                                            </span>
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                    {row.unit_price_centavos === null ? (
+                                        <span className="text-slate-400">
+                                            —
+                                        </span>
+                                    ) : (
+                                        <PriceChange
+                                            change={row.change_centavos}
+                                            since={row.previous_order_number}
+                                        />
+                                    )}
+                                </td>
+                                <td className="px-5 py-4 text-right">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            view(row.product_id);
+                                        }}
+                                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                                    >
+                                        <Eye size={15} />
+                                        View Details
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </TableScroll>
+            <Pagination pagination={rows} itemName="products" />
+        </>
+    );
+}
+
+/**
+ * A product's eStore orders, newest first: the Unit Price on each, the
+ * Cost per piece, and how much it went up or down from the order before.
+ */
+function PriceHistoryDialog({
+    open,
+    history,
+    onClose,
+}: {
+    open: boolean;
+    /** Undefined while it loads. */
+    history: PriceHistory | null | undefined;
+    onClose: () => void;
+}) {
+    return (
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+            <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-4xl">
+                {!history ? (
+                    <div className="flex flex-col items-center gap-3 px-6 py-16 text-sm font-bold text-slate-500">
+                        <DialogTitle className="sr-only">
+                            Price history
+                        </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Loading
+                        </DialogDescription>
+                        {history === null ? (
+                            'This product was not found.'
+                        ) : (
+                            <>
+                                <LoaderCircle
+                                    size={28}
+                                    className="animate-spin text-blue-600"
+                                />
+                                Loading…
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="border-b border-slate-100 px-6 py-5">
+                            <DialogTitle className="text-lg font-black text-slate-900">
+                                {history.product_name} · eStore prices
+                            </DialogTitle>
+                            <DialogDescription className="text-sm text-slate-500">
+                                {history.item_code ?? 'No eStore Item Code'} ·
+                                bought{' '}
+                                {perUnit(
+                                    history.unit_name,
+                                    history.pieces_per_unit,
+                                )}{' '}
+                                · selling now at{' '}
+                                {priceRange(
+                                    history.price_from_centavos,
+                                    history.price_to_centavos,
+                                )}{' '}
+                                per piece
+                            </DialogDescription>
+                        </div>
+                        <div className="overflow-y-auto px-6 py-4">
+                            {history.orders.length === 0 ? (
+                                <p className="py-12 text-center text-sm font-bold text-slate-500">
+                                    Not on an eStore order yet.
+                                </p>
+                            ) : (
+                                <TableScroll>
+                                    <table className="w-full min-w-180 text-sm">
+                                        <thead className="bg-slate-50">
+                                            <tr>
+                                                <TableHeading>PO</TableHeading>
+                                                <TableHeading align="right">
+                                                    Qty ordered
+                                                </TableHeading>
+                                                <TableHeading align="right">
+                                                    Unit Price
+                                                </TableHeading>
+                                                <TableHeading align="right">
+                                                    Cost per piece
+                                                </TableHeading>
+                                                <TableHeading align="right">
+                                                    Change
+                                                </TableHeading>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {history.orders.map((order) => (
+                                                <tr
+                                                    key={
+                                                        order.purchase_order_id
+                                                    }
+                                                    className="border-t border-slate-100"
+                                                >
+                                                    <td className="px-5 py-3">
+                                                        <p className="font-mono font-black text-blue-700">
+                                                            #
+                                                            {order.order_number ??
+                                                                '—'}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500">
+                                                            {formatDateOrdered(
+                                                                order.date_ordered,
+                                                            )}
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-right text-slate-700">
+                                                        {formatUnits(
+                                                            order.quantity_ordered,
+                                                            history.unit_name,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-right font-black text-slate-900">
+                                                        {formatPeso(
+                                                            order.unit_price_centavos,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-right text-slate-700">
+                                                        {formatPeso(
+                                                            order.cost_per_piece_centavos,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-right whitespace-nowrap">
+                                                        {order.change_centavos ===
+                                                        null ? (
+                                                            <span className="text-xs text-slate-400">
+                                                                First order
+                                                            </span>
+                                                        ) : order.change_centavos ===
+                                                          0 ? (
+                                                            <span className="text-xs font-semibold text-slate-500">
+                                                                Same
+                                                            </span>
+                                                        ) : (
+                                                            <span
+                                                                className={cn(
+                                                                    'font-black',
+                                                                    order.change_centavos >
+                                                                        0
+                                                                        ? 'text-red-700'
+                                                                        : 'text-emerald-700',
+                                                                )}
+                                                            >
+                                                                {order.change_centavos >
+                                                                0
+                                                                    ? '↑'
+                                                                    : '↓'}{' '}
+                                                                {formatPeso(
+                                                                    Math.abs(
+                                                                        order.change_centavos,
+                                                                    ),
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </TableScroll>
+                            )}
+                        </div>
+                        <footer className="flex justify-end border-t border-slate-200 bg-slate-50/60 px-6 py-3">
+                            <DialogClose className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
+                                Close
+                            </DialogClose>
+                        </footer>
+                    </>
+                )}
             </DialogContent>
         </Dialog>
     );

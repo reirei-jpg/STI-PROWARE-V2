@@ -1,6 +1,9 @@
 export type SalesPeriod = 'all' | 'today' | 'week' | 'month' | 'custom';
 
-export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
+export type SalesTab = 'spent' | 'sold' | 'best' | 'free' | 'prices';
+
+/** Prices: every product, those selling below cost, or those whose eStore price changed. */
+export type PriceFilter = 'all' | 'below_cost' | 'changed';
 
 /** The numbers at the top for the period. */
 export type SalesSummary = {
@@ -127,4 +130,54 @@ export type SalesReportFilters = {
     date_from: string;
     date_to: string;
     search: string | null;
+    /** Which products the Prices tab shows. */
+    show: PriceFilter;
+};
+
+/** Prices: one product's eStore price beside what students pay now. */
+export type PriceRow = {
+    product_id: number;
+    product_name: string;
+    item_code: string | null;
+    /** How Head Office sends it: "Piece", "Pack"… */
+    unit_name: string;
+    pieces_per_unit: number;
+    /** Unit Price on its latest eStore order; null when never ordered. */
+    unit_price_centavos: number | null;
+    order_number: string | null;
+    date_ordered: string | null;
+    cost_per_piece_centavos: number | null;
+    /** What students pay for one piece now (lowest and highest size). */
+    price_from_centavos: number | null;
+    price_to_centavos: number | null;
+    on_sale: boolean;
+    /** At the lowest price. */
+    profit_per_piece_centavos: number | null;
+    margin_percent: number | null;
+    below_cost: boolean;
+    /** Unit Price now minus on the order before; null with one order. */
+    change_centavos: number | null;
+    previous_order_number: string | null;
+    orders_count: number;
+};
+
+/** A product's eStore orders with their Unit Price, newest first. */
+export type PriceHistory = {
+    product_id: number;
+    product_name: string;
+    item_code: string | null;
+    unit_name: string;
+    pieces_per_unit: number;
+    price_from_centavos: number | null;
+    price_to_centavos: number | null;
+    orders: {
+        purchase_order_id: number;
+        order_number: string | null;
+        date_ordered: string;
+        quantity_ordered: number;
+        unit_price_centavos: number;
+        cost_per_piece_centavos: number;
+        /** Up or down from the order before; null on the first order. */
+        change_centavos: number | null;
+    }[];
 };
