@@ -1,22 +1,23 @@
 import { router } from 'expo-router';
-import { ClipboardList, TrendingUp, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { ClipboardList, Crown, Megaphone, TrendingUp, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 
 import BottomSheet from '@/components/BottomSheet';
 import CenteredToast, { type ToastMessage } from '@/components/CenteredToast';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatUnits } from '@/lib/format';
+import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { StockCardsData } from '@/lib/types';
 
-type CardKey = 'low_stock' | 'best_sellers' | 'ready_to_order';
+type CardKey = 'low_stock' | 'best_sellers' | 'ready_to_order' | 'top_buyers' | 'tell';
 
 /**
  * The website dashboard's stock cards on the Specialist's phone To-do: Low
  * stock, Best seller this month, and Ready to order (Coming Soon items whose
  * preorders reached the Maintenance number), where each item gets Create PO
- * or Leave it, like the website.
+ * or Leave it, and Top buyers, where the Specialist can tell the top buyers
+ * about a product in stock, like the website.
  */
 export default function StockCards({ data, onChanged }: { data: StockCardsData; onChanged: () => void }) {
     const { request } = useAuth();
@@ -25,6 +26,40 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
     const [toast, setToast] = useState<ToastMessage | null>(null);
     const closeToast = useCallback(() => setToast(null), []);
     const top = data.best_sellers.items[0];
+    const buyers = data.top_buyers;
+    const topBuyer = buyers?.items[0];
+    const [productId, setProductId] = useState<number | null>(null);
+    const [size, setSize] = useState<number>(buyers?.sizes[0] ?? 10);
+    const [note, setNote] = useState('');
+    const [sending, setSending] = useState(false);
+    const chosen = buyers?.products.find((product) => product.product_id === productId);
+    const recipients = Math.min(size, buyers?.buyers_count ?? 0);
+
+    const send = async (): Promise<void> => {
+        if (productId === null) {
+            setToast({ type: 'error', message: 'Choose the product to announce.' });
+
+            return;
+        }
+
+        setSending(true);
+
+        try {
+            const result = await request<{ message: string }>('/specialist/product-announcements', {
+                method: 'POST',
+                body: { product_id: productId, top: size, note: note.trim() === '' ? null : note.trim() },
+            });
+            setOpen(null);
+            setProductId(null);
+            setNote('');
+            setToast({ type: 'success', message: result.message });
+            onChanged();
+        } catch (caught) {
+            setToast({ type: 'error', message: caught instanceof ApiError ? caught.message : 'It could not be sent. Try again.' });
+        } finally {
+            setSending(false);
+        }
+    };
 
     const act = async (path: 'create-po' | 'leave', productId: number): Promise<void> => {
         setBusy(productId);
@@ -97,6 +132,28 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                         </Text>
                     </View>
                 </Pressable>
+                {buyers && (
+                    <Pressable
+                        onPress={() => setOpen('top_buyers')}
+                        accessibilityRole="button"
+                        className="w-full flex-row items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4"
+                    >
+                        <View className="h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                            <Crown size={19} color="#2563eb" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-slate-500">Top buyer</Text>
+                            <Text numberOfLines={1} className="font-sans-bold text-base text-slate-900">
+                                {topBuyer ? topBuyer.name : 'None yet'}
+                            </Text>
+                            <Text className="font-sans text-xs text-slate-500">
+                                {topBuyer
+                                    ? `${formatPeso(topBuyer.spent_centavos)} in the last 3 months`
+                                    : 'No released orders in the last 3 months'}
+                            </Text>
+                        </View>
+                    </Pressable>
+                )}
             </View>
 
             <BottomSheet
@@ -217,6 +274,172 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                     </View>
                 )}
             </BottomSheet>
+
+            {buyers && (
+                <BottomSheet
+                    open={open === 'top_buyers'}
+                    onClose={() => setOpen(null)}
+                    title="Top buyers"
+                    subtitle={`Who spent the most on released orders since ${formatDate(buyers.from)} (${buyers.buyers_count} in all).`}
+                    icon={<Crown size={20} color="#2563eb" />}
+                    footer={
+                        <View className="gap-2">
+                            <Pressable
+                                onPress={() => setOpen('tell')}
+                                disabled={buyers.items.length === 0 || buyers.products.length === 0}
+                                accessibilityRole="button"
+                                className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-3.5 ${buyers.items.length === 0 || buyers.products.length === 0 ? 'opacity-60' : ''}`}
+                            >
+                                <Megaphone size={17} color="#ffffff" />
+                                <Text className="font-sans-bold text-base text-white">Tell top buyers</Text>
+                            </Pressable>
+                            <CloseButton onPress={() => setOpen(null)} />
+                        </View>
+                    }
+                >
+                    {buyers.items.length === 0 ? (
+                        <Text className="font-sans text-sm text-slate-500">No orders were released in the last 3 months.</Text>
+                    ) : (
+                        <View className="gap-2">
+                            {buyers.items.map((buyer, index) => (
+                                <View key={buyer.user_id} className="flex-row items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                                    <View className="h-7 w-7 items-center justify-center rounded-full bg-blue-50">
+                                        <Text className="font-sans-bold text-xs text-blue-700">{index + 1}</Text>
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text numberOfLines={1} className="font-sans-bold text-sm text-slate-900">
+                                            {buyer.name}
+                                        </Text>
+                                        <Text numberOfLines={1} className="font-sans text-xs text-slate-500">
+                                            {buyer.orders} {buyer.orders === 1 ? 'order' : 'orders'} · {formatUnits(buyer.pieces, 'Piece')}
+                                        </Text>
+                                    </View>
+                                    <Text className="font-sans-bold text-sm text-slate-900">{formatPeso(buyer.spent_centavos)}</Text>
+                                </View>
+                            ))}
+                            <Text className="font-sans text-xs text-slate-500">
+                                {buyers.last
+                                    ? `Last sent: ${buyers.last.product_name} to ${buyers.last.recipients} ${buyers.last.recipients === 1 ? 'buyer' : 'buyers'}, ${formatDateTime(buyers.last.sent_at)}${buyers.last.sent_by ? ` by ${buyers.last.sent_by}` : ''}.`
+                                    : 'Nothing announced yet.'}
+                            </Text>
+                        </View>
+                    )}
+                </BottomSheet>
+            )}
+
+            {buyers && (
+                <BottomSheet
+                    open={open === 'tell'}
+                    onClose={() => setOpen(null)}
+                    title="Tell top buyers"
+                    subtitle="They get a notice and a phone notification. A product can be announced once a day."
+                    icon={<Megaphone size={20} color="#2563eb" />}
+                    footer={
+                        <View className="gap-2">
+                            <Pressable
+                                onPress={() => void send()}
+                                disabled={sending}
+                                accessibilityRole="button"
+                                className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-3.5 ${sending ? 'opacity-60' : ''}`}
+                            >
+                                {sending ? <ActivityIndicator size="small" color="#ffffff" /> : <Megaphone size={17} color="#ffffff" />}
+                                <Text className="font-sans-bold text-base text-white">
+                                    Send to {recipients} {recipients === 1 ? 'buyer' : 'buyers'}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => setOpen('top_buyers')}
+                                disabled={sending}
+                                accessibilityRole="button"
+                                className="items-center justify-center rounded-2xl border border-slate-200 bg-white py-3.5"
+                            >
+                                <Text className="font-sans-bold text-base text-slate-700">Back</Text>
+                            </Pressable>
+                        </View>
+                    }
+                >
+                    <View className="gap-4">
+                        <View className="gap-2">
+                            <Text className="font-sans-bold text-sm text-slate-700">Product in stock (the latest to arrive first)</Text>
+                            {buyers.products.map((product) => {
+                                const picked = product.product_id === productId;
+
+                                return (
+                                    <Pressable
+                                        key={product.product_id}
+                                        onPress={() => setProductId(product.product_id)}
+                                        accessibilityRole="radio"
+                                        accessibilityState={{ selected: picked }}
+                                        className={`rounded-2xl border px-4 py-3 ${picked ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                                    >
+                                        <Text className={`font-sans-bold text-sm ${picked ? 'text-blue-800' : 'text-slate-900'}`}>
+                                            {product.product_name}
+                                        </Text>
+                                        <Text className="font-sans text-xs text-slate-500">
+                                            {[
+                                                product.arrived_on ? `Arrived ${formatDate(product.arrived_on)}` : null,
+                                                product.announced_at ? `announced ${formatDate(product.announced_at.slice(0, 10))}` : null,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' · ') || 'In stock'}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+
+                        <View className="gap-2">
+                            <Text className="font-sans-bold text-sm text-slate-700">Tell</Text>
+                            <View className="flex-row gap-2">
+                                {buyers.sizes.map((option) => (
+                                    <Pressable
+                                        key={option}
+                                        onPress={() => setSize(option)}
+                                        accessibilityRole="radio"
+                                        accessibilityState={{ selected: size === option }}
+                                        className={`flex-1 items-center rounded-xl border py-2.5 ${size === option ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                                    >
+                                        <Text className={`font-sans-bold text-sm ${size === option ? 'text-blue-700' : 'text-slate-600'}`}>Top {option}</Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+                            <Text className="font-sans text-xs text-slate-500">
+                                {buyers.buyers_count < size
+                                    ? `Only ${buyers.buyers_count} ${buyers.buyers_count === 1 ? 'buyer has' : 'buyers have'} bought in the last 3 months.`
+                                    : `The ${size} buyers who spent the most in the last 3 months.`}
+                            </Text>
+                        </View>
+
+                        <View className="gap-2">
+                            <Text className="font-sans-bold text-sm text-slate-700">Note (optional)</Text>
+                            <TextInput
+                                value={note}
+                                onChangeText={setNote}
+                                maxLength={120}
+                                placeholder="e.g. Limited stock."
+                                placeholderTextColor="#94a3b8"
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-3 font-sans-medium text-sm text-slate-900"
+                            />
+                        </View>
+
+                        <View className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                            <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-blue-700">What they will see</Text>
+                            <Text className="mt-1 font-sans-bold text-sm text-slate-900">
+                                New in the store: {chosen ? chosen.product_name : '…'}
+                            </Text>
+                            <Text className="font-sans text-sm text-slate-600">
+                                It is in stock now
+                                {chosen && chosen.price_from_centavos !== null
+                                    ? chosen.price_from_centavos === chosen.price_to_centavos
+                                        ? ` at ${formatPeso(chosen.price_from_centavos)}`
+                                        : ` from ${formatPeso(chosen.price_from_centavos)}`
+                                    : ''}
+                                .{note.trim() ? ` ${note.trim()}` : ''}
+                            </Text>
+                        </View>
+                    </View>
+                </BottomSheet>
+            )}
 
             <CenteredToast toast={toast} onClose={closeToast} />
         </View>

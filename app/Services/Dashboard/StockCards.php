@@ -22,6 +22,8 @@ use Illuminate\Validation\ValidationException;
  *   Specialist either closes its preorders so it moves to To order (then
  *   orders it in the eStore and scans the PO), or leaves it: it comes back
  *   once 10 more pieces are preordered.
+ * - Top buyers: who spent the most in the last 3 months, and telling them
+ *   about a product in stock (TopBuyers).
  *
  * @phpstan-type LowStockRow array{product_id: int, product_name: string, pieces_left: int, out_of_stock: bool, warn_at: int}
  * @phpstan-type BestSellerRow array{product_id: int, product_name: string, pieces: int}
@@ -48,7 +50,7 @@ final class StockCards
     }
 
     /**
-     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, ready_to_order: array{threshold: int, count: int, items: list<ReadyRow>}}
+     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, ready_to_order: array{threshold: int, count: int, items: list<ReadyRow>}, top_buyers: array<string, mixed>}
      */
     public function all(): array
     {
@@ -56,6 +58,7 @@ final class StockCards
             'low_stock' => $this->lowStock(),
             'best_sellers' => $this->bestSellers(),
             'ready_to_order' => $this->readyToOrder(),
+            'top_buyers' => TopBuyers::card(),
         ];
     }
 

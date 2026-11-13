@@ -332,6 +332,25 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'product_announced') {
+        const price =
+            data.price_from_centavos === null
+                ? ''
+                : data.price_from_centavos === data.price_to_centavos
+                  ? ` at ${formatPeso(data.price_from_centavos)}`
+                  : ` from ${formatPeso(data.price_from_centavos)}`;
+
+        return (
+            <>
+                <span className="block text-sm font-bold text-blue-800">
+                    New in the store: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    It is in stock now{price}.{data.note && ` ${data.note}`}
+                </span>
+            </>
+        );
+    }
     if (data.kind === 'preorder_not_restocked') {
         return (
             <>

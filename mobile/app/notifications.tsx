@@ -70,7 +70,21 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
-        case 'preorder_received': {
+        case 'product_announced': {
+            const price =
+                data.price_from_centavos === null
+                    ? ''
+                    : data.price_from_centavos === data.price_to_centavos
+                      ? ` at ${formatPeso(data.price_from_centavos)}`
+                      : ` from ${formatPeso(data.price_from_centavos)}`;
+
+            return {
+                title: `New in the store: ${data.product_name}`,
+                body: `It is in stock now${price}.${data.note ? ` ${data.note}` : ''}`,
+                titleClass: 'text-blue-800',
+                stripe: '#3b82f6',
+            };
+        }        case 'preorder_received': {
             const many = data.lines.length > 1 || (data.lines[0]?.quantity ?? 0) > 1;
 
             return {

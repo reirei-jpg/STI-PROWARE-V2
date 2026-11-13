@@ -15,7 +15,7 @@ class NotificationController extends Controller
      * product's Stock History for a low-stock notice, the product on the
      * Products list for a sale notice, the order on the Orders page for a
      * new order, My Orders for the student's order notices, the item on the
-     * storefront when a preorder arrived, My Preorders when a preorder was
+     * storefront when a preorder arrived or the Specialist announced it, My Preorders when a preorder was
      * closed, the product on Preorders (Waiting for restock) for a new
      * preorder of a sold-out size, otherwise the purchase order with its
      * details window already open.
@@ -30,7 +30,7 @@ class NotificationController extends Controller
             'sale_ending', 'sale_ended' => to_route('products.index', ['search' => $notification->data['product_name']]),
             'order_placed', 'order_cancelled_by_student' => to_route('orders.index', ['show' => 'all', 'search' => $notification->data['order_number']]),
             'order_ready', 'order_released', 'order_cancelled', 'order_last_day', 'ordering_paused' => to_route('my-orders.index'),
-            'preorder_arrived' => to_route('home', ['search' => $notification->data['product_name']]),
+            'preorder_arrived', 'product_announced' => to_route('home', ['search' => $notification->data['product_name']]),
             'preorder_received', 'preorder_not_restocked', 'preorder_arrival_changed', 'preorder_held', 'preorder_hold_ended' => to_route('my-preorders.index'),
             'preorder_placed' => to_route('preorders.index', ['stage' => 'sold_out', 'search' => $notification->data['product_name']]),
             'ordering_resumed' => to_route('home'),

@@ -158,7 +158,7 @@ final class PriceList
      *
      * @return Collection<int, int>
      */
-    private static function studentPrices(Product $product): Collection
+    public static function studentPrices(Product $product): Collection
     {
         if ($product->sold_by_piece) {
             return $product->variants

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PreorderController;
 use App\Http\Controllers\Api\V1\Specialist\DeliveryController;
 use App\Http\Controllers\Api\V1\Specialist\OrderController as SpecialistOrderController;
+use App\Http\Controllers\Api\V1\Specialist\ProductAnnouncementController;
 use App\Http\Controllers\Api\V1\Specialist\ReadyToOrderController;
 use App\Http\Controllers\Api\V1\Specialist\StockController;
 use App\Http\Controllers\Api\V1\Specialist\TaskController;
@@ -74,6 +75,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');
         Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
         Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');
+        Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');
 
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
         Route::get('deliveries/waiting', [DeliveryController::class, 'waiting'])->name('deliveries.waiting');

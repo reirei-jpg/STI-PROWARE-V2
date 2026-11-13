@@ -82,6 +82,16 @@ export type PreorderArrivedData = {
     variant_label?: string | null;
 };
 
+/** The Specialist told the top buyers that a product is in the store now. */
+export type ProductAnnouncedData = {
+    kind: 'product_announced';
+    product_id: number;
+    product_name: string;
+    price_from_centavos: number | null;
+    price_to_centavos: number | null;
+    note: string | null;
+};
+
 /** The sold-out size the student preordered will not be restocked. */
 export type PreorderNotRestockedData = {
     kind: 'preorder_not_restocked';
@@ -246,6 +256,7 @@ export type StaffNotification = {
         | OrderLastDayData
         | OrderCancelledData
         | PreorderArrivedData
+        | ProductAnnouncedData
         | PreorderNotRestockedData
         | PreorderArrivalChangedData
         | PreorderHeldData

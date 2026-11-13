@@ -304,6 +304,14 @@ export type StudentNotificationData =
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
     | {
+          kind: 'product_announced';
+          product_id: number;
+          product_name: string;
+          price_from_centavos: number | null;
+          price_to_centavos: number | null;
+          note: string | null;
+      }
+    | {
           kind: 'preorder_received';
           product_id: number;
           product_name: string;
@@ -440,6 +448,37 @@ export type StockCardsData = {
         threshold: number;
         count: number;
         items: { product_id: number; product_name: string; pieces: number; preorders_close_on: string | null }[];
+    };
+    /** Missing on a server from before this card. */
+    top_buyers?: {
+        from: string;
+        buyers_count: number;
+        items: {
+            user_id: number;
+            name: string;
+            email: string;
+            orders: number;
+            pieces: number;
+            spent_centavos: number;
+            last_bought_at: string | null;
+        }[];
+        sizes: number[];
+        products: {
+            product_id: number;
+            product_name: string;
+            arrived_on: string | null;
+            price_from_centavos: number | null;
+            price_to_centavos: number | null;
+            announced_at: string | null;
+        }[];
+        last: {
+            product_name: string;
+            top: number;
+            recipients: number;
+            note: string | null;
+            sent_at: string | null;
+            sent_by: string | null;
+        } | null;
     };
 };
 

@@ -20,6 +20,7 @@ export function noticeTarget(data: Record<string, unknown>): Href | null {
         case 'order_cancelled':
             return hasOrder ? `/order/${orderId}` : null;
         case 'preorder_arrived':
+        case 'product_announced':
             return hasProduct ? `/product/${productId}` : null;
         case 'preorder_received':
         case 'preorder_not_restocked':
