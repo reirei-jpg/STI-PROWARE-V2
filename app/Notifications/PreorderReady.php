@@ -59,11 +59,11 @@ class PreorderReady extends Notification implements PushesToPhones
     }
 
     /**
-     * "2 pcs are set aside for you. Show preorder slip PR-0002 at the
-     * PROWARE office to get them."
+     * "2 pcs are ready. Show preorder slip PR-0002 at the PROWARE office to
+     * get them."
      */
     public static function body(int $pieces, ?string $number): string
     {
-        return Units::count($pieces, 'Piece').' '.($pieces === 1 ? 'is' : 'are')." set aside for you. Show preorder slip {$number} at the PROWARE office to get ".($pieces === 1 ? 'it.' : 'them.');
+        return Units::count($pieces, 'Piece').' '.($pieces === 1 ? 'is' : 'are')." ready. Show preorder slip {$number} at the PROWARE office to get ".($pieces === 1 ? 'it.' : 'them.');
     }
 }

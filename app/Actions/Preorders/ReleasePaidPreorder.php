@@ -42,7 +42,7 @@ class ReleasePaidPreorder
         }
 
         return $slip->preorders()->where('status', PreorderStatus::Active)->exists()
-            ? "Nothing of preorder {$slip->number} has arrived yet. Its pieces are set aside when they come in, and the buyer is told."
+            ? "Nothing of preorder {$slip->number} has arrived yet. The buyer is told when it arrives."
             : "Preorder {$slip->number} has already been released in full.";
     }
 

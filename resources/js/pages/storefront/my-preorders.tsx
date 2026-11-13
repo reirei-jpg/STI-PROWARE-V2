@@ -173,8 +173,8 @@ export default function MyPreorders({
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                         Items you reserved before they arrive or while they are
                         out of stock. Pay at the cashier with each preorder's
-                        slip; once paid, your pieces are set aside when they
-                        arrive and you are notified. No refund after paying.
+                        slip. You are notified when it arrives. No refund after
+                        paying.
                     </p>
                 </div>
 
@@ -568,8 +568,7 @@ function PreorderLine({
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 sm:max-w-md">
                     <p className="text-xs leading-5 text-emerald-900">
                         <span className="font-black">
-                            {formatUnits(preorder.quantity, 'Piece')} set aside
-                            for you.
+                            {formatUnits(preorder.quantity, 'Piece')} ready.
                         </span>{' '}
                         Show preorder slip {preorder.slip_number} at the PROWARE
                         office to get {preorder.quantity === 1 ? 'it' : 'them'}.

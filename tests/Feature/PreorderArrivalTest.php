@@ -78,7 +78,7 @@ test('arriving pieces are set aside for paid preorders, first come, first served
     $number = slipOf($this->first)->number;
     Notification::assertSentTo($this->first->student, PreorderReady::class, fn (PreorderReady $notice) => $notice->toPush($this->first->student) === [
         'title' => 'Your preorder is ready to pick up: STI Hoodie (M)',
-        'body' => "3 pcs are set aside for you. Show preorder slip {$number} at the PROWARE office to get them.",
+        'body' => "3 pcs are ready. Show preorder slip {$number} at the PROWARE office to get them.",
         'data' => ['kind' => 'preorder_ready', 'slip_id' => slipOf($this->first)->id],
     ]);
     Notification::assertSentTo($this->second->student, PreorderReady::class, fn (PreorderReady $notice) => $notice->pieces === 2);
@@ -134,7 +134,7 @@ test('release is refused while unpaid, before anything arrived, and once all is 
     $this->post(route('preorder-slips.release', slipOf($this->third)))
         ->assertInertiaFlash('toast.message', 'Preorder slip '.slipOf($this->third)->number.' is not paid yet, so nothing can be released. Mark it as paid once the buyer has paid at the cashier.');
     $this->post(route('preorder-slips.release', slipOf($this->first)))
-        ->assertInertiaFlash('toast.message', 'Nothing of preorder '.slipOf($this->first)->number.' has arrived yet. Its pieces are set aside when they come in, and the buyer is told.');
+        ->assertInertiaFlash('toast.message', 'Nothing of preorder '.slipOf($this->first)->number.' has arrived yet. The buyer is told when it arrives.');
 
     hoodiesComeIn($this->variant, 3);
     $this->post(route('preorder-slips.release', slipOf($this->first)))->assertInertiaFlash('toast.type', 'success');

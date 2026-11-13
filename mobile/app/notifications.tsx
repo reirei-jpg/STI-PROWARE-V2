@@ -73,7 +73,7 @@ function describe(data: StudentNotificationData): {
         case 'preorder_ready':
             return {
                 title: `Your preorder is ready to pick up: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
-                body: `${formatUnits(data.pieces, 'Piece')} ${data.pieces === 1 ? 'is' : 'are'} set aside for you. Show preorder slip ${data.number} at the PROWARE office to get ${data.pieces === 1 ? 'it' : 'them'}.`,
+                body: `${formatUnits(data.pieces, 'Piece')} ${data.pieces === 1 ? 'is' : 'are'} ready. Show preorder slip ${data.number} at the PROWARE office to get ${data.pieces === 1 ? 'it' : 'them'}.`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };

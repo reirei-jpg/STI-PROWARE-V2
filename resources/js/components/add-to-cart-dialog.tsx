@@ -516,9 +516,8 @@ function PickerForm({
                     <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                         This {hasChoices ? 'size or color' : 'item'} is out of
                         stock. Preorder it, then pay at the cashier with your
-                        preorder slip. Once paid, your pieces are kept for you
-                        when it is back in stock and you are notified.{' '}
-                        {PREORDER_PRICE_MAY_CHANGE}
+                        preorder slip. You are notified when it is back in
+                        stock. {PREORDER_PRICE_MAY_CHANGE}
                     </p>
                 )}
 

@@ -96,7 +96,7 @@ function OrdersScreen() {
                 <Text className="mt-1 font-sans text-sm text-slate-500">
                     {show === 'orders'
                         ? 'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office to get your items.'
-                        : 'Reserved items. Pay at the cashier with the preorder slip; once paid, your pieces are set aside when they arrive.'}
+                        : 'Reserved items. Pay at the cashier with the preorder slip. You are notified when it arrives.'}
                 </Text>
             </View>
 
@@ -475,7 +475,7 @@ function PreorderRow({
             {ready && (
                 <View className="flex-row items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                     <Text className="flex-1 font-sans text-xs leading-5 text-emerald-900">
-                        <Text className="font-sans-bold">{formatUnits(preorder.quantity, 'Piece')} set aside for you. </Text>
+                        <Text className="font-sans-bold">{formatUnits(preorder.quantity, 'Piece')} ready. </Text>
                         Show preorder slip {preorder.slip_number} at the PROWARE office to get {preorder.quantity === 1 ? 'it' : 'them'}.
                     </Text>
                     {preorder.slip_id != null && (

@@ -219,7 +219,7 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                 <div>
                     <p className="text-lg font-black">
                         {paid && result.can_release
-                            ? `Preorder ${slip.number} is paid: ready to release`
+                            ? `Preorder ${slip.number}: ready to release`
                             : paid
                               ? `Preorder ${slip.number} is paid`
                               : result.can_mark_paid
@@ -229,7 +229,7 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                     <p className="text-sm">
                         {paid
                             ? result.can_release
-                                ? `${formatUnits(readyPieces, 'Piece')} arrived and ${readyPieces === 1 ? 'is' : 'are'} set aside for ${slip.student_name}. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
+                                ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name}, already paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
                                 : result.release_refusal
                             : !result.can_mark_paid
                               ? result.refusal
@@ -250,7 +250,7 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                     <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div>
                             <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
-                                Set aside, to release
+                                Ready to release
                             </p>
                             <ul className="mt-2 space-y-1">
                                 {result.ready.map((line) => (

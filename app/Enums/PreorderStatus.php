@@ -75,6 +75,6 @@ enum PreorderStatus: string
     /** The label on the Specialist's screens ("Held for the buyer"). */
     public function staffLabel(): string
     {
-        return $this === self::Held ? 'Set aside for the buyer' : $this->label();
+        return $this === self::Held ? 'Ready to pick up' : $this->label();
     }
 }

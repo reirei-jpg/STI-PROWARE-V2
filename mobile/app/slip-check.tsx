@@ -478,7 +478,7 @@ function PreorderPayment({
                         <Text className="font-sans text-sm leading-5 text-white">
                             {paid
                                 ? lookup.can_release
-                                    ? `${formatUnits(readyPieces, 'Piece')} arrived and ${readyPieces === 1 ? 'is' : 'are'} set aside for ${slip.student_name}, already paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
+                                    ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name}, already paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
                                     : lookup.release_refusal
                                 : !lookup.can_mark_paid
                                 ? lookup.refusal

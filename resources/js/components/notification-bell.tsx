@@ -341,8 +341,8 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {formatUnits(data.pieces, 'Piece')}{' '}
-                    {data.pieces === 1 ? 'is' : 'are'} set aside for you. Show
-                    preorder slip {data.number} at the PROWARE office to get{' '}
+                    {data.pieces === 1 ? 'is' : 'are'} ready. Show preorder slip{' '}
+                    {data.number} at the PROWARE office to get{' '}
                     {data.pieces === 1 ? 'it' : 'them'}.
                 </span>
             </>
