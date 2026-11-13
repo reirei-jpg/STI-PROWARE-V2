@@ -43,7 +43,8 @@ type MyPreorder = {
         | 'not_restocked'
         | 'held'
         | 'ordered'
-        | 'hold_ended';
+        | 'hold_ended'
+        | 'not_paid';
     status_label: string;
     preorders_close_on: string | null;
     /** When the Coming Soon product is expected to arrive (active preorders only). */
@@ -72,6 +73,9 @@ type MyPreorder = {
     order_number: string | null;
     order_status: 'placed' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
+    /** The payment dates (null until the Specialist sets them). */
+    pay_from: string | null;
+    pay_until: string | null;
     /** The batch's preorder slip (PR-0001), paid at the cashier. */
     slip_id: number | null;
     slip_number: string | null;
@@ -127,6 +131,12 @@ const statusLooks: Record<
         icon: Clock3,
         badge: 'border-slate-200 bg-slate-50 text-slate-600',
         iconBox: 'bg-slate-200 text-slate-600',
+    },
+    not_paid: {
+        label: 'Not Paid in Time',
+        icon: XCircle,
+        badge: 'border-red-200 bg-red-50 text-red-700',
+        iconBox: 'bg-red-100 text-red-700',
     },
 };
 
@@ -187,7 +197,8 @@ export default function MyPreorders({
                         value={
                             count('cancelled') +
                             count('not_restocked') +
-                            count('hold_ended')
+                            count('hold_ended') +
+                            count('not_paid')
                         }
                         icon={XCircle}
                         tone="slate"
@@ -353,7 +364,8 @@ function PreorderBatch({
         (row) =>
             row.status === 'cancelled' ||
             row.status === 'not_restocked' ||
-            row.status === 'hold_ended',
+            row.status === 'hold_ended' ||
+            row.status === 'not_paid',
     );
 
     return (
@@ -430,7 +442,9 @@ function PaymentBar({ preorder }: { preorder: MyPreorder }) {
                     {' '}
                     · slip {preorder.slip_number}
                     {!preorder.slip_paid &&
-                        '. Pay at the cashier with the slip. No refund after paying.'}
+                        (preorder.pay_until
+                            ? `. Pay by ${formatDateOrdered(preorder.pay_until)} at the cashier with the slip, or it is dropped. No refund after paying.`
+                            : '. Pay at the cashier with the slip. No refund after paying.')}
                 </span>
             </p>
             <Link

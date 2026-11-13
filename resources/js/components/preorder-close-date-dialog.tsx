@@ -15,11 +15,15 @@ export type CloseDateTarget = {
     id: number;
     name: string;
     preorders_close_on: string | null;
+    /** The first day buyers can pay; null until the payment dates are set. */
+    preorder_pay_from?: string | null;
 };
 
 /**
- * The pop-up where the Specialist moves the last day students can preorder
- * a product, e.g. to collect more preorders before ordering in the eStore.
+ * The pop-up where the Specialist sets the payment dates of an item's
+ * preorders: the first day buyers can pay, and the close date (the last day
+ * to pay and to preorder). Buyers with unpaid preorders are told; those not
+ * paid by the close date are dropped.
  */
 export default function PreorderCloseDateDialog({
     product,
@@ -37,7 +41,7 @@ export default function PreorderCloseDateDialog({
         >
             <DialogContent className="gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-md [&>button:last-child]:hidden">
                 {product && (
-                    <CloseDateForm
+                    <PaymentDatesForm
                         key={product.id}
                         product={product}
                         today={today}
@@ -49,11 +53,15 @@ export default function PreorderCloseDateDialog({
     );
 }
 
+const dateInputClasses =
+    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 aria-invalid:border-red-400 aria-invalid:ring-2 aria-invalid:ring-red-100';
+
 /**
- * The close date, checked as it is typed: a day that has passed is refused
- * at once, not only after Save.
+ * The two dates, checked as they are typed: a day that has passed, or a
+ * close date before the start date, is refused at once, not only after
+ * Save.
  */
-function CloseDateForm({
+function PaymentDatesForm({
     product,
     today,
     onClose,
@@ -62,17 +70,24 @@ function CloseDateForm({
     today: string;
     onClose: () => void;
 }) {
+    const [payFrom, setPayFrom] = useState(product.preorder_pay_from ?? today);
     const [closeOn, setCloseOn] = useState(product.preorders_close_on ?? '');
-    const dateProblem =
+    const fromProblem =
+        payFrom === ''
+            ? 'Choose the first day buyers can pay.'
+            : payFrom < today
+              ? 'The start date cannot be in the past.'
+              : null;
+    const closeProblem =
         closeOn === ''
-            ? 'Choose the last day students can preorder.'
-            : closeOn < today
-              ? 'The close date cannot be in the past.'
+            ? 'Choose the last day to pay.'
+            : closeOn < payFrom
+              ? 'The close date cannot be before the start date.'
               : null;
 
     return (
         <Form
-            {...PreorderController.updateCloseDate.form(product.id)}
+            {...PreorderController.updatePaymentDates.form(product.id)}
             options={{ preserveScroll: true }}
             onSuccess={onClose}
         >
@@ -85,7 +100,7 @@ function CloseDateForm({
                             </span>
                             <div>
                                 <DialogTitle className="text-lg font-black text-slate-900">
-                                    Preorders Close On
+                                    Payment Dates
                                 </DialogTitle>
                                 <DialogDescription className="text-sm text-slate-500">
                                     {product.name}
@@ -98,10 +113,34 @@ function CloseDateForm({
                         </DialogClose>
                     </div>
 
-                    <div className="space-y-3 px-6 py-5">
+                    <div className="space-y-4 px-6 py-5">
                         <label className="grid gap-1.5">
                             <span className="text-sm font-black text-slate-700">
-                                Last day students can preorder
+                                Start date (buyers can pay from)
+                            </span>
+                            <input
+                                type="date"
+                                name="preorder_pay_from"
+                                value={payFrom}
+                                onChange={(event) =>
+                                    setPayFrom(event.target.value)
+                                }
+                                min={today}
+                                aria-invalid={
+                                    fromProblem !== null ||
+                                    Boolean(errors.preorder_pay_from)
+                                }
+                                className={dateInputClasses}
+                            />
+                            <InputError
+                                message={
+                                    fromProblem ?? errors.preorder_pay_from
+                                }
+                            />
+                        </label>
+                        <label className="grid gap-1.5">
+                            <span className="text-sm font-black text-slate-700">
+                                Close date (last day to pay and to preorder)
                             </span>
                             <input
                                 type="date"
@@ -110,22 +149,23 @@ function CloseDateForm({
                                 onChange={(event) =>
                                     setCloseOn(event.target.value)
                                 }
-                                min={today}
+                                min={payFrom || today}
                                 aria-invalid={
-                                    dateProblem !== null ||
+                                    closeProblem !== null ||
                                     Boolean(errors.preorders_close_on)
                                 }
-                                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 aria-invalid:border-red-400 aria-invalid:ring-2 aria-invalid:ring-red-100"
+                                className={dateInputClasses}
                             />
                             <InputError
                                 message={
-                                    dateProblem ?? errors.preorders_close_on
+                                    closeProblem ?? errors.preorders_close_on
                                 }
                             />
                         </label>
                         <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                            Move it later to collect more preorders. Students
-                            can preorder until the end of that day.
+                            Buyers with unpaid preorders are told to pay at the
+                            cashier between these dates. Preorders not paid by
+                            the end of the close date are dropped.
                         </p>
                     </div>
 
@@ -135,7 +175,11 @@ function CloseDateForm({
                         </DialogClose>
                         <button
                             type="submit"
-                            disabled={processing || dateProblem !== null}
+                            disabled={
+                                processing ||
+                                fromProblem !== null ||
+                                closeProblem !== null
+                            }
                             className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {processing && (

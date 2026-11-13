@@ -305,6 +305,8 @@ function statusPill(preorder: StudentPreorder): { text: string; box: string; wor
             return { text: 'Hold ended', box: 'border-slate-200 bg-slate-50', word: 'text-slate-500' };
         case 'not_restocked':
             return { text: 'Not restocked', box: 'border-red-200 bg-red-50', word: 'text-red-700' };
+        case 'not_paid':
+            return { text: 'Not paid in time', box: 'border-red-200 bg-red-50', word: 'text-red-700' };
         default:
             return {
                 text: preorder.waiting_for_restock ? 'Waiting for restock' : 'Waiting to arrive',
@@ -370,7 +372,11 @@ function PreorderBatch({
                                 : `Waiting for payment · ${formatPeso(first.slip_amount_centavos ?? 0)}`}
                         </Text>
                         {` · slip ${first.slip_number}`}
-                        {first.slip_paid ? '' : '. Pay at the cashier with the slip. No refund after paying.'}
+                        {first.slip_paid
+                            ? ''
+                            : first.pay_until
+                              ? `. Pay by ${formatDate(first.pay_until)} at the cashier with the slip, or it is dropped. No refund after paying.`
+                              : '. Pay at the cashier with the slip. No refund after paying.'}
                     </Text>
                     <Pressable
                         onPress={() => router.push(`/preorder-slip/${first.slip_id}`)}

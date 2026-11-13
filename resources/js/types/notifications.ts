@@ -82,6 +82,26 @@ export type PreorderArrivedData = {
     variant_label?: string | null;
 };
 
+/** The Specialist set the payment dates: pay between them or the preorder is dropped. */
+export type PreorderPayByData = {
+    kind: 'preorder_pay_by';
+    product_id: number;
+    product_name: string;
+    slip_id: number;
+    number: string | null;
+    amount_centavos: number;
+    pay_from: string | null;
+    pay_until: string | null;
+};
+
+/** The preorder was dropped: it was not paid by the close date. */
+export type PreorderNotPaidData = {
+    kind: 'preorder_not_paid';
+    product_id: number;
+    product_name: string;
+    closed_on: string;
+};
+
 /** The buyer's payment for a preorder was recorded: the slip says PAID. */
 export type PreorderPaidData = {
     kind: 'preorder_paid';
@@ -268,6 +288,8 @@ export type StaffNotification = {
         | PreorderArrivedData
         | ProductAnnouncedData
         | PreorderPaidData
+        | PreorderPayByData
+        | PreorderNotPaidData
         | PreorderNotRestockedData
         | PreorderArrivalChangedData
         | PreorderHeldData

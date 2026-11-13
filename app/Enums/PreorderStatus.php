@@ -31,6 +31,12 @@ enum PreorderStatus: string
      */
     case Held = 'held';
 
+    /**
+     * It was not paid by the close date of the payment dates, so it was
+     * dropped and is no longer counted.
+     */
+    case NotPaid = 'not_paid';
+
     /** The student ordered the held pieces (order_id). */
     case Ordered = 'ordered';
 
@@ -50,6 +56,7 @@ enum PreorderStatus: string
             self::Held => 'Held for you',
             self::Ordered => 'Ordered',
             self::HoldEnded => 'Hold ended',
+            self::NotPaid => 'Not paid in time',
         };
     }
 

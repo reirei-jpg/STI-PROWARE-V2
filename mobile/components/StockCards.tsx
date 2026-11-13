@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ClipboardList, Crown, Megaphone, TrendingUp, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { CalendarClock, ClipboardList, Crown, Megaphone, TrendingUp, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 
@@ -10,7 +10,17 @@ import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { StockCardsData } from '@/lib/types';
 
-type CardKey = 'low_stock' | 'best_sellers' | 'ready_to_order' | 'top_buyers' | 'tell';
+type CardKey = 'low_stock' | 'best_sellers' | 'ready_to_order' | 'top_buyers' | 'tell' | 'set_up' | 'dates';
+
+/** "2026-11-14" plus some days, as "2026-11-21". */
+function addDays(date: string, days: number): string {
+    const [year, month, day] = date.split('-').map(Number);
+
+    return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+/** How long buyers have to pay, from the start date. */
+const PAY_DAYS = [3, 7, 14];
 
 /**
  * The website dashboard's stock cards on the Specialist's phone To-do: Low
@@ -32,7 +42,39 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
     const [size, setSize] = useState<number>(buyers?.sizes[0] ?? 10);
     const [note, setNote] = useState('');
     const [sending, setSending] = useState(false);
-    // Shown in the sheet: a toast would be hidden behind it.
+    // Payment dates: the item, the start (today or tomorrow) and how many days to pay.
+    const setUp = data.preorders_to_set_up;
+    const [dating, setDating] = useState<{ product_id: number; product_name: string } | null>(null);
+    const [startIn, setStartIn] = useState(0);
+    const [payDays, setPayDays] = useState(7);
+    const [datesError, setDatesError] = useState<string | null>(null);
+    const [savingDates, setSavingDates] = useState(false);
+    const payFrom = setUp ? addDays(setUp.today, startIn) : '';
+    const closeOn = setUp ? addDays(payFrom, payDays) : '';
+
+    const saveDates = async (): Promise<void> => {
+        if (!dating) {
+            return;
+        }
+
+        setSavingDates(true);
+        setDatesError(null);
+
+        try {
+            const result = await request<{ message: string }>(`/specialist/preorders/${dating.product_id}/payment-dates`, {
+                method: 'PATCH',
+                body: { preorder_pay_from: payFrom, preorders_close_on: closeOn },
+            });
+            setOpen(null);
+            setDating(null);
+            setToast({ type: 'success', message: result.message });
+            onChanged();
+        } catch (caught) {
+            setDatesError(caught instanceof ApiError ? caught.message : 'The dates could not be saved. Try again.');
+        } finally {
+            setSavingDates(false);
+        }
+    };    // Shown in the sheet: a toast would be hidden behind it.
     const [tellError, setTellError] = useState<string | null>(null);
     const chosen = buyers?.products.find((product) => product.product_id === productId);
     const recipients = Math.min(size, buyers?.buyers_count ?? 0);
@@ -135,6 +177,26 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                         </Text>
                     </View>
                 </Pressable>
+                {setUp && (
+                    <Pressable
+                        onPress={() => setOpen('set_up')}
+                        accessibilityRole="button"
+                        className="w-full flex-row items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4"
+                    >
+                        <View className="h-10 w-10 items-center justify-center rounded-xl bg-amber-50">
+                            <CalendarClock size={19} color="#b45309" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-slate-500">
+                                Preorders to set up
+                            </Text>
+                            <Text className="font-sans-bold text-base text-slate-900">{setUp.count}</Text>
+                            <Text className="font-sans text-xs text-slate-500">
+                                {setUp.count === 1 ? 'item needs payment dates' : 'items need payment dates'}
+                            </Text>
+                        </View>
+                    </Pressable>
+                )}
                 {buyers && (
                     <Pressable
                         onPress={() => setOpen('top_buyers')}
@@ -277,6 +339,131 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                     </View>
                 )}
             </BottomSheet>
+
+            {setUp && (
+                <BottomSheet
+                    open={open === 'set_up'}
+                    onClose={() => setOpen(null)}
+                    title={`Preorders to set up · ${setUp.count}`}
+                    subtitle="Buyers preordered these, but no payment dates are set yet."
+                    icon={<CalendarClock size={20} color="#b45309" />}
+                    footer={<CloseButton onPress={() => setOpen(null)} />}
+                >
+                    {setUp.items.length === 0 ? (
+                        <Text className="font-sans text-sm text-slate-500">Every item with preorders has its payment dates.</Text>
+                    ) : (
+                        <View className="gap-2.5">
+                            {setUp.items.map((item) => (
+                                <View key={item.product_id} className="gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                                    <View>
+                                        <Text className="font-sans-bold text-sm text-slate-900">{item.product_name}</Text>
+                                        <Text className="font-sans text-xs text-slate-500">
+                                            <Text className="font-sans-bold text-amber-700">{formatUnits(item.pieces, 'Piece')}</Text>
+                                            {` unpaid · ${item.buyers} ${item.buyers === 1 ? 'buyer' : 'buyers'} · ${item.coming_soon ? 'Coming Soon' : 'waiting for restock'}`}
+                                        </Text>
+                                    </View>
+                                    <Pressable
+                                        onPress={() => {
+                                            setDating(item);
+                                            setDatesError(null);
+                                            setOpen('dates');
+                                        }}
+                                        accessibilityRole="button"
+                                        className="flex-row items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2"
+                                    >
+                                        <CalendarClock size={15} color="#ffffff" />
+                                        <Text className="font-sans-bold text-sm text-white">Set dates</Text>
+                                    </Pressable>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                </BottomSheet>
+            )}
+
+            {setUp && (
+                <BottomSheet
+                    open={open === 'dates'}
+                    onClose={() => setOpen(null)}
+                    title="Payment dates"
+                    subtitle={dating?.product_name}
+                    icon={<CalendarClock size={20} color="#b45309" />}
+                    footer={
+                        <View className="gap-2">
+                            {datesError && (
+                                <View className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                                    <Text className="font-sans-semibold text-sm text-red-700">{datesError}</Text>
+                                </View>
+                            )}
+                            <Pressable
+                                onPress={() => void saveDates()}
+                                disabled={savingDates}
+                                accessibilityRole="button"
+                                className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-3.5 ${savingDates ? 'opacity-60' : ''}`}
+                            >
+                                {savingDates && <ActivityIndicator size="small" color="#ffffff" />}
+                                <Text className="font-sans-bold text-base text-white">Save the dates</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => setOpen('set_up')}
+                                disabled={savingDates}
+                                accessibilityRole="button"
+                                className="items-center justify-center rounded-2xl border border-slate-200 bg-white py-3.5"
+                            >
+                                <Text className="font-sans-bold text-base text-slate-700">Back</Text>
+                            </Pressable>
+                        </View>
+                    }
+                >
+                    <View className="gap-4">
+                        <View className="gap-2">
+                            <Text className="font-sans-bold text-sm text-slate-700">Buyers can pay from</Text>
+                            <View className="flex-row gap-2">
+                                {[0, 1].map((days) => (
+                                    <Pressable
+                                        key={days}
+                                        onPress={() => setStartIn(days)}
+                                        accessibilityRole="radio"
+                                        accessibilityState={{ selected: startIn === days }}
+                                        className={`flex-1 items-center rounded-xl border py-2.5 ${startIn === days ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                                    >
+                                        <Text className={`font-sans-bold text-sm ${startIn === days ? 'text-blue-700' : 'text-slate-600'}`}>
+                                            {days === 0 ? 'Today' : 'Tomorrow'}
+                                        </Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        </View>
+                        <View className="gap-2">
+                            <Text className="font-sans-bold text-sm text-slate-700">Days to pay</Text>
+                            <View className="flex-row gap-2">
+                                {PAY_DAYS.map((days) => (
+                                    <Pressable
+                                        key={days}
+                                        onPress={() => setPayDays(days)}
+                                        accessibilityRole="radio"
+                                        accessibilityState={{ selected: payDays === days }}
+                                        className={`flex-1 items-center rounded-xl border py-2.5 ${payDays === days ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                                    >
+                                        <Text className={`font-sans-bold text-sm ${payDays === days ? 'text-blue-700' : 'text-slate-600'}`}>
+                                            {days} days
+                                        </Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        </View>
+                        <View className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                            <Text className="font-sans-bold text-sm text-amber-900">
+                                Pay {formatDate(payFrom)} to {formatDate(closeOn)}
+                            </Text>
+                            <Text className="font-sans text-xs leading-5 text-amber-900">
+                                Buyers with unpaid preorders are told to pay at the cashier by then. Preorders not paid by the
+                                end of {formatDate(closeOn)} are dropped. Other dates can be set on the website.
+                            </Text>
+                        </View>
+                    </View>
+                </BottomSheet>
+            )}
 
             {buyers && (
                 <BottomSheet

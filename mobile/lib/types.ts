@@ -253,7 +253,7 @@ export type StudentPreorder = {
     quantity: number;
     /** Price per piece on the day it was preordered (null for older preorders). */
     preordered_price_centavos: number | null;
-    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked' | 'held' | 'ordered' | 'hold_ended';
+    status: 'active' | 'arrived' | 'cancelled' | 'not_restocked' | 'held' | 'ordered' | 'hold_ended' | 'not_paid';
     status_label: string;
     /** When the student was told it arrived. */
     arrived_at: string | null;
@@ -282,6 +282,9 @@ export type StudentPreorder = {
     order_number: string | null;
     order_status: 'placed' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
+    /** The payment dates (null until the Specialist sets them). */
+    pay_from?: string | null;
+    pay_until?: string | null;
     /** The batch's preorder slip (PR-0001); missing on a server from before slips. */
     slip_id?: number | null;
     slip_number?: string | null;
@@ -323,6 +326,17 @@ export type StudentNotificationData =
       }
     | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
+    | {
+          kind: 'preorder_pay_by';
+          product_id: number;
+          product_name: string;
+          slip_id: number;
+          number: string | null;
+          amount_centavos: number;
+          pay_from: string | null;
+          pay_until: string | null;
+      }
+    | { kind: 'preorder_not_paid'; product_id: number; product_name: string; closed_on: string }
     | {
           kind: 'preorder_paid';
           slip_id: number;
@@ -476,6 +490,20 @@ export type StockCardsData = {
         threshold: number;
         count: number;
         items: { product_id: number; product_name: string; pieces: number; preorders_close_on: string | null }[];
+    };
+    /** Items with unpaid preorders and no payment dates yet; missing on an older server. */
+    preorders_to_set_up?: {
+        count: number;
+        items: {
+            product_id: number;
+            product_name: string;
+            coming_soon: boolean;
+            buyers: number;
+            pieces: number;
+            preorders_close_on: string | null;
+            expected_arrival_from: string | null;
+        }[];
+        today: string;
     };
     /** Missing on a server from before this card. */
     top_buyers?: {

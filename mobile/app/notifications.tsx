@@ -70,6 +70,20 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
+        case 'preorder_pay_by':
+            return {
+                title: `Pay for your preorder: ${data.product_name}`,
+                body: `Pay ${formatPeso(data.amount_centavos)} at the cashier with preorder slip ${data.number} between ${formatDate(data.pay_from)} and ${formatDate(data.pay_until)}. Preorders not paid by then are dropped.`,
+                titleClass: 'text-amber-800',
+                stripe: '#f59e0b',
+            };
+        case 'preorder_not_paid':
+            return {
+                title: `Preorder dropped: ${data.product_name}`,
+                body: `It was not paid by ${formatDate(data.closed_on)}, so it was dropped.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
         case 'preorder_paid':
             return {
                 title: `Preorder paid: ${data.product_name}`,

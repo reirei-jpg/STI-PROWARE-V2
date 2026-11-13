@@ -28,6 +28,9 @@ export function noticeTarget(data: Record<string, unknown>): Href | null {
         case 'preorder_held':
         case 'preorder_hold_ended':
             return '/orders?show=preorders';
+        case 'preorder_not_paid':
+            return '/orders?show=preorders';
+        case 'preorder_pay_by':
         case 'preorder_paid': {
             const slipId = Number(data.slip_id);
 

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
+use App\Http\Requests\SetPreorderPaymentDatesRequest;
 use App\Http\Requests\UpdatePreorderCloseDateRequest;
 use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Preorders\PaymentDates;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -206,6 +208,20 @@ class PreorderController extends Controller
     /**
      * Move the last day students can preorder the product.
      */
+    /**
+     * Set the payment dates of the item's preorders; the buyers with
+     * unpaid preorders are told.
+     */
+    public function updatePaymentDates(SetPreorderPaymentDatesRequest $request, Product $product): RedirectResponse
+    {
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => PaymentDates::set($product, (string) $request->input('preorder_pay_from'), (string) $request->input('preorders_close_on')),
+        ]);
+
+        return back();
+    }
+
     public function updateCloseDate(UpdatePreorderCloseDateRequest $request, Product $product): RedirectResponse
     {
         $closeOn = CarbonImmutable::parse((string) $request->input('preorders_close_on'));
@@ -431,6 +447,8 @@ class PreorderController extends Controller
             'status_label' => $product->status->label(),
             'stage' => $stage,
             'preorders_close_on' => $product->preorders_close_on?->toDateString(),
+            // The payment dates' start; null until the Specialist sets them.
+            'preorder_pay_from' => $product->preorder_pay_from?->toDateString(),
             'accepts_preorders' => $product->acceptsPreorders(),
             'students_count' => (int) $product->getAttribute($stage === 'arrived' ? 'arrived_students' : 'students_count'),
             'pieces_total' => (int) $product->getAttribute($stage === 'arrived' ? 'arrived_pieces' : 'pieces_total'),

@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
  * while preorders for the product are still open, or while a sold-out size
  * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, batch: string, product_id: int, product_variant_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, can_edit: bool, edited_at: string|null, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null, slip_id: int|null, slip_number: string|null, slip_paid: bool, slip_amount_centavos: int|null, paid_on: string|null}
+ * @phpstan-type PreorderRow array{id: int, batch: string, product_id: int, product_variant_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, can_edit: bool, edited_at: string|null, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null, pay_from: string|null, pay_until: string|null, slip_id: int|null, slip_number: string|null, slip_paid: bool, slip_amount_centavos: int|null, paid_on: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -56,6 +56,7 @@ class CancelPreorderByStudent
             PreorderStatus::Cancelled => "Your preorder for {$preorder->product->name} is already cancelled.",
             PreorderStatus::Ordered => "You already ordered this preorder for {$preorder->product->name}. To cancel it, cancel the order.",
             PreorderStatus::HoldEnded => "The hold on your preorder for {$preorder->product->name} already ended, so there is nothing to cancel.",
+            PreorderStatus::NotPaid => "Your preorder for {$preorder->product->name} was not paid in time, so it is already closed.",
             PreorderStatus::NotRestocked => "{$preorder->product->name} will not be restocked, so this preorder is already closed.",
             default => "Preorders for {$preorder->product->name} are closed, so this preorder can no longer be cancelled here. Ask the PROWARE office.",
         };
@@ -191,6 +192,9 @@ class CancelPreorderByStudent
             'order_number' => $preorder->order?->number,
             'order_status' => $preorder->order?->status->value,
             'hold_ended_at' => $preorder->hold_ended_at?->toIso8601String(),
+            // The payment dates the Specialist set (null until set): pay between them or it is dropped.
+            'pay_from' => $preorder->product->preorder_pay_from?->toDateString(),
+            'pay_until' => $preorder->product->preorder_pay_from === null ? null : $preorder->product->preorders_close_on?->toDateString(),
         ];
     }
 }

@@ -332,6 +332,37 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'preorder_pay_by') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-amber-800">
+                    Pay for your preorder: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Pay {formatPeso(data.amount_centavos)} at the cashier with
+                    preorder slip {data.number} between{' '}
+                    {formatDateOrdered(data.pay_from)} and{' '}
+                    {formatDateOrdered(data.pay_until)}. Preorders not paid by
+                    then are dropped.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'preorder_not_paid') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Preorder dropped: {data.product_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    It was not paid by {formatDateOrdered(data.closed_on)}, so
+                    it was dropped.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'preorder_paid') {
         return (
             <>

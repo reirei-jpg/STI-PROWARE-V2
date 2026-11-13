@@ -1,6 +1,7 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowRight,
+    CalendarClock,
     ClipboardList,
     Crown,
     LoaderCircle,
@@ -18,6 +19,8 @@ import ProductStockController from '@/actions/App/Http/Controllers/ProductStockC
 import ReadyToOrderController from '@/actions/App/Http/Controllers/ReadyToOrderController';
 import SalesReportController from '@/actions/App/Http/Controllers/SalesReportController';
 import ConfirmDialog from '@/components/confirm-dialog';
+import PreorderCloseDateDialog from '@/components/preorder-close-date-dialog';
+import type { CloseDateTarget } from '@/components/preorder-close-date-dialog';
 import InputError from '@/components/input-error';
 import {
     Dialog,
@@ -91,9 +94,29 @@ export type StockCardsData = {
             sent_by: string | null;
         } | null;
     };
+    /** Items with unpaid preorders and no payment dates yet. */
+    preorders_to_set_up: {
+        count: number;
+        items: {
+            product_id: number;
+            product_name: string;
+            /** A Coming Soon item, else a sold-out size waiting for restock. */
+            coming_soon: boolean;
+            buyers: number;
+            pieces: number;
+            preorders_close_on: string | null;
+            expected_arrival_from: string | null;
+        }[];
+        today: string;
+    };
 };
 
-type CardKey = 'low_stock' | 'best_sellers' | 'ready_to_order' | 'top_buyers';
+type CardKey =
+    | 'low_stock'
+    | 'best_sellers'
+    | 'ready_to_order'
+    | 'top_buyers'
+    | 'set_up';
 
 /**
  * The stock cards on the Specialist's dashboard: Low stock, Best sellers
@@ -118,7 +141,7 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                         Click a card to see its items.
                     </p>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <Card
                         icon={TriangleAlert}
                         iconClassName="bg-red-50 text-red-600"
@@ -167,6 +190,20 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                         }
                         onOpen={() => setOpen('top_buyers')}
                     />
+                    <Card
+                        icon={CalendarClock}
+                        iconClassName="bg-amber-50 text-amber-600"
+                        title="Preorders to set up"
+                        value={data.preorders_to_set_up.count.toLocaleString(
+                            'en-PH',
+                        )}
+                        detail={
+                            data.preorders_to_set_up.count === 1
+                                ? 'item needs payment dates'
+                                : 'items need payment dates'
+                        }
+                        onOpen={() => setOpen('set_up')}
+                    />{' '}
                 </div>
             </section>
 
@@ -180,6 +217,7 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                     {open === 'ready_to_order' && (
                         <ReadyToOrderList data={data} />
                     )}
+                    {open === 'set_up' && <SetUpList data={data} />}
                     {open === 'top_buyers' && (
                         <TopBuyersList
                             data={data}
@@ -770,6 +808,87 @@ function TopBuyersList({
                     </button>
                 </div>
             </div>
+        </>
+    );
+}
+
+/**
+ * Items with unpaid preorders and no payment dates yet, the most preordered
+ * first: Set dates opens the payment dates. Until they are set, buyers can
+ * pay whenever they like and nothing is dropped.
+ */
+function SetUpList({ data }: { data: StockCardsData }) {
+    const { items, count, today } = data.preorders_to_set_up;
+    const [setting, setSetting] = useState<CloseDateTarget | null>(null);
+
+    return (
+        <>
+            <ListHeader
+                title="Preorders to set up"
+                description="Buyers preordered these, but no payment dates are set yet. Set them: buyers are told to pay at the cashier by the close date, or their preorders are dropped."
+            />
+            <div className="min-h-0 flex-1 overflow-y-auto">
+                {items.length === 0 ? (
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">
+                        Every item with preorders has its payment dates.
+                    </p>
+                ) : (
+                    <ul className="divide-y divide-slate-100">
+                        {items.map((item) => (
+                            <li
+                                key={item.product_id}
+                                className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div className="min-w-0">
+                                    <p className="truncate font-black text-slate-900">
+                                        {item.product_name}
+                                    </p>
+                                    <p className="text-sm text-slate-500">
+                                        <span className="font-black text-amber-700">
+                                            {formatUnits(item.pieces, 'Piece')}
+                                        </span>{' '}
+                                        unpaid · {item.buyers}{' '}
+                                        {item.buyers === 1 ? 'buyer' : 'buyers'}{' '}
+                                        ·{' '}
+                                        {item.coming_soon
+                                            ? 'Coming Soon'
+                                            : 'waiting for restock'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setSetting({
+                                            id: item.product_id,
+                                            name: item.product_name,
+                                            preorders_close_on:
+                                                item.preorders_close_on,
+                                            preorder_pay_from: null,
+                                        })
+                                    }
+                                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#0D6EFD] px-3.5 text-sm font-black text-white transition hover:bg-blue-700"
+                                >
+                                    <CalendarClock size={14} />
+                                    Set dates
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            <ListFooter>
+                <span className="text-sm text-slate-500">
+                    {count > items.length
+                        ? `Showing ${items.length} of ${count}.`
+                        : ''}
+                </span>
+            </ListFooter>
+
+            <PreorderCloseDateDialog
+                product={setting}
+                today={today}
+                onClose={() => setSetting(null)}
+            />
         </>
     );
 }

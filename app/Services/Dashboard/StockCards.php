@@ -7,6 +7,7 @@ use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Setting;
+use App\Services\Preorders\PaymentDates;
 use App\Services\Reports\SalesReport;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,7 +51,7 @@ final class StockCards
     }
 
     /**
-     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, ready_to_order: array{threshold: int, count: int, items: list<ReadyRow>}, top_buyers: array<string, mixed>}
+     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, ready_to_order: array{threshold: int, count: int, items: list<ReadyRow>}, top_buyers: array<string, mixed>, preorders_to_set_up: array<string, mixed>}
      */
     public function all(): array
     {
@@ -59,6 +60,7 @@ final class StockCards
             'best_sellers' => $this->bestSellers(),
             'ready_to_order' => $this->readyToOrder(),
             'top_buyers' => TopBuyers::card(),
+            'preorders_to_set_up' => PaymentDates::toSetUp(),
         ];
     }
 

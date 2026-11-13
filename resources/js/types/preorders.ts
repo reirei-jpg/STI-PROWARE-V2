@@ -27,6 +27,8 @@ export type PreorderProductSummary = {
     status_label: string;
     stage: PreorderStage;
     preorders_close_on: string | null;
+    /** The first day buyers can pay; null until the payment dates are set. */
+    preorder_pay_from: string | null;
     accepts_preorders: boolean;
     /** Waiting preorders; arrived ones once the product arrived. */
     students_count: number;
@@ -52,6 +54,7 @@ export type PreorderRow = {
         | 'held'
         | 'ordered'
         | 'hold_ended'
+        | 'not_paid'
         | 'gave_up';
     status_label: string;
     created_at: string | null;

@@ -21,6 +21,13 @@ export function CloseDate({
                     ? formatDateOrdered(product.preorders_close_on)
                     : 'No date'}
             </p>
+            <p
+                className={`text-xs font-bold ${product.preorder_pay_from ? 'text-slate-500' : 'text-amber-700'}`}
+            >
+                {product.preorder_pay_from && product.preorders_close_on
+                    ? `Pay ${formatDateOrdered(product.preorder_pay_from)} – ${formatDateOrdered(product.preorders_close_on)}`
+                    : 'No payment dates yet'}
+            </p>
             <span
                 className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-black ${
                     product.accepts_preorders
@@ -30,16 +37,15 @@ export function CloseDate({
             >
                 {product.accepts_preorders ? 'Open' : 'Closed'}
             </span>
-            {product.status === 'preorder' && (
+            {(product.status === 'preorder' ||
+                product.stage === 'sold_out') && (
                 <button
                     type="button"
                     onClick={onChange}
                     className="mt-1 inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                 >
                     <CalendarClock size={15} />
-                    {product.accepts_preorders
-                        ? 'Change date'
-                        : 'Reopen / change date'}
+                    Payment dates
                 </button>
             )}
         </div>

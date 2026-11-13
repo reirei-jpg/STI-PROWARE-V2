@@ -34,7 +34,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $sale_started_at
  * @property Carbon|null $sale_ends_at
  * @property Carbon|null $sale_ending_notified_at when the "sale ending tomorrow" notice was sent
- * @property Carbon|null $preorders_close_on last day students can preorder a Preorder product
+ * @property Carbon|null $preorders_close_on last day students can preorder a Preorder product; with preorder_pay_from, the last day to pay for preorders
+ * @property Carbon|null $preorder_pay_from first day buyers can pay for their preorders (null: no payment dates set yet)
  * @property Carbon|null $expected_arrival_from first day a Preorder product is expected to arrive
  * @property Carbon|null $expected_arrival_to last day a Preorder product is expected to arrive
  * @property int|null $early_bird_price_centavos lower price per piece for the first pieces preordered
@@ -65,6 +66,7 @@ class Product extends Model
             'sale_ends_at' => 'datetime',
             'sale_ending_notified_at' => 'datetime',
             'preorders_close_on' => 'date',
+            'preorder_pay_from' => 'date',
             'expected_arrival_from' => 'date',
             'expected_arrival_to' => 'date',
             'early_bird_price_centavos' => 'integer',
