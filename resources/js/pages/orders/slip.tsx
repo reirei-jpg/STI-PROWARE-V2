@@ -22,6 +22,7 @@ import PageHeader from '@/components/page-header';
 import SlipScanBox from '@/components/slip-scan-box';
 import StaffTag from '@/components/staff-tag';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
     IssuanceSlipData,
@@ -34,6 +35,12 @@ type PreorderSlipResult = {
     can_mark_paid: boolean;
     /** Why it cannot be marked paid (already paid, nothing to pay). */
     refusal: string | null;
+    /** Paid, and pieces arrived and are set aside: they can be released. */
+    can_release: boolean;
+    /** Why it cannot be released (nothing arrived yet, already released). */
+    release_refusal: string | null;
+    /** The pieces set aside, to release. */
+    ready: { item: string; pieces: number }[];
 };
 
 type SlipResult = {
@@ -146,6 +153,11 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
     const [checked, setChecked] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [releasing, setReleasing] = useState(false);
+    const readyPieces = result.ready.reduce(
+        (sum, line) => sum + line.pieces,
+        0,
+    );
     const asSlip: IssuanceSlipData = {
         ...slip,
         order_id: slip.slip_id,
@@ -153,6 +165,21 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
         pick_up_by: null,
         released_on: null,
         issued_by: null,
+    };
+
+    const release = () => {
+        setBusy(true);
+        router.post(
+            PreorderSlipController.release(slip.slip_id).url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setBusy(false);
+                    setReleasing(false);
+                },
+            },
+        );
     };
 
     const markPaid = () => {
@@ -191,16 +218,22 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                 )}
                 <div>
                     <p className="text-lg font-black">
-                        {paid
-                            ? `Preorder ${slip.number} is paid`
-                            : result.can_mark_paid
-                              ? `Preorder ${slip.number}: waiting for payment`
-                              : `Preorder ${slip.number} cannot be paid`}
+                        {paid && result.can_release
+                            ? `Preorder ${slip.number} is paid: ready to release`
+                            : paid
+                              ? `Preorder ${slip.number} is paid`
+                              : result.can_mark_paid
+                                ? `Preorder ${slip.number}: waiting for payment`
+                                : `Preorder ${slip.number} cannot be paid`}
                     </p>
                     <p className="text-sm">
-                        {paid || !result.can_mark_paid
-                            ? result.refusal
-                            : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name}. Check the cashier receipt, then mark it paid.`}
+                        {paid
+                            ? result.can_release
+                                ? `${formatUnits(readyPieces, 'Piece')} arrived and ${readyPieces === 1 ? 'is' : 'are'} set aside for ${slip.student_name}. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
+                                : result.release_refusal
+                            : !result.can_mark_paid
+                              ? result.refusal
+                              : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name}. Check the cashier receipt, then mark it paid.`}
                     </p>
                 </div>
             </section>
@@ -212,6 +245,48 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                     paid={paid}
                     className="rounded-2xl shadow-sm"
                 />
+
+                {result.can_release && (
+                    <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div>
+                            <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
+                                Set aside, to release
+                            </p>
+                            <ul className="mt-2 space-y-1">
+                                {result.ready.map((line) => (
+                                    <li
+                                        key={line.item}
+                                        className="flex justify-between gap-3 text-sm font-bold text-slate-800"
+                                    >
+                                        <span>{line.item}</span>
+                                        <span>
+                                            {formatUnits(line.pieces, 'Piece')}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="mt-2 text-sm text-slate-500">
+                                Already paid: nothing to collect.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setReleasing(true)}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                            {busy ? (
+                                <LoaderCircle
+                                    size={16}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <CheckCircle2 size={16} />
+                            )}
+                            Release {formatUnits(readyPieces, 'Piece')}
+                        </button>
+                    </section>
+                )}
 
                 {result.can_mark_paid && (
                     <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -261,6 +336,17 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                     </section>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={releasing}
+                title={`Release ${formatUnits(readyPieces, 'Piece')} to ${slip.student_name}?`}
+                description={`${result.ready.map((line) => `${formatUnits(line.pieces, 'Piece')} of ${line.item}`).join(', ')}, already paid. They leave the shelf and the slip is used for them. This cannot be undone.`}
+                cancelLabel="Not yet"
+                confirmLabel="Release"
+                busy={busy}
+                onConfirm={release}
+                onClose={() => setReleasing(false)}
+            />
 
             <ConfirmDialog
                 open={confirming}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Specialist;
 
 use App\Actions\Orders\HandleOrderBySpecialist;
+use App\Actions\Preorders\ReleasePaidPreorder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
@@ -60,6 +61,14 @@ class OrderController extends Controller
     public function preorderPaid(Request $request, PreorderSlip $preorderSlip): JsonResponse
     {
         return response()->json(['message' => PreorderPayment::markPaid($preorderSlip, $request->user())]);
+    }
+
+    /**
+     * Release a paid preorder's pieces that arrived, as on the website.
+     */
+    public function preorderRelease(Request $request, PreorderSlip $preorderSlip, ReleasePaidPreorder $releasePreorder): JsonResponse
+    {
+        return response()->json(['message' => $releasePreorder->handle($preorderSlip, $request->user())]);
     }
 
     public function release(ReleaseOrderRequest $request, Order $order, HandleOrderBySpecialist $handle): JsonResponse

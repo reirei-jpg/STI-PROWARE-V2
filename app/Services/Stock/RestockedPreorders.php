@@ -5,27 +5,29 @@ namespace App\Services\Stock;
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Preorder;
+use App\Models\PreorderSlip;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Notifications\PreorderHeld;
+use App\Notifications\PreorderArrived;
+use App\Notifications\PreorderReady;
 use App\Services\Storefront\StorefrontFeed;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Serves the students waiting for a size once it has pieces free to sell (a
- * delivery, a recount, a cancelled order, a hold that ended): first come,
- * first served, each preorder's pieces are HELD for that student for 24
- * hours and they are notified. When fewer arrived than a student preordered,
- * the arrived pieces are held and the rest keeps its place in line (a new
- * preorder with the same time). Pieces left after everyone waiting is
- * served are free for anyone to buy.
+ * Serves the buyers waiting for a size once it has pieces free to sell (a
+ * delivery, a recount, a cancelled order): PAID preorders first, first
+ * come, first served. Their pieces are set aside (held, no time limit) and
+ * the buyer is told they are ready to pick up; the Specialist releases them
+ * by scanning the preorder slip. When fewer arrived than a buyer preordered,
+ * the arrived pieces are set aside and the rest keeps its place in line.
+ * Pieces left over: buyers who did not pay are told it is back in stock, to
+ * buy like anyone (nothing is held for them); the rest is free for anyone.
  *
  * A Preorder (Coming Soon) product becomes Available as soon as a size gets
  * stock, so students can order it: it moves to All Merchandise at once. A
- * product's first stock makes it NEW for 3 days. A size marked "will not be restocked" is cleared when stock comes
- * in anyway.
- */
-final class RestockedPreorders
+ * product's first stock makes it NEW for 3 days. A size marked "will not be
+ * restocked" is cleared when stock comes in anyway.
+ */ final class RestockedPreorders
 {
     /** How long arrived pieces are held for the student. */
     public const HOLD_HOURS = 24;
@@ -49,6 +51,7 @@ final class RestockedPreorders
     private function serve(ProductVariant $variant): void
     {
         $product = $variant->product;
+        $wasComingSoon = $product->status === ProductStatus::Preorder;
 
         if ($variant->stock_on_hand > 0) {
             $this->arrived($product);
@@ -74,56 +77,89 @@ final class RestockedPreorders
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();
+        $paid = array_flip(PreorderSlip::query()->whereIn('batch', $waiting->pluck('batch')->unique()->all())->whereNotNull('paid_at')->pluck('batch')->all());
 
+        // Paid preorders first, first come, first served: their pieces are
+        // set aside until the Specialist releases them.
         foreach ($waiting as $preorder) {
             if ($free === 0) {
                 break;
             }
 
-            $preordered = $preorder->quantity;
-            $held = min($free, $preordered);
-            $alreadyHeld = Preorder::query()
-                ->where('user_id', $preorder->user_id)
-                ->where('product_variant_id', $variant->id)
-                ->where('status', PreorderStatus::Held)
-                ->first();
-
-            // More pieces for a student who already has some held: one hold,
-            // with 24 hours from now for all of it.
-            if ($alreadyHeld !== null) {
-                $alreadyHeld->forceFill([
-                    'quantity' => $alreadyHeld->quantity + $held,
-                    'early_bird_pieces' => $alreadyHeld->early_bird_pieces + min($preorder->early_bird_pieces, $held),
-                    'held_until' => now()->addHours(self::HOLD_HOURS),
-                ])->save();
-
-                if ($held < $preordered) {
-                    $preorder->forceFill(['quantity' => $preordered - $held, 'early_bird_pieces' => max(0, $preorder->early_bird_pieces - $held)])->save();
-                } else {
-                    $preorder->delete();
-                }
-
-                $this->held($variant, $alreadyHeld, $held, $alreadyHeld->quantity + $preordered - $held);
-                $free -= $held;
-
+            if (! isset($paid[$preorder->batch])) {
                 continue;
             }
 
-            if ($held < $preordered) {
-                $this->keepRestWaiting($preorder, $preordered - $held);
+            $free -= $this->setAside($variant, $preorder, min($free, $preorder->quantity));
+        }
+
+        // Pieces left over: buyers who did not pay are told it is back, to
+        // buy like anyone (nothing is held for them).
+        if ($free === 0) {
+            return;
+        }
+
+        foreach ($waiting as $preorder) {
+            if (isset($paid[$preorder->batch]) || $preorder->status !== PreorderStatus::Active) {
+                continue;
             }
 
-            $preorder->forceFill([
-                'quantity' => $held,
-                'early_bird_pieces' => min($preorder->early_bird_pieces, $held),
-                'status' => PreorderStatus::Held,
-                'arrived_at' => now(),
-                'held_until' => now()->addHours(self::HOLD_HOURS),
+            $preorder->forceFill(['status' => PreorderStatus::Arrived, 'arrived_at' => now()])->save();
+            $preorder->setRelations(['product' => $product, 'variant' => $variant]);
+            DB::afterCommit(fn () => $preorder->student->notify(new PreorderArrived($product, $wasComingSoon ? null : $variant)));
+        }
+    }
+
+    /**
+     * Set aside $pieces of the paid preorder for its buyer (held, no time
+     * limit) and tell them it is ready to pick up. When fewer arrived than
+     * were preordered, the rest keeps its place in line.
+     *
+     * @return int the pieces set aside
+     */
+    private function setAside(ProductVariant $variant, Preorder $preorder, int $pieces): int
+    {
+        $preordered = $preorder->quantity;
+        $alreadyHeld = Preorder::query()
+            ->where('batch', $preorder->batch)
+            ->where('product_variant_id', $variant->id)
+            ->where('status', PreorderStatus::Held)
+            ->first();
+
+        // More pieces for a preorder that already has some set aside: one line.
+        if ($alreadyHeld !== null) {
+            $alreadyHeld->forceFill([
+                'quantity' => $alreadyHeld->quantity + $pieces,
+                'early_bird_pieces' => $alreadyHeld->early_bird_pieces + min($preorder->early_bird_pieces, $pieces),
             ])->save();
 
-            $this->held($variant, $preorder, $held, $preordered);
-            $free -= $held;
+            if ($pieces < $preordered) {
+                $preorder->forceFill(['quantity' => $preordered - $pieces, 'early_bird_pieces' => max(0, $preorder->early_bird_pieces - $pieces)])->save();
+            } else {
+                $preorder->delete();
+            }
+
+            $this->ready($variant, $alreadyHeld, $pieces);
+
+            return $pieces;
         }
+
+        if ($pieces < $preordered) {
+            $this->keepRestWaiting($preorder, $preordered - $pieces);
+        }
+
+        $preorder->forceFill([
+            'quantity' => $pieces,
+            'early_bird_pieces' => min($preorder->early_bird_pieces, $pieces),
+            'status' => PreorderStatus::Held,
+            'arrived_at' => now(),
+            // Paid: kept until it is released, no time limit.
+            'held_until' => null,
+        ])->save();
+
+        $this->ready($variant, $preorder, $pieces);
+
+        return $pieces;
     }
 
     /**
@@ -146,17 +182,15 @@ final class RestockedPreorders
     }
 
     /**
-     * Count the newly held pieces apart from what is free to sell, and tell
-     * the student (once the change is saved).
-     *
-     * @param  int  $preordered  the held pieces and those still waiting
+     * Count the newly set-aside pieces apart from what is free to sell, and
+     * tell the buyer they are ready to pick up (once the change is saved).
      */
-    private function held(ProductVariant $variant, Preorder $hold, int $pieces, int $preordered): void
+    private function ready(ProductVariant $variant, Preorder $hold, int $pieces): void
     {
         $variant->forceFill(['preorder_held_pieces' => $variant->preorder_held_pieces + $pieces])->save();
 
         $hold->setRelations(['product' => $variant->product, 'variant' => $variant]);
-        DB::afterCommit(fn () => $hold->student->notify(new PreorderHeld($hold, $preordered)));
+        DB::afterCommit(fn () => $hold->student->notify(new PreorderReady($hold, $pieces)));
     }
 
     /**

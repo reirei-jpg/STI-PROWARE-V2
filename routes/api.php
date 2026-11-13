@@ -74,6 +74,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('orders/{order}', [SpecialistOrderController::class, 'show'])->name('orders.show');
         Route::get('slips/{code}', [SpecialistOrderController::class, 'slip'])->name('slips.show');
         Route::post('preorder-slips/{preorderSlip}/paid', [SpecialistOrderController::class, 'preorderPaid'])->name('preorder-slips.paid');
+        Route::post('preorder-slips/{preorderSlip}/release', [SpecialistOrderController::class, 'preorderRelease'])->name('preorder-slips.release');
         Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');
         Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
         Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');

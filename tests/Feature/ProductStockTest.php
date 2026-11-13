@@ -9,7 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Notifications\PreorderHeld;
+use App\Notifications\PreorderReady;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -455,7 +455,7 @@ test('a product made for preorders is linked to its new eStore code with one but
     $small = ProductVariant::factory()->for($product)->create(['combination' => 'Size: S', 'choices' => [['option' => 'Size', 'choice' => 'S']], 'stock_on_hand' => 0]);
     $large = ProductVariant::factory()->for($product)->create(['combination' => 'Size: L', 'choices' => [['option' => 'Size', 'choice' => 'L']], 'stock_on_hand' => 0]);
     $juan = User::factory()->student()->create();
-    Preorder::factory()->for($juan, 'student')->for($product)->for($small, 'variant')->create(['quantity' => 2]);
+    markPreorderPaid(Preorder::factory()->for($juan, 'student')->for($product)->for($small, 'variant')->create(['quantity' => 2]));
     $order = orderWith(['PRCP01-01' => 10]);
     $this->actingAs($this->specialist)->post(route('deliveries.store'), deliveryOf($order, 'PRCP01-01', 10))->assertSessionHasNoErrors();
 
@@ -474,7 +474,7 @@ test('a product made for preorders is linked to its new eStore code with one but
     expect($small->refresh()->stock_on_hand)->toBe(6)
         ->and($large->refresh()->stock_on_hand)->toBe(4)
         ->and($product->refresh()->status)->toBe(ProductStatus::Available);
-    Notification::assertSentTo($juan, PreorderHeld::class);
+    Notification::assertSentTo($juan, PreorderReady::class);
 });
 
 test('the school admin cannot link items', function () {

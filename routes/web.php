@@ -108,6 +108,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
         Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');
         Route::post('preorder-slips/{preorderSlip}/paid', [PreorderSlipController::class, 'paid'])->name('preorder-slips.paid');
+        Route::post('preorder-slips/{preorderSlip}/release', [PreorderSlipController::class, 'release'])->name('preorder-slips.release');
         Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');
         Route::post('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'store'])->name('preorders.not-restocked');
         Route::delete('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'destroy'])->name('preorders.allow-restock');

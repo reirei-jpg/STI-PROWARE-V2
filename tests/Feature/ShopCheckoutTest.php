@@ -14,7 +14,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
 use App\Notifications\OrderReleased;
-use App\Notifications\PreorderHeld;
+use App\Notifications\PreorderReady;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -445,7 +445,7 @@ test('students who preordered are told when the item arrives', function () {
     $product = Product::factory()->create(['name' => 'Anniversary Shirt', 'status' => ProductStatus::Preorder, 'preorders_close_on' => '2026-10-20']);
     $variant = ProductVariant::factory()->for($product)->create(['stock_on_hand' => 5]);
     $product->photos()->create(['path' => 'products/a.jpg', 'position' => 0]);
-    Preorder::factory()->for($this->student, 'student')->for($product)->for($variant, 'variant')->create();
+    markPreorderPaid(Preorder::factory()->for($this->student, 'student')->for($product)->for($variant, 'variant')->create());
     $cancelledStudent = User::factory()->student()->create();
     Preorder::factory()->for($cancelledStudent, 'student')->for($product)->for($variant, 'variant')->create(['status' => PreorderStatus::Cancelled]);
 
@@ -455,8 +455,8 @@ test('students who preordered are told when the item arrives', function () {
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
     ])->assertSessionHasNoErrors();
 
-    Notification::assertSentTo($this->student, PreorderHeld::class);
-    Notification::assertNotSentTo($cancelledStudent, PreorderHeld::class);
+    Notification::assertSentTo($this->student, PreorderReady::class);
+    Notification::assertNotSentTo($cancelledStudent, PreorderReady::class);
 });
 
 test('only students shop, and only the specialist handles orders', function () {

@@ -2,6 +2,7 @@
 
 namespace App\Services\Preorders;
 
+use App\Actions\Preorders\ReleasePaidPreorder;
 use App\Enums\PreorderStatus;
 use App\Models\Preorder;
 use App\Models\PreorderSlip;
@@ -68,7 +69,7 @@ final class PreorderPayment
      * A preorder slip found by its QR code or its number (PR-0007), for the
      * Specialist's Scan slip; null when there is none.
      *
-     * @return array{slip: SlipView, can_mark_paid: bool, refusal: string|null}|null
+     * @return array{slip: SlipView, can_mark_paid: bool, refusal: string|null, can_release: bool, release_refusal: string|null, ready: list<array{item: string, pieces: int}>}|null
      */
     public static function bySlip(string $code): ?array
     {
@@ -85,8 +86,21 @@ final class PreorderPayment
         }
 
         $refusal = self::refusal($slip);
+        $releaseRefusal = $slip->isPaid() ? ReleasePaidPreorder::refusal($slip) : null;
 
-        return ['slip' => self::view($slip), 'can_mark_paid' => $refusal === null, 'refusal' => $refusal];
+        return [
+            'slip' => self::view($slip),
+            'can_mark_paid' => $refusal === null,
+            'refusal' => $refusal,
+            // Paid: its pieces that arrived and are set aside, to release.
+            'can_release' => $slip->isPaid() && $releaseRefusal === null,
+            'release_refusal' => $releaseRefusal,
+            'ready' => array_values($slip->preorders()->where('status', PreorderStatus::Held)->with(['product', 'variant'])->get()
+                ->map(fn (Preorder $preorder): array => [
+                    'item' => $preorder->product->name.($preorder->variant->choices === [] ? '' : " ({$preorder->variant->label()})"),
+                    'pieces' => $preorder->quantity,
+                ])->all()),
+        ];
     }
 
     /**

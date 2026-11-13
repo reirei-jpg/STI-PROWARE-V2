@@ -91,6 +91,8 @@ test('pieces added to a preorder wait behind buyers who were already waiting', f
     $this->actingAs($other)->post(route('my-preorders.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1']);
     $this->actingAs($this->student)->post(route('my-preorders.store', $product), ['product_variant_id' => $variant->id, 'quantity' => '1']);
 
+    // All paid at the cashier.
+    Preorder::query()->get()->each(fn (Preorder $preorder) => markPreorderPaid($preorder));
     $variant->forceFill(['stock_on_hand' => 3])->save();
     app(RestockedPreorders::class)->check($variant);
 

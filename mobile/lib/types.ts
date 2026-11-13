@@ -338,6 +338,15 @@ export type StudentNotificationData =
       }
     | { kind: 'preorder_not_paid'; product_id: number; product_name: string; closed_on: string }
     | {
+          kind: 'preorder_ready';
+          slip_id: number | null;
+          number: string | null;
+          product_id: number;
+          product_name: string;
+          variant_label: string | null;
+          pieces: number;
+      }
+    | {
           kind: 'preorder_paid';
           slip_id: number;
           number: string | null;

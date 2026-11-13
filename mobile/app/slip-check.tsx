@@ -19,11 +19,20 @@ import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useLiveReload } from '@/lib/use-live-reload';
-import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
+import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { PreorderSlipData, SlipLookup, SpecialistOrder } from '@/lib/types';
 
 /** A scanned preorder slip (PR-0001), paid at the cashier. */
-type PreorderLookup = { kind: 'preorder'; slip: PreorderSlipData; can_mark_paid: boolean; refusal: string | null };
+type PreorderLookup = {
+    kind: 'preorder';
+    slip: PreorderSlipData;
+    can_mark_paid: boolean;
+    refusal: string | null;
+    /** Paid, and pieces arrived and are set aside: they can be released. */
+    can_release: boolean;
+    release_refusal: string | null;
+    ready: { item: string; pieces: number }[];
+};
 
 /**
  * A scanned issuance slip on the Specialist's phone, like the website's:
@@ -389,6 +398,34 @@ function PreorderPayment({
         }
     };
 
+    const readyPieces = lookup.ready.reduce((sum, line) => sum + line.pieces, 0);
+
+    const release = async (): Promise<void> => {
+        setBusy(true);
+        setError(null);
+
+        try {
+            const answer = await request<{ message: string }>(`/specialist/preorder-slips/${slip.slip_id}/release`, { method: 'POST' });
+            setDone(answer.message);
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'It could not be released. Try again.');
+        } finally {
+            await onChanged();
+            setBusy(false);
+        }
+    };
+
+    const confirmRelease = (): void => {
+        Alert.alert(
+            `Release ${formatUnits(readyPieces, 'Piece')} to ${slip.student_name}?`,
+            `${lookup.ready.map((line) => `${formatUnits(line.pieces, 'Piece')} of ${line.item}`).join(', ')}, already paid. They leave the shelf. This cannot be undone.`,
+            [
+                { text: 'Not yet', style: 'cancel' },
+                { text: 'Release', onPress: () => void release() },
+            ],
+        );
+    };
+
     const confirm = (): void => {
         Alert.alert(
             `Mark ${slip.number} as paid?`,
@@ -430,14 +467,20 @@ function PreorderPayment({
                     )}
                     <View className="flex-1">
                         <Text className="font-sans-bold text-lg text-white">
-                            {paid
+                            {paid && lookup.can_release
+                                ? `Preorder ${slip.number}: ready to release`
+                                : paid
                                 ? `Preorder ${slip.number} is paid`
                                 : lookup.can_mark_paid
                                   ? `Preorder ${slip.number}: waiting for payment`
                                   : `Preorder ${slip.number} cannot be paid`}
                         </Text>
                         <Text className="font-sans text-sm leading-5 text-white">
-                            {paid || !lookup.can_mark_paid
+                            {paid
+                                ? lookup.can_release
+                                    ? `${formatUnits(readyPieces, 'Piece')} arrived and ${readyPieces === 1 ? 'is' : 'are'} set aside for ${slip.student_name}, already paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
+                                    : lookup.release_refusal
+                                : !lookup.can_mark_paid
                                 ? lookup.refusal
                                 : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name}. Check the cashier receipt, then mark it paid.`}
                         </Text>
@@ -449,6 +492,18 @@ function PreorderPayment({
                 <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
                     <Text className="font-sans-semibold text-sm text-red-700">{error}</Text>
                 </View>
+            )}
+
+            {lookup.can_release && !done && (
+                <Pressable
+                    onPress={confirmRelease}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 ${busy ? 'opacity-60' : ''}`}
+                >
+                    {busy && <ActivityIndicator size="small" color="#ffffff" />}
+                    <Text className="font-sans-bold text-base text-white">Release {formatUnits(readyPieces, 'Piece')}</Text>
+                </Pressable>
             )}
 
             {lookup.can_mark_paid && !done && (

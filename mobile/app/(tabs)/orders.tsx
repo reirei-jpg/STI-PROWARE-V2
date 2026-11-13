@@ -25,7 +25,7 @@ import HeldOrderSheet from '@/components/HeldOrderSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import SignInPrompt from '@/components/SignInPrompt';
-import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
+import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { StudentOrder, StudentPreorder } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
@@ -289,7 +289,7 @@ function statusPill(preorder: StudentPreorder): { text: string; box: string; wor
     switch (preorder.status) {
         case 'held':
             return {
-                text: `Held until ${formatDateTime(preorder.held_until)}`,
+                text: preorder.slip_paid ? 'Ready to pick up' : `Held until ${formatDateTime(preorder.held_until)}`,
                 box: 'border-emerald-200 bg-emerald-50',
                 word: 'text-emerald-700',
             };
@@ -332,7 +332,7 @@ function PreorderBatch({
     onEdit: (preorder: StudentPreorder) => void;
 }) {
     const first = rows[0];
-    const waiting = rows.find((row) => row.status === 'active');
+    const waiting = rows.find((row) => row.status === 'active' || row.status === 'held');
 
     return (
         <View className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -409,7 +409,9 @@ function PreorderRow({
     const [cancelling, setCancelling] = useState(false);
     const [ordering, setOrdering] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const held = preorder.status === 'held';
+    // An old unpaid hold (Order now); a paid preorder's pieces are ready to pick up.
+    const held = preorder.status === 'held' && !preorder.slip_paid;
+    const ready = preorder.status === 'held' && preorder.slip_paid === true;
     const pill = statusPill(preorder);
     const hasButtons =
         preorder.status === 'arrived' ||
@@ -470,6 +472,24 @@ function PreorderRow({
 
             {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
 
+            {ready && (
+                <View className="flex-row items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                    <Text className="flex-1 font-sans text-xs leading-5 text-emerald-900">
+                        <Text className="font-sans-bold">{formatUnits(preorder.quantity, 'Piece')} set aside for you. </Text>
+                        Show preorder slip {preorder.slip_number} at the PROWARE office to get {preorder.quantity === 1 ? 'it' : 'them'}.
+                    </Text>
+                    {preorder.slip_id != null && (
+                        <Pressable
+                            onPress={() => router.push(`/preorder-slip/${preorder.slip_id}`)}
+                            accessibilityRole="button"
+                            className="flex-row items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5"
+                        >
+                            <Receipt size={13} color="#047857" />
+                            <Text className="font-sans-bold text-xs text-emerald-700">View slip</Text>
+                        </Pressable>
+                    )}
+                </View>
+            )}
             {hasButtons && (
                 <View className="flex-row gap-2">
                     {preorder.status === 'arrived' && (

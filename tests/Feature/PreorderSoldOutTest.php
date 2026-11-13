@@ -10,9 +10,9 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
-use App\Notifications\PreorderHeld;
 use App\Notifications\PreorderNotRestocked;
 use App\Notifications\PreorderPlaced;
+use App\Notifications\PreorderReady;
 use App\Notifications\PreorderReceived;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -96,8 +96,8 @@ test('the storefront offers a preorder only for sold-out sizes that can still co
 test('students waiting for a size are notified when a delivery puts it back in stock', function () {
     Notification::fake();
     [$product, $extraSmall, $medium] = soldOutPolo();
-    $waiting = Preorder::factory()->forVariant($extraSmall)->for($this->student, 'student')->create();
-    $otherSize = Preorder::factory()->forVariant($medium)->create();
+    $waiting = markPreorderPaid(Preorder::factory()->forVariant($extraSmall)->for($this->student, 'student')->create());
+    $otherSize = markPreorderPaid(Preorder::factory()->forVariant($medium)->create());
     $order = orderWith(['UTMP01-01' => 10]);
 
     $this->actingAs($this->specialist)
@@ -107,20 +107,20 @@ test('students waiting for a size are notified when a delivery puts it back in s
         ])
         ->assertSessionHasNoErrors();
 
-    // Its pieces are held for the student for 24 hours.
+    // Paid: its pieces are set aside for the buyer until released.
     expect($waiting->refresh())->status->toBe(PreorderStatus::Held)->arrived_at->not->toBeNull()
-        ->held_until->toEqual(now()->addHours(24))
+        ->held_until->toBeNull()
         ->and($otherSize->refresh()->status)->toBe(PreorderStatus::Active)
         ->and($extraSmall->refresh()->preorder_held_pieces)->toBe($waiting->quantity);
-    Notification::assertSentTo($this->student, PreorderHeld::class, fn (PreorderHeld $notice) => $notice->toArray($this->student)['variant_label'] === 'XS'
-        && $notice->toPush($this->student)['title'] === 'Your preorder has arrived: BSIT Polo (XS)');
+    Notification::assertSentTo($this->student, PreorderReady::class, fn (PreorderReady $notice) => $notice->toArray($this->student)['variant_label'] === 'XS'
+        && $notice->toPush($this->student)['title'] === 'Your preorder is ready to pick up: BSIT Polo (XS)');
 });
 
 test('students waiting for a size are notified when a cancelled order of an arrived preorder gives the last piece back', function () {
     Notification::fake();
     [$product, $extraSmall] = soldOutPolo();
     $extraSmall->forceFill(['stock_on_hand' => 1, 'held_pieces' => 1])->save();
-    $waiting = Preorder::factory()->forVariant($extraSmall)->for($this->student, 'student')->create();
+    $waiting = markPreorderPaid(Preorder::factory()->forVariant($extraSmall)->for($this->student, 'student')->create());
     $order = Order::factory()->for(User::factory()->student()->create(), 'student')->create(['status' => OrderStatus::Placed]);
     OrderItem::factory()->for($order)->for($extraSmall, 'variant')->create(['quantity' => 1]);
     // Only an order of an arrived preorder's pieces holds them.
@@ -129,7 +129,7 @@ test('students waiting for a size are notified when a cancelled order of an arri
     app(CancelOrder::class)->handle($order, $this->specialist, 'Test order for the restock check');
 
     expect($waiting->refresh()->status)->toBe(PreorderStatus::Held);
-    Notification::assertSentTo($this->student, PreorderHeld::class);
+    Notification::assertSentTo($this->student, PreorderReady::class);
 });
 
 test('the Specialist can mark a sold-out size as not restocked, closing every preorder waiting for it', function () {

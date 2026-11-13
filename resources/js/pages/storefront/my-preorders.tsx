@@ -115,7 +115,7 @@ const statusLooks: Record<
         iconBox: 'bg-red-100 text-red-700',
     },
     held: {
-        label: 'Arrived · Held for You',
+        label: 'Ready to Pick Up',
         icon: CheckCircle2,
         badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
         iconBox: 'bg-emerald-100 text-emerald-700',
@@ -404,9 +404,9 @@ function PreorderBatch({
             </div>
 
             {first.slip_id !== null &&
-                rows.some((row) => row.status === 'active') && (
-                    <PaymentBar preorder={first} />
-                )}
+                rows.some(
+                    (row) => row.status === 'active' || row.status === 'held',
+                ) && <PaymentBar preorder={first} />}
         </article>
     );
 }
@@ -460,7 +460,8 @@ function PaymentBar({ preorder }: { preorder: MyPreorder }) {
 
 /**
  * One size or color in one line: size and how many, its status, and its
- * buttons. Held pieces also get the Order now box.
+ * buttons. Paid pieces that arrived say they are ready to pick up with the
+ * slip.
  */
 function PreorderLine({
     preorder,
@@ -561,7 +562,31 @@ function PreorderLine({
                 </div>
             </div>
 
-            {preorder.status === 'held' && (
+            {/* Paid: the pieces are set aside; the slip gets them at the office. */}
+            {preorder.status === 'held' && preorder.slip_paid && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 sm:max-w-md">
+                    <p className="text-xs leading-5 text-emerald-900">
+                        <span className="font-black">
+                            {formatUnits(preorder.quantity, 'Piece')} set aside
+                            for you.
+                        </span>{' '}
+                        Show preorder slip {preorder.slip_number} at the PROWARE
+                        office to get {preorder.quantity === 1 ? 'it' : 'them'}.
+                    </p>
+                    {preorder.slip_id !== null && (
+                        <Link
+                            href={StudentPreorderController.slip(
+                                preorder.slip_id,
+                            )}
+                            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
+                        >
+                            <Receipt size={14} />
+                            View slip
+                        </Link>
+                    )}
+                </div>
+            )}
+            {preorder.status === 'held' && !preorder.slip_paid && (
                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 pb-3 sm:max-w-sm">
                     <OrderNowBox preorder={preorder} />
                 </div>

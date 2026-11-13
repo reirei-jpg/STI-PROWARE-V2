@@ -26,8 +26,9 @@ enum PreorderStatus: string
     case NotRestocked = 'not_restocked';
 
     /**
-     * Its pieces arrived and are held for the student until held_until
-     * (24 hours after they were told). Not counted as still to order.
+     * Paid, and its pieces arrived: they are set aside for the buyer until
+     * the Specialist releases them (held_until was the old 24-hour limit;
+     * null for paid preorders). Not counted as still to order.
      */
     case Held = 'held';
 
@@ -53,7 +54,7 @@ enum PreorderStatus: string
             self::Cancelled => 'Cancelled',
             self::Arrived => 'Arrived',
             self::NotRestocked => 'Not restocked',
-            self::Held => 'Held for you',
+            self::Held => 'Ready to pick up',
             self::Ordered => 'Ordered',
             self::HoldEnded => 'Hold ended',
             self::NotPaid => 'Not paid in time',
@@ -74,6 +75,6 @@ enum PreorderStatus: string
     /** The label on the Specialist's screens ("Held for the buyer"). */
     public function staffLabel(): string
     {
-        return $this === self::Held ? 'Held for the buyer' : $this->label();
+        return $this === self::Held ? 'Set aside for the buyer' : $this->label();
     }
 }

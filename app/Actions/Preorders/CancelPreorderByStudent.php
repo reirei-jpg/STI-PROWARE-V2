@@ -39,7 +39,7 @@ class CancelPreorderByStudent
     public static function refusal(Preorder $preorder): ?string
     {
         // A paid preorder stays: there is no refund.
-        if ($preorder->status === PreorderStatus::Active && PreorderPayment::isPaid($preorder)) {
+        if (in_array($preorder->status, [PreorderStatus::Active, PreorderStatus::Held], true) && PreorderPayment::isPaid($preorder)) {
             return "You already paid for your preorder of {$preorder->product->name}, so it can no longer be cancelled. There is no refund.";
         }
 

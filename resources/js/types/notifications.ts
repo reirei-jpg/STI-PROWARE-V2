@@ -102,6 +102,17 @@ export type PreorderNotPaidData = {
     closed_on: string;
 };
 
+/** A paid preorder's pieces arrived and are set aside: show the slip to get them. */
+export type PreorderReadyData = {
+    kind: 'preorder_ready';
+    slip_id: number | null;
+    number: string | null;
+    product_id: number;
+    product_name: string;
+    variant_label: string | null;
+    pieces: number;
+};
+
 /** The buyer's payment for a preorder was recorded: the slip says PAID. */
 export type PreorderPaidData = {
     kind: 'preorder_paid';
@@ -288,6 +299,7 @@ export type StaffNotification = {
         | PreorderArrivedData
         | ProductAnnouncedData
         | PreorderPaidData
+        | PreorderReadyData
         | PreorderPayByData
         | PreorderNotPaidData
         | PreorderNotRestockedData

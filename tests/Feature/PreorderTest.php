@@ -6,7 +6,7 @@ use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
-use App\Notifications\PreorderHeld;
+use App\Notifications\PreorderReady;
 use App\Notifications\PreorderReceived;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -236,7 +236,7 @@ test('preorder products move from taking preorders to to order to arrived', func
     $arrivingSize = ProductVariant::factory()->for($arriving)->create(['stock_on_hand' => 5]);
     Preorder::factory()->forVariant($openSize)->create(['quantity' => 1]);
     Preorder::factory()->forVariant($closedSize)->create(['quantity' => 2]);
-    Preorder::factory()->forVariant($arrivingSize)->for($this->student, 'student')->create(['quantity' => 3]);
+    markPreorderPaid(Preorder::factory()->forVariant($arrivingSize)->for($this->student, 'student')->create(['quantity' => 3]));
     $specialist = User::factory()->specialist()->create();
 
     $this->actingAs($specialist)->put(route('products.update', $arriving), [
@@ -245,7 +245,7 @@ test('preorder products move from taking preorders to to order to arrived', func
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
     ])->assertSessionHasNoErrors();
 
-    Notification::assertSentTo($this->student, PreorderHeld::class);
+    Notification::assertSentTo($this->student, PreorderReady::class);
     expect(Preorder::query()->where('product_id', $arriving->id)->sole())
         ->status->toBe(PreorderStatus::Held)
         ->arrived_at->not->toBeNull();
@@ -274,8 +274,9 @@ test('preorder products move from taking preorders to to order to arrived', func
     expect($csv)->toContain('STI Mug')->not->toContain('Chibi Keychain')->not->toContain('Intramurals Jersey');
 
     $this->actingAs($this->student)->get(route('my-preorders.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('preorders.data.0.status_label', 'Held for you')
-        ->where('preorders.data.0.can_cancel', true));
+        ->where('preorders.data.0.status_label', 'Ready to pick up')
+        // Paid: no refund, so it can no longer be cancelled.
+        ->where('preorders.data.0.can_cancel', false));
 });
 
 test('a product\'s details list what to order and who preordered, only when asked', function () {

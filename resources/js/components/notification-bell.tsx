@@ -332,6 +332,23 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'preorder_ready') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Your preorder is ready to pick up: {data.product_name}
+                    {data.variant_label && ` (${data.variant_label})`}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {formatUnits(data.pieces, 'Piece')}{' '}
+                    {data.pieces === 1 ? 'is' : 'are'} set aside for you. Show
+                    preorder slip {data.number} at the PROWARE office to get{' '}
+                    {data.pieces === 1 ? 'it' : 'them'}.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'preorder_pay_by') {
         return (
             <>

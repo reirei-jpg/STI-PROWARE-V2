@@ -76,9 +76,9 @@ test('a Coming Soon product that arrives at or below the low-stock number warns 
         ->and($xl->refresh()->low_stock_notified_at)->not->toBeNull();
 });
 
-test('pieces held for waiting preorders at a delivery count as gone for the low-stock warning', function () {
+test('pieces set aside for paid preorders at a delivery count as gone for the low-stock warning', function () {
     $variant = stockedVariant(0);
-    Preorder::factory()->forVariant($variant)->create(['quantity' => 4]);
+    markPreorderPaid(Preorder::factory()->forVariant($variant)->create(['quantity' => 4]));
     $order = orderWith(['PRCU01-01' => 20]);
     $this->actingAs($this->specialist);
 
