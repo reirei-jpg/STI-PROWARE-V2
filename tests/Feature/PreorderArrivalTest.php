@@ -84,10 +84,29 @@ test('arriving pieces are set aside for paid preorders, first come, first served
     Notification::assertNotSentTo($this->third->student, PreorderReady::class);
     Notification::assertNotSentTo($this->third->student, PreorderArrived::class);
 
-    // Nothing ends by itself any more.
+    // Paid pieces have no time limit: nobody else can get them.
     $this->travel(3)->days();
-    $this->artisan('preorders:end-holds');
     expect($this->first->refresh()->status)->toBe(PreorderStatus::Held);
+});
+
+test('an order from an old 24-hour hold is a normal order: it cannot take pieces paid for by a preorder', function () {
+    // The 7 paid pieces arrive and are theirs.
+    hoodiesComeIn($this->variant, 7);
+    $buyer = User::factory()->student()->create();
+    $oldHold = Order::factory()->for($buyer, 'student')->create(['status' => OrderStatus::Placed]);
+    $oldHold->items()->create(['product_id' => $this->product->id, 'product_variant_id' => $this->variant->id, 'product_name' => 'STI Hoodie', 'variant_label' => 'M', 'unit_name' => 'Piece', 'pieces_per_unit' => 1, 'quantity' => 1, 'unit_price_centavos' => 75000, 'normal_unit_price_centavos' => 75000, 'line_total_centavos' => 75000]);
+    Preorder::factory()->forVariant($this->variant)->create(['user_id' => $buyer->id, 'status' => PreorderStatus::Ordered, 'order_id' => $oldHold->id, 'held_until' => now()->subDays(5)]);
+
+    expect($oldHold->holdsItems())->toBeFalse()->and($this->variant->refresh()->freeToSell())->toBe(0);
+
+    $this->actingAs($this->specialist)
+        ->post(route('orders.release', $oldHold), ['paid' => true])
+        ->assertInertiaFlash('toast.message', "Nothing of order {$oldHold->number} is left in stock, so it cannot be released. Wait for a restock, or the buyer can cancel it.");
+
+    // One more piece comes in: whoever pays first gets it.
+    hoodiesComeIn($this->variant, 1);
+    $this->post(route('orders.release', $oldHold), ['paid' => true])->assertInertiaFlash('toast.type', 'success');
+    expect($this->variant->refresh())->stock_on_hand->toBe(7)->preorder_held_pieces->toBe(7)->held_pieces->toBe(0);
 });
 
 test('pieces left after the paid preorders go to anyone; buyers who did not pay are only told it is back', function () {

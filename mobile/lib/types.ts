@@ -275,8 +275,6 @@ export type StudentPreorder = {
     not_restocked_at: string | null;
     not_restocked_reason: string | null;
     /** Held pieces: until when, and today's price per piece. */
-    held_until: string | null;
-    piece_price_centavos: number | null;
     /** The order the held pieces went into. */
     order_id: number | null;
     order_number: string | null;

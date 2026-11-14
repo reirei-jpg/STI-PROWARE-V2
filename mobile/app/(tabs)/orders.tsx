@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, ChevronRight, ImageIcon, Package, Pencil, Receipt, ShoppingBag, Store, XCircle } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, ImageIcon, Package, Pencil, Receipt, Store, XCircle } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
     ActivityIndicator,
@@ -21,7 +21,6 @@ import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import CenteredToast, { type ToastMessage } from '@/components/CenteredToast';
 import EditPreorderSheet from '@/components/EditPreorderSheet';
-import HeldOrderSheet from '@/components/HeldOrderSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import SignInPrompt from '@/components/SignInPrompt';
@@ -289,7 +288,7 @@ function statusPill(preorder: StudentPreorder): { text: string; box: string; wor
     switch (preorder.status) {
         case 'held':
             return {
-                text: preorder.slip_paid ? 'Ready to pick up' : `Held until ${formatDateTime(preorder.held_until)}`,
+                text: 'Ready to pick up',
                 box: 'border-emerald-200 bg-emerald-50',
                 word: 'text-emerald-700',
             };
@@ -407,33 +406,24 @@ function PreorderRow({
 }) {
     const { request } = useAuth();
     const [cancelling, setCancelling] = useState(false);
-    const [ordering, setOrdering] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    // An old unpaid hold (Order now); a paid preorder's pieces are ready to pick up.
-    const held = preorder.status === 'held' && !preorder.slip_paid;
+    // A paid preorder's pieces that arrived are ready to pick up with the slip.
     const ready = preorder.status === 'held' && preorder.slip_paid === true;
     const pill = statusPill(preorder);
     const hasButtons =
         preorder.status === 'arrived' ||
-        held ||
         preorder.can_edit === true ||
         preorder.can_cancel;
 
     const cancel = (): void => {
         // It cannot be undone, so the alert says what will happen.
-        const whatHappens = held
-            ? `The ${preorder.quantity === 1 ? 'piece goes' : `${preorder.quantity} pcs go`} to the next buyer in line, or back on sale. This cannot be undone.`
-            : 'You lose your place in line and any early-bird price. Preordering again puts you at the end of the line. This cannot be undone.';
-
         Alert.alert(
-            held
-                ? `Give up the ${preorder.quantity === 1 ? 'piece' : 'pieces'} held for you?`
-                : `Cancel your preorder for ${preorder.product_name}${preorder.variant_label ? ` (${preorder.variant_label})` : ''}?`,
-            whatHappens,
+            `Cancel your preorder for ${preorder.product_name}${preorder.variant_label ? ` (${preorder.variant_label})` : ''}?`,
+            'You lose your place in line and any early-bird price. Preordering again puts you at the end of the line. This cannot be undone.',
             [
                 { text: 'Keep it', style: 'cancel' },
                 {
-                    text: held ? 'Give up' : 'Cancel preorder',
+                    text: 'Cancel preorder',
                     style: 'destructive',
                     onPress: async () => {
                         setCancelling(true);
@@ -502,16 +492,6 @@ function PreorderRow({
                             <Text className="font-sans-bold text-sm text-white">Buy it</Text>
                         </Pressable>
                     )}
-                    {held && (
-                        <Pressable
-                            onPress={() => setOrdering(true)}
-                            accessibilityRole="button"
-                            className={`${PREORDER_BUTTON} border-emerald-600 bg-emerald-600`}
-                        >
-                            <ShoppingBag size={14} color="#ffffff" />
-                            <Text className="font-sans-bold text-sm text-white">Order now</Text>
-                        </Pressable>
-                    )}
                     {preorder.can_edit && (
                         <Pressable
                             onPress={() => onEdit(preorder)}
@@ -535,14 +515,12 @@ function PreorderRow({
                                 <XCircle size={14} color="#b91c1c" />
                             )}
                             <Text className="font-sans-bold text-sm text-red-700">
-                                {held ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}` : 'Cancel'}
+                                Cancel
                             </Text>
                         </Pressable>
                     )}
                 </View>
             )}
-
-            {held && <HeldOrderSheet preorder={preorder} open={ordering} onClose={() => setOrdering(false)} />}
         </View>
     );
 }

@@ -1,9 +1,8 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     CheckCircle2,
     Clock3,
-    LoaderCircle,
     PackageOpen,
     PackageX,
     Pencil,
@@ -16,7 +15,6 @@ import { useState } from 'react';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import EditPreorderDialog from '@/components/edit-preorder-dialog';
-import QuantityInput from '@/components/quantity-input';
 import Pagination from '@/components/pagination';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
@@ -65,9 +63,6 @@ type MyPreorder = {
     /** When the student was told it will not be restocked. */
     not_restocked_at: string | null;
     not_restocked_reason: string | null;
-    /** Held pieces: until when, and today's price per piece. */
-    held_until: string | null;
-    piece_price_centavos: number | null;
     /** The order the held pieces went into. */
     order_id: number | null;
     order_number: string | null;
@@ -514,9 +509,7 @@ function PreorderLine({
                         }
                     >
                         <StatusIcon size={12} />
-                        {preorder.status === 'held' && preorder.held_until
-                            ? `Held until ${formatDateTime(preorder.held_until)}`
-                            : look.label}
+                        {look.label}
                     </span>
                     {preorder.status === 'arrived' && (
                         <Link
@@ -555,9 +548,7 @@ function PreorderLine({
                             )}
                         >
                             <XCircle size={14} />
-                            {preorder.status === 'held'
-                                ? `I do not want ${preorder.quantity === 1 ? 'it' : 'them'}`
-                                : 'Cancel'}
+                            Cancel
                         </button>
                     )}
                 </div>
@@ -586,111 +577,19 @@ function PreorderLine({
                     )}
                 </div>
             )}
-            {preorder.status === 'held' && !preorder.slip_paid && (
-                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 pb-3 sm:max-w-sm">
-                    <OrderNowBox preorder={preorder} />
-                </div>
-            )}
 
             {/* It cannot be undone, so the buyer answers first. */}
             <ConfirmDialog
                 open={confirming}
-                title={
-                    preorder.status === 'held'
-                        ? `Give up the ${preorder.quantity === 1 ? 'piece' : 'pieces'} held for you?`
-                        : `Cancel your preorder for ${preorder.product_name}${preorder.variant_label ? ` (${preorder.variant_label})` : ''}?`
-                }
-                description={
-                    preorder.status === 'held'
-                        ? `The ${preorder.quantity === 1 ? 'piece goes' : `${preorder.quantity} pcs go`} to the next buyer in line, or back on sale. This cannot be undone.`
-                        : 'You lose your place in line and any early-bird price. Preordering again puts you at the end of the line. This cannot be undone.'
-                }
+                title={`Cancel your preorder for ${preorder.product_name}${preorder.variant_label ? ` (${preorder.variant_label})` : ''}?`}
+                description="You lose your place in line and any early-bird price. Preordering again puts you at the end of the line. This cannot be undone."
                 cancelLabel="Keep it"
-                confirmLabel={
-                    preorder.status === 'held' ? 'Give up' : 'Cancel preorder'
-                }
+                confirmLabel="Cancel preorder"
                 tone="red"
                 busy={cancelling}
                 onConfirm={cancel}
                 onClose={() => setConfirming(false)}
             />
         </div>
-    );
-}
-/**
- * Order Now on held pieces: how many (all or fewer; the rest go to the next
- * student), with the price, early-bird pieces first. The order is placed at
- * once and the student lands on its issuance slip.
- */
-function OrderNowBox({ preorder }: { preorder: MyPreorder }) {
-    const form = useForm({ quantity: String(preorder.quantity) });
-    const quantity = Number(form.data.quantity) || 0;
-    const piecePrice = preorder.piece_price_centavos ?? 0;
-    const earlyBirdPrice = Math.min(
-        preorder.early_bird_price_centavos ?? piecePrice,
-        piecePrice,
-    );
-    const earlyBirdPieces =
-        earlyBirdPrice < piecePrice
-            ? Math.min(preorder.early_bird_pieces, quantity)
-            : 0;
-    const total =
-        earlyBirdPieces * earlyBirdPrice +
-        (quantity - earlyBirdPieces) * piecePrice;
-
-    return (
-        <form
-            onSubmit={(event) => {
-                event.preventDefault();
-                form.post(StudentPreorderController.order(preorder.id).url);
-            }}
-            className="mt-3 space-y-2 rounded-xl bg-white/80 p-3 text-slate-800"
-        >
-            <div className="flex flex-wrap items-center gap-2">
-                <QuantityInput
-                    value={form.data.quantity}
-                    onChange={(value) => form.setData('quantity', value)}
-                    label="How many to order"
-                    most={preorder.quantity}
-                    small
-                />
-                <span className="text-xs text-slate-500">
-                    of {formatUnits(preorder.quantity, 'Piece')} held
-                </span>
-            </div>
-            {earlyBirdPieces > 0 && (
-                <p className="text-xs font-bold text-red-600">
-                    {formatUnits(earlyBirdPieces, 'Piece')} at the early-bird
-                    price of {formatPeso(earlyBirdPrice)}
-                </p>
-            )}
-            <p className="flex items-baseline justify-between text-sm">
-                <span className="font-bold text-slate-600">Total</span>
-                <span className="font-black">{formatPeso(total)}</span>
-            </p>
-            {quantity > 0 && quantity < preorder.quantity && (
-                <p className="text-xs text-slate-500">
-                    The other {preorder.quantity - quantity} will go to the next
-                    student.
-                </p>
-            )}
-            {form.errors.quantity && (
-                <p className="text-xs font-bold text-red-600">
-                    {form.errors.quantity}
-                </p>
-            )}
-            <button
-                type="submit"
-                disabled={form.processing || quantity < 1}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-60"
-            >
-                {form.processing ? (
-                    <LoaderCircle size={16} className="animate-spin" />
-                ) : (
-                    <ShoppingBag size={16} />
-                )}
-                Order now
-            </button>
-        </form>
     );
 }

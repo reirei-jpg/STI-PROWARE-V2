@@ -17,8 +17,8 @@ use Illuminate\Support\Str;
 /**
  * A buyer's order, numbered PW-0001, PW-0002… It does not hold stock: its
  * items stay for sale until the Specialist checks the cashier's receipt and
- * the issuance slip and releases it, so whoever pays first gets them (an
- * order of an arrived preorder's pieces keeps them held, see holdsItems).
+ * the issuance slip and releases it, so whoever pays first gets them (only
+ * a paid preorder's pieces are its own, see holdsItems).
  *
  * @property int $id
  * @property string|null $number
@@ -126,12 +126,14 @@ class Order extends Model
     }
 
     /**
-     * Orders do not hold stock, except an order of an arrived preorder's
-     * pieces: those stay held for it until it is released or cancelled.
+     * Orders do not hold stock: whoever pays first gets the items. The one
+     * exception is the order made when a paid preorder is released: its
+     * pieces were paid for, so they are its own. Orders made from the old
+     * 24-hour holds (which set held_until) hold nothing.
      */
     public function holdsItems(): bool
     {
-        return $this->preorders()->exists();
+        return $this->preorders()->whereNull('held_until')->exists();
     }
 
     /**

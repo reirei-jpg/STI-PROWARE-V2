@@ -1,4 +1,4 @@
-import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { formatDateOrdered } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
     PreorderProductSummary,
@@ -47,8 +47,8 @@ export default function PreorderStageBadge({
 
 /**
  * What became of one student's preorder, in V1's colors: still waiting
- * (blue), held until when (amber), ordered and in which order (green), the
- * hold ended or the pieces were given up (grey, red).
+ * (blue), paid and ready to pick up or ordered and in which order (green),
+ * an old hold that ended or pieces given up (grey, red).
  */
 export function PreorderOutcome({ preorder }: { preorder: PreorderRow }) {
     const outcome: { text: string; className: string } = (() => {
@@ -57,8 +57,8 @@ export function PreorderOutcome({ preorder }: { preorder: PreorderRow }) {
                 return { text: 'Waiting', className: 'text-blue-700' };
             case 'held':
                 return {
-                    text: `Held until ${formatDateTime(preorder.held_until)}`,
-                    className: 'text-amber-700',
+                    text: 'Paid · ready to pick up',
+                    className: 'text-emerald-700',
                 };
             case 'ordered':
                 return {

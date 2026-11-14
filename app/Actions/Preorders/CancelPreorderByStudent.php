@@ -8,9 +8,7 @@ use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\User;
 use App\Services\Preorders\EarlyBird;
-use App\Services\Preorders\PreorderHolds;
 use App\Services\Preorders\PreorderPayment;
-use App\Services\Shop\ShopPrice;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
@@ -21,7 +19,7 @@ use Illuminate\Validation\ValidationException;
  * while preorders for the product are still open, or while a sold-out size
  * is still waiting for a restock.
  *
- * @phpstan-type PreorderRow array{id: int, batch: string, product_id: int, product_variant_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, can_edit: bool, edited_at: string|null, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, held_until: string|null, piece_price_centavos: int|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null, pay_from: string|null, pay_until: string|null, slip_id: int|null, slip_number: string|null, slip_paid: bool, slip_amount_centavos: int|null, paid_on: string|null}
+ * @phpstan-type PreorderRow array{id: int, batch: string, product_id: int, product_variant_id: int, product_name: string, photo_url: string|null, variant_label: string|null, quantity: int, preordered_price_centavos: int|null, status: string, status_label: string, preorders_close_on: string|null, expected_arrival: string|null, early_bird_pieces: int, early_bird_price_centavos: int|null, waiting_for_restock: bool, can_cancel: bool, can_edit: bool, edited_at: string|null, created_at: string|null, arrived_at: string|null, not_restocked_at: string|null, not_restocked_reason: string|null, order_id: int|null, order_number: string|null, order_status: string|null, hold_ended_at: string|null, pay_from: string|null, pay_until: string|null, slip_id: int|null, slip_number: string|null, slip_paid: bool, slip_amount_centavos: int|null, paid_on: string|null}
  */
 class CancelPreorderByStudent
 {
@@ -47,11 +45,6 @@ class CancelPreorderByStudent
             return null;
         }
 
-        // Pieces held for the student can be given up, for the next student.
-        if ($preorder->status === PreorderStatus::Held) {
-            return null;
-        }
-
         return match ($preorder->status) {
             PreorderStatus::Cancelled => "Your preorder for {$preorder->product->name} is already cancelled.",
             PreorderStatus::Ordered => "You already ordered this preorder for {$preorder->product->name}. To cancel it, cancel the order.",
@@ -71,13 +64,6 @@ class CancelPreorderByStudent
 
         if ($refusal !== null) {
             throw ValidationException::withMessages(['preorder' => $refusal]);
-        }
-
-        if ($preorder->status === PreorderStatus::Held) {
-            app(PreorderHolds::class)->end($preorder, PreorderStatus::Cancelled);
-            $preorder->refresh();
-
-            return;
         }
 
         $preorder->update(['status' => PreorderStatus::Cancelled, 'cancelled_at' => now()]);
@@ -185,9 +171,6 @@ class CancelPreorderByStudent
             'arrived_at' => $preorder->arrived_at?->toIso8601String(),
             'not_restocked_at' => $preorder->not_restocked_at?->toIso8601String(),
             'not_restocked_reason' => $preorder->not_restocked_reason,
-            // Pieces held for the student: until when, and today's price per piece.
-            'held_until' => $preorder->status === PreorderStatus::Held ? $preorder->held_until?->toIso8601String() : null,
-            'piece_price_centavos' => $preorder->status === PreorderStatus::Held ? ShopPrice::perUnit($preorder->variant->setRelation('product', $preorder->product), null) : null,
             'order_id' => $preorder->order_id,
             'order_number' => $preorder->order?->number,
             'order_status' => $preorder->order?->status->value,

@@ -10,9 +10,5 @@ Schedule::command('sales:check')->everyMinute()->withoutOverlapping();
 // School Admin, once per order.
 Schedule::command('purchase-orders:notify-late')->hourly()->withoutOverlapping();
 
-// Pieces held for a student whose preorder arrived go to the next student
-// once their 24 hours are up.
-Schedule::command('preorders:end-holds')->everyMinute()->withoutOverlapping();
-
 // Preorders not paid by the close date of their payment dates are dropped.
 Schedule::command('preorders:drop-unpaid')->everyMinute()->withoutOverlapping();
