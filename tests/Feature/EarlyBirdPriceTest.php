@@ -79,13 +79,13 @@ test('the first pieces preordered get the early-bird price, counted per piece ac
     $this->travel(1)->minutes();
     $this->actingAs($second)
         ->post(route('my-preorders.store', $this->product), ['product_variant_id' => $this->medium->id, 'quantity' => '4'])
-        ->assertInertiaFlash('toast.message', 'Your preorder of 4 × STI Hoodie (M) has been placed. 2 pcs get the early-bird price of ₱650.00. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of 4 × STI Hoodie (M) has been placed.'.preorderPayLine().' 2 pcs get the early-bird price of ₱650.00. It is listed in My Preorders.');
 
     $third = User::factory()->student()->create();
     $this->travel(1)->minutes();
     $this->actingAs($third)
         ->post(route('my-preorders.store', $this->product), ['product_variant_id' => $this->small->id, 'quantity' => '1'])
-        ->assertInertiaFlash('toast.message', 'Your preorder of 1 × STI Hoodie (S) has been placed. The early-bird pieces are all taken. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of 1 × STI Hoodie (S) has been placed.'.preorderPayLine().' The early-bird pieces are all taken. It is listed in My Preorders.');
 
     expect(earlyBirdOf([$first, $second, $third]))->toBe([3, 2, 0]);
 });

@@ -225,3 +225,15 @@ function markPreorderPaid(Preorder $preorder): Preorder
 
     return $preorder;
 }
+
+/**
+ * The sentence after "has been placed": what to pay at the cashier with the
+ * newest preorder slip, e.g. " Pay ₱1,500.00 at the cashier with preorder
+ * slip PR-0001."
+ */
+function preorderPayLine(): string
+{
+    $slip = PreorderSlip::query()->latest('id')->firstOrFail();
+
+    return ' Pay ₱'.number_format($slip->amountDue() / 100, 2)." at the cashier with preorder slip {$slip->number}.";
+}

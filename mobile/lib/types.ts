@@ -300,7 +300,8 @@ export type PreorderSlipData = Omit<IssuanceSlipData, 'order_id' | 'status' | 'p
     slip_id: number;
     product_id: number;
     product_name: string;
-    status: 'waiting_payment' | 'paid';
+    /** released: every piece was given to the buyer. */
+    status: 'waiting_payment' | 'paid' | 'released';
     paid_on: string | null;
     /** The Specialist who marked it paid. */
     received_by: string | null;

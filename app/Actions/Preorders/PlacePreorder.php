@@ -101,7 +101,8 @@ class PlacePreorder
      */
     public static function messageForMany(array $preorders, Product $product): string
     {
-        $after = (LowStockAlerts::isSold($product) ? ' You will be notified when it is back in stock.' : '')
+        $after = self::payNote($preorders)
+            .(LowStockAlerts::isSold($product) ? ' You will be notified when it is back in stock.' : '')
             .self::earlyBirdNote($preorders, $product)
             .' It is listed in My Preorders.';
         $waiting = fn (Preorder $preorder): int => (int) Preorder::query()
@@ -129,6 +130,18 @@ class PlacePreorder
         return "Your preorder of {$product->name} has been placed: {$sizes}."
             .($addedTo ? ' Pieces added to an earlier preorder wait behind those already in line.' : '')
             .$after;
+    }
+
+    /**
+     * " Pay ₱1,500.00 at the cashier with preorder slip PR-0011."
+     *
+     * @param  list<Preorder>  $preorders
+     */
+    private static function payNote(array $preorders): string
+    {
+        $slip = $preorders === [] ? null : PreorderSlip::query()->where('batch', $preorders[0]->batch)->first();
+
+        return $slip === null ? '' : ' Pay ₱'.number_format($slip->amountDue() / 100, 2)." at the cashier with preorder slip {$slip->number}.";
     }
 
     /**

@@ -378,7 +378,8 @@ function PreorderPayment({
 }) {
     const { request } = useAuth();
     const { slip } = lookup;
-    const paid = slip.status === 'paid';
+    const released = slip.status === 'released';
+    const paid = slip.status === 'paid' || released;
     const [busy, setBusy] = useState(false);
     const [done, setDone] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -469,6 +470,8 @@ function PreorderPayment({
                         <Text className="font-sans-bold text-lg text-white">
                             {paid && lookup.can_release
                                 ? `Preorder ${slip.number}: ready to release`
+                                : released
+                                ? `Preorder ${slip.number} is released`
                                 : paid
                                 ? `Preorder ${slip.number} is paid`
                                 : lookup.can_mark_paid
@@ -521,9 +524,9 @@ function PreorderPayment({
             )}
 
             <IssuanceSlipCard
-                slip={{ ...slip, order_id: slip.slip_id, status: 'placed', pick_up_by: null, released_on: null, issued_by: null }}
+                slip={{ ...slip, order_id: slip.slip_id, status: released ? 'picked_up' : 'placed', pick_up_by: null, released_on: null, issued_by: null }}
                 title="PREORDER SLIP"
-                paid={paid}
+                paid={slip.status === 'paid'}
                 showQr={false}
             />
         </>

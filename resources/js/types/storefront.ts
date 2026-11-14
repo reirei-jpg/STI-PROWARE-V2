@@ -282,7 +282,8 @@ export type PreorderSlipData = {
     product_name: string;
     items: IssuanceSlipData['items'];
     total_centavos: number;
-    status: 'waiting_payment' | 'paid';
+    /** released: every piece was given to the buyer. */
+    status: 'waiting_payment' | 'paid' | 'released';
     status_label: string;
     paid_on: string | null;
     /** The Specialist who marked it paid. */

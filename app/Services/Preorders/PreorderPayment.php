@@ -57,8 +57,8 @@ final class PreorderPayment
             'product_name' => $slip->product->name,
             'items' => $items,
             'total_centavos' => $slip->amountDue(),
-            'status' => $slip->isPaid() ? 'paid' : 'waiting_payment',
-            'status_label' => $slip->isPaid() ? 'Paid' : 'Waiting for payment',
+            'status' => self::released($slip) ? 'released' : ($slip->isPaid() ? 'paid' : 'waiting_payment'),
+            'status_label' => self::released($slip) ? 'Released' : ($slip->isPaid() ? 'Paid' : 'Waiting for payment'),
             'paid_on' => $slip->paid_at?->toDateString(),
             'received_by' => $slip->payer?->name,
             'qr_svg' => IssuanceSlip::qrSvg($slip->code),
@@ -114,6 +114,10 @@ final class PreorderPayment
             return "Preorder slip {$slip->number} was already paid on {$slip->paid_at?->format('M j, Y g:i A')}".($slip->payer ? " (marked by {$slip->payer->name})" : '').'.';
         }
 
+        if (! $slip->preorders()->where('status', PreorderStatus::Active)->exists() && $slip->preorders()->where('status', PreorderStatus::Arrived)->exists()) {
+            return "{$slip->product->name} is back in stock, so preorder slip {$slip->number} is closed. The buyer can buy it in the store.";
+        }
+
         if (! $slip->preorders()->where('status', PreorderStatus::Active)->exists()) {
             return "Preorder slip {$slip->number} has no preorder waiting any more (cancelled or closed), so there is nothing to pay.";
         }
@@ -152,6 +156,16 @@ final class PreorderPayment
         $slip->student->notify(new PreorderPaid($slip));
 
         return $message;
+    }
+
+    /**
+     * Paid, and every piece of it was given to the buyer.
+     */
+    public static function released(PreorderSlip $slip): bool
+    {
+        return $slip->isPaid()
+            && $slip->preorders()->where('status', PreorderStatus::Ordered)->exists()
+            && ! $slip->preorders()->whereIn('status', [PreorderStatus::Active, PreorderStatus::Held])->exists();
     }
 
     /**

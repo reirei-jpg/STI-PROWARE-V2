@@ -45,7 +45,7 @@ test('a student can preorder a sold-out size, and the Specialist is told once', 
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $extraSmall->id, 'quantity' => '2'])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Your preorder of 2 × BSIT Polo (XS) has been placed. You will be notified when it is back in stock. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of 2 × BSIT Polo (XS) has been placed.'.preorderPayLine().' You will be notified when it is back in stock. It is listed in My Preorders.');
 
     // Preordering again is a new preorder, behind those already in line.
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $extraSmall->id, 'quantity' => '3']);

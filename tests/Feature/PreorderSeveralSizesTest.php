@@ -48,7 +48,7 @@ test('a student can preorder several sizes at once', function () {
             ['product_variant_id' => $sizes['L']->id, 'quantity' => '3'],
         ]])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Your preorder of Foundation Week Shirt has been placed: 2 × S, 3 × L. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of Foundation Week Shirt has been placed: 2 × S, 3 × L.'.preorderPayLine().' It is listed in My Preorders.');
 
     expect(Preorder::query()->orderBy('id')->get()->map(fn (Preorder $preorder) => [$preorder->product_variant_id, $preorder->quantity, $preorder->status]))
         ->toEqual(collect([
@@ -67,7 +67,7 @@ test('preordering a size already preordered goes behind those already in line, a
             ['product_variant_id' => $sizes['M']->id, 'quantity' => '1'],
         ]])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Your preorder of Foundation Week Shirt has been placed: 4 × S, 1 × M. Pieces added to an earlier preorder wait behind those already in line. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of Foundation Week Shirt has been placed: 4 × S, 1 × M. Pieces added to an earlier preorder wait behind those already in line.'.preorderPayLine().' It is listed in My Preorders.');
 
     expect(Preorder::query()->where('status', PreorderStatus::Active)->orderBy('id')->pluck('quantity')->all())
         ->toBe([1, 4, 1]);
@@ -133,7 +133,7 @@ test('on an item for sale, a list with a size in stock is refused, naming that s
         ['product_variant_id' => $sizes['2XL']->id, 'quantity' => '2'],
     ]])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Your preorder of BSIT Polo has been placed: 1 × XS, 2 × 2XL. You will be notified when it is back in stock. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of BSIT Polo has been placed: 1 × XS, 2 × 2XL.'.preorderPayLine().' You will be notified when it is back in stock. It is listed in My Preorders.');
 
     Notification::assertSentToTimes($specialist, PreorderPlaced::class, 2);
 });
@@ -147,7 +147,7 @@ test('the phone app can preorder several sizes at once', function () {
         ['product_variant_id' => $sizes['M']->id, 'quantity' => 1],
     ]])
         ->assertCreated()
-        ->assertJsonPath('message', 'Your preorder of Foundation Week Shirt has been placed: 2 × S, 1 × M. It is listed in My Preorders.')
+        ->assertJsonPath('message', 'Your preorder of Foundation Week Shirt has been placed: 2 × S, 1 × M.'.preorderPayLine().' It is listed in My Preorders.')
         ->assertJsonCount(2, 'preorders')
         ->assertJsonPath('preorders.1.variant_label', 'M');
 

@@ -458,8 +458,8 @@ function PreorderForm({
 
                 <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                     {restock
-                        ? 'This item is out of stock. Preorder it, then pay at the cashier with your preorder slip. You are notified when it is back in stock. If you preorder the same size again, the added pieces wait behind those already in line.'
-                        : 'A preorder reserves the item so the PROWARE office knows how many to order. Pay for it at the cashier with your preorder slip. If you preorder the same size again, the added pieces wait behind those already in line.'}
+                        ? 'This item is out of stock. Preorder it: you are notified when it is back in stock. If you preorder the same size again, the added pieces wait behind those already in line.'
+                        : 'A preorder reserves the item so the PROWARE office knows how many to order. If you preorder the same size again, the added pieces wait behind those already in line.'}
                 </p>
             </div>
 

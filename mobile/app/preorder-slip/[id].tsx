@@ -49,7 +49,8 @@ export default function PreorderSlipScreen() {
         setRefreshing(false);
     };
 
-    const paid = slip?.status === 'paid';
+    const released = slip?.status === 'released';
+    const paid = slip?.status === 'paid' || released;
 
     return (
         <ScrollView
@@ -90,7 +91,9 @@ export default function PreorderSlipScreen() {
                     >
                         {paid ? <CircleCheck size={20} color="#047857" /> : <Clock size={20} color="#b45309" />}
                         <Text className={`flex-1 font-sans text-sm leading-5 ${paid ? 'text-emerald-900' : 'text-amber-900'}`}>
-                            {paid ? (
+                            {released ? (
+                                'Released. All the items were given to you. Keep this slip as your receipt.'
+                            ) : paid ? (
                                 <>
                                     Paid <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text>
                                     {slip.paid_on ? ` on ${formatDate(slip.paid_on)}` : ''}. Keep this slip: it is
@@ -107,9 +110,9 @@ export default function PreorderSlipScreen() {
                     </View>
 
                     <IssuanceSlipCard
-                        slip={{ ...slip, order_id: slip.slip_id, status: 'placed', pick_up_by: null, released_on: null, issued_by: null }}
+                        slip={{ ...slip, order_id: slip.slip_id, status: released ? 'picked_up' : 'placed', pick_up_by: null, released_on: null, issued_by: null }}
                         title="PREORDER SLIP"
-                        paid={paid}
+                        paid={slip.status === 'paid'}
                     />
                 </>
             )}

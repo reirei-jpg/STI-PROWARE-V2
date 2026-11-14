@@ -13,12 +13,13 @@ import type { IssuanceSlipData, PreorderSlipData } from '@/types';
  * after paying.
  */
 export default function PreorderSlip({ slip }: { slip: PreorderSlipData }) {
-    const paid = slip.status === 'paid';
-    // Laid out like the issuance slip; nothing is released yet.
+    const released = slip.status === 'released';
+    const paid = slip.status === 'paid' || released;
+    // Laid out like the issuance slip; stamped RELEASED once all was given.
     const asSlip: IssuanceSlipData = {
         ...slip,
         order_id: slip.slip_id,
-        status: 'placed',
+        status: released ? 'picked_up' : 'placed',
         pick_up_by: null,
         released_on: null,
         issued_by: null,
@@ -62,14 +63,18 @@ export default function PreorderSlip({ slip }: { slip: PreorderSlipData }) {
                     )}
                     <div className="text-sm leading-6">
                         <p className="font-black">
-                            {paid
-                                ? `Paid ${formatPeso(slip.total_centavos)}${slip.paid_on ? ` on ${formatDateOrdered(slip.paid_on)}` : ''}`
-                                : `Pay ${formatPeso(slip.total_centavos)} at the cashier`}
+                            {released
+                                ? 'Released'
+                                : paid
+                                  ? `Paid ${formatPeso(slip.total_centavos)}${slip.paid_on ? ` on ${formatDateOrdered(slip.paid_on)}` : ''}`
+                                  : `Pay ${formatPeso(slip.total_centavos)} at the cashier`}
                         </p>
                         <p>
-                            {paid
-                                ? 'Keep this slip: it is your proof of payment. Show it when you get your items.'
-                                : 'Show this slip at the cashier. Once you have paid, the PROWARE office marks it Paid. There is no refund after paying.'}
+                            {released
+                                ? 'All the items were given to you. Keep this slip as your receipt.'
+                                : paid
+                                  ? 'Keep this slip: it is your proof of payment. Show it when you get your items.'
+                                  : 'Show this slip at the cashier. Once you have paid, the PROWARE office marks it Paid. There is no refund after paying.'}
                         </p>
                     </div>
                 </div>
@@ -77,7 +82,7 @@ export default function PreorderSlip({ slip }: { slip: PreorderSlipData }) {
                 <IssuanceSlip
                     slip={asSlip}
                     title="PREORDER SLIP"
-                    paid={paid}
+                    paid={slip.status === 'paid'}
                     className="rounded-2xl shadow-sm"
                 />
             </div>

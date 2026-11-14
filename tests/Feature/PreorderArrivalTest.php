@@ -196,3 +196,33 @@ test('the phone releases a paid preorder too', function () {
     Sanctum::actingAs($this->first->student);
     $this->postJson(route('api.v1.specialist.preorder-slips.release', $slip))->assertForbidden();
 });
+
+test('an unpaid slip whose item is back in stock says so, and cannot be paid any more', function () {
+    hoodiesComeIn($this->variant, 12);
+    $slip = slipOf($this->third);
+
+    $this->actingAs($this->specialist)->post(route('preorder-slips.paid', $slip))
+        ->assertInertiaFlash('toast.message', "STI Hoodie is back in stock, so preorder slip {$slip->number} is closed. The buyer can buy it in the store.");
+});
+
+test('after part of a preorder was released, the rest is named as not arrived yet', function () {
+    hoodiesComeIn($this->variant, 5);
+    $slip = slipOf($this->second);
+    $this->actingAs($this->specialist)->post(route('preorder-slips.release', $slip));
+
+    $this->post(route('preorder-slips.release', $slip))
+        ->assertInertiaFlash('toast.message', "The other 2 pcs of preorder {$slip->number} have not arrived yet. The buyer is told when they arrive.");
+});
+
+test('a slip released in full says Released, for the buyer and the Specialist', function () {
+    hoodiesComeIn($this->variant, 3);
+    $slip = slipOf($this->first);
+    $this->actingAs($this->specialist)->get(route('orders.slip', ['code' => $slip->code]))
+        ->assertInertia(fn (Assert $page) => $page->where('preorderResult.slip.status', 'paid'));
+    $this->post(route('preorder-slips.release', $slip));
+
+    $this->get(route('orders.slip', ['code' => $slip->code]))
+        ->assertInertia(fn (Assert $page) => $page->where('preorderResult.slip.status', 'released')->where('preorderResult.slip.status_label', 'Released'));
+    $this->actingAs($this->first->student)->get(route('my-preorders.slip', $slip))
+        ->assertInertia(fn (Assert $page) => $page->where('slip.status', 'released'));
+});

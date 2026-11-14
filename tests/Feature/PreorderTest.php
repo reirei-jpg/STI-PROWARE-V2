@@ -37,11 +37,11 @@ test('a student can preorder a size, and preordering it again goes behind those 
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '2'])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast.message', 'Your preorder of 2 × 42nd Anniversary Shirt (S/M) has been placed. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of 2 × 42nd Anniversary Shirt (S/M) has been placed.'.preorderPayLine().' It is listed in My Preorders.');
     $first = Preorder::sole();
 
     $this->post(route('my-preorders.store', $product), ['product_variant_id' => $small->id, 'quantity' => '3'])
-        ->assertInertiaFlash('toast.message', 'Your preorder of 3 × 42nd Anniversary Shirt (S/M) has been placed behind those already in line, so you now have 5 pcs preordered. It is listed in My Preorders.');
+        ->assertInertiaFlash('toast.message', 'Your preorder of 3 × 42nd Anniversary Shirt (S/M) has been placed behind those already in line, so you now have 5 pcs preordered.'.preorderPayLine().' It is listed in My Preorders.');
 
     expect(Preorder::query()->orderBy('id')->pluck('quantity')->all())->toBe([2, 3])
         ->and($first->refresh())

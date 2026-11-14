@@ -41,7 +41,13 @@ class ReleasePaidPreorder
             return null;
         }
 
-        return $slip->preorders()->where('status', PreorderStatus::Active)->exists()
+        $waiting = (int) $slip->preorders()->where('status', PreorderStatus::Active)->sum('quantity');
+
+        if ($waiting > 0 && $slip->preorders()->where('status', PreorderStatus::Ordered)->exists()) {
+            return 'The other '.Units::count($waiting, 'Piece')." of preorder {$slip->number} ".($waiting === 1 ? 'has' : 'have').' not arrived yet. The buyer is told when '.($waiting === 1 ? 'it arrives.' : 'they arrive.');
+        }
+
+        return $waiting > 0
             ? "Nothing of preorder {$slip->number} has arrived yet. The buyer is told when it arrives."
             : "Preorder {$slip->number} has already been released in full.";
     }

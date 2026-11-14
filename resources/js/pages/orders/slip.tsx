@@ -149,7 +149,8 @@ export default function OrderSlip({
  */
 function PreorderPayment({ result }: { result: PreorderSlipResult }) {
     const { slip } = result;
-    const paid = slip.status === 'paid';
+    const released = slip.status === 'released';
+    const paid = slip.status === 'paid' || released;
     const [checked, setChecked] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -161,7 +162,7 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
     const asSlip: IssuanceSlipData = {
         ...slip,
         order_id: slip.slip_id,
-        status: 'placed',
+        status: released ? 'picked_up' : 'placed',
         pick_up_by: null,
         released_on: null,
         issued_by: null,
@@ -220,11 +221,13 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                     <p className="text-lg font-black">
                         {paid && result.can_release
                             ? `Preorder ${slip.number}: ready to release`
-                            : paid
-                              ? `Preorder ${slip.number} is paid`
-                              : result.can_mark_paid
-                                ? `Preorder ${slip.number}: waiting for payment`
-                                : `Preorder ${slip.number} cannot be paid`}
+                            : released
+                              ? `Preorder ${slip.number} is released`
+                              : paid
+                                ? `Preorder ${slip.number} is paid`
+                                : result.can_mark_paid
+                                  ? `Preorder ${slip.number}: waiting for payment`
+                                  : `Preorder ${slip.number} cannot be paid`}
                     </p>
                     <p className="text-sm">
                         {paid
@@ -242,7 +245,7 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                 <IssuanceSlip
                     slip={asSlip}
                     title="PREORDER SLIP"
-                    paid={paid}
+                    paid={slip.status === 'paid'}
                     className="rounded-2xl shadow-sm"
                 />
 

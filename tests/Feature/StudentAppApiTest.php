@@ -218,7 +218,7 @@ test('preordering and cancelling a preorder on the app', function () {
 
     $preorder = $this->postJson(route('api.v1.preorders.store', $shirt), ['product_variant_id' => $variant->id, 'quantity' => 2])
         ->assertCreated()
-        ->assertJsonPath('message', 'Your preorder of 2 × Anniversary Shirt has been placed. It is listed in My Preorders.')
+        ->assertJsonPath('message', 'Your preorder of 2 × Anniversary Shirt has been placed.'.preorderPayLine().' It is listed in My Preorders.')
         ->json('preorder');
 
     $this->getJson(route('api.v1.preorders.index'))->assertJsonPath('data.0.quantity', 2);
