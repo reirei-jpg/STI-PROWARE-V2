@@ -24,7 +24,7 @@ const chips: { value: Show; label: string }[] = [
 ];
 
 const descriptions: Record<Show, string> = {
-    placed: 'Waiting for the buyer to pay at the cashier and show the receipt and slip. Whoever pays first gets the items. Oldest first.',
+    placed: 'Waiting for the buyer to pay at the cashier and show the receipt and slip. First to pay, first served. Oldest first.',
     picked_up: 'Paid and handed over. Newest first.',
     cancelled: 'Cancelled by the buyer or by you. Newest first.',
     all: 'Every order, newest first.',
@@ -124,7 +124,7 @@ export default function OrdersIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Orders"
-                    description="Orders placed on the storefront by students and STI staff. Scan the buyer's issuance slip and check the cashier's receipt to release the items, or open any order below. Whoever pays first gets the items."
+                    description="Orders placed on the storefront by students and STI staff. Scan the buyer's issuance slip and check the cashier's receipt to release the items, or open any order below. First to pay, first served."
                 />
 
                 <SlipScanBox />

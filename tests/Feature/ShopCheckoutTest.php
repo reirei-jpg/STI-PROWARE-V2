@@ -154,7 +154,7 @@ test('placing an order keeps today\'s prices, notes the section, holds no stock 
 
     $placed = $this->actingAs($this->student)
         ->post(route('my-orders.store'), ['section' => ' BSIT 1-A '])
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. Whoever pays first gets them.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. First to pay, first served.');
 
     $order = Order::sole();
     $placed->assertRedirect(route('my-orders.slip', $order));

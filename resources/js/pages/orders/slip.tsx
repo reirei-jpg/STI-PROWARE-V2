@@ -487,8 +487,8 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                 <ul className="space-y-2 text-sm">
                     {isOpen && (
                         <Check tone="amber">
-                            Whoever pays first gets the items. Items already
-                            sold are released short.
+                            First to pay, first served. Items already sold are
+                            released short.
                         </Check>
                     )}
                     {otherOpenOrders.length > 0 && (

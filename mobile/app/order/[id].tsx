@@ -219,8 +219,8 @@ function NextStep({ order }: { order: StudentOrder }) {
                 <Banknote size={20} color="#b45309" />
                 <Text className="flex-1 font-sans text-sm leading-5 text-amber-900">
                     Pay <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> at the
-                    cashier, then show the receipt and the issuance slip at the PROWARE office. Whoever pays
-                    first gets the items, so pay soon.
+                    cashier, then show the receipt and the issuance slip at the PROWARE office. First to pay,
+                    first served.
                 </Text>
             </View>
         );

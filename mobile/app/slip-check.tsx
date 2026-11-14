@@ -233,7 +233,7 @@ export default function SlipCheckScreen() {
                         <View className="gap-2">
                             {isOpen && (
                                 <Check tone="amber">
-                                    Whoever pays first gets the items.
+                                    First to pay, first served.
                                     Items already sold are released short.
                                 </Check>
                             )}

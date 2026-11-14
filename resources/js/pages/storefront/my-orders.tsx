@@ -90,7 +90,7 @@ export default function MyOrders({
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                         Track your orders. Pay at the cashier, then show the
                         receipt and the issuance slip at the PROWARE office to
-                        get your items. Whoever pays first gets them.
+                        get your items. First to pay, first served.
                     </p>
                 </div>
 
@@ -98,7 +98,7 @@ export default function MyOrders({
                     <SummaryCard
                         title="Waiting for Payment"
                         value={statusCounts.placed}
-                        description="Pay at the cashier soon: whoever pays first gets the items"
+                        description="Pay at the cashier. First to pay, first served."
                         icon={Clock3}
                         tone="amber"
                         href={tabHref('waiting')}
@@ -363,7 +363,7 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
             return {
                 label: 'Waiting for payment',
                 description:
-                    'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office. Whoever pays first gets the items, so pay soon.',
+                    'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office. First to pay, first served.',
             };
         case 'picked_up':
             return {

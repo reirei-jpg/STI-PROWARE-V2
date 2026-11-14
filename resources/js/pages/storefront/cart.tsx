@@ -180,8 +180,7 @@ export default function Cart({
                                     </Step>
                                 </ol>
                                 <p className="-mt-2 pl-10 text-xs text-slate-500">
-                                    Whoever pays first gets the items, so pay
-                                    soon.
+                                    First to pay, first served.
                                 </p>
 
                                 <InputError message={errors.cart} />

@@ -17,7 +17,7 @@ export default function OrderSteps({ placed = false }: { placed?: boolean }) {
             <Step number={2}>Pay at the cashier and keep the official receipt</Step>
             <Step number={3}>Show the receipt and your issuance slip at the PROWARE office to get your items</Step>
             <Text className="ml-10 font-sans text-xs text-slate-500">
-                Whoever pays first gets the items, so pay soon.
+                First to pay, first served.
             </Text>
         </View>
     );

@@ -15,7 +15,7 @@ type OrderDates = Pick<
 export function orderNote(order: OrderDates): { text: string; className: string } {
     if (order.status === 'placed') {
         return {
-            text: `Placed ${formatDate(order.placed_at)} · whoever pays first gets the items`,
+            text: `Placed ${formatDate(order.placed_at)} · first to pay, first served`,
             className: 'font-sans-bold text-amber-600',
         };
     }
