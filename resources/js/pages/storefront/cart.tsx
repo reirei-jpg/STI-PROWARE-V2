@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import { showToast } from '@/components/flash-popup';
 import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -179,8 +180,8 @@ export default function Cart({
                                     </Step>
                                 </ol>
                                 <p className="-mt-2 pl-10 text-xs text-slate-500">
-                                    Items are not set aside for your order:
-                                    whoever pays first gets them, so pay soon.
+                                    Whoever pays first gets the items, so pay
+                                    soon.
                                 </p>
 
                                 <InputError message={errors.cart} />
@@ -266,6 +267,7 @@ function CartLineRow({
     const [quantity, setQuantity] = useState(String(line.quantity));
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [confirming, setConfirming] = useState(false);
 
     const typed = Number(quantity) || 0;
     const tooMany = line.most_allowed > 0 && typed > line.most_allowed;
@@ -307,17 +309,18 @@ function CartLineRow({
         );
     };
 
-    // Removing is a toast, not a question: it is easy to put back with Undo.
+    const what = set
+        ? set.name
+        : `${line.product_name}${[
+              line.variant_label,
+              line.unit_name !== 'Piece' ? line.unit_name : null,
+          ]
+              .filter(Boolean)
+              .join(', ')
+              .replace(/^(.+)$/, ' ($1)')}`;
+
+    // Removing is a decision, so the buyer answers first; Undo still puts it back.
     const remove = () => {
-        const what = set
-            ? set.name
-            : `${line.product_name}${[
-                  line.variant_label,
-                  line.unit_name !== 'Piece' ? line.unit_name : null,
-              ]
-                  .filter(Boolean)
-                  .join(', ')
-                  .replace(/^(.+)$/, ' ($1)')}`;
         const undo: {
             href: string;
             data: Record<string, string | number | boolean | null>;
@@ -361,7 +364,10 @@ function CartLineRow({
                         },
                     },
                 }),
-            onFinish: () => setBusy(false),
+            onFinish: () => {
+                setBusy(false);
+                setConfirming(false);
+            },
         });
     };
 
@@ -577,7 +583,7 @@ function CartLineRow({
 
                 <button
                     type="button"
-                    onClick={remove}
+                    onClick={() => setConfirming(true)}
                     disabled={busy}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:opacity-40"
                     aria-label={`Remove ${set?.name ?? line.product_name}`}
@@ -586,6 +592,18 @@ function CartLineRow({
                     <Trash2 size={17} />
                 </button>
             </div>
+
+            <ConfirmDialog
+                open={confirming}
+                title={`Remove ${what} from your cart?`}
+                description="You can add it again from the store."
+                cancelLabel="Keep it"
+                confirmLabel="Remove"
+                tone="red"
+                busy={busy}
+                onConfirm={remove}
+                onClose={() => setConfirming(false)}
+            />
         </li>
     );
 }

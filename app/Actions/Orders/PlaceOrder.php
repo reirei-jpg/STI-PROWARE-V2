@@ -124,7 +124,7 @@ class PlaceOrder
      */
     public static function message(Order $order): string
     {
-        return "Order {$order->number} has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. They are not set aside for you, so whoever pays first gets them.";
+        return "Order {$order->number} has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. Whoever pays first gets them.";
     }
 
     /**

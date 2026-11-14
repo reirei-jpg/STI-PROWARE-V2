@@ -11,6 +11,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Image,
     Pressable,
     RefreshControl,
@@ -419,7 +420,7 @@ function CartLineRow({
         }
     };
 
-    // Removing is a toast, not a question: it is easy to put back with Undo.
+    // Undo after removing puts it back as it was.
     const putBack = async (): Promise<void> => {
         const undo =
             set && set.uniform_set_id !== null && set.top_variant_id !== null && set.bottom_variant_id !== null
@@ -448,16 +449,24 @@ function CartLineRow({
         }
     };
 
-    const remove = async (): Promise<void> => {
-        const what = set
-            ? set.name
-            : `${line.product_name}${
-                  [line.variant_label, line.unit_name !== 'Piece' ? line.unit_name : null]
-                      .filter(Boolean)
-                      .join(', ')
-                      .replace(/^(.+)$/, ' ($1)')
-              }`;
+    const what = set
+        ? set.name
+        : `${line.product_name}${
+              [line.variant_label, line.unit_name !== 'Piece' ? line.unit_name : null]
+                  .filter(Boolean)
+                  .join(', ')
+                  .replace(/^(.+)$/, ' ($1)')
+          }`;
 
+    // Removing is a decision, so the buyer answers first (same words as the website).
+    const confirmRemove = (): void => {
+        Alert.alert(`Remove ${what} from your cart?`, 'You can add it again from the store.', [
+            { text: 'Keep it', style: 'cancel' },
+            { text: 'Remove', style: 'destructive', onPress: () => void remove() },
+        ]);
+    };
+
+    const remove = async (): Promise<void> => {
         setBusy(true);
 
         try {
@@ -548,7 +557,7 @@ function CartLineRow({
                 </View>
 
                 <Pressable
-                    onPress={remove}
+                    onPress={confirmRemove}
                     disabled={busy}
                     accessibilityRole="button"
                     accessibilityLabel={`Remove ${name}`}

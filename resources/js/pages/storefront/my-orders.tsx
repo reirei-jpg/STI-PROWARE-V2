@@ -90,8 +90,7 @@ export default function MyOrders({
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                         Track your orders. Pay at the cashier, then show the
                         receipt and the issuance slip at the PROWARE office to
-                        get your items. Items are not set aside for an order:
-                        whoever pays first gets them.
+                        get your items. Whoever pays first gets them.
                     </p>
                 </div>
 
@@ -364,7 +363,7 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
             return {
                 label: 'Waiting for payment',
                 description:
-                    'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office. Your items are not set aside, so pay soon: whoever pays first gets them.',
+                    'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office. Whoever pays first gets the items, so pay soon.',
             };
         case 'picked_up':
             return {

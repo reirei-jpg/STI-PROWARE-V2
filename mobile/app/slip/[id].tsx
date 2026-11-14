@@ -103,8 +103,8 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
             return (
                 <Notice tone="amber" icon={<Clock size={20} color="#b45309" />}>
                     Pay <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at the cashier,
-                    then show the receipt and this slip at the PROWARE office to get your items. They are not
-                    set aside for you, so whoever pays first gets them: pay soon.
+                    then show the receipt and this slip at the PROWARE office to get your items. Whoever pays
+                    first gets them, so pay soon.
                 </Notice>
             );        case 'picked_up':
             return (
