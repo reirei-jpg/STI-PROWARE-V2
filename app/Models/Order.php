@@ -133,4 +133,34 @@ class Order extends Model
     {
         return $this->preorders()->exists();
     }
+
+    /**
+     * The order in item names for the buyer's notices, never its PW- number:
+     * "STI Lanyard (Blue)", or "STI Lanyard (Blue) and 2 more items". A
+     * uniform set counts as one item.
+     */
+    public function itemsText(): string
+    {
+        $names = $this->items()->orderBy('id')->get()
+            ->groupBy(fn (OrderItem $item): string => $item->set_key ?? "item-{$item->id}")
+            ->map(function ($lines): string {
+                /** @var OrderItem $first */
+                $first = $lines->first();
+
+                if ($first->set_key !== null && $first->set_name !== null) {
+                    return $first->set_name;
+                }
+
+                return $first->variant_label === null ? $first->product_name : "{$first->product_name} ({$first->variant_label})";
+            })
+            ->values();
+
+        if ($names->isEmpty()) {
+            return 'your order';
+        }
+
+        $more = $names->count() - 1;
+
+        return $more === 0 ? $names->first() : $names->first()." and {$more} more ".($more === 1 ? 'item' : 'items');
+    }
 }

@@ -45,17 +45,16 @@ class PreorderPaid extends Notification implements PushesToPhones
     {
         return [
             'title' => "Preorder paid: {$this->slip->product->name}",
-            'body' => self::body($this->slip->number, $this->slip->paid_centavos),
+            'body' => self::body($this->slip->paid_centavos),
             'data' => ['kind' => 'preorder_paid', 'slip_id' => $this->slip->id],
         ];
     }
 
     /**
-     * "Your payment of ₱960.00 has been recorded. Preorder slip PR-0007 now
-     * says PAID: keep it as your proof of payment."
+     * "₱960.00 paid. Keep your preorder slip as proof of payment."
      */
-    public static function body(?string $number, ?int $paidCentavos): string
+    public static function body(?int $paidCentavos): string
     {
-        return 'Your payment of ₱'.number_format((int) $paidCentavos / 100, 2)." has been recorded. Preorder slip {$number} now says PAID: keep it as your proof of payment.";
+        return '₱'.number_format((int) $paidCentavos / 100, 2).' paid. Keep your preorder slip as proof of payment.';
     }
 }

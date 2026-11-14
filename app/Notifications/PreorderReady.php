@@ -52,18 +52,17 @@ class PreorderReady extends Notification implements PushesToPhones
         $data = $this->toArray($notifiable);
 
         return [
-            'title' => "Your preorder is ready to pick up: {$data['product_name']}".($data['variant_label'] === null ? '' : " ({$data['variant_label']})"),
-            'body' => self::body($data['pieces'], $data['number']),
+            'title' => "Ready to pick up: {$data['product_name']}".($data['variant_label'] === null ? '' : " ({$data['variant_label']})"),
+            'body' => self::body($data['pieces']),
             'data' => ['kind' => 'preorder_ready', 'slip_id' => $data['slip_id']],
         ];
     }
 
     /**
-     * "2 pcs are ready. Show preorder slip PR-0002 at the PROWARE office to
-     * get them."
+     * "2 pcs are ready. Show your preorder slip at the PROWARE office."
      */
-    public static function body(int $pieces, ?string $number): string
+    public static function body(int $pieces): string
     {
-        return Units::count($pieces, 'Piece').' '.($pieces === 1 ? 'is' : 'are')." ready. Show preorder slip {$number} at the PROWARE office to get ".($pieces === 1 ? 'it.' : 'them.');
+        return Units::count($pieces, 'Piece').' '.($pieces === 1 ? 'is' : 'are').' ready. Show your preorder slip at the PROWARE office.';
     }
 }

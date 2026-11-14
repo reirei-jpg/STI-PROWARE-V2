@@ -75,7 +75,7 @@ test('the Specialist scans the slip and marks it paid; the buyer is told and the
 
     expect($slip->refresh())->paid_centavos->toBe(205000)->paid_by->toBe($this->specialist->id);
     Notification::assertSentTo($this->buyer, PreorderPaid::class, fn (PreorderPaid $notice): bool => $notice->toPush($this->buyer)['body']
-        === "Your payment of ₱2,050.00 has been recorded. Preorder slip {$slip->number} now says PAID: keep it as your proof of payment.");
+        === '₱2,050.00 paid. Keep your preorder slip as proof of payment.');
 
     // Not twice; the number typed in finds it too.
     $this->post(route('preorder-slips.paid', $slip))

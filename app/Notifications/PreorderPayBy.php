@@ -55,17 +55,16 @@ class PreorderPayBy extends Notification implements PushesToPhones
     }
 
     /**
-     * "Pay ₱200.00 at the cashier with preorder slip PR-0002 between Nov 15
-     * and Nov 30, 2026. Preorders not paid by Nov 30 are dropped."
+     * "Pay ₱200.00 at the cashier with your preorder slip from Nov 15 to
+     * Nov 30, 2026. If not paid by then, it is dropped."
      *
-     * @param  array{amount_centavos: int, number: string|null, pay_from: string|null, pay_until: string|null}  $data
+     * @param  array{amount_centavos: int, pay_from: string|null, pay_until: string|null}  $data
      */
     public static function body(array $data): string
     {
         $from = $data['pay_from'] === null ? '' : date('M j', (int) strtotime($data['pay_from']));
         $until = $data['pay_until'] === null ? '' : date('M j, Y', (int) strtotime($data['pay_until']));
-        $untilShort = $data['pay_until'] === null ? '' : date('M j', (int) strtotime($data['pay_until']));
 
-        return 'Pay ₱'.number_format($data['amount_centavos'] / 100, 2)." at the cashier with preorder slip {$data['number']} between {$from} and {$until}. Preorders not paid by {$untilShort} are dropped.";
+        return 'Pay ₱'.number_format($data['amount_centavos'] / 100, 2)." at the cashier with your preorder slip from {$from} to {$until}. If not paid by then, it is dropped.";
     }
 }

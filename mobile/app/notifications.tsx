@@ -35,28 +35,28 @@ function describe(data: StudentNotificationData): {
     switch (data.kind) {
         case 'order_ready':
             return {
-                title: `Order ${data.order_number} is ready for pickup`,
+                title: `Ready for pickup: ${data.items}`,
                 body: `Pay ${formatPeso(data.total_centavos)} at the cashier, then show the receipt and the issuance slip at the PROWARE office${data.pick_up_by ? ` by ${formatDate(data.pick_up_by)}` : ''}.`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
         case 'order_released':
             return {
-                title: `Order ${data.order_number} has been released to you`,
+                title: `Released to you: ${data.items}`,
                 body: 'Thank you for your order.',
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
         case 'order_last_day':
             return {
-                title: `Last day to get order ${data.order_number}`,
+                title: `Last day to get: ${data.items}`,
                 body: `Pay ${formatPeso(data.total_centavos)} at the cashier and show the receipt and the issuance slip at the PROWARE office today. After today it expires and the items go back on sale.`,
                 titleClass: 'text-red-700',
                 stripe: '#f87171',
             };
         case 'order_cancelled':
             return {
-                title: `Order ${data.order_number} was cancelled`,
+                title: `Cancelled: ${data.items}`,
                 body: data.reason ?? 'Ask the PROWARE office.',
                 titleClass: 'text-red-700',
                 stripe: '#f87171',
@@ -72,15 +72,15 @@ function describe(data: StudentNotificationData): {
             };
         case 'preorder_ready':
             return {
-                title: `Your preorder is ready to pick up: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
-                body: `${formatUnits(data.pieces, 'Piece')} ${data.pieces === 1 ? 'is' : 'are'} ready. Show preorder slip ${data.number} at the PROWARE office to get ${data.pieces === 1 ? 'it' : 'them'}.`,
+                title: `Ready to pick up: ${data.product_name}${data.variant_label ? ` (${data.variant_label})` : ''}`,
+                body: `${formatUnits(data.pieces, 'Piece')} ${data.pieces === 1 ? 'is' : 'are'} ready. Show your preorder slip at the PROWARE office.`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
         case 'preorder_pay_by':
             return {
                 title: `Pay for your preorder: ${data.product_name}`,
-                body: `Pay ${formatPeso(data.amount_centavos)} at the cashier with preorder slip ${data.number} between ${formatDate(data.pay_from)} and ${formatDate(data.pay_until)}. Preorders not paid by then are dropped.`,
+                body: `Pay ${formatPeso(data.amount_centavos)} at the cashier with your preorder slip from ${formatDate(data.pay_from)} to ${formatDate(data.pay_until)}. If not paid by then, it is dropped.`,
                 titleClass: 'text-amber-800',
                 stripe: '#f59e0b',
             };
@@ -94,7 +94,7 @@ function describe(data: StudentNotificationData): {
         case 'preorder_paid':
             return {
                 title: `Preorder paid: ${data.product_name}`,
-                body: `Your payment of ${formatPeso(data.paid_centavos ?? 0)} has been recorded. Preorder slip ${data.number} now says PAID: keep it as your proof of payment.`,
+                body: `${formatPeso(data.paid_centavos ?? 0)} paid. Keep your preorder slip as proof of payment.`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };

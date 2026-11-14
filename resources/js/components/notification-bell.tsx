@@ -261,7 +261,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-emerald-700">
-                    Order {data.order_number} is ready for pickup
+                    Ready for pickup: {data.items}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     Pay {formatPeso(data.total_centavos)} at the cashier, then
@@ -279,7 +279,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-emerald-700">
-                    Order {data.order_number} has been released to you
+                    Released to you: {data.items}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     Thank you for your order.
@@ -292,7 +292,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-red-700">
-                    Last day to get order {data.order_number}
+                    Last day to get: {data.items}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     Pay {formatPeso(data.total_centavos)} at the cashier and
@@ -307,7 +307,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-red-700">
-                    Order {data.order_number} was cancelled
+                    Cancelled: {data.items}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.reason ?? 'Ask the PROWARE office.'}
@@ -336,14 +336,13 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-emerald-700">
-                    Your preorder is ready to pick up: {data.product_name}
+                    Ready to pick up: {data.product_name}
                     {data.variant_label && ` (${data.variant_label})`}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {formatUnits(data.pieces, 'Piece')}{' '}
-                    {data.pieces === 1 ? 'is' : 'are'} ready. Show preorder slip{' '}
-                    {data.number} at the PROWARE office to get{' '}
-                    {data.pieces === 1 ? 'it' : 'them'}.
+                    {data.pieces === 1 ? 'is' : 'are'} ready. Show your preorder
+                    slip at the PROWARE office.
                 </span>
             </>
         );
@@ -357,10 +356,9 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     Pay {formatPeso(data.amount_centavos)} at the cashier with
-                    preorder slip {data.number} between{' '}
-                    {formatDateOrdered(data.pay_from)} and{' '}
-                    {formatDateOrdered(data.pay_until)}. Preorders not paid by
-                    then are dropped.
+                    your preorder slip from {formatDateOrdered(data.pay_from)}{' '}
+                    to {formatDateOrdered(data.pay_until)}. If not paid by then,
+                    it is dropped.
                 </span>
             </>
         );
@@ -387,9 +385,8 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Preorder paid: {data.product_name}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    Your payment of {formatPeso(data.paid_centavos ?? 0)} has
-                    been recorded. Preorder slip {data.number} now says PAID:
-                    keep it as your proof of payment.
+                    {formatPeso(data.paid_centavos ?? 0)} paid. Keep your
+                    preorder slip as proof of payment.
                 </span>
             </>
         );

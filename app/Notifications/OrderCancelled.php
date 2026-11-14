@@ -25,7 +25,7 @@ class OrderCancelled extends Notification implements PushesToPhones
     }
 
     /**
-     * @return array{kind: string, order_id: int, order_number: string|null, reason: string|null}
+     * @return array{kind: string, order_id: int, order_number: string|null, items: string, reason: string|null}
      */
     public function toArray(object $notifiable): array
     {
@@ -33,17 +33,20 @@ class OrderCancelled extends Notification implements PushesToPhones
             'kind' => 'order_cancelled',
             'order_id' => $this->order->id,
             'order_number' => $this->order->number,
+            'items' => $this->order->itemsText(),
             'reason' => $this->order->cancel_reason,
         ];
     }
 
     /**
+     * "Cancelled: STI Lanyard (Blue)": item names, not the PW- number.
+     *
      * @return array{title: string, body: string, data: array<string, scalar|null>}
      */
     public function toPush(object $notifiable): array
     {
         return [
-            'title' => "Order {$this->order->number} was cancelled",
+            'title' => "Cancelled: {$this->order->itemsText()}",
             'body' => $this->order->cancel_reason ?? 'Ask the PROWARE office.',
             'data' => ['kind' => 'order_cancelled', 'order_id' => $this->order->id],
         ];

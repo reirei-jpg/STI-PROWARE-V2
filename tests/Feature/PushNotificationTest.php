@@ -208,6 +208,7 @@ test('a released order is pushed through Firebase with the bell\'s words', funct
     $student = User::factory()->student()->create();
     DeviceToken::factory()->for($student)->create(['token' => 'fcm-token-1']);
     $order = Order::factory()->for($student, 'student')->create(['total_centavos' => 105000]);
+    OrderItem::factory()->for($order)->create(['product_name' => 'STI Lanyard', 'variant_label' => 'Blue', 'set_key' => null]);
 
     $student->notify(new OrderReleased($order));
 
@@ -228,7 +229,7 @@ test('a released order is pushed through Firebase with the bell\'s words', funct
     expect(pushMessagesSent())->toBe([[
         'token' => 'fcm-token-1',
         'notification' => [
-            'title' => "Order {$order->number} has been released to you",
+            'title' => 'Released to you: STI Lanyard (Blue)',
             'body' => 'Thank you for your order.',
         ],
         'android' => ['priority' => 'HIGH', 'notification' => ['channel_id' => 'orders']],
@@ -252,21 +253,23 @@ test('a cancelled order and an arrived preorder are pushed with the bell\'s word
     'order cancelled' => [
         function (User $student): array {
             $order = Order::factory()->for($student, 'student')->create(['cancel_reason' => 'Not picked up by Oct 7, 2026.']);
-            $order->forceFill(['number' => 'PW-0042'])->save();
+            OrderItem::factory()->for($order)->create(['product_name' => 'STI Lanyard', 'variant_label' => null, 'set_key' => null]);
 
             return [new OrderCancelled($order), ['kind' => 'order_cancelled', 'order_id' => (string) $order->id]];
         },
-        'Order PW-0042 was cancelled',
+        'Cancelled: STI Lanyard',
         'Not picked up by Oct 7, 2026.',
     ],
     'order released' => [
         function (User $student): array {
             $order = Order::factory()->for($student, 'student')->create();
-            $order->forceFill(['number' => 'PW-0042'])->save();
+            // A uniform set is one item: the order names it and 1 more item.
+            OrderItem::factory()->for($order)->count(2)->create(['product_name' => 'BSIT Polo', 'set_key' => 'set-1', 'set_name' => 'BSIT Uniform Set (For Boys)']);
+            OrderItem::factory()->for($order)->create(['product_name' => 'STI Lanyard', 'variant_label' => null, 'set_key' => null]);
 
             return [new OrderReleased($order), ['kind' => 'order_released', 'order_id' => (string) $order->id]];
         },
-        'Order PW-0042 has been released to you',
+        'Released to you: BSIT Uniform Set (For Boys) and 1 more item',
         'Thank you for your order.',
     ],
     'preorder arrived' => [

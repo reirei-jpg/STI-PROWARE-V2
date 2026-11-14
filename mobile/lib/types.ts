@@ -314,18 +314,20 @@ export type StudentNotificationData =
           kind: 'order_ready';
           order_id: number;
           order_number: string;
+          items: string;
           total_centavos: number;
           pick_up_by: string | null;
       }
-    | { kind: 'order_released'; order_id: number; order_number: string }
+    | { kind: 'order_released'; order_id: number; order_number: string; items: string }
     | {
           kind: 'order_last_day';
           order_id: number;
           order_number: string;
+          items: string;
           total_centavos: number;
           pick_up_by: string;
       }
-    | { kind: 'order_cancelled'; order_id: number; order_number: string; reason: string | null }
+    | { kind: 'order_cancelled'; order_id: number; order_number: string; items: string; reason: string | null }
     | { kind: 'preorder_arrived'; product_id: number; product_name: string; variant_label?: string | null }
     | {
           kind: 'preorder_pay_by';

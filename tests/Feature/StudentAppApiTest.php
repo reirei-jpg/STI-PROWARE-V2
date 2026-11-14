@@ -4,6 +4,7 @@ use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
 use App\Models\CartItem;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductPack;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Notifications\OrderReleased;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
@@ -295,6 +297,22 @@ test('the app gets exactly the notifications the website\'s bell shows', functio
 
     expect($app['data'])->toBe($website['recent'])->toHaveCount(2);
     expect($app['unread_count'])->toBe($website['unread_count'])->toBe(1);
+});
+
+test('an order notice sent before item names were kept shows the item names on the website and the app', function () {
+    $order = Order::factory()->for($this->student, 'student')->create();
+    OrderItem::factory()->for($order)->create(['product_name' => 'STI Lanyard', 'variant_label' => 'Blue', 'set_key' => null]);
+    $this->student->notifications()->create([
+        'id' => (string) Str::uuid(),
+        'type' => OrderReleased::class,
+        'data' => ['kind' => 'order_released', 'order_id' => $order->id, 'order_number' => 'PW-0042'],
+    ]);
+
+    $website = $this->actingAs($this->student)->get(route('my-orders.index'))->inertiaProps('notifications');
+    Sanctum::actingAs($this->student);
+
+    expect($website['recent'][0]['data']['items'])->toBe('STI Lanyard (Blue)');
+    $this->getJson(route('api.v1.notifications.index'))->assertJsonPath('data.0.data.items', 'STI Lanyard (Blue)');
 });
 
 test('the app lists the student\'s notifications and marks them read', function () {

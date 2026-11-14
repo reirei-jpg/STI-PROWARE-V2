@@ -364,7 +364,7 @@ test('the specialist releases an order once paid, and the items leave the shelf 
         ->quantity->toBe(-2)
         ->balance_after->toBe(28)
         ->recorded_by->toBe($this->specialist->id)
-        ->and($this->student->notifications()->where('type', OrderReleased::class)->sole()->data)->toBe(['kind' => 'order_released', 'order_id' => $order->id, 'order_number' => 'PW-0001']);
+        ->and($this->student->notifications()->where('type', OrderReleased::class)->sole()->data)->toBe(['kind' => 'order_released', 'order_id' => $order->id, 'order_number' => 'PW-0001', 'items' => 'STI Ballpen']);
 });
 test('an order released from the Waiting for payment tab stays open in its popup, with its new status', function () {
     [, $variant] = ballpen(stock: 30);

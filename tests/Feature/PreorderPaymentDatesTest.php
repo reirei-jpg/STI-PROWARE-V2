@@ -37,7 +37,7 @@ function preorderUnpaidHoodie(User $buyer, int $quantity = 1): PreorderSlip
 
 test('an item with unpaid preorders and no payment dates shows on the dashboard until the dates are set', function () {
     Notification::fake();
-    $juanSlip = preorderUnpaidHoodie($this->juan, 2);
+    preorderUnpaidHoodie($this->juan, 2);
     $beaSlip = preorderUnpaidHoodie($this->bea);
     // Bea already paid: she is not asked again.
     $this->actingAs($this->specialist)->post(route('preorder-slips.paid', $beaSlip));
@@ -54,7 +54,7 @@ test('an item with unpaid preorders and no payment dates shows on the dashboard 
         ->assertInertiaFlash('toast.message', 'Payment dates for STI Batch 2027 Hoodie: Nov 15 to Nov 30, 2026. 1 buyer with an unpaid preorder was told to pay by then.');
 
     Notification::assertSentTo($this->juan, PreorderPayBy::class, fn (PreorderPayBy $notice): bool => $notice->toPush($this->juan)['body']
-        === "Pay ₱1,500.00 at the cashier with preorder slip {$juanSlip->number} between Nov 15 and Nov 30, 2026. Preorders not paid by Nov 30 are dropped.");
+        === 'Pay ₱1,500.00 at the cashier with your preorder slip from Nov 15 to Nov 30, 2026. If not paid by then, it is dropped.');
     Notification::assertNotSentTo($this->bea, PreorderPayBy::class);
 
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('stockCards.preorders_to_set_up.count', 0));

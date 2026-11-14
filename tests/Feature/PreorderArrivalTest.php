@@ -75,10 +75,9 @@ test('arriving pieces are set aside for paid preorders, first come, first served
     $rest = Preorder::query()->where('user_id', $this->second->user_id)->where('status', PreorderStatus::Active)->sole();
     expect($rest->quantity)->toBe(2)->and($rest->batch)->toBe($this->second->batch);
 
-    $number = slipOf($this->first)->number;
     Notification::assertSentTo($this->first->student, PreorderReady::class, fn (PreorderReady $notice) => $notice->toPush($this->first->student) === [
-        'title' => 'Your preorder is ready to pick up: STI Hoodie (M)',
-        'body' => "3 pcs are ready. Show preorder slip {$number} at the PROWARE office to get them.",
+        'title' => 'Ready to pick up: STI Hoodie (M)',
+        'body' => '3 pcs are ready. Show your preorder slip at the PROWARE office.',
         'data' => ['kind' => 'preorder_ready', 'slip_id' => slipOf($this->first)->id],
     ]);
     Notification::assertSentTo($this->second->student, PreorderReady::class, fn (PreorderReady $notice) => $notice->pieces === 2);

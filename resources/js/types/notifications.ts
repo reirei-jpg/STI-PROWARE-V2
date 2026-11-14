@@ -46,6 +46,8 @@ export type OrderReadyData = {
     kind: 'order_ready';
     order_id: number;
     order_number: string | null;
+    /** The item names, "STI Lanyard (Blue) and 2 more items". */
+    items: string;
     total_centavos: number;
     /** The last day to pick it up, "2026-10-06". */
     pick_up_by: string | null;
@@ -56,6 +58,7 @@ export type OrderReleasedData = {
     kind: 'order_released';
     order_id: number;
     order_number: string | null;
+    items: string;
 };
 
 /** Today is the last day to get the order before it expires. */
@@ -63,6 +66,7 @@ export type OrderLastDayData = {
     kind: 'order_last_day';
     order_id: number;
     order_number: string | null;
+    items: string;
     total_centavos: number;
     pick_up_by: string;
 };
@@ -71,6 +75,7 @@ export type OrderCancelledData = {
     kind: 'order_cancelled';
     order_id: number;
     order_number: string | null;
+    items: string;
     reason: string | null;
 };
 

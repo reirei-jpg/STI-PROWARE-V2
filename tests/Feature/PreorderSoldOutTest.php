@@ -113,7 +113,7 @@ test('students waiting for a size are notified when a delivery puts it back in s
         ->and($otherSize->refresh()->status)->toBe(PreorderStatus::Active)
         ->and($extraSmall->refresh()->preorder_held_pieces)->toBe($waiting->quantity);
     Notification::assertSentTo($this->student, PreorderReady::class, fn (PreorderReady $notice) => $notice->toArray($this->student)['variant_label'] === 'XS'
-        && $notice->toPush($this->student)['title'] === 'Your preorder is ready to pick up: BSIT Polo (XS)');
+        && $notice->toPush($this->student)['title'] === 'Ready to pick up: BSIT Polo (XS)');
 });
 
 test('students waiting for a size are notified when a cancelled order of an arrived preorder gives the last piece back', function () {
