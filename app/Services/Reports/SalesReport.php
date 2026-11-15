@@ -92,14 +92,15 @@ final class SalesReport
     }
 
     /**
-     * 1. The eStore purchase orders ordered in the period, newest first.
+     * 1. The eStore purchase orders ordered in the period, newest first:
+     * what was bought (by name), what it cost, and whether it arrived.
      *
-     * @return LengthAwarePaginator<int, array{id: int, order_number: string|null, date_ordered: string, items_count: int, total_centavos: int, uploaded_by: string, quantity_ordered: int, preorder_quantity: int|null}>
+     * @return LengthAwarePaginator<int, array{id: int, order_number: string|null, date_ordered: string, items_count: int, items_label: string, total_centavos: int, uploaded_by: string, delivery_status: string, delivery_status_label: string, quantity_ordered: int, preorder_quantity: int|null}>
      */
     public static function spent(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
     {
         return self::purchaseOrders($from, $to)
-            ->with('uploader')
+            ->with(['uploader', 'items' => fn ($items) => $items->orderBy('row_number')])
             ->withCount('items')
             ->withSum('items', 'amount_centavos')
             ->withSum('items', 'quantity_ordered')
@@ -114,12 +115,31 @@ final class SalesReport
                 'order_number' => $order->order_number,
                 'date_ordered' => $order->date_ordered->toDateString(),
                 'items_count' => (int) $order->getAttribute('items_count'),
+                // "STI Varsity Hoodie", or "BSIT Polo and 3 more".
+                'items_label' => self::itemsLabel($order),
                 'total_centavos' => self::orderTotal($order),
                 'uploaded_by' => $order->uploader->name,
+                'delivery_status' => $order->delivery_status->value,
+                'delivery_status_label' => $order->delivery_status->label(),
                 'quantity_ordered' => (int) $order->getAttribute('items_sum_quantity_ordered'),
                 // How much was for buyers' preorders; null on POs saved before this was tracked.
                 'preorder_quantity' => (int) $order->getAttribute('untracked_items_count') > 0 ? null : (int) $order->getAttribute('items_sum_preorder_quantity'),
             ]);
+    }
+
+    /**
+     * A PO's items in words: the first item's name, and how many more.
+     */
+    private static function itemsLabel(PurchaseOrder $order): string
+    {
+        $first = $order->items->first();
+        $more = $order->items->count() - 1;
+
+        if ($first === null) {
+            return 'No items';
+        }
+
+        return $more > 0 ? "{$first->description} and {$more} more" : $first->description;
     }
 
     /**

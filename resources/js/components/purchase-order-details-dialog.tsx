@@ -38,14 +38,19 @@ type Tab = 'items' | 'deliveries';
  * The pop-up window with one purchase order, as a back-office record: the
  * order number with its category and the Specialist's actions on top, one
  * row of key facts, then the ordered items and the delivery history in two
- * tabs. The details are loaded when the window opens.
+ * tabs. The details are loaded when the window opens. 
+eadOnly (Sales
+ * Reports) shows the figures only: Stock In and Rest won't arrive stay on
+ * Purchase Orders.
  */
 export default function PurchaseOrderDetailsDialog({
     purchaseOrderId,
     onClose,
+    readOnly = false,
 }: {
     purchaseOrderId: number | null;
     onClose: () => void;
+    readOnly?: boolean;
 }) {
     const { auth } = usePage().props;
     const isSpecialist = auth.user.role === 'specialist';
@@ -139,7 +144,7 @@ export default function PurchaseOrderDetailsDialog({
                         </div>
 
                         <div className="flex shrink-0 items-center gap-2">
-                            {isSpecialist && isOpen && (
+                            {isSpecialist && isOpen && !readOnly && (
                                 <>
                                     <button
                                         type="button"
@@ -321,12 +326,11 @@ export default function PurchaseOrderDetailsDialog({
                                             <span>
                                                 <b>
                                                     Not complete yet · ordered{' '}
-                                                    {details.days_since_ordered}{' '}
                                                     {details.days_since_ordered ===
-                                                    1
-                                                        ? 'day'
-                                                        : 'days'}{' '}
-                                                    ago.
+                                                    0
+                                                        ? 'today'
+                                                        : `${details.days_since_ordered} ${details.days_since_ordered === 1 ? 'day' : 'days'} ago`}
+                                                    .
                                                 </b>{' '}
                                                 Head Office gives no delivery
                                                 date; ask them if it takes too
@@ -508,6 +512,7 @@ function ItemsTable({ details }: { details: PurchaseOrderDetails }) {
                             </NumberCell>
                             <NumberCell className="text-slate-600">
                                 {formatPeso(item.unit_price_centavos)}
+                                <UnitPriceChange item={item} />
                             </NumberCell>
                             <NumberCell className="font-black text-slate-900">
                                 {formatPeso(item.amount_centavos)}
@@ -988,5 +993,31 @@ function NumberCell({
         >
             {children}
         </td>
+    );
+}
+
+/**
+ * Head Office's price for this item against the eStore order before it, in
+ * plain words: "₱620.00 → ₱650.00" (dearer in red, cheaper in green).
+ * Nothing on its first order or when the price stayed the same.
+ */
+function UnitPriceChange({ item }: { item: PurchaseOrderItemDetails }) {
+    const before = item.previous_unit_price_centavos;
+
+    if (before === null || before === item.unit_price_centavos) {
+        return null;
+    }
+
+    return (
+        <span
+            className={cn(
+                'block text-xs font-black whitespace-nowrap',
+                item.unit_price_centavos > before
+                    ? 'text-red-700'
+                    : 'text-emerald-700',
+            )}
+        >
+            {formatPeso(before)} → {formatPeso(item.unit_price_centavos)}
+        </span>
     );
 }

@@ -279,6 +279,15 @@ class PurchaseOrderController extends Controller
             ->get();
 
         $linkedVariants = LinkedItems::variantsByCode($purchaseOrder->items->pluck('item_code')->all());
+        // Each item's Unit Price on the eStore order before this one (uploaded
+        // earlier), to show "₱620.00 → ₱650.00" when Head Office changed it.
+        $earlierItems = PurchaseOrderItem::query()
+            ->whereIn('item_code', $purchaseOrder->items->pluck('item_code'))
+            ->where('purchase_order_id', '!=', $purchaseOrder->id)
+            ->where('id', '<', (int) $purchaseOrder->items->max('id'))
+            ->orderByDesc('id')
+            ->get(['id', 'item_code', 'unit_price_centavos'])
+            ->groupBy('item_code');
         $lastDeliveryAt = $deliveries->max('created_at');
         $completedAt = match ($purchaseOrder->delivery_status) {
             DeliveryStatus::Completed => $lastDeliveryAt,
@@ -325,6 +334,8 @@ class PurchaseOrderController extends Controller
                 'preorder_quantity' => $item->preorder_quantity,
                 'own_quantity' => $item->preorder_quantity === null ? null : $item->quantity_ordered - $item->preorder_quantity,
                 'unit_price_centavos' => $item->unit_price_centavos,
+                // Null on the item's first eStore order.
+                'previous_unit_price_centavos' => $earlierItems->get($item->item_code)?->first(fn (PurchaseOrderItem $earlier): bool => $earlier->id < $item->id)?->unit_price_centavos,
                 'amount_centavos' => $item->amount_centavos,
                 'stock_target' => $linkedVariants->has($item->item_code) ? LinkedItems::target($linkedVariants->get($item->item_code)) : null,
             ])->all(),

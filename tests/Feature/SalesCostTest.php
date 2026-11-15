@@ -172,6 +172,9 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
     $this->get(route('sales-reports.index', ['tab' => 'spent']))->assertInertia(fn (Assert $page) => $page
         ->where('spent.data.0.total_centavos', 200000)
         ->where('spent.data.0.items_count', 1)
+        ->where('spent.data.0.items_label', 'STI Jacket')
+        ->where('spent.data.0.delivery_status', 'completed')
+        ->where('spent.data.0.delivery_status_label', 'Completed')
         ->where('sold', null));
 
     // Best sellers: the Jacket's sales at both prices are one product, counted in pieces.

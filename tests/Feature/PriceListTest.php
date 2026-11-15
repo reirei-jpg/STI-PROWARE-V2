@@ -142,3 +142,27 @@ test('a product\'s sizes are one row on What we sold; View Details has each size
                     ['31001', 20000, null],
                 ])));
 });
+
+test('a PO\'s details show each item\'s price on the eStore order before it, and What we spent names what was bought', function () {
+    orderedAt('MTT01-001', 20000, '31001', '2026-10-01');
+    $later = PurchaseOrder::factory()
+        ->withItems([
+            ['item_code' => 'MTT01-001', 'description' => 'STI Thermal Tumbler', 'quantity_ordered' => 10, 'unit_price_centavos' => 25000, 'amount_centavos' => 250000],
+            ['item_code' => 'MLY01-001', 'description' => 'STI Lanyard', 'quantity_ordered' => 5, 'unit_price_centavos' => 40000, 'amount_centavos' => 200000],
+        ])
+        ->create(['order_number' => '31002', 'date_ordered' => '2026-11-01']);
+    $this->actingAs($this->specialist);
+
+    $this->getJson(route('purchase-orders.show', $later))
+        ->assertJsonPath('items.0.unit_price_centavos', 25000)
+        // "₱200.00 → ₱250.00"
+        ->assertJsonPath('items.0.previous_unit_price_centavos', 20000)
+        // Its first eStore order.
+        ->assertJsonPath('items.1.previous_unit_price_centavos', null);
+
+    $this->get(route('sales-reports.index', ['tab' => 'spent']))->assertInertia(fn (Assert $page) => $page
+        ->where('spent.data.0.order_number', '31002')
+        ->where('spent.data.0.items_label', 'STI Thermal Tumbler and 1 more')
+        ->where('spent.data.0.delivery_status', 'awaiting')
+        ->where('spent.data.0.delivery_status_label', 'Awaiting Delivery'));
+});

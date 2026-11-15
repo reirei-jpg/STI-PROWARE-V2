@@ -58,6 +58,8 @@ export type PurchaseOrderItemDetails = {
     /** The Specialist's own order (ordered − preorders); null when not tracked. */
     own_quantity: number | null;
     unit_price_centavos: number;
+    /** Its Unit Price on the eStore order before; null on its first order. */
+    previous_unit_price_centavos: number | null;
     amount_centavos: number;
     /** The product its deliveries go into; null while not linked. */
     stock_target: StockTarget | null;

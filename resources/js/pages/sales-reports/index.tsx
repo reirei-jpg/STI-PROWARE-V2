@@ -451,9 +451,19 @@ function Empty({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
     );
 }
 
+/** The V1 colors: amber waiting, blue in progress, green done, red short. */
+const spentStatusClasses: Record<SpentRow['delivery_status'], string> = {
+    awaiting: 'bg-amber-100 text-amber-800',
+    partially_received: 'bg-blue-100 text-blue-700',
+    completed: 'bg-emerald-100 text-emerald-700',
+    completed_short: 'bg-red-100 text-red-700',
+};
+
 /**
- * 1. The uploaded eStore orders of the period: how much of each was ordered
- * for buyers' preorders, and a click opens the order with its items.
+ * 1. The uploaded eStore orders of the period: what was bought, whether it
+ * arrived, how much was for buyers' preorders and what it cost. A click
+ * opens the order with its items (to read only: Stock In is on Purchase
+ * Orders).
  */
 function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
     const [viewingId, setViewingId] = useState<number | null>(null);
@@ -469,14 +479,16 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
             <PurchaseOrderDetailsDialog
                 purchaseOrderId={viewingId}
                 onClose={() => setViewingId(null)}
+                readOnly
             />
             <TableScroll>
-                <table className="w-full min-w-220">
+                <table className="w-full min-w-240">
                     <thead className="bg-slate-50">
                         <tr>
                             <TableHeading>Order #</TableHeading>
                             <TableHeading>Date ordered</TableHeading>
-                            <TableHeading align="right">Items</TableHeading>
+                            <TableHeading>Items</TableHeading>
+                            <TableHeading>Status</TableHeading>
                             <TableHeading align="right">Preorders</TableHeading>
                             <TableHeading align="right">Amount</TableHeading>
                             <TableHeading>Uploaded by</TableHeading>
@@ -500,13 +512,28 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                                 <td className="px-5 py-4 text-slate-700">
                                     {formatDateOrdered(row.date_ordered)}
                                 </td>
-                                <td className="px-5 py-4 text-right text-slate-700">
-                                    {row.items_count}
+                                <td className="max-w-64 px-5 py-4 font-semibold text-slate-800">
+                                    {row.items_label}
+                                </td>
+                                <td className="px-5 py-4">
+                                    <span
+                                        className={cn(
+                                            'inline-flex rounded-full px-2.5 py-1 text-xs font-black whitespace-nowrap',
+                                            spentStatusClasses[
+                                                row.delivery_status
+                                            ],
+                                        )}
+                                    >
+                                        {row.delivery_status_label}
+                                    </span>
                                 </td>
                                 <td className="px-5 py-4 text-right whitespace-nowrap">
                                     {row.preorder_quantity === null ? (
-                                        <span className="text-xs font-semibold text-slate-400">
-                                            Not tracked
+                                        <span
+                                            className="font-black text-slate-300"
+                                            title="Ordered before preorders were counted"
+                                        >
+                                            —
                                         </span>
                                     ) : (
                                         <span
@@ -554,6 +581,11 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                     </tbody>
                 </table>
             </TableScroll>
+            {rows.data.some((row) => row.preorder_quantity === null) && (
+                <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-500">
+                    Preorders "—": ordered before preorders were counted.
+                </p>
+            )}
             <Pagination pagination={rows} itemName="orders" />
         </>
     );
@@ -786,13 +818,12 @@ function SoldProductRow({
                                     per piece
                                 </p>
                             )}
-                        <p className="text-xs whitespace-nowrap text-slate-500">
-                            PO #{row.estore_order_number}
+                        <p>
+                            <PriceChange
+                                current={row.estore_unit_price_centavos}
+                                change={row.estore_change_centavos}
+                            />
                         </p>
-                        <PriceChange
-                            change={row.estore_change_centavos}
-                            since={row.estore_previous_order_number}
-                        />
                     </>
                 )}
             </td>
@@ -1308,26 +1339,25 @@ function priceRange(from: number | null, to: number | null): string {
 }
 
 /**
- * How Head Office's price moved from the order before: dearer in red,
- * cheaper in green.
+ * How Head Office's price moved from the order before, in plain words:
+ * "₱620.00 → ₱650.00", dearer in red, cheaper in green.
  */
 function PriceChange({
+    current,
     change,
-    since,
 }: {
+    current: number;
+    /** Up or down from the order before; null on the first order. */
     change: number | null;
-    since: string | null;
 }) {
     if (change === null) {
-        return (
-            <span className="text-xs text-slate-400">First eStore order</span>
-        );
+        return <span className="text-xs text-slate-400">First order</span>;
     }
 
     if (change === 0) {
         return (
             <span className="text-xs font-semibold text-slate-500">
-                Same as PO #{since}
+                Same price as before
             </span>
         );
     }
@@ -1335,18 +1365,14 @@ function PriceChange({
     return (
         <span
             className={cn(
-                'text-sm font-black',
+                'text-xs font-black whitespace-nowrap',
                 change > 0 ? 'text-red-700' : 'text-emerald-700',
             )}
         >
-            {change > 0 ? '↑' : '↓'} {formatPeso(Math.abs(change))}
-            <span className="block text-xs font-semibold text-slate-500">
-                since PO #{since}
-            </span>
+            {formatPeso(current - change)} → {formatPeso(current)}
         </span>
     );
 }
-
 /**
  * A product's View Details on What we sold: each size or color at each
  * price it sold for (with Set cost when a Cost is missing), and what Head
@@ -1538,29 +1564,10 @@ function EstoreOrders({ history }: { history: PriceHistory }) {
                                 {formatPeso(order.cost_per_piece_centavos)}
                             </td>
                             <td className="px-5 py-3 text-right whitespace-nowrap">
-                                {order.change_centavos === null ? (
-                                    <span className="text-xs text-slate-400">
-                                        First order
-                                    </span>
-                                ) : order.change_centavos === 0 ? (
-                                    <span className="text-xs font-semibold text-slate-500">
-                                        Same
-                                    </span>
-                                ) : (
-                                    <span
-                                        className={cn(
-                                            'font-black',
-                                            order.change_centavos > 0
-                                                ? 'text-red-700'
-                                                : 'text-emerald-700',
-                                        )}
-                                    >
-                                        {order.change_centavos > 0 ? '↑' : '↓'}{' '}
-                                        {formatPeso(
-                                            Math.abs(order.change_centavos),
-                                        )}
-                                    </span>
-                                )}
+                                <PriceChange
+                                    current={order.unit_price_centavos}
+                                    change={order.change_centavos}
+                                />
                             </td>
                         </tr>
                     ))}

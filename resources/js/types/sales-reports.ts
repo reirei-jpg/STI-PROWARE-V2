@@ -35,8 +35,16 @@ export type SpentRow = {
     order_number: string | null;
     date_ordered: string;
     items_count: number;
+    /** "STI Varsity Hoodie", or "BSIT Polo and 3 more". */
+    items_label: string;
     total_centavos: number;
     uploaded_by: string;
+    delivery_status:
+        | 'awaiting'
+        | 'partially_received'
+        | 'completed'
+        | 'completed_short';
+    delivery_status_label: string;
     /** All the quantities ordered, as on the eStore order. */
     quantity_ordered: number;
     /** How much of it was for buyers' preorders; null on POs saved before this was tracked. */
