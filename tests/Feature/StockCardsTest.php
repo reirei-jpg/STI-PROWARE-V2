@@ -63,6 +63,17 @@ test('the dashboard shows low stock, this month\'s best sellers, and the items r
         ->assertJsonPath('stock_cards.low_stock.count', 2);
 });
 
+test('a low item with sizes names the sizes that are low, not its total', function () {
+    $hat = Product::factory()->create(['name' => 'STI Bucket Hat', 'status' => ProductStatus::Available, 'low_stock_alert_at' => 3]);
+    ProductVariant::factory()->for($hat)->create(['combination' => 'Size: S/M', 'choices' => [['option' => 'Size', 'choice' => 'S/M']], 'stock_on_hand' => 1]);
+    ProductVariant::factory()->for($hat)->create(['combination' => 'Size: L/XL', 'choices' => [['option' => 'Size', 'choice' => 'L/XL']], 'stock_on_hand' => 4]);
+    ProductVariant::factory()->for($hat)->create(['combination' => 'Size: XXL', 'choices' => [['option' => 'Size', 'choice' => 'XXL']], 'stock_on_hand' => 0]);
+
+    $this->actingAs($this->specialist)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('stockCards.low_stock.items.0.pieces_left', 5)
+        ->where('stockCards.low_stock.items.0.low_sizes', 'XXL: none left, S/M: 1 pc left'));
+});
+
 test('the number of preorders before ordering is set on Maintenance', function () {
     comingSoonHoodie(12);
     $this->actingAs($this->specialist);

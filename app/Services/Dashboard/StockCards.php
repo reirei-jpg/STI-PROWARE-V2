@@ -10,6 +10,7 @@ use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Services\Preorders\PaymentDates;
 use App\Services\Reports\SalesReport;
+use App\Services\Stock\Units;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +29,7 @@ use Illuminate\Validation\ValidationException;
  * - Top buyers: who spent the most in the last 3 months, and telling them
  *   about a product in stock (TopBuyers).
  *
- * @phpstan-type LowStockRow array{product_id: int, product_name: string, pieces_left: int, out_of_stock: bool, warn_at: int}
+ * @phpstan-type LowStockRow array{product_id: int, product_name: string, pieces_left: int, out_of_stock: bool, warn_at: int, low_sizes: string|null}
  * @phpstan-type BestSellerRow array{product_id: int, product_name: string, pieces: int}
  * @phpstan-type ReadyRow array{product_id: int, product_name: string, pieces: int, preorders_close_on: string|null}
  */
@@ -82,11 +83,33 @@ final class StockCards
                 'pieces_left' => (int) $product->variants->sum(fn (ProductVariant $variant): int => $variant->freeToSell()),
                 'out_of_stock' => $product->variants->every(fn (ProductVariant $variant): bool => $variant->freeToSell() === 0),
                 'warn_at' => $product->low_stock_alert_at,
+                'low_sizes' => self::lowSizes($product),
             ])
             ->sortBy([['pieces_left', 'asc'], ['product_name', 'asc']])
             ->values();
 
         return ['count' => $products->count(), 'items' => array_values($products->take(self::SHOWN)->all())];
+    }
+
+    /**
+     * The sizes or colors that are low, lowest first: "S/M: 1 pc left,
+     * A5: none left". Null for a product without options.
+     */
+    private static function lowSizes(Product $product): ?string
+    {
+        $low = $product->variants
+            ->filter(fn (ProductVariant $variant): bool => $variant->choices !== [] && $variant->freeToSell() <= $product->low_stock_alert_at)
+            ->sortBy(fn (ProductVariant $variant): int => $variant->freeToSell())
+            ->map(fn (ProductVariant $variant): string => $variant->label().': '.($variant->freeToSell() === 0 ? 'none left' : Units::count($variant->freeToSell(), 'Piece').' left'))
+            ->values();
+
+        if ($low->isEmpty()) {
+            return null;
+        }
+
+        $more = $low->count() - 3;
+
+        return $low->take(3)->implode(', ').($more > 0 ? " and {$more} more" : '');
     }
 
     /**

@@ -505,7 +505,7 @@ export type SpecialistTasks = {
 export type StockCardsData = {
     low_stock: {
         count: number;
-        items: { product_id: number; product_name: string; pieces_left: number; out_of_stock: boolean; warn_at: number }[];
+        items: { product_id: number; product_name: string; pieces_left: number; out_of_stock: boolean; warn_at: number; low_sizes?: string | null }[];
     };
     best_sellers: { from: string; items: { product_id: number; product_name: string; pieces: number }[] };
     ready_to_order: {

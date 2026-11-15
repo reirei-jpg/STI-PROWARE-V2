@@ -251,7 +251,7 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                                 >
                                     {item.out_of_stock
                                         ? 'Out of stock'
-                                        : `${formatUnits(item.pieces_left, 'Piece')} left · warned at ${formatUnits(item.warn_at, 'Piece')}`}
+                                        : `${item.low_sizes ?? `${formatUnits(item.pieces_left, 'Piece')} left`} · warned at ${formatUnits(item.warn_at, 'Piece')}`}
                                 </Text>
                             </Pressable>
                         ))}

@@ -44,6 +44,8 @@ export type StockCardsData = {
             pieces_left: number;
             out_of_stock: boolean;
             warn_at: number;
+            /** The low sizes or colors: "S/M: 1 pc left, A5: none left". */
+            low_sizes: string | null;
         }[];
     };
     best_sellers: {
@@ -362,7 +364,7 @@ function LowStockList({ data }: { data: StockCardsData }) {
                                     >
                                         {item.out_of_stock
                                             ? 'Out of stock'
-                                            : `${formatUnits(item.pieces_left, 'Piece')} left · warned at ${formatUnits(item.warn_at, 'Piece')}`}
+                                            : `${item.low_sizes ?? `${formatUnits(item.pieces_left, 'Piece')} left`} · warned at ${formatUnits(item.warn_at, 'Piece')}`}
                                     </p>
                                 </div>
                                 <Link
