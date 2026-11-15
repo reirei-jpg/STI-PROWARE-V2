@@ -279,6 +279,29 @@ export type PurchaseOrderReminderData = {
     reminded_by: string;
 };
 
+/** Your own account was locked after 5 wrong passwords. */
+export type AccountLockedData = {
+    kind: 'account_locked';
+    locked_until: string;
+};
+
+/** Someone's account to unlock: a buyer's (Specialist) or the Specialist's (School Admin). */
+export type AccountLockedStaffData = {
+    kind: 'account_locked_staff';
+    user_id: number;
+    name: string;
+    email: string;
+    locked_until: string;
+    /** From 3, someone may be guessing the password. */
+    locks_today: number;
+};
+
+/** Your account was signed in on a phone. */
+export type PhoneSignedInData = {
+    kind: 'phone_signed_in';
+    device_name: string;
+    signed_in_at: string;
+};
 export type PurchaseOrderClosedShortData = {
     kind: 'purchase_order_closed_short';
     purchase_order_id: number;
@@ -320,7 +343,10 @@ export type StaffNotification = {
         | PurchaseOrderCompletedData
         | PurchaseOrderLateData
         | PurchaseOrderReminderData
-        | PurchaseOrderClosedShortData;
+        | PurchaseOrderClosedShortData
+        | AccountLockedData
+        | AccountLockedStaffData
+        | PhoneSignedInData;
     read: boolean;
     created_at: string | null;
 };

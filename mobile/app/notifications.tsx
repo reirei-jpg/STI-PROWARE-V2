@@ -3,6 +3,7 @@ import { ArrowLeft, Bell, CheckCheck } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Pressable,
     RefreshControl,
@@ -13,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
+import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import { noticeTarget } from '@/lib/notice-target';
@@ -188,7 +190,28 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
+        case 'account_locked':
+            return {
+                title: 'Your account was locked',
+                body: `5 wrong passwords were typed for your account, so it is locked until ${formatDateTime(data.locked_until)}. If this was not you, change your password.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
+        case 'phone_signed_in':
+            return {
+                title: 'New sign-in on a phone',
+                body: `Your account was signed in on a phone (${data.device_name}) on ${formatDateTime(data.signed_in_at)}. If this was not you, change your password.`,
+                titleClass: 'text-blue-800',
+                stripe: '#3b82f6',
+            };
         // The Specialist's notices, in the bell's words.
+        case 'account_locked_staff':
+            return {
+                title: `Account locked: ${data.name}`,
+                body: `5 wrong passwords in a row. Locked until ${formatDateTime(data.locked_until)}.${data.locks_today >= 3 ? ` Locked ${data.locks_today} times today: someone may be guessing the password.` : ''} Tap to unlock it if they ask you.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
         case 'order_placed':
             return {
                 title: `New order ${data.order_number}`,
@@ -270,11 +293,41 @@ export default function NotificationsScreen() {
                 .catch(() => undefined);
         }
 
-        const target = noticeTarget(notice.data);
+        // A locked buyer: unlock it here, after a check, when they ask.
+        if (notice.data.kind === 'account_locked_staff') {
+            askUnlock(notice.data.user_id, notice.data.name);
 
+            return;
+        }
+
+        const target = noticeTarget(notice.data);
         if (target) {
             router.push(target);
         }
+    };
+
+    const askUnlock = (userId: number, name: string): void => {
+        Alert.alert(`Unlock ${name}'s account?`, `Check that you are talking to ${name} first. They can sign in right away.`, [
+            { text: 'Keep locked', style: 'cancel' },
+            {
+                text: 'Unlock',
+                onPress: async () => {
+                    try {
+                        const result = await request<{ unlocked: boolean; message: string }>(
+                            `/specialist/locked-accounts/${userId}/unlock`,
+                            { method: 'POST' },
+                        );
+
+                        Alert.alert(result.unlocked ? 'Account unlocked' : 'Not locked', result.message);
+                    } catch (caught) {
+                        Alert.alert(
+                            'Not unlocked',
+                            caught instanceof ApiError ? caught.message : 'The account could not be unlocked. Try again.',
+                        );
+                    }
+                },
+            },
+        ]);
     };
 
     const markAllRead = async (): Promise<void> => {

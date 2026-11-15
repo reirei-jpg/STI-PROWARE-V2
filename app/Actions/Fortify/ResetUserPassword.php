@@ -5,6 +5,7 @@ namespace App\Actions\Fortify;
 use App\Concerns\PasswordValidationRules;
 use App\Models\User;
 use App\Services\Auth\SignInLock;
+use App\Services\Auth\SignOutOtherDevices;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 
@@ -27,7 +28,9 @@ class ResetUserPassword implements ResetsUserPasswords
             'password' => $input['password'],
         ])->save();
 
-        // A new password ends a lock from wrong passwords.
+        // A new password ends a lock from wrong passwords, and whoever knew
+        // the old one is signed out everywhere.
         SignInLock::clear($user);
+        SignOutOtherDevices::handle($user);
     }
 }

@@ -5,6 +5,7 @@ import {
     Gift,
     History,
     LoaderCircle,
+    LockKeyhole,
     PackageCheck,
     Save,
     UserPlus,
@@ -13,6 +14,7 @@ import {
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
+import LockedAccounts from '@/components/locked-accounts';
 import PageHeader from '@/components/page-header';
 import Panel from '@/components/panel';
 import { useState } from 'react';
@@ -20,6 +22,7 @@ import type { ReactNode } from 'react';
 import { formatDateTime } from '@/lib/format';
 import { wholeNumberInput } from '@/lib/number-input';
 import { cn } from '@/lib/utils';
+import type { LockedAccount } from '@/types';
 
 type NumberSetting = {
     value: number;
@@ -65,12 +68,14 @@ export default function Maintenance({
     mostPerItem,
     buyersAllowedMore,
     preordersBeforeOrdering,
+    lockedAccounts,
 }: {
     followUpDays: ChoiceSetting;
     promoGroupSize: NumberSetting;
     mostPerItem: LimitSetting;
     buyersAllowedMore: BuyerAllowedMore[];
     preordersBeforeOrdering: LimitSetting;
+    lockedAccounts: LockedAccount[];
 }) {
     return (
         <>
@@ -106,6 +111,27 @@ export default function Maintenance({
                     description="How purchase orders from Head Office are followed up."
                 >
                     <FollowUpDaysSetting setting={followUpDays} />
+                </Panel>
+
+                <Panel
+                    title="Sign-in"
+                    description="Buyer accounts locked after 5 wrong passwords in a row."
+                >
+                    <div className="space-y-3 px-6 py-6">
+                        <h3 className="flex items-center gap-2 font-black text-slate-900">
+                            <LockKeyhole size={19} className="text-red-600" />
+                            Locked accounts
+                        </h3>
+                        <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                            A locked account opens by itself after 15 minutes.
+                            If the buyer asks you, you can unlock it now. Check
+                            that you are talking to the buyer first.
+                        </p>
+                        <LockedAccounts
+                            accounts={lockedAccounts}
+                            emptyText="No account is locked."
+                        />
+                    </div>
                 </Panel>
 
                 <Panel

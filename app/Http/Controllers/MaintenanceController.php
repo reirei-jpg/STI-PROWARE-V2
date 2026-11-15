@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Auth\SignInLock;
 use App\Services\Dashboard\StockCards;
 use App\Services\Deliveries\FollowUp;
 use App\Services\FreeUniforms\PromoRules;
@@ -24,7 +25,7 @@ use Inertia\Response;
  */
 class MaintenanceController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         return Inertia::render('maintenance/index', [
             'followUpDays' => [
@@ -39,6 +40,8 @@ class MaintenanceController extends Controller
                 'default' => BuyerLimit::DEFAULT,
                 ...Setting::lastChange(Setting::MOST_PER_ITEM),
             ],
+            // Buyers locked after 5 wrong passwords: unlocked here once it is surely them asking.
+            'lockedAccounts' => SignInLock::lockedFor($request->user()),
             'buyersAllowedMore' => User::query()
                 ->whereNotNull('most_per_item')
                 ->orderBy('name')

@@ -34,7 +34,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import type { Auth } from '@/types';
+import type { Auth, LockedAccount } from '@/types';
 
 type Task = {
     key: string;
@@ -98,6 +98,7 @@ export default function Dashboard({
     overview,
     orderCards,
     stockCards,
+    lockedAccounts,
 }: {
     tasks: SpecialistTasks | null;
     overview: SchoolAdminOverviewData | null;
@@ -105,6 +106,8 @@ export default function Dashboard({
     orderCards: OrderCardsData | null;
     /** Low stock, best sellers and ready to order; null for the School Admin. */
     stockCards: StockCardsData | null;
+    /** For the School Admin: the Specialist's account when locked. */
+    lockedAccounts: LockedAccount[];
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const firstName = auth.user.name.split(' ')[0];
@@ -121,7 +124,11 @@ export default function Dashboard({
 
     if (tasks === null) {
         return overview === null ? null : (
-            <SchoolAdminOverview firstName={firstName} overview={overview} />
+            <SchoolAdminOverview
+                firstName={firstName}
+                overview={overview}
+                lockedAccounts={lockedAccounts}
+            />
         );
     }
 

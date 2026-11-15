@@ -412,7 +412,19 @@ export type StudentNotificationData =
     | { kind: 'ordering_resumed' }
     // Too many orders expired: ordering is paused until paused_until.
     | { kind: 'ordering_paused'; paused_until: string; expired_orders: number }
-    // The Specialist's notices.
+    // Sign-in: the owner's account was locked after 5 wrong passwords, or
+    // signed in on a phone.
+    | { kind: 'account_locked'; locked_until: string }
+    | { kind: 'phone_signed_in'; device_name: string; signed_in_at: string }
+    // The Specialist's notice that a buyer's account was locked.
+    | {
+          kind: 'account_locked_staff';
+          user_id: number;
+          name: string;
+          email: string;
+          locked_until: string;
+          locks_today: number;
+      }    // The Specialist's notices.
     | {
           kind: 'order_cancelled_by_student';
           order_id: number;

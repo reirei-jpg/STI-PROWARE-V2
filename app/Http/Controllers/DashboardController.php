@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Requests\FilterAdminDashboardRequest;
+use App\Services\Auth\SignInLock;
 use App\Services\Dashboard\SchoolAdminOverview;
 use App\Services\Dashboard\SpecialistTasks;
 use App\Services\Dashboard\StockCards;
@@ -34,6 +35,8 @@ class DashboardController extends Controller
             'orderCards' => $user?->role === UserRole::Specialist ? SpecialistOrders::dashboardCards() : null,
             'stockCards' => $user?->role === UserRole::Specialist ? $stockCards->all() : null,
             'overview' => $user?->role === UserRole::SchoolAdmin ? $overview->all($request->tab(), $request->search(), $request->period()) : null,
+            // The School Admin unlocks the Specialist's account, locked after 5 wrong passwords.
+            'lockedAccounts' => $user?->role === UserRole::SchoolAdmin ? SignInLock::lockedFor($user) : [],
         ]);
     }
 }

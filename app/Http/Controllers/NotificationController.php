@@ -17,7 +17,9 @@ class NotificationController extends Controller
      * new order, My Orders for the student's order notices, the item on the
      * storefront when a preorder arrived or the Specialist announced it, My Preorders when a preorder was
      * closed, the product on Preorders (Waiting for restock) for a new
-     * preorder of a sold-out size, otherwise the purchase order with its
+     * preorder of a sold-out size, the password page for a sign-in notice
+     * of your own account, the locked accounts to unlock (Maintenance, or
+     * the School Admin's Dashboard), otherwise the purchase order with its
      * details window already open.
      */
     public function open(Request $request, string $notification): RedirectResponse
@@ -36,6 +38,10 @@ class NotificationController extends Controller
             'preorder_not_paid' => to_route('my-preorders.index'),
             'preorder_placed' => to_route('preorders.index', ['stage' => 'sold_out', 'search' => $notification->data['product_name']]),
             'ordering_resumed' => to_route('home'),
+            // Your own account: change the password if it was not you.
+            'account_locked', 'phone_signed_in' => to_route('security.edit'),
+            // Someone else's account to unlock: Maintenance for the Specialist, the Dashboard for the School Admin.
+            'account_locked_staff' => $request->user()->isSchoolAdmin() ? to_route('dashboard') : to_route('maintenance.index'),
             default => to_route('purchase-orders.index', ['view' => $notification->data['purchase_order_id'] ?? null]),
         };
     }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PreorderController;
 use App\Http\Controllers\Api\V1\Specialist\DeliveryController;
+use App\Http\Controllers\Api\V1\Specialist\LockedAccountController;
 use App\Http\Controllers\Api\V1\Specialist\OrderController as SpecialistOrderController;
 use App\Http\Controllers\Api\V1\Specialist\ProductAnnouncementController;
 use App\Http\Controllers\Api\V1\Specialist\ReadyToOrderController;
@@ -73,6 +74,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('orders/{order}', [SpecialistOrderController::class, 'show'])->name('orders.show');
         Route::get('slips/{code}', [SpecialistOrderController::class, 'slip'])->name('slips.show');
         Route::post('preorder-slips/{preorderSlip}/paid', [SpecialistOrderController::class, 'preorderPaid'])->name('preorder-slips.paid');
+        Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
         Route::post('preorder-slips/{preorderSlip}/release', [SpecialistOrderController::class, 'preorderRelease'])->name('preorder-slips.release');
         Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');
         Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');

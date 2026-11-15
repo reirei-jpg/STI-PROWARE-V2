@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\AppLoginRequest;
 use App\Models\User;
+use App\Notifications\PhoneSignedIn;
 use App\Providers\FortifyServiceProvider;
 use App\Services\Auth\SignInLock;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +48,9 @@ class AuthController extends Controller
         if (! $user->hasVerifiedEmail()) {
             throw ValidationException::withMessages(['email' => 'Verify your email on the PROWARE website first, then sign in here.']);
         }
+
+        // The owner's other phones (and the bell) are told, in case it was not them.
+        $user->notify(new PhoneSignedIn($request->string('device_name')->value(), now()));
 
         return response()->json([
             'token' => $user->createToken($request->string('device_name')->value())->plainTextToken,

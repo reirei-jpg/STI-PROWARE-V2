@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
+use App\Services\Auth\SignOutOtherDevices;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
@@ -34,7 +35,10 @@ class SecurityController extends Controller
             'password' => $request->password,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Your password has been changed. Use the new password the next time you sign in.']);
+        // Whoever knew the old password is signed out: other browsers and every phone.
+        SignOutOtherDevices::handle($request->user(), $request->session()->getId());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Your password has been changed. You were signed out on every other device and phone.']);
 
         return back();
     }

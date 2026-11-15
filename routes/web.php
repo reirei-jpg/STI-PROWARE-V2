@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\FreeUniformController;
 use App\Http\Controllers\ItemLinkController;
+use App\Http\Controllers\LockedAccountController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -61,6 +62,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
         Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
+        // The Specialist unlocks buyers, the School Admin the Specialist (SignInLock::canUnlock).
+        Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
     });
 
     Route::middleware('role:school_admin')->group(function () {

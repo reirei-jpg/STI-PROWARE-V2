@@ -21,3 +21,15 @@ export type User = {
 export type Auth = {
     user: User;
 };
+
+/** An account locked after 5 wrong passwords, that the signed-in staff may unlock. */
+export type LockedAccount = {
+    id: number;
+    name: string;
+    email: string;
+    /** "Student", "STI Staff", "PROWARE Specialist"… */
+    role_label: string;
+    locked_until: string;
+    /** From 3, someone may be guessing the password. */
+    locks_today: number;
+};

@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Responses\PasswordResetLinkResponse;
 use App\Models\User;
 use App\Services\Auth\SignInLock;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -17,9 +19,12 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\SuccessfulPasswordResetLinkRequestResponse;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Http\Requests\LoginRequest as FortifyLoginRequest;
+use Laravel\Fortify\Http\Requests\SendPasswordResetLinkRequest;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -33,6 +38,12 @@ class FortifyServiceProvider extends ServiceProvider
     {
         // The login form with PROWARE's words for empty boxes.
         $this->app->bind(FortifyLoginRequest::class, LoginRequest::class);
+
+        // Forgot password: PROWARE's words, and the same answer whether or not
+        // the email has an account.
+        $this->app->bind(SendPasswordResetLinkRequest::class, ForgotPasswordRequest::class);
+        $this->app->bind(SuccessfulPasswordResetLinkRequestResponse::class, PasswordResetLinkResponse::class);
+        $this->app->bind(FailedPasswordResetLinkRequestResponse::class, PasswordResetLinkResponse::class);
     }
 
     /**

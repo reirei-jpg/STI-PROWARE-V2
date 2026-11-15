@@ -523,6 +523,57 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'account_locked') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Your account was locked
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    5 wrong passwords were typed for your account, so it is
+                    locked until {formatDateTime(data.locked_until)}. If this
+                    was not you, change your password.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'account_locked_staff') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Account locked: {data.name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    5 wrong passwords in a row. Locked until{' '}
+                    {formatDateTime(data.locked_until)}.
+                    {data.locks_today >= 3 && (
+                        <span className="font-bold text-red-700">
+                            {' '}
+                            Locked {data.locks_today} times today: someone may
+                            be guessing the password.
+                        </span>
+                    )}
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'phone_signed_in') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-blue-800">
+                    New sign-in on a phone
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Your account was signed in on a phone ({data.device_name})
+                    on {formatDateTime(data.signed_in_at)}. If this was not you,
+                    change your password.
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'ordering_resumed') {
         return (
             <>

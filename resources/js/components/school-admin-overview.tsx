@@ -1,6 +1,14 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { CircleAlert, Eye, Search, SearchX, X } from 'lucide-react';
+import {
+    CircleAlert,
+    Eye,
+    LockKeyhole,
+    Search,
+    SearchX,
+    X,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import LockedAccounts from '@/components/locked-accounts';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
@@ -9,7 +17,7 @@ import RemindSpecialist from '@/components/remind-specialist';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { cn, isSameSearch } from '@/lib/utils';
 import { dashboard } from '@/routes';
-import type { DeliveryStatus, Paginated } from '@/types';
+import type { DeliveryStatus, LockedAccount, Paginated } from '@/types';
 
 export type AdminDeliveryTab = 'coming' | 'ongoing' | 'completed';
 
@@ -159,9 +167,12 @@ const emptyText: Record<AdminDeliveryTab, string> = {
 export default function SchoolAdminOverview({
     firstName,
     overview,
+    lockedAccounts,
 }: {
     firstName: string;
     overview: SchoolAdminOverviewData;
+    /** The Specialist's account, when locked after 5 wrong passwords. */
+    lockedAccounts: LockedAccount[];
 }) {
     const [viewing, setViewing] = useState<number | null>(null);
     const {
@@ -246,6 +257,25 @@ export default function SchoolAdminOverview({
                     description={`${today} · the eStore orders the Specialist uploaded and what has arrived. View only.`}
                 />
 
+                {lockedAccounts.length > 0 && (
+                    <section className="space-y-3 rounded-3xl border border-red-200 bg-red-50/60 p-5">
+                        <div>
+                            <h2 className="flex items-center gap-2 font-black text-red-800">
+                                <LockKeyhole size={18} />
+                                The Specialist's account is locked
+                            </h2>
+                            <p className="mt-1 text-sm leading-6 text-red-900/80">
+                                5 wrong passwords were typed in a row. It opens
+                                by itself after 15 minutes, or you can unlock it
+                                now if the Specialist asks you.
+                            </p>
+                        </div>
+                        <LockedAccounts
+                            accounts={lockedAccounts}
+                            emptyText={null}
+                        />
+                    </section>
+                )}
                 <Panel
                     title="Stock In"
                     description="Every eStore order the Specialist uploaded, by what has arrived. Open one for its items and Delivery History."
