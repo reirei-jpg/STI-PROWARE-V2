@@ -1,8 +1,8 @@
 export type SalesPeriod = 'all' | 'today' | 'week' | 'month' | 'custom';
 
-export type SalesTab = 'spent' | 'sold' | 'best' | 'free' | 'prices';
+export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
 
-/** Prices: every product, those selling below cost, or those whose eStore price changed. */
+/** What we sold: every product, those sold below cost, or those whose eStore price changed. */
 export type PriceFilter = 'all' | 'below_cost' | 'changed';
 
 /** The numbers at the top for the period. */
@@ -46,10 +46,11 @@ export type SpentRow = {
     preorder_quantity: number | null;
 };
 
-/** One item sold at one price. */
+/** One size or color sold at one price (a product's View Details on What we sold). */
 export type SoldRow = {
     key: string;
     variant_id: number;
+    product_id: number;
     product_name: string;
     variant_label: string | null;
     unit_name: string;
@@ -130,37 +131,66 @@ export type SalesReportFilters = {
     date_from: string;
     date_to: string;
     search: string | null;
-    /** Which products the Prices tab shows. */
+    /** Which products What we sold shows. */
     show: PriceFilter;
 };
 
-/** Prices: one product's eStore price beside what students pay now. */
-export type PriceRow = {
+/** What we sold: one product, all its sizes, colors and prices together. */
+export type SoldProduct = {
     product_id: number;
     product_name: string;
-    item_code: string | null;
-    /** How Head Office sends it: "Piece", "Pack"… */
-    unit_name: string;
-    pieces_per_unit: number;
-    /** Unit Price on its latest eStore order; null when never ordered. */
-    unit_price_centavos: number | null;
-    order_number: string | null;
-    date_ordered: string | null;
-    cost_per_piece_centavos: number | null;
-    /** What students pay for one piece now (lowest and highest size). */
-    price_from_centavos: number | null;
-    price_to_centavos: number | null;
-    on_sale: boolean;
-    /** At the lowest price. */
-    profit_per_piece_centavos: number | null;
-    margin_percent: number | null;
+    /** How many sizes or colors of it sold. */
+    variants_count: number;
+    pieces: number;
+    /** What one piece sold for (lowest and highest). */
+    price_from_centavos: number;
+    price_to_centavos: number;
+    /** "On sale", "Early-bird price": lower prices some of it sold at. */
+    lower_price_labels: string[];
+    price_total_centavos: number;
+    /** Null while none of its sales has a Cost. */
+    cost_total_centavos: number | null;
+    profit_centavos: number | null;
     below_cost: boolean;
-    /** Unit Price now minus on the order before; null with one order. */
-    change_centavos: number | null;
-    previous_order_number: string | null;
-    orders_count: number;
+    loss_centavos: number;
+    missing_cost_lines: number;
+    /** Head Office's price now: its latest eStore order (null: never ordered). */
+    item_code: string | null;
+    estore_unit_price_centavos: number | null;
+    estore_unit_name: string;
+    estore_pieces_per_unit: number;
+    estore_cost_per_piece_centavos: number | null;
+    estore_order_number: string | null;
+    /** Up or down from the order before; null with one order. */
+    estore_change_centavos: number | null;
+    estore_previous_order_number: string | null;
 };
 
+/** A product's View Details on What we sold. */
+export type SoldDetails = {
+    product_id: number;
+    product_name: string;
+    /** Each size or color at each price it sold for. */
+    variants: SoldRow[];
+    /** Every sale in the period, newest first. */
+    sales: {
+        sold_at: string;
+        order_number: string | null;
+        buyer: string;
+        variant_label: string | null;
+        set_name: string | null;
+        unit_name: string;
+        quantity: number;
+        pieces: number;
+        price_each_centavos: number;
+        lower_price_label: string | null;
+        price_total_centavos: number;
+        cost_total_centavos: number | null;
+        profit_centavos: number | null;
+    }[];
+    /** Every eStore order of it; null when the product is gone. */
+    estore: PriceHistory | null;
+};
 /** A product's eStore orders with their Unit Price, newest first. */
 export type PriceHistory = {
     product_id: number;

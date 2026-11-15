@@ -140,19 +140,38 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         ->where('summary.cost_centavos', 5 * 20000)
         ->where('summary.profit_centavos', 185000 - 100000)
         ->where('summary.below_cost_lines', 0)
-        // One row per price: the sale price is its own row.
-        ->where('sold.data.0.price_each_centavos', 35000)
-        ->where('sold.data.0.normal_each_centavos', 40000)
-        ->where('sold.data.0.lower_price_label', 'On sale')
-        ->where('sold.data.0.cost_each_centavos', 20000)
-        ->where('sold.data.0.quantity', 3)
-        ->where('sold.data.0.profit_centavos', 3 * 15000)
-        ->where('sold.data.1.price_each_centavos', 40000)
-        ->where('sold.data.1.normal_each_centavos', null)
-        ->where('sold.data.1.lower_price_label', null)
-        ->where('sold.data.1.profit_centavos', 2 * 20000)
+        // One row per product: both prices together.
+        ->has('sold.data', 1)
+        ->where('sold.data.0.product_name', 'STI Jacket')
+        ->where('sold.data.0.pieces', 5)
+        ->where('sold.data.0.price_from_centavos', 35000)
+        ->where('sold.data.0.price_to_centavos', 40000)
+        ->where('sold.data.0.lower_price_labels', ['On sale'])
+        ->where('sold.data.0.price_total_centavos', 185000)
+        ->where('sold.data.0.cost_total_centavos', 100000)
+        ->where('sold.data.0.profit_centavos', 85000)
         ->where('spent', null)
     );
+
+    // Its View Details: one row per price (the sale price is its own row) and every sale.
+    $this->get(route('sales-reports.index', ['details' => $variant->product_id]))->assertInertia(fn (Assert $page) => $page
+        ->missing('sold_details')
+        ->reloadOnly('sold_details', fn (Assert $reload) => $reload
+            ->where('sold_details.product_name', 'STI Jacket')
+            ->where('sold_details.variants.0.price_each_centavos', 40000)
+            ->where('sold_details.variants.0.normal_each_centavos', null)
+            ->where('sold_details.variants.0.profit_centavos', 2 * 20000)
+            ->where('sold_details.variants.1.price_each_centavos', 35000)
+            ->where('sold_details.variants.1.normal_each_centavos', 40000)
+            ->where('sold_details.variants.1.lower_price_label', 'On sale')
+            ->where('sold_details.variants.1.cost_each_centavos', 20000)
+            ->where('sold_details.variants.1.quantity', 3)
+            ->where('sold_details.variants.1.profit_centavos', 3 * 15000)
+            ->has('sold_details.sales', 2)
+            // Newest sale first: the 3 on sale.
+            ->where('sold_details.sales.0.quantity', 3)
+            ->where('sold_details.sales.0.lower_price_label', 'On sale')
+            ->where('sold_details.sales.1.quantity', 2)));
 
     $this->get(route('sales-reports.index', ['tab' => 'spent']))->assertInertia(fn (Assert $page) => $page
         ->where('spent.data.0.total_centavos', 200000)
@@ -212,6 +231,8 @@ test('an item put on sale below its Cost shows what was lost', function () {
         ->where('summary.profit_centavos', -10000)
         ->where('sold.data.0.below_cost', true)
         ->where('sold.data.0.loss_centavos', 10000));
+
+    $this->get(route('sales-reports.index', ['show' => 'below_cost']))->assertInertia(fn (Assert $page) => $page->has('sold.data', 1));
 });
 
 test('a price set before a dearer eStore order arrived is flagged on Products and the dashboard', function () {
@@ -248,10 +269,11 @@ test('sales from before the normal price was kept join the same row as the same 
     releasedJackets($variant, 2)->items()->update(['normal_unit_price_centavos' => null]);
     releasedJackets($variant, 1);
 
-    $this->actingAs($this->specialist)->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
-        ->has('sold.data', 1)
-        ->where('sold.data.0.quantity', 3)
-        ->where('sold.data.0.normal_each_centavos', null));
+    $this->actingAs($this->specialist)->get(route('sales-reports.index', ['details' => $variant->product_id]))->assertInertia(fn (Assert $page) => $page
+        ->reloadOnly('sold_details', fn (Assert $reload) => $reload
+            ->has('sold_details.variants', 1)
+            ->where('sold_details.variants.0.quantity', 3)
+            ->where('sold_details.variants.0.normal_each_centavos', null)));
 });
 
 test('the Selling Price cannot be set below the Cost on the eStore order', function () {
@@ -383,7 +405,8 @@ test('stock from before deliveries were recorded waits for its price, then its s
 
     $this->actingAs($this->specialist)->get(route('sales-reports.index'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('sold.data.0.cost_each_centavos', null)
+            ->where('sold.data.0.cost_total_centavos', null)
+            ->where('sold.data.0.profit_centavos', null)
             ->where('sold.data.0.missing_cost_lines', 1)
             ->where('summary.missing_cost_lines', 1)
             // Profit is worked out only from sales that have a Cost.

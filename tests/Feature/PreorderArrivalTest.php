@@ -141,9 +141,12 @@ test('the Specialist scans the slip and releases the set-aside pieces at the pri
 
     // Sales Reports calls the early-bird pieces Early-bird price.
     $this->get(route('sales-reports.index', ['period' => 'today']))->assertInertia(fn (Assert $page) => $page
-        ->where('sold.data.0.price_each_centavos', 65000)
-        ->where('sold.data.0.lower_price_label', 'Early-bird price')
-        ->where('sold.data.1.price_each_centavos', 75000));
+        ->where('sold.data.0.lower_price_labels', ['Early-bird price']));
+    $this->get(route('sales-reports.index', ['period' => 'today', 'details' => $this->product->id]))->assertInertia(fn (Assert $page) => $page
+        ->reloadOnly('sold_details', fn (Assert $reload) => $reload
+            ->where('sold_details.variants.0.price_each_centavos', 75000)
+            ->where('sold_details.variants.1.price_each_centavos', 65000)
+            ->where('sold_details.variants.1.lower_price_label', 'Early-bird price')));
 });
 
 test('release is refused while unpaid, before anything arrived, and once all is released', function () {

@@ -10,6 +10,8 @@ use App\Models\FreeUniformGroup;
 use App\Models\FreeUniformStudent;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
@@ -22,10 +24,12 @@ use Illuminate\Support\Collection;
 /**
  * The Sales Reports for a period, in four parts:
  * 1. Spent: the uploaded eStore purchase orders and what they cost.
- * 2. Sold: each item sold (released orders) with its Cost (what PROWARE
- *    paid on the eStore order, oldest pieces first), its Price (what the
- *    student paid; on sale when lower than the normal price) and the
- *    Profit.
+ * 2. Sold: each product sold (released orders), all its sizes and colors
+ *    together, with its Cost (what PROWARE paid on the eStore order, oldest
+ *    pieces first), its Price (what the student paid; on sale when lower
+ *    than the normal price), the Profit, and Head Office's price now (its
+ *    latest eStore order). Its View Details has each size or color, every
+ *    sale and every eStore order of it.
  * 3. Sold below cost: sales whose Price was lower than their Cost, and how
  *    much was lost.
  * 4. Given free: free uniforms (promo) and what they were worth at Cost
@@ -35,7 +39,8 @@ use Illuminate\Support\Collection;
  *
  * @phpstan-type FreePiece array{id: int, given_at: string|null, product_name: string, variant_label: string|null, pieces: int, recipient_name: string|null, enrollment_form_number: string|null, cost_centavos: int|null, price_centavos: int}
  * @phpstan-type FreeRow array{key: string, group_id: int|null, given_at: string, names: list<string>, more_names: int, students_count: int, sets: string|null, pieces: int, still_to_give: int, cost_centavos: int, missing_cost_pieces: int, price_centavos: int, given_by: string|null, items: list<FreePiece>}
- * @phpstan-type SoldRow array{key: string, variant_id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, price_each_centavos: int, normal_each_centavos: int|null, lower_price_reason: string|null, lower_price_label: string|null, cost_each_centavos: int|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null, below_cost: bool, loss_centavos: int, missing_cost_lines: int}
+ * @phpstan-type SoldRow array{key: string, variant_id: int, product_id: int, product_name: string, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, price_each_centavos: int, normal_each_centavos: int|null, lower_price_reason: string|null, lower_price_label: string|null, cost_each_centavos: int|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null, below_cost: bool, loss_centavos: int, missing_cost_lines: int}
+ * @phpstan-type SoldProduct array{product_id: int, product_name: string, variants_count: int, pieces: int, price_from_centavos: int, price_to_centavos: int, lower_price_labels: list<string>, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null, below_cost: bool, loss_centavos: int, missing_cost_lines: int, item_code: string|null, estore_unit_price_centavos: int|null, estore_unit_name: string, estore_pieces_per_unit: int, estore_cost_per_piece_centavos: int|null, estore_order_number: string|null, estore_change_centavos: int|null, estore_previous_order_number: string|null}
  */
 final class SalesReport
 {
@@ -118,34 +123,116 @@ final class SalesReport
     }
 
     /**
-     * 2 and 3. Each item sold, one row per price it was sold at (so a sale
-     * price is its own row), the biggest sales first; searchable by name.
+     * 2 and 3. What we sold: one row per product, all its sizes, colors and
+     * prices together, the biggest sales first, with what Head Office charges
+     * for it now (its latest eStore order, and how that changed). Searchable
+     * by name or eStore Item Code; or only the products sold below cost, or
+     * whose eStore price changed.
      *
-     * @return LengthAwarePaginator<int, SoldRow>
+     * @return LengthAwarePaginator<int, SoldProduct>
      */
-    public static function sold(CarbonImmutable $from, CarbonImmutable $to, ?string $search): LengthAwarePaginator
+    public static function soldProducts(CarbonImmutable $from, CarbonImmutable $to, ?string $search, string $show): LengthAwarePaginator
     {
-        return self::soldGroups($from, $to, $search)
-            ->orderByDesc('price_total')
-            ->orderBy('product_name')
-            ->paginate(20)
-            ->withQueryString()
-            ->through(fn (object $row): array => self::soldRow($row));
+        $lines = self::soldGroups($from, $to, $search)->get()->map(fn (object $row): array => self::soldRow($row));
+        $byProduct = $lines->groupBy('product_id');
+        $products = Product::query()->with(['variants.estorePack', 'packs'])->whereIn('id', $byProduct->keys())->get();
+        $estore = PriceList::estoreRows($products);
+
+        $rows = $byProduct
+            ->map(fn (Collection $variantLines, int|string $productId): array => self::soldProduct($variantLines, $estore[(int) $productId] ?? null))
+            ->filter(fn (array $row): bool => match ($show) {
+                'below_cost' => $row['below_cost'],
+                'changed' => $row['estore_change_centavos'] !== null && $row['estore_change_centavos'] !== 0,
+                default => true,
+            })
+            ->sortBy([['price_total_centavos', 'desc'], ['product_name', 'asc']])
+            ->values();
+
+        $page = LengthAwarePaginator::resolveCurrentPage();
+
+        return new LengthAwarePaginator($rows->forPage($page, 20)->values(), $rows->count(), 20, $page, [
+            'path' => LengthAwarePaginator::resolveCurrentPath(),
+            'query' => request()->query(),
+        ]);
     }
 
     /**
-     * Every sold row of the period, for the CSV.
+     * One product's View Details on What we sold: each size or color at each
+     * price it sold for, every sale in the period, and every eStore order of
+     * it with its Unit Price.
      *
-     * @return list<SoldRow>
+     * @return array{product_id: int, product_name: string, variants: list<SoldRow>, sales: list<array{sold_at: string, order_number: string|null, buyer: string, variant_label: string|null, set_name: string|null, unit_name: string, quantity: int, pieces: int, price_each_centavos: int, lower_price_label: string|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null}>, estore: array<string, mixed>|null}|null
      */
-    public static function allSold(CarbonImmutable $from, CarbonImmutable $to): array
+    public static function soldDetails(int $productId, CarbonImmutable $from, CarbonImmutable $to): ?array
     {
-        return array_values(self::soldGroups($from, $to, null)
-            ->orderByDesc('price_total')
-            ->orderBy('product_name')
+        $variants = array_values(self::soldGroups($from, $to, null)
+            ->where('order_items.product_id', $productId)
+            // In the product's own order of sizes (S, M, L, XL), the normal price first.
+            ->orderBy('order_items.product_variant_id')
+            ->orderByDesc('order_items.unit_price_centavos')
             ->get()
             ->map(fn (object $row): array => self::soldRow($row))
             ->all());
+
+        if ($variants === []) {
+            return null;
+        }
+
+        $sales = array_map(
+            fn (array $sale): array => [...$sale, 'sold_at' => $sale['sold_at']->toIso8601String()],
+            array_reverse(self::salesLog($from, $to, $productId)),
+        );
+
+        return [
+            'product_id' => $productId,
+            'product_name' => $variants[0]['product_name'],
+            'variants' => $variants,
+            // Newest sale first.
+            'sales' => $sales,
+            'estore' => PriceList::history($productId),
+        ];
+    }
+
+    /**
+     * A product's row on What we sold, from its sold rows (one per size or
+     * color and price).
+     *
+     * @param  Collection<int, SoldRow>  $lines
+     * @param  array<string, mixed>|null  $estore  its PriceList row
+     * @return SoldProduct
+     */
+    private static function soldProduct(Collection $lines, ?array $estore): array
+    {
+        $first = $lines->first();
+        $costed = $lines->filter(fn (array $line): bool => $line['cost_total_centavos'] !== null);
+        $perPiece = $lines->map(fn (array $line): int => intdiv($line['price_each_centavos'], max(1, $line['pieces_per_unit'])));
+        $loss = (int) $lines->sum('loss_centavos');
+
+        return [
+            'product_id' => (int) ($first['product_id'] ?? 0),
+            'product_name' => (string) ($first['product_name'] ?? ''),
+            'variants_count' => $lines->pluck('variant_id')->unique()->count(),
+            'pieces' => (int) $lines->sum(fn (array $line): int => $line['quantity'] * $line['pieces_per_unit']),
+            'price_from_centavos' => (int) $perPiece->min(),
+            'price_to_centavos' => (int) $perPiece->max(),
+            // "On sale", "Early-bird price": the lower prices some of it sold at.
+            'lower_price_labels' => array_values($lines->pluck('lower_price_label')->filter()->unique()->all()),
+            'price_total_centavos' => (int) $lines->sum('price_total_centavos'),
+            'cost_total_centavos' => $costed->isEmpty() ? null : (int) $costed->sum('cost_total_centavos'),
+            'profit_centavos' => $costed->isEmpty() ? null : (int) $costed->sum('profit_centavos'),
+            'below_cost' => $loss > 0,
+            'loss_centavos' => $loss,
+            'missing_cost_lines' => (int) $lines->sum('missing_cost_lines'),
+            // Head Office's price now: the latest eStore order of its Item Code.
+            'item_code' => is_string($estore['item_code'] ?? null) ? $estore['item_code'] : null,
+            'estore_unit_price_centavos' => is_int($estore['unit_price_centavos'] ?? null) ? $estore['unit_price_centavos'] : null,
+            'estore_unit_name' => is_string($estore['unit_name'] ?? null) ? $estore['unit_name'] : 'Piece',
+            'estore_pieces_per_unit' => is_int($estore['pieces_per_unit'] ?? null) ? $estore['pieces_per_unit'] : 1,
+            'estore_cost_per_piece_centavos' => is_int($estore['cost_per_piece_centavos'] ?? null) ? $estore['cost_per_piece_centavos'] : null,
+            'estore_order_number' => is_string($estore['order_number'] ?? null) ? $estore['order_number'] : null,
+            'estore_change_centavos' => is_int($estore['change_centavos'] ?? null) ? $estore['change_centavos'] : null,
+            'estore_previous_order_number' => is_string($estore['previous_order_number'] ?? null) ? $estore['previous_order_number'] : null,
+        ];
     }
 
     /**
@@ -155,9 +242,10 @@ final class SalesReport
      *
      * @return list<array{sold_at: CarbonImmutable, order_number: string|null, buyer: string, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, quantity: int, pieces: int, price_each_centavos: int, lower_price_label: string|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null}>
      */
-    public static function salesLog(CarbonImmutable $from, CarbonImmutable $to): array
+    public static function salesLog(CarbonImmutable $from, CarbonImmutable $to, ?int $productId = null): array
     {
         return array_values(self::soldLines($from, $to)
+            ->when($productId !== null, fn (Builder $query) => $query->where('order_items.product_id', $productId))
             ->join('users', 'users.id', '=', 'orders.user_id')
             ->whereRaw('order_items.quantity > order_items.quantity_short')
             ->orderBy('orders.picked_up_at')
@@ -400,13 +488,17 @@ final class SalesReport
         $reason = "case when {$normalPrice} > order_items.unit_price_centavos then coalesce(order_items.lower_price_reason, 'sale') end";
 
         return self::soldLines($from, $to)
-            ->when($search !== null, fn (Builder $query) => $query->whereLike('order_items.product_name', "%{$search}%"))
+            ->when($search !== null, fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
+                ->whereLike('order_items.product_name', "%{$search}%")
+                // or its eStore Item Code, e.g. UTMP01
+                ->orWhereIn('order_items.product_variant_id', ProductVariant::query()->select('id')->whereLike('estore_item_code', '%'.mb_strtoupper($search).'%'))))
             ->groupBy('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos')
             ->groupByRaw($normalPrice)
             ->groupByRaw($reason)
             ->select('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos')
             ->selectRaw("{$normalPrice} as normal_unit_price_centavos")
             ->selectRaw("{$reason} as lower_price_reason")
+            ->selectRaw('max(order_items.product_id) as product_id')
             ->selectRaw('max(order_items.product_name) as product_name')
             ->selectRaw('max(order_items.variant_label) as variant_label')
             ->selectRaw('sum(order_items.quantity - order_items.quantity_short) as quantity')
@@ -443,6 +535,7 @@ final class SalesReport
         return [
             'key' => implode('-', [$number('product_variant_id'), $values['unit_name'] ?? '', $priceEach, $normalEach ?? 'x', $reason->value ?? 'normal']),
             'variant_id' => (int) $number('product_variant_id'),
+            'product_id' => (int) $number('product_id'),
             'product_name' => is_string($values['product_name'] ?? null) ? $values['product_name'] : '',
             'variant_label' => is_string($values['variant_label'] ?? null) ? $values['variant_label'] : null,
             'unit_name' => is_string($values['unit_name'] ?? null) ? $values['unit_name'] : 'Piece',

@@ -6,55 +6,35 @@ use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 /**
- * Sales Reports > Prices: each product's eStore Unit Price (on its latest
- * eStore order) beside what students pay now, the profit on one piece, and
- * how Head Office's price changed since the order before. View Details
- * lists every eStore order of the item with its Unit Price.
+ * Each product's eStore Unit Price (on its latest eStore order) beside what
+ * students pay now, the profit on one piece, and how Head Office's price
+ * changed since the order before; and every eStore order of an item with
+ * its Unit Price. Shown on Sales Reports > What we sold and its View
+ * Details.
  *
  * @phpstan-type PriceRow array{product_id: int, product_name: string, item_code: string|null, unit_name: string, pieces_per_unit: int, unit_price_centavos: int|null, order_number: string|null, date_ordered: string|null, cost_per_piece_centavos: int|null, price_from_centavos: int|null, price_to_centavos: int|null, on_sale: bool, profit_per_piece_centavos: int|null, margin_percent: int|null, below_cost: bool, change_centavos: int|null, previous_order_number: string|null, orders_count: int}
  */
 final class PriceList
 {
-    public const SHOW = ['all', 'below_cost', 'changed'];
-
     /**
-     * Every product A to Z, or only those selling below cost, or whose
-     * eStore price changed on its latest order.
+     * These products' eStore prices, by product id.
      *
-     * @return LengthAwarePaginator<int, PriceRow>
+     * @param  Collection<int, Product>  $products  with variants.estorePack and packs
+     * @return array<int, PriceRow>
      */
-    public static function rows(?string $search, string $show): LengthAwarePaginator
+    public static function estoreRows(Collection $products): array
     {
-        $products = Product::query()
-            ->with(['variants.estorePack', 'packs'])
-            ->when($search, fn (Builder $query, string $term) => $query->where(fn (Builder $inner) => $inner
-                ->whereLike('name', "%{$term}%")
-                ->orWhereHas('variants', fn (Builder $variants) => $variants->whereLike('estore_item_code', '%'.mb_strtoupper($term).'%'))))
-            ->orderBy('name')
-            ->get();
-
         $ordersByCode = self::orderedItems(array_values(array_unique(array_filter($products->flatMap(fn (Product $product) => $product->variants->pluck('estore_item_code'))->all(), 'is_string'))));
+        $rows = [];
 
-        $rows = $products
-            ->map(fn (Product $product): array => self::row($product, $ordersByCode))
-            ->filter(fn (array $row): bool => match ($show) {
-                'below_cost' => $row['below_cost'],
-                'changed' => $row['change_centavos'] !== null && $row['change_centavos'] !== 0,
-                default => true,
-            })
-            ->values();
+        foreach ($products as $product) {
+            $rows[$product->id] = self::row($product, $ordersByCode);
+        }
 
-        $page = LengthAwarePaginator::resolveCurrentPage();
-
-        return new LengthAwarePaginator($rows->forPage($page, 20)->values(), $rows->count(), 20, $page, [
-            'path' => LengthAwarePaginator::resolveCurrentPath(),
-            'query' => request()->query(),
-        ]);
+        return $rows;
     }
 
     /**

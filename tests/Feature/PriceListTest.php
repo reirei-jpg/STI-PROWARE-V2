@@ -1,14 +1,19 @@
 <?php
 
+use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
+    $this->travelTo(CarbonImmutable::parse('2026-11-15 10:00', 'Asia/Manila'));
     $this->specialist = User::factory()->specialist()->create();
 });
 
@@ -35,65 +40,111 @@ function orderedAt(string $code, int $unitPrice, string $orderNumber, string $da
         ->create(['order_number' => $orderNumber, 'date_ordered' => $date]);
 }
 
-test('Prices shows each product\'s eStore Unit Price beside its Selling Price, the profit per piece and the price change', function () {
+/**
+ * A released order of $pieces of the product's size $variant at $priceEach.
+ */
+function soldPieces(Product $product, int $pieces, int $priceEach, ?ProductVariant $variant = null, ?string $buyer = null): void
+{
+    $variant ??= $product->variants()->firstOrFail();
+    $order = Order::factory()
+        ->for(User::factory()->student()->create($buyer === null ? [] : ['name' => $buyer]), 'student')
+        ->create(['status' => OrderStatus::PickedUp, 'picked_up_at' => now()]);
+    OrderItem::factory()->for($order)->create([
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'product_name' => $product->name,
+        'variant_label' => $variant->choices === [] ? null : $variant->label(),
+        'set_key' => null,
+        'unit_name' => 'Piece',
+        'pieces_per_unit' => 1,
+        'quantity' => $pieces,
+        'quantity_short' => 0,
+        'unit_price_centavos' => $priceEach,
+        'normal_unit_price_centavos' => $priceEach,
+        'line_total_centavos' => $pieces * $priceEach,
+        'cost_centavos' => null,
+    ]);
+}
+
+test('What we sold shows each product\'s eStore Unit Price now and how it changed, with filters and a search by eStore code', function () {
     $tumbler = pricedProduct('STI Thermal Tumbler', 'MTT01-001', 30000);
     orderedAt('MTT01-001', 20000, '31001', '2026-10-01');
     orderedAt('MTT01-001', 25000, '31002', '2026-11-01');
-    pricedProduct('STI Lanyard', 'MLY01-001', 6000, piecesPerPack: 10);
+    soldPieces($tumbler, 2, 30000);
+    $lanyard = pricedProduct('STI Lanyard', 'MLY01-001', 6000, piecesPerPack: 10);
     orderedAt('MLY01-001', 40000, '31003', '2026-11-02');
-    $cap = pricedProduct('STI Cap', 'UCP01-001', 15000);
-    orderedAt('UCP01-001', 18000, '31004', '2026-11-03');
-    pricedProduct('STI Umbrella', 'MUM01-001', 25000);
+    soldPieces($lanyard, 5, 6000);
+    $umbrella = pricedProduct('STI Umbrella', 'MUM01-001', 25000);
+    soldPieces($umbrella, 1, 25000);
+    // Never sold: not on What we sold.
+    pricedProduct('STI Cap', 'UCP01-001', 15000);
 
     $this->actingAs($this->specialist)
-        ->get(route('sales-reports.index', ['tab' => 'prices']))
+        ->get(route('sales-reports.index'))
         ->assertInertia(fn (Assert $page) => $page
+            ->where('filters.tab', 'sold')
             ->where('filters.show', 'all')
-            ->has('prices.data', 4)
-            ->where('prices.data.0.product_name', 'STI Cap')
-            ->where('prices.data.0.below_cost', true)
-            ->where('prices.data.0.profit_per_piece_centavos', -3000)
-            ->where('prices.data.1.product_name', 'STI Lanyard')
-            ->where('prices.data.1.unit_price_centavos', 40000)
-            ->where('prices.data.1.cost_per_piece_centavos', 4000)
-            ->where('prices.data.1.profit_per_piece_centavos', 2000)
-            ->where('prices.data.1.margin_percent', 33)
-            ->where('prices.data.2.product_name', 'STI Thermal Tumbler')
-            ->where('prices.data.2.order_number', '31002')
-            ->where('prices.data.2.cost_per_piece_centavos', 25000)
-            ->where('prices.data.2.price_from_centavos', 30000)
-            ->where('prices.data.2.profit_per_piece_centavos', 5000)
-            ->where('prices.data.2.change_centavos', 5000)
-            ->where('prices.data.2.previous_order_number', '31001')
-            // Never ordered from the eStore yet.
-            ->where('prices.data.3.product_name', 'STI Umbrella')
-            ->where('prices.data.3.unit_price_centavos', null)
-            ->where('prices.data.3.profit_per_piece_centavos', null));
+            ->has('sold.data', 3)
+            ->where('sold.data.0.product_name', 'STI Thermal Tumbler')
+            ->where('sold.data.0.item_code', 'MTT01-001')
+            ->where('sold.data.0.estore_unit_price_centavos', 25000)
+            ->where('sold.data.0.estore_order_number', '31002')
+            ->where('sold.data.0.estore_change_centavos', 5000)
+            ->where('sold.data.0.estore_previous_order_number', '31001')
+            ->where('sold.data.1.product_name', 'STI Lanyard')
+            ->where('sold.data.1.estore_unit_price_centavos', 40000)
+            ->where('sold.data.1.estore_pieces_per_unit', 10)
+            ->where('sold.data.1.estore_cost_per_piece_centavos', 4000)
+            ->where('sold.data.1.estore_change_centavos', null)
+            ->where('sold.data.2.product_name', 'STI Umbrella')
+            // Never on an eStore order.
+            ->where('sold.data.2.estore_unit_price_centavos', null));
 
-    $this->get(route('sales-reports.index', ['tab' => 'prices', 'show' => 'below_cost']))
-        ->assertInertia(fn (Assert $page) => $page->has('prices.data', 1)->where('prices.data.0.product_id', $cap->id));
-    $this->get(route('sales-reports.index', ['tab' => 'prices', 'show' => 'changed']))
-        ->assertInertia(fn (Assert $page) => $page->has('prices.data', 1)->where('prices.data.0.product_id', $tumbler->id));
-    $this->get(route('sales-reports.index', ['tab' => 'prices', 'search' => 'mly01']))
-        ->assertInertia(fn (Assert $page) => $page->has('prices.data', 1)->where('prices.data.0.product_name', 'STI Lanyard'));
-    $this->get(route('sales-reports.index', ['tab' => 'prices', 'show' => 'cheapest']))
+    $this->get(route('sales-reports.index', ['show' => 'changed']))
+        ->assertInertia(fn (Assert $page) => $page->has('sold.data', 1)->where('sold.data.0.product_id', $tumbler->id));
+    $this->get(route('sales-reports.index', ['search' => 'mly01']))
+        ->assertInertia(fn (Assert $page) => $page->has('sold.data', 1)->where('sold.data.0.product_name', 'STI Lanyard'));
+    $this->get(route('sales-reports.index', ['show' => 'cheapest']))
         ->assertSessionHasErrors('show');
+    // The old Prices tab is part of What we sold now.
+    $this->get(route('sales-reports.index', ['tab' => 'prices']))
+        ->assertSessionHasErrors('tab');
 });
 
-test('View Details lists every eStore order of the product with its Unit Price, newest first', function () {
+test('a product\'s sizes are one row on What we sold; View Details has each size, every sale and every eStore order', function () {
     $tumbler = pricedProduct('STI Thermal Tumbler', 'MTT01-001', 30000);
+    $silver = ProductVariant::factory()->for($tumbler)->create(['combination' => 'Color: Silver', 'choices' => [['option' => 'Color', 'choice' => 'Silver']], 'price_centavos' => 32000]);
     orderedAt('MTT01-001', 20000, '31001', '2026-10-01');
     orderedAt('MTT01-001', 25000, '31002', '2026-11-01');
     orderedAt('MTT01-001', 22000, '31003', '2026-11-10');
+    soldPieces($tumbler, 2, 30000, buyer: 'Juan Dela Cruz');
+    $this->travel(1)->hours();
+    soldPieces($tumbler, 1, 32000, $silver, 'Bea Villareal');
 
     $this->actingAs($this->specialist)
-        ->get(route('sales-reports.index', ['tab' => 'prices', 'history' => $tumbler->id]))
+        ->get(route('sales-reports.index'))
         ->assertInertia(fn (Assert $page) => $page
-            ->missing('price_history')
-            ->reloadOnly('price_history', fn (Assert $reload) => $reload
-                ->where('price_history.product_name', 'STI Thermal Tumbler')
-                ->where('price_history.price_from_centavos', 30000)
-                ->where('price_history.orders', fn ($orders) => collect($orders)->map(fn ($order) => [$order['order_number'], $order['unit_price_centavos'], $order['change_centavos']])->all() === [
+            ->has('sold.data', 1)
+            ->where('sold.data.0.variants_count', 2)
+            ->where('sold.data.0.pieces', 3)
+            ->where('sold.data.0.price_from_centavos', 30000)
+            ->where('sold.data.0.price_to_centavos', 32000)
+            ->where('sold.data.0.price_total_centavos', 92000));
+
+    $this->get(route('sales-reports.index', ['details' => $tumbler->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('sold_details')
+            ->reloadOnly('sold_details', fn (Assert $reload) => $reload
+                ->where('sold_details.product_name', 'STI Thermal Tumbler')
+                ->has('sold_details.variants', 2)
+                ->where('sold_details.variants.1.variant_label', 'Silver')
+                ->where('sold_details.variants.1.price_each_centavos', 32000)
+                // Newest sale first.
+                ->where('sold_details.sales', fn ($sales) => collect($sales)->map(fn ($sale) => [$sale['buyer'], $sale['variant_label'], $sale['quantity'], $sale['price_total_centavos']])->all() === [
+                    ['Bea Villareal', 'Silver', 1, 32000],
+                    ['Juan Dela Cruz', null, 2, 60000],
+                ])
+                ->where('sold_details.estore.orders', fn ($orders) => collect($orders)->map(fn ($order) => [$order['order_number'], $order['unit_price_centavos'], $order['change_centavos']])->all() === [
                     ['31003', 22000, -3000],
                     ['31002', 25000, 5000],
                     ['31001', 20000, null],

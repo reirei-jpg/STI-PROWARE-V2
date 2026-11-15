@@ -296,8 +296,8 @@ test('sales reports show a released set\'s pieces at their own price, not as a s
 
     $this->get(route('sales-reports.index', ['tab' => 'sold']))->assertInertia(fn (Assert $page) => $page
         ->has('sold.data', 2)
-        ->where('sold.data.0.normal_each_centavos', null)
-        ->where('sold.data.1.normal_each_centavos', null)
+        ->where('sold.data.0.lower_price_labels', [])
+        ->where('sold.data.1.lower_price_labels', [])
         ->where('summary.price_centavos', 113000)
     );
 });
