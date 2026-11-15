@@ -43,7 +43,7 @@ function orderedAt(string $code, int $unitPrice, string $orderNumber, string $da
 /**
  * A released order of $pieces of the product's size $variant at $priceEach.
  */
-function soldPieces(Product $product, int $pieces, int $priceEach, ?ProductVariant $variant = null, ?string $buyer = null): void
+function soldPieces(Product $product, int $pieces, int $priceEach, ?ProductVariant $variant = null, ?string $buyer = null, ?int $costEach = null): void
 {
     $variant ??= $product->variants()->firstOrFail();
     $order = Order::factory()
@@ -62,7 +62,7 @@ function soldPieces(Product $product, int $pieces, int $priceEach, ?ProductVaria
         'unit_price_centavos' => $priceEach,
         'normal_unit_price_centavos' => $priceEach,
         'line_total_centavos' => $pieces * $priceEach,
-        'cost_centavos' => null,
+        'cost_centavos' => $costEach === null ? null : $pieces * $costEach,
     ]);
 }
 
@@ -84,17 +84,18 @@ test('What we sold shows each product\'s eStore Unit Price now and how it change
         ->assertInertia(fn (Assert $page) => $page
             ->where('filters.tab', 'sold')
             ->has('sold.data', 3)
-            ->where('sold.data.0.product_name', 'STI Thermal Tumbler')
-            ->where('sold.data.0.item_code', 'MTT01-001')
-            ->where('sold.data.0.estore_unit_price_centavos', 25000)
-            ->where('sold.data.0.estore_order_number', '31002')
-            ->where('sold.data.0.estore_change_centavos', 5000)
-            ->where('sold.data.0.estore_previous_order_number', '31001')
-            ->where('sold.data.1.product_name', 'STI Lanyard')
-            ->where('sold.data.1.estore_unit_price_centavos', 40000)
-            ->where('sold.data.1.estore_pieces_per_unit', 10)
-            ->where('sold.data.1.estore_cost_per_piece_centavos', 4000)
-            ->where('sold.data.1.estore_change_centavos', null)
+            // No Cost on these sales yet, so no profit: the most pieces sold first.
+            ->where('sold.data.0.product_name', 'STI Lanyard')
+            ->where('sold.data.0.estore_unit_price_centavos', 40000)
+            ->where('sold.data.0.estore_pieces_per_unit', 10)
+            ->where('sold.data.0.estore_cost_per_piece_centavos', 4000)
+            ->where('sold.data.0.estore_change_centavos', null)
+            ->where('sold.data.1.product_name', 'STI Thermal Tumbler')
+            ->where('sold.data.1.item_code', 'MTT01-001')
+            ->where('sold.data.1.estore_unit_price_centavos', 25000)
+            ->where('sold.data.1.estore_order_number', '31002')
+            ->where('sold.data.1.estore_change_centavos', 5000)
+            ->where('sold.data.1.estore_previous_order_number', '31001')
             ->where('sold.data.2.product_name', 'STI Umbrella')
             // Never on an eStore order.
             ->where('sold.data.2.estore_unit_price_centavos', null));
@@ -165,4 +166,25 @@ test('a PO\'s details show each item\'s price on the eStore order before it, and
         ->where('spent.data.0.items_label', 'STI Thermal Tumbler and 1 more')
         ->where('spent.data.0.delivery_status', 'awaiting')
         ->where('spent.data.0.delivery_status_label', 'Awaiting Delivery'));
+});
+
+test('What we sold lists the highest profit first, then the most pieces sold; no Cost yet goes last', function () {
+    // Big sales, small profit: 10 × (₱300 − ₱280) = ₱200.
+    soldPieces(pricedProduct('STI Thermal Tumbler', 'MTT01-001', 30000), 10, 30000, costEach: 28000);
+    // Small sales, big profit: 2 × (₱500 − ₱200) = ₱600.
+    soldPieces(pricedProduct('STI Varsity Hoodie', 'UVH01-001', 50000), 2, 50000, costEach: 20000);
+    // Same profit as the Tumbler, fewer pieces: 1 × (₱450 − ₱250) = ₱200.
+    soldPieces(pricedProduct('STI Sweatpants', 'USW01-001', 45000), 1, 45000, costEach: 25000);
+    // No Cost yet: last, the most pieces first.
+    soldPieces(pricedProduct('STI Lanyard', 'MLY01-001', 6000), 5, 6000);
+    soldPieces(pricedProduct('STI Ballpen', 'MBP01-001', 1500), 50, 1500);
+
+    $this->actingAs($this->specialist)->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('sold.data', fn ($rows) => collect($rows)->map(fn ($row) => [$row['product_name'], $row['profit_centavos']])->all() === [
+            ['STI Varsity Hoodie', 60000],
+            ['STI Thermal Tumbler', 20000],
+            ['STI Sweatpants', 20000],
+            ['STI Ballpen', null],
+            ['STI Lanyard', null],
+        ]));
 });

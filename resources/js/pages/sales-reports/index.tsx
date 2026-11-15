@@ -362,8 +362,9 @@ export default function SalesReportsIndex({
                             <div className="border-b border-slate-100 px-6 py-3">
                                 <p className="text-xs text-slate-500">
                                     One row per product, all its sizes and
-                                    colors. eStore price: its latest eStore
-                                    order.
+                                    colors, the highest profit first, then the
+                                    most pieces sold. eStore price: its latest
+                                    eStore order.
                                 </p>
                             </div>
                             <SoldTable rows={sold} details={sold_details} />

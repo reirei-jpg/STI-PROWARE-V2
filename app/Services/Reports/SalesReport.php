@@ -144,7 +144,7 @@ final class SalesReport
 
     /**
      * 2 and 3. What we sold: one row per product, all its sizes, colors and
-     * prices together, the biggest sales first, with what Head Office charges
+     * prices together, the highest profit first (then the most pieces sold), with what Head Office charges
      * for it now (its latest eStore order, and how that changed). Searchable
      * by name or eStore Item Code.
      *
@@ -159,7 +159,13 @@ final class SalesReport
 
         $rows = $byProduct
             ->map(fn (Collection $variantLines, int|string $productId): array => self::soldProduct($variantLines, $estore[(int) $productId] ?? null))
-            ->sortBy([['price_total_centavos', 'desc'], ['product_name', 'asc']])
+            // Highest profit first (products with no Cost yet, no profit, last),
+            // then the most pieces sold.
+            ->sortBy([
+                fn (array $a, array $b): int => [$b['profit_centavos'] !== null, $b['profit_centavos'] ?? 0] <=> [$a['profit_centavos'] !== null, $a['profit_centavos'] ?? 0],
+                ['pieces', 'desc'],
+                ['product_name', 'asc'],
+            ])
             ->values();
 
         $page = LengthAwarePaginator::resolveCurrentPage();
