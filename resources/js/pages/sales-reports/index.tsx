@@ -76,7 +76,7 @@ const tabs: { value: SalesTab; label: string }[] = [
  * spent on eStore orders; what was sold, each product with its Cost (what
  * PROWARE paid on the eStore order), its Price (what the student paid), the
  * Profit and Head Office's price now (View Details: each size or color,
- * every sale, every eStore order); the best sellers; what was sold below its
+ * and what Head Office charged on each eStore order); the best sellers; what was sold below its
  * Cost; and what free uniforms (promo) were worth. Four tabs list the details.
  */
 export default function SalesReportsIndex({
@@ -676,7 +676,7 @@ function BestSellersTable({ rows }: { rows: Paginated<BestSellerRow> }) {
 /**
  * 2. What we sold: one row per product, all its sizes, colors and prices
  * together, with its eStore price now. View Details shows each size or
- * color, every sale and every eStore order of it.
+ * color, and what Head Office charged on each eStore order of it.
  */
 function SoldTable({
     rows,
@@ -1379,8 +1379,8 @@ function PriceChange({
 
 /**
  * A product's View Details on What we sold: each size or color at each
- * price it sold for (with Set cost when a Cost is missing), every sale in
- * the period, and every eStore order of it with its Unit Price.
+ * price it sold for (with Set cost when a Cost is missing), and what Head
+ * Office charged on each eStore order of it (its Unit Price, up or down).
  */
 function SoldDetailsDialog({
     open,
@@ -1431,15 +1431,16 @@ function SoldDetailsDialog({
                                     'No eStore Item Code'}{' '}
                                 ·{' '}
                                 {formatUnits(
-                                    details.sales.reduce(
-                                        (sum, sale) => sum + sale.pieces,
+                                    details.variants.reduce(
+                                        (sum, variant) =>
+                                            sum +
+                                            variant.quantity *
+                                                variant.pieces_per_unit,
                                         0,
                                     ),
                                     'Piece',
                                 )}{' '}
-                                sold in {details.sales.length}{' '}
-                                {details.sales.length === 1 ? 'sale' : 'sales'}{' '}
-                                ·{' '}
+                                sold ·{' '}
                                 {formatPeso(
                                     details.variants.reduce(
                                         (sum, variant) =>
@@ -1496,123 +1497,8 @@ function SoldDetailsDialog({
 
                             <section className="space-y-2">
                                 <h3 className={sectionTitle}>
-                                    Every sale · newest first
-                                </h3>
-                                <TableScroll>
-                                    <table className="w-full min-w-240 text-sm">
-                                        <thead className="bg-slate-50">
-                                            <tr>
-                                                <TableHeading>
-                                                    Released
-                                                </TableHeading>
-                                                <TableHeading>
-                                                    Buyer
-                                                </TableHeading>
-                                                <TableHeading>
-                                                    Size / Color
-                                                </TableHeading>
-                                                <TableHeading align="right">
-                                                    Sold
-                                                </TableHeading>
-                                                <TableHeading align="right">
-                                                    Price each
-                                                </TableHeading>
-                                                <TableHeading align="right">
-                                                    Total
-                                                </TableHeading>
-                                                <TableHeading align="right">
-                                                    Profit
-                                                </TableHeading>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {details.sales.map(
-                                                (sale, index) => (
-                                                    <tr
-                                                        key={`${sale.order_number}-${index}`}
-                                                        className="border-t border-slate-100 align-top"
-                                                    >
-                                                        <td className="px-5 py-3 whitespace-nowrap">
-                                                            <p className="font-bold text-slate-900">
-                                                                {formatDateTime(
-                                                                    sale.sold_at,
-                                                                )}
-                                                            </p>
-                                                            <p className="font-mono text-xs font-black text-blue-700">
-                                                                {
-                                                                    sale.order_number
-                                                                }
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-5 py-3 text-slate-700">
-                                                            {sale.buyer}
-                                                        </td>
-                                                        <td className="px-5 py-3 text-slate-700">
-                                                            {sale.variant_label ??
-                                                                'One size'}
-                                                            {sale.set_name && (
-                                                                <span className="block text-xs text-slate-500">
-                                                                    {
-                                                                        sale.set_name
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-5 py-3 text-right whitespace-nowrap text-slate-700">
-                                                            {formatUnits(
-                                                                sale.quantity,
-                                                                sale.unit_name,
-                                                            )}
-                                                        </td>
-                                                        <td className="px-5 py-3 text-right whitespace-nowrap">
-                                                            <span className="font-bold text-slate-900">
-                                                                {formatPeso(
-                                                                    sale.price_each_centavos,
-                                                                )}
-                                                            </span>
-                                                            {sale.lower_price_label && (
-                                                                <span className="block text-[11px] font-black text-red-600">
-                                                                    {
-                                                                        sale.lower_price_label
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-5 py-3 text-right font-black whitespace-nowrap text-slate-900">
-                                                            {formatPeso(
-                                                                sale.price_total_centavos,
-                                                            )}
-                                                        </td>
-                                                        <td
-                                                            className={cn(
-                                                                'px-5 py-3 text-right font-black whitespace-nowrap',
-                                                                sale.profit_centavos ===
-                                                                    null
-                                                                    ? 'text-slate-300'
-                                                                    : sale.profit_centavos <
-                                                                        0
-                                                                      ? 'text-red-600'
-                                                                      : 'text-emerald-700',
-                                                            )}
-                                                        >
-                                                            {sale.profit_centavos ===
-                                                            null
-                                                                ? '—'
-                                                                : formatPeso(
-                                                                      sale.profit_centavos,
-                                                                  )}
-                                                        </td>
-                                                    </tr>
-                                                ),
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </TableScroll>
-                            </section>
-
-                            <section className="space-y-2">
-                                <h3 className={sectionTitle}>
-                                    eStore prices · newest first
+                                    What Head Office charged us (eStore) ·
+                                    newest first
                                 </h3>
                                 {!details.estore ||
                                 details.estore.orders.length === 0 ? (

@@ -172,22 +172,6 @@ export type SoldDetails = {
     product_name: string;
     /** Each size or color at each price it sold for. */
     variants: SoldRow[];
-    /** Every sale in the period, newest first. */
-    sales: {
-        sold_at: string;
-        order_number: string | null;
-        buyer: string;
-        variant_label: string | null;
-        set_name: string | null;
-        unit_name: string;
-        quantity: number;
-        pieces: number;
-        price_each_centavos: number;
-        lower_price_label: string | null;
-        price_total_centavos: number;
-        cost_total_centavos: number | null;
-        profit_centavos: number | null;
-    }[];
     /** Every eStore order of it; null when the product is gone. */
     estore: PriceHistory | null;
 };

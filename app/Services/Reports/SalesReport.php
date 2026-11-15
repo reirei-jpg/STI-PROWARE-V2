@@ -28,8 +28,8 @@ use Illuminate\Support\Collection;
  *    together, with its Cost (what PROWARE paid on the eStore order, oldest
  *    pieces first), its Price (what the student paid; on sale when lower
  *    than the normal price), the Profit, and Head Office's price now (its
- *    latest eStore order). Its View Details has each size or color, every
- *    sale and every eStore order of it.
+ *    latest eStore order). Its View Details has each size or color and
+ *    what Head Office charged on every eStore order of it.
  * 3. Sold below cost: sales whose Price was lower than their Cost, and how
  *    much was lost.
  * 4. Given free: free uniforms (promo) and what they were worth at Cost
@@ -158,10 +158,10 @@ final class SalesReport
 
     /**
      * One product's View Details on What we sold: each size or color at each
-     * price it sold for, every sale in the period, and every eStore order of
-     * it with its Unit Price.
+     * price it sold for, and what Head Office charged on every eStore order
+     * of it (its Unit Price).
      *
-     * @return array{product_id: int, product_name: string, variants: list<SoldRow>, sales: list<array{sold_at: string, order_number: string|null, buyer: string, variant_label: string|null, set_name: string|null, unit_name: string, quantity: int, pieces: int, price_each_centavos: int, lower_price_label: string|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null}>, estore: array<string, mixed>|null}|null
+     * @return array{product_id: int, product_name: string, variants: list<SoldRow>, estore: array<string, mixed>|null}|null
      */
     public static function soldDetails(int $productId, CarbonImmutable $from, CarbonImmutable $to): ?array
     {
@@ -178,17 +178,10 @@ final class SalesReport
             return null;
         }
 
-        $sales = array_map(
-            fn (array $sale): array => [...$sale, 'sold_at' => $sale['sold_at']->toIso8601String()],
-            array_reverse(self::salesLog($from, $to, $productId)),
-        );
-
         return [
             'product_id' => $productId,
             'product_name' => $variants[0]['product_name'],
             'variants' => $variants,
-            // Newest sale first.
-            'sales' => $sales,
             'estore' => PriceList::history($productId),
         ];
     }
@@ -242,10 +235,9 @@ final class SalesReport
      *
      * @return list<array{sold_at: CarbonImmutable, order_number: string|null, buyer: string, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, quantity: int, pieces: int, price_each_centavos: int, lower_price_label: string|null, price_total_centavos: int, cost_total_centavos: int|null, profit_centavos: int|null}>
      */
-    public static function salesLog(CarbonImmutable $from, CarbonImmutable $to, ?int $productId = null): array
+    public static function salesLog(CarbonImmutable $from, CarbonImmutable $to): array
     {
         return array_values(self::soldLines($from, $to)
-            ->when($productId !== null, fn (Builder $query) => $query->where('order_items.product_id', $productId))
             ->join('users', 'users.id', '=', 'orders.user_id')
             ->whereRaw('order_items.quantity > order_items.quantity_short')
             ->orderBy('orders.picked_up_at')

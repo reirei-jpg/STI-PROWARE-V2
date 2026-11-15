@@ -35,7 +35,7 @@ class SalesReportController extends Controller
             'sold' => $tab === 'sold' ? SalesReport::soldProducts($from, $to, $request->search(), $request->show()) : null,
             'best' => $tab === 'best' ? SalesReport::bestSellers($from, $to) : null,
             'free' => $tab === 'free' ? SalesReport::free($from, $to) : null,
-            // A product's sizes and colors, sales and eStore orders, for its View Details pop-up.
+            // A product's sizes and colors and its eStore orders, for its View Details pop-up.
             'sold_details' => Inertia::optional(fn (): ?array => $request->filled('details') ? SalesReport::soldDetails($request->integer('details'), $from, $to) : null),
             // A group's students and pieces, for its View Details pop-up.
             'free_group' => Inertia::optional(fn (): ?array => $request->filled('free_group') ? FreeUniformScreens::details($request->integer('free_group')) : null),

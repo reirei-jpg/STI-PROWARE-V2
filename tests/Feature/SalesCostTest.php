@@ -153,7 +153,7 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         ->where('spent', null)
     );
 
-    // Its View Details: one row per price (the sale price is its own row) and every sale.
+    // Its View Details: one row per price (the sale price is its own row).
     $this->get(route('sales-reports.index', ['details' => $variant->product_id]))->assertInertia(fn (Assert $page) => $page
         ->missing('sold_details')
         ->reloadOnly('sold_details', fn (Assert $reload) => $reload
@@ -167,11 +167,7 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
             ->where('sold_details.variants.1.cost_each_centavos', 20000)
             ->where('sold_details.variants.1.quantity', 3)
             ->where('sold_details.variants.1.profit_centavos', 3 * 15000)
-            ->has('sold_details.sales', 2)
-            // Newest sale first: the 3 on sale.
-            ->where('sold_details.sales.0.quantity', 3)
-            ->where('sold_details.sales.0.lower_price_label', 'On sale')
-            ->where('sold_details.sales.1.quantity', 2)));
+            ->missing('sold_details.sales')));
 
     $this->get(route('sales-reports.index', ['tab' => 'spent']))->assertInertia(fn (Assert $page) => $page
         ->where('spent.data.0.total_centavos', 200000)

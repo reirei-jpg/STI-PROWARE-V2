@@ -111,7 +111,7 @@ test('What we sold shows each product\'s eStore Unit Price now and how it change
         ->assertSessionHasErrors('tab');
 });
 
-test('a product\'s sizes are one row on What we sold; View Details has each size, every sale and every eStore order', function () {
+test('a product\'s sizes are one row on What we sold; View Details has each size and what Head Office charged on every eStore order', function () {
     $tumbler = pricedProduct('STI Thermal Tumbler', 'MTT01-001', 30000);
     $silver = ProductVariant::factory()->for($tumbler)->create(['combination' => 'Color: Silver', 'choices' => [['option' => 'Color', 'choice' => 'Silver']], 'price_centavos' => 32000]);
     orderedAt('MTT01-001', 20000, '31001', '2026-10-01');
@@ -139,11 +139,8 @@ test('a product\'s sizes are one row on What we sold; View Details has each size
                 ->has('sold_details.variants', 2)
                 ->where('sold_details.variants.1.variant_label', 'Silver')
                 ->where('sold_details.variants.1.price_each_centavos', 32000)
-                // Newest sale first.
-                ->where('sold_details.sales', fn ($sales) => collect($sales)->map(fn ($sale) => [$sale['buyer'], $sale['variant_label'], $sale['quantity'], $sale['price_total_centavos']])->all() === [
-                    ['Bea Villareal', 'Silver', 1, 32000],
-                    ['Juan Dela Cruz', null, 2, 60000],
-                ])
+                // Who bought it is not repeated here (Top buyers and the issuance slips have it).
+                ->missing('sold_details.sales')
                 ->where('sold_details.estore.orders', fn ($orders) => collect($orders)->map(fn ($order) => [$order['order_number'], $order['unit_price_centavos'], $order['change_centavos']])->all() === [
                     ['31003', 22000, -3000],
                     ['31002', 25000, 5000],
