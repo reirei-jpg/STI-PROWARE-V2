@@ -111,6 +111,10 @@ test('allowing a buyer more explains what is wrong', function () {
         ->assertSessionHasErrors(['email' => 'No buyer has this email. Check it, or ask the buyer to register first.']);
     $this->post(route('maintenance.buyers-allowed-more.store'), ['email' => $this->specialist->email, 'most_per_item' => '500'])
         ->assertSessionHasErrors(['email' => 'No buyer has this email. Check it, or ask the buyer to register first.']);
+    // "More" means above everyone's limit, not less.
+    $this->post(route('maintenance.buyers-allowed-more.store'), ['email' => $this->student->email, 'most_per_item' => '99'])
+        ->assertSessionHasErrors(['most_per_item' => 'Enter more than 99, the most for everyone.']);
+    expect($this->student->refresh()->most_per_item)->toBeNull();
     $this->post(route('maintenance.buyers-allowed-more.store'), ['email' => '', 'most_per_item' => ''])
         ->assertSessionHasErrors([
             'email' => 'Enter the buyer\'s email.',

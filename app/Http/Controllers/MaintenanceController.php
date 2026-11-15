@@ -182,6 +182,12 @@ class MaintenanceController extends Controller
         }
 
         $most = (int) $validated['most_per_item'];
+
+        // "Allowed more": a number at or below everyone's limit would give them less.
+        if ($most <= BuyerLimit::everyone()) {
+            throw ValidationException::withMessages(['most_per_item' => 'Enter more than '.number_format(BuyerLimit::everyone()).', the most for everyone.']);
+        }
+
         $buyer->forceFill(['most_per_item' => $most])->save();
 
         Inertia::flash('toast', [
