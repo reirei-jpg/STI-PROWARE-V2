@@ -29,6 +29,8 @@ import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import type { IssuanceSlipData } from '@/types';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 
 /**
  * The order's own page, opened from My Orders or right after Place Order:
@@ -140,6 +142,10 @@ function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
         form.reset();
         form.clearErrors();
     };
+    // Closing with a written reason asks first.
+    const unsaved = useUnsavedChanges(
+        open && form.data.note.trim() !== '' && !form.processing,
+    );
 
     return (
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
@@ -156,7 +162,10 @@ function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
                 Cancel order
             </button>
 
-            <Dialog open={open} onOpenChange={(isOpen) => !isOpen && close()}>
+            <Dialog
+                open={open}
+                onOpenChange={(isOpen) => !isOpen && confirmLeave(close)}
+            >
                 <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-md [&>button:last-child]:hidden">
                     <form
                         onSubmit={(event) => {
@@ -169,6 +178,7 @@ function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
                         }}
                         className="flex min-h-0 flex-col"
                     >
+                        {unsaved.prompt}
                         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                             <div className="flex items-start gap-3">
                                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">

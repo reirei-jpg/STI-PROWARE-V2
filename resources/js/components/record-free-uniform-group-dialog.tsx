@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
 import ConfirmDialog from '@/components/confirm-dialog';
+import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
 import {
     Dialog,
@@ -20,6 +21,9 @@ import type {
     UniformSizeOption,
     UniformTop,
 } from '@/types';
+import { useFormDraft } from '@/hooks/use-form-draft';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 
 type StudentInput = {
     key: number;
@@ -101,7 +105,10 @@ export default function RecordFreeUniformGroupDialog({
     onClose: () => void;
 }) {
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+        <Dialog
+            open={open}
+            onOpenChange={(isOpen) => !isOpen && confirmLeave(onClose)}
+        >
             <DialogContent className="flex max-h-[94vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-5xl [&>button:last-child]:hidden">
                 {open && (
                     <GroupForm
@@ -152,6 +159,20 @@ function GroupForm({
     });
     const { data, setData, processing } = form;
     const errors = form.errors as Record<string, string | undefined>;
+
+    // What was typed is kept until the group is recorded (e.g. the popup
+    // was closed or the page left by accident), and leaving asks first.
+    const draft = useFormDraft('free-uniform-group', data, (saved) => {
+        nextKey.current =
+            Math.max(
+                groupSize,
+                ...saved.students.map((student) => student.key),
+            ) + 1;
+        setData(saved);
+    });
+    const unsaved = useUnsavedChanges(form.isDirty && !processing, {
+        kept: true,
+    });
 
     /** Clears these server messages, e.g. once their box is changed. */
     const clear = (keys: string[]) =>
@@ -304,7 +325,10 @@ function GroupForm({
         }));
         form.post(FreeUniformController.store().url, {
             preserveScroll: true,
-            onSuccess: onClose,
+            onSuccess: (page) => {
+                draft.clear(page);
+                onClose();
+            },
             onError: () => {
                 jumpToFirstProblem.current = true;
             },
@@ -319,6 +343,7 @@ function GroupForm({
             }}
             className="flex min-h-0 flex-col"
         >
+            {unsaved.prompt}
             <ConfirmDialog
                 open={confirming}
                 title={`Record ${students} ${students === 1 ? 'student' : 'students'} and give their free ${students === 1 ? 'set' : 'sets'}?`}
@@ -351,6 +376,12 @@ function GroupForm({
             </div>
 
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/60 px-6 py-5">
+                {draft.restored && (
+                    <DraftRestoredNotice
+                        onDiscard={draft.discard}
+                        onDismiss={draft.dismiss}
+                    />
+                )}
                 <div
                     id="free-uniform-details"
                     className="grid scroll-mt-4 gap-4 sm:grid-cols-[14rem_1fr]"

@@ -18,6 +18,7 @@ import {
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 import { cn } from '@/lib/utils';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 type AccountType = 'student' | 'employee';
 
@@ -74,6 +75,9 @@ export default function Register() {
     });
     const { data, errors, processing } = form;
     const isEmployee = data.account_type === 'employee';
+    // Leaving with something typed asks first. No draft is kept: this is
+    // often a shared school computer.
+    const unsaved = useUnsavedChanges(form.isDirty && !processing);
 
     // A student's email follows the last name and Student ID as they are
     // typed; STI staff type their own.
@@ -106,6 +110,7 @@ export default function Register() {
     return (
         <>
             <Head title="Registration" />
+            {unsaved.prompt}
 
             <p className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-xs leading-5 text-blue-900">
                 For now, students and STI staff register here with their STI

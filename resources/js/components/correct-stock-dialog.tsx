@@ -12,6 +12,8 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -60,7 +62,10 @@ export default function CorrectStockDialog({
     onClose: () => void;
 }) {
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+        <Dialog
+            open={open}
+            onOpenChange={(isOpen) => !isOpen && confirmLeave(onClose)}
+        >
             <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-xl [&>button:last-child]:hidden">
                 {open && (
                     <CorrectionForm
@@ -141,6 +146,9 @@ function CorrectionForm({
         after > variant.stock_on_hand;
     const costMissing = addsPieces && !(Number(data.unit_cost) > 0);
 
+    // Closing with something typed asks first.
+    const unsaved = useUnsavedChanges(form.isDirty && !processing);
+
     // The stock changes at once and stays in the Stock History, so the
     // Specialist answers first.
     const [confirming, setConfirming] = useState(false);
@@ -159,6 +167,7 @@ function CorrectionForm({
             }}
             className="flex min-h-0 flex-col"
         >
+            {unsaved.prompt}
             {variant && reason && after !== null && (
                 <ConfirmDialog
                     open={confirming}

@@ -11,6 +11,8 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatConversion, formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
@@ -34,7 +36,7 @@ export default function SplitDeliveredDialog({
     return (
         <Dialog
             open={item !== null}
-            onOpenChange={(open) => !open && onClose()}
+            onOpenChange={(open) => !open && confirmLeave(onClose)}
         >
             <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-2xl [&>button:last-child]:hidden">
                 {item && <SplitForm item={item} onClose={onClose} />}
@@ -78,6 +80,8 @@ function SplitForm({
     // The pieces go into stock at once and waiting buyers are served, so the
     // Specialist answers first.
     const [confirming, setConfirming] = useState(false);
+    // Closing with counts typed asks first.
+    const unsaved = useUnsavedChanges(counted > 0 && !processing);
     const split = item.split_into
         .filter((variant) => (Number(data.counts[variant.id]) || 0) > 0)
         .map(
@@ -94,6 +98,7 @@ function SplitForm({
             }}
             className="flex min-h-0 flex-col"
         >
+            {unsaved.prompt}
             <ConfirmDialog
                 open={confirming}
                 title={`Add ${formatUnits(counted, 'Piece')} of ${item.product_name} to stock?`}

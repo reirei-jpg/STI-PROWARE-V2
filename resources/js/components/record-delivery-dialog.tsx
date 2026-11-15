@@ -30,6 +30,7 @@ import { useRecordDelivery } from '@/hooks/use-record-delivery';
 import { formatConversion, formatUnits, unitWord } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { WaitingItemGroup } from '@/types';
+import { confirmLeave } from '@/lib/back-guard';
 
 type WaitingItems = {
     order_number: string | null;
@@ -90,7 +91,7 @@ export default function RecordDeliveryDialog({
     return (
         <Dialog
             open={purchaseOrderId !== null}
-            onOpenChange={(open) => !open && onClose()}
+            onOpenChange={(open) => !open && confirmLeave(onClose)}
         >
             <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-4xl [&>button:last-child]:hidden">
                 <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
@@ -169,6 +170,7 @@ function DeliveryForm({
     const delivery = useRecordDelivery(groups, purchaseOrderId);
     const {
         draft,
+        unsaved,
         data,
         setData,
         errors,
@@ -216,6 +218,7 @@ function DeliveryForm({
             }}
             className="flex min-h-0 flex-1 flex-col"
         >
+            {unsaved.prompt}
             <ConfirmDialog
                 open={confirming}
                 title={`Stock in this delivery for ${orderLabel}?`}

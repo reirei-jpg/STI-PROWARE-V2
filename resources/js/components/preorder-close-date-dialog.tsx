@@ -10,6 +10,8 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 
 export type CloseDateTarget = {
     id: number;
@@ -37,7 +39,7 @@ export default function PreorderCloseDateDialog({
     return (
         <Dialog
             open={product !== null}
-            onOpenChange={(open) => !open && onClose()}
+            onOpenChange={(open) => !open && confirmLeave(onClose)}
         >
             <DialogContent className="gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-md [&>button:last-child]:hidden">
                 {product && (
@@ -84,6 +86,11 @@ function PaymentDatesForm({
             : closeOn < payFrom
               ? 'The close date cannot be before the start date.'
               : null;
+    // Closing with changed dates asks first.
+    const unsaved = useUnsavedChanges(
+        payFrom !== (product.preorder_pay_from ?? today) ||
+            closeOn !== (product.preorders_close_on ?? ''),
+    );
 
     return (
         <Form
@@ -93,6 +100,7 @@ function PaymentDatesForm({
         >
             {({ processing, errors }) => (
                 <>
+                    {unsaved.prompt}
                     <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                         <div className="flex items-start gap-3">
                             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">

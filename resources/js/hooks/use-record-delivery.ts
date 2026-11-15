@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import { useFormDraft } from '@/hooks/use-form-draft';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import type { WaitingItemGroup, WaitingItemRow } from '@/types';
@@ -59,6 +60,16 @@ export function useRecordDelivery(
             setData(saved.form);
             setSplitCounts(saved.splits);
         },
+    );
+
+    // Leaving with counts typed asks first (the draft keeps them).
+    const unsaved = useUnsavedChanges(
+        (form.isDirty ||
+            Object.values(splitCounts).some((counts) =>
+                Object.values(counts).some((count) => count !== ''),
+            )) &&
+            !form.processing,
+        { kept: true },
     );
 
     const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
@@ -273,6 +284,7 @@ export function useRecordDelivery(
 
     return {
         draft,
+        unsaved,
         data,
         setData,
         errors,

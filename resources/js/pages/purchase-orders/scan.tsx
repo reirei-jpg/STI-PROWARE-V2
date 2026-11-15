@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useFormDraft } from '@/hooks/use-form-draft';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import type { DuplicateUpload, ScannedPurchaseOrder } from '@/types';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 const primaryButtonClasses =
     'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60';
@@ -60,10 +61,18 @@ export default function ScanPurchaseOrder({
     const draft = useFormDraft('estore-scan', emailText, setEmailText, {
         announce: scan === null,
     });
+    // Leaving with a pasted email not scanned yet asks first (the draft keeps it).
+    const unsaved = useUnsavedChanges(
+        scan === null && emailText.trim() !== '',
+        {
+            kept: true,
+        },
+    );
 
     return (
         <>
             <Head title="Scan eStore PO" />
+            {unsaved.prompt}
 
             <div className="space-y-7">
                 <PageHeader

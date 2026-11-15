@@ -4,6 +4,7 @@ import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileCo
 import InputError from '@/components/input-error';
 import Panel from '@/components/panel';
 import { useInitials } from '@/hooks/use-initials';
+import { UnsavedChangesGuard } from '@/hooks/use-unsaved-changes';
 import type { Auth, UserRole } from '@/types';
 import { isBuyer } from '@/lib/roles';
 
@@ -61,10 +62,14 @@ export default function Profile() {
                     {...ProfileController.update.form()}
                     noValidate
                     options={{ preserveScroll: true }}
+                    setDefaultsOnSuccess
                     className="space-y-5 px-6 py-5"
                 >
-                    {({ processing, errors }) => (
+                    {({ processing, errors, isDirty }) => (
                         <>
+                            <UnsavedChangesGuard
+                                dirty={isDirty && !processing}
+                            />
                             <label className="grid gap-1.5">
                                 <span className="text-sm font-black text-slate-700">
                                     Name

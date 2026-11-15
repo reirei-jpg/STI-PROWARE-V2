@@ -10,6 +10,14 @@ import StorefrontLayout from '@/layouts/storefront-layout';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// The browser's Back, before Inertia's own listener: a form with unsaved
+// changes keeps the page and asks first (see lib/back-guard).
+window.addEventListener('popstate', (event) => {
+    if (window.prowareBack?.()) {
+        event.stopImmediatePropagation();
+    }
+});
+
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {

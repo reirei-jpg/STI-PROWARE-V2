@@ -16,6 +16,8 @@ import { formatPeso } from '@/lib/format';
 import { formatConversion } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { ItemToLink, LinkableProduct } from '@/types';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 
 const inputClasses =
     'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
@@ -48,7 +50,7 @@ export default function LinkItemDialog({
     return (
         <Dialog
             open={item !== null}
-            onOpenChange={(open) => !open && onClose()}
+            onOpenChange={(open) => !open && confirmLeave(onClose)}
         >
             <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-2xl [&>button:last-child]:hidden">
                 {item && <LinkItemForm item={item} onClose={onClose} />}
@@ -83,6 +85,10 @@ function LinkItemForm({
     const [results, setResults] = useState<LinkableProduct[] | null>(null);
     const [product, setProduct] = useState<LinkableProduct | null>(null);
     const latestSearch = useRef(0);
+    // Closing after choosing a product asks first.
+    const unsaved = useUnsavedChanges(
+        (product !== null || form.isDirty) && !processing,
+    );
 
     // Find products as the Specialist types, after a short pause.
     useEffect(() => {
@@ -250,6 +256,7 @@ function LinkItemForm({
             }}
             className="flex min-h-0 flex-col"
         >
+            {unsaved.prompt}
             <ConfirmDialog
                 open={confirming !== null}
                 title={`Link ${item.item_code} to ${confirming?.question.productName ?? ''}?`}

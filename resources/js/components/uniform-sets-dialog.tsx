@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { LoaderCircle, Pencil, Plus, Save, Shirt, X } from 'lucide-react';
 import { useState } from 'react';
 import UniformSetController from '@/actions/App/Http/Controllers/UniformSetController';
+import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
 import {
     Dialog,
@@ -12,6 +13,9 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { UniformSetOption } from '@/types';
+import { useFormDraft } from '@/hooks/use-form-draft';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 
 type SetForm = {
     name: string;
@@ -55,7 +59,10 @@ export default function UniformSetsDialog({
     };
 
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && close()}>
+        <Dialog
+            open={open}
+            onOpenChange={(isOpen) => !isOpen && confirmLeave(close)}
+        >
             <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-2xl [&>button:last-child]:hidden">
                 <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                     <div className="flex items-start gap-3">
@@ -198,6 +205,16 @@ function SetEditor({
     });
     const { data, setData, errors, processing } = form;
 
+    // What was typed is kept until saved, and leaving asks first.
+    const draft = useFormDraft(
+        `uniform-set-${set?.id ?? 'new'}`,
+        data,
+        (saved) => setData(saved),
+    );
+    const unsaved = useUnsavedChanges(form.isDirty && !processing, {
+        kept: true,
+    });
+
     const productSelect = (
         field: keyof Omit<SetForm, 'name' | 'sold_as_set'>,
         label: string,
@@ -225,7 +242,13 @@ function SetEditor({
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                const options = { preserveScroll: true, onSuccess: onDone };
+                const options = {
+                    preserveScroll: true,
+                    onSuccess: (page: { component: string }) => {
+                        draft.clear(page);
+                        onDone();
+                    },
+                };
 
                 if (set) {
                     form.put(UniformSetController.update(set.id).url, options);
@@ -235,9 +258,16 @@ function SetEditor({
             }}
             className="space-y-4"
         >
+            {unsaved.prompt}
             <p className="text-base font-black text-slate-900">
                 {set ? `Change the ${set.name} set` : 'Add a set'}
             </p>
+            {draft.restored && (
+                <DraftRestoredNotice
+                    onDiscard={draft.discard}
+                    onDismiss={draft.dismiss}
+                />
+            )}
 
             <label className="grid gap-1.5">
                 <span className="text-sm font-black text-slate-700">
@@ -311,7 +341,7 @@ function SetEditor({
             <div className="flex justify-end gap-3">
                 <button
                     type="button"
-                    onClick={onDone}
+                    onClick={() => unsaved.confirmLeave(onDone)}
                     className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
                 >
                     Back

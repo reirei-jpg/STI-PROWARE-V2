@@ -5,6 +5,7 @@ import SecurityController from '@/actions/App/Http/Controllers/Settings/Security
 import InputError from '@/components/input-error';
 import Panel from '@/components/panel';
 import PasswordInput from '@/components/password-input';
+import { UnsavedChangesGuard } from '@/hooks/use-unsaved-changes';
 import { cn } from '@/lib/utils';
 
 const inputClasses =
@@ -46,8 +47,11 @@ export default function Security({ passwordRules }: { passwordRules: string }) {
                     }}
                     className="space-y-5 px-6 py-5"
                 >
-                    {({ errors, processing }) => (
+                    {({ errors, processing, isDirty }) => (
                         <>
+                            <UnsavedChangesGuard
+                                dirty={isDirty && !processing}
+                            />
                             <label className="grid gap-1.5">
                                 <span className="text-sm font-black text-slate-700">
                                     Current password

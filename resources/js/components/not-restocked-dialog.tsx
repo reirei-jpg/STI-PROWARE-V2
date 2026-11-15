@@ -10,6 +10,8 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 
 export type NotRestockedTarget = {
     variantId: number;
@@ -37,7 +39,7 @@ export default function NotRestockedDialog({
     return (
         <Dialog
             open={target !== null}
-            onOpenChange={(open) => !open && onClose()}
+            onOpenChange={(open) => !open && confirmLeave(onClose)}
         >
             <DialogContent className="gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-md [&>button:last-child]:hidden">
                 {target && (
@@ -60,6 +62,8 @@ function NotRestockedForm({
     onDone: () => void;
 }) {
     const [reason, setReason] = useState('');
+    // Closing with a reason typed asks first.
+    const unsaved = useUnsavedChanges(reason.trim() !== '');
 
     return (
         <Form
@@ -69,6 +73,7 @@ function NotRestockedForm({
         >
             {({ processing, errors }) => (
                 <>
+                    {unsaved.prompt}
                     <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                         <div className="flex items-start gap-3">
                             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">

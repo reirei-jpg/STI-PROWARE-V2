@@ -32,6 +32,8 @@ import {
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 
 export type StockCardsData = {
     low_stock: {
@@ -209,7 +211,9 @@ export default function StockCards({ data }: { data: StockCardsData }) {
 
             <Dialog
                 open={open !== null}
-                onOpenChange={(isOpen) => !isOpen && setOpen(null)}
+                onOpenChange={(isOpen) =>
+                    !isOpen && confirmLeave(() => setOpen(null))
+                }
             >
                 <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-2xl [&>button:last-child]:hidden">
                     {open === 'low_stock' && <LowStockList data={data} />}
@@ -595,6 +599,10 @@ function TopBuyersList({
         (product) => String(product.product_id) === form.data.product_id,
     );
     const recipients = Math.min(form.data.top, buyers_count);
+    // Closing with a product or note chosen asks first.
+    const unsaved = useUnsavedChanges(
+        telling && form.isDirty && !form.processing,
+    );
     const price = chosen
         ? priceText(chosen.price_from_centavos, chosen.price_to_centavos)
         : '';
@@ -613,6 +621,7 @@ function TopBuyersList({
     if (telling) {
         return (
             <>
+                {unsaved.prompt}
                 <ListHeader
                     title="Tell top buyers about a product"
                     description="They get a notice in PROWARE and a notification on their phone. A product can be announced once a day."

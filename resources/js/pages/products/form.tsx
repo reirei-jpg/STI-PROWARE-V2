@@ -22,6 +22,7 @@ import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
 import { useFormDraft } from '@/hooks/use-form-draft';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { formatDateTime, formatPeso } from '@/lib/format';
 import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
@@ -264,6 +265,12 @@ export default function ProductForm({
         (saved) => setData(saved),
     );
 
+    // Leaving with unsaved changes asks first (the draft keeps them, not new photos).
+    const unsaved = useUnsavedChanges(form.isDirty && !processing, {
+        kept: true,
+        notKept: 'Photos you added are not kept.',
+    });
+
     // The expected arrival follows the close date until the Specialist
     // changes it herself (a saved product keeps its own days).
     const [arrivalChosen, setArrivalChosen] = useState(
@@ -463,7 +470,10 @@ export default function ProductForm({
             {
                 forceFormData: true,
                 preserveScroll: true,
-                onSuccess: (page) => draft.clear(page),
+                onSuccess: (page) => {
+                    draft.clear(page);
+                    form.setDefaults();
+                },
                 onError: () => {
                     jumpToFirstProblem.current = true;
                 },
@@ -808,6 +818,7 @@ export default function ProductForm({
                     }
                 />
 
+                {unsaved.prompt}
                 {draft.restored && (
                     <DraftRestoredNotice
                         onDiscard={draft.discard}
