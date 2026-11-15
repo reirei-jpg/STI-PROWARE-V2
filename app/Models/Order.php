@@ -139,11 +139,13 @@ class Order extends Model
     /**
      * The order in item names for the buyer's notices, never its PW- number:
      * "STI Lanyard (Blue)", or "STI Lanyard (Blue) and 2 more items". A
-     * uniform set counts as one item.
+     * uniform set counts as one item. With $handedOver, only the lines the
+     * buyer got (a line that was all short is left out).
      */
-    public function itemsText(): string
+    public function itemsText(bool $handedOver = false): string
     {
         $names = $this->items()->orderBy('id')->get()
+            ->reject(fn (OrderItem $item): bool => $handedOver && $item->quantity_short >= $item->quantity)
             ->groupBy(fn (OrderItem $item): string => $item->set_key ?? "item-{$item->id}")
             ->map(function ($lines): string {
                 /** @var OrderItem $first */

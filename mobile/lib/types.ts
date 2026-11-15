@@ -316,7 +316,7 @@ export type StudentNotificationData =
           total_centavos: number;
           pick_up_by: string | null;
       }
-    | { kind: 'order_released'; order_id: number; order_number: string; items: string }
+    | { kind: 'order_released'; order_id: number; order_number: string; items: string; short?: string | null }
     | {
           kind: 'order_last_day';
           order_id: number;

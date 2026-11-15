@@ -245,6 +245,8 @@ export type IssuanceSlipData = {
         item: string;
         unit_price_centavos: number;
         amount_centavos: number;
+        /** Not handed over: sold to buyers who paid first. Only on orders. */
+        short?: number;
     }[];
     total_centavos: number;
     status: OrderStatus;

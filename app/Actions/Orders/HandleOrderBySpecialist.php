@@ -104,7 +104,7 @@ class HandleOrderBySpecialist
         });
 
         $order->refresh();
-        $order->student->notify(new OrderReleased($order));
+        $order->student->notify(new OrderReleased($order, $short));
 
         return "Order {$order->number} has been released to {$order->student->name}. Paid at the cashier: ₱".number_format($order->total_centavos / 100, 2).'.'
             .($short === [] ? '' : ' Short (already sold to buyers who paid first): '.implode(', ', $short).'.');

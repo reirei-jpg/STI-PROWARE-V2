@@ -45,7 +45,9 @@ function describe(data: StudentNotificationData): {
         case 'order_released':
             return {
                 title: `Released to you: ${data.items}`,
-                body: 'Thank you for your order.',
+                body: data.short
+                    ? `Sold out before you paid, so you were not charged for: ${data.short}.`
+                    : 'Thank you for your order.',
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };

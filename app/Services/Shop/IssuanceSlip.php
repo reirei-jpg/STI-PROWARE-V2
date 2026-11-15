@@ -27,7 +27,7 @@ final class IssuanceSlip
     public const ADDRESS_LINES = ['Ormoc Centrum Bldg., Barangay South 6541', 'Ormoc City, Leyte Philippines'];
 
     /**
-     * @return array{school: string, address_lines: list<string>, order_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, is_staff: bool, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, pick_up_by: string|null, released_on: string|null, issued_by: string|null, qr_svg: string|null}
+     * @return array{school: string, address_lines: list<string>, order_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, is_staff: bool, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int, short: int}>, total_centavos: int, status: string, status_label: string, pick_up_by: string|null, released_on: string|null, issued_by: string|null, qr_svg: string|null}
      */
     public static function of(Order $order): array
     {
@@ -47,6 +47,8 @@ final class IssuanceSlip
                 'item' => self::itemName($item),
                 'unit_price_centavos' => $item->unit_price_centavos,
                 'amount_centavos' => $item->line_total_centavos,
+                // Sold to buyers who paid first, so not handed over.
+                'short' => $item->quantity_short,
             ])->all()),
             'total_centavos' => $order->total_centavos,
             'status' => $order->status->value,

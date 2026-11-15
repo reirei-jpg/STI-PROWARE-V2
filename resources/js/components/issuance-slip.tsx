@@ -130,9 +130,17 @@ export default function IssuanceSlip({
                         {slip.items.map((line, index) => (
                             <tr key={index}>
                                 <SlipCell className="text-center font-bold">
-                                    {line.quantity}
+                                    {line.quantity - (line.short ?? 0)}
                                 </SlipCell>
-                                <SlipCell>{line.item}</SlipCell>
+                                <SlipCell>
+                                    {line.item}
+                                    {(line.short ?? 0) > 0 && (
+                                        <span className="block text-[11px] font-bold text-red-700">
+                                            {line.short} short: sold to buyers
+                                            who paid first
+                                        </span>
+                                    )}
+                                </SlipCell>
                                 <SlipCell className="text-right">
                                     {formatPeso(line.unit_price_centavos)}
                                 </SlipCell>
@@ -142,6 +150,7 @@ export default function IssuanceSlip({
                                 <SlipCell />
                                 <SlipCell className="text-xs">
                                     {slip.released_on &&
+                                        line.quantity > (line.short ?? 0) &&
                                         formatDateOrdered(slip.released_on)}
                                 </SlipCell>
                             </tr>

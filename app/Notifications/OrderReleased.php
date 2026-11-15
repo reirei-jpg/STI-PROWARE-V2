@@ -8,12 +8,16 @@ use App\Notifications\Channels\PushesToPhones;
 use Illuminate\Notifications\Notification;
 
 /**
- * Tells the student their order was released to them at the PROWARE office.
+ * Tells the student their order was released to them at the PROWARE office,
+ * naming what they got and what was sold out before they paid (short).
  * Also pushed to their phones.
  */
 class OrderReleased extends Notification implements PushesToPhones
 {
-    public function __construct(public Order $order) {}
+    /**
+     * @param  list<string>  $short  e.g. ["2 pcs of STI Lanyard (Blue)"]
+     */
+    public function __construct(public Order $order, public array $short = []) {}
 
     /**
      * @return array<int, string>
@@ -24,7 +28,7 @@ class OrderReleased extends Notification implements PushesToPhones
     }
 
     /**
-     * @return array{kind: string, order_id: int, order_number: string|null, items: string}
+     * @return array{kind: string, order_id: int, order_number: string|null, items: string, short: string|null}
      */
     public function toArray(object $notifiable): array
     {
@@ -32,7 +36,8 @@ class OrderReleased extends Notification implements PushesToPhones
             'kind' => 'order_released',
             'order_id' => $this->order->id,
             'order_number' => $this->order->number,
-            'items' => $this->order->itemsText(),
+            'items' => $this->order->itemsText(handedOver: true),
+            'short' => $this->short === [] ? null : implode(', ', $this->short),
         ];
     }
 
@@ -44,8 +49,8 @@ class OrderReleased extends Notification implements PushesToPhones
     public function toPush(object $notifiable): array
     {
         return [
-            'title' => "Released to you: {$this->order->itemsText()}",
-            'body' => 'Thank you for your order.',
+            'title' => "Released to you: {$this->order->itemsText(handedOver: true)}",
+            'body' => $this->short === [] ? 'Thank you for your order.' : 'Sold out before you paid, so you were not charged for: '.implode(', ', $this->short).'.',
             'data' => ['kind' => 'order_released', 'order_id' => $this->order->id],
         ];
     }

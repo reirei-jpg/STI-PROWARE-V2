@@ -50,7 +50,7 @@ test('the student sees their order\'s issuance slip with its QR, as on the paper
         ->where('slip.student_name', 'Juan Dela Cruz')
         ->where('slip.student_id', '02000123456')
         ->where('slip.section', 'BSIT 1-A')
-        ->where('slip.items', [['quantity' => 2, 'item' => 'STI Hoodie (M)', 'unit_price_centavos' => 45000, 'amount_centavos' => 90000]])
+        ->where('slip.items', [['quantity' => 2, 'item' => 'STI Hoodie (M)', 'unit_price_centavos' => 45000, 'amount_centavos' => 90000, 'short' => 0]])
         ->where('slip.total_centavos', 90000)
         ->where('slip.issued_by', null)
         ->where('slip.qr_svg', fn (string $svg) => str_starts_with($svg, '<svg') && $svg !== '')

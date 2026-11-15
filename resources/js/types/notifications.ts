@@ -59,6 +59,8 @@ export type OrderReleasedData = {
     order_id: number;
     order_number: string | null;
     items: string;
+    /** What was sold out before they paid, e.g. "2 pcs of STI Lanyard (Blue)". */
+    short?: string | null;
 };
 
 /** Today is the last day to get the order before it expires. */

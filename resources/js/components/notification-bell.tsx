@@ -282,7 +282,9 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Released to you: {data.items}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    Thank you for your order.
+                    {data.short
+                        ? `Sold out before you paid, so you were not charged for: ${data.short}.`
+                        : 'Thank you for your order.'}
                 </span>
             </>
         );

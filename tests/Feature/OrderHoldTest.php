@@ -9,7 +9,9 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Notifications\OrderReleased;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
@@ -77,6 +79,30 @@ test('whoever pays first gets the stock, and a buyer who comes later gets what i
         ->and($juansOrder->items->sole())->quantity->toBe(2)->quantity_short->toBe(1)->line_total_centavos->toBe(8000)
         ->and($variant->refresh()->stock_on_hand)->toBe(0)
         ->and(StockMovement::query()->where('order_item_id', $juansOrder->items->sole()->id)->sole())->quantity->toBe(-1)->balance_after->toBe(0);
+});
+
+test('the release notice names what the buyer got and what was sold out before they paid', function () {
+    Notification::fake();
+    $lanyard = lanyard(stock: 1);
+    $cap = lanyard(stock: 1);
+    $cap->product->update(['name' => 'STI Cap']);
+    $juan = User::factory()->student()->create(['name' => 'Juan Dela Cruz']);
+    CartItem::factory()->for($juan, 'student')->for($lanyard, 'variant')->create(['quantity' => 1]);
+    orderLanyards($juan, $cap, 1)->assertSessionHasNoErrors();
+    $juansOrder = Order::sole();
+    // Bea pays first for the only cap.
+    orderLanyards(User::factory()->student()->create(['name' => 'Bea Villareal']), $cap, 1);
+    $this->actingAs($this->specialist)->post(route('orders.release', Order::query()->latest('id')->first()), ['paid' => true]);
+
+    $this->post(route('orders.release', $juansOrder), ['paid' => true])->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($juan, OrderReleased::class, function (OrderReleased $notice) use ($juan): bool {
+        expect($notice->toArray($juan))->items->toBe('STI Lanyard')->short->toBe('1 pc of STI Cap')
+            ->and($notice->toPush($juan))->title->toBe('Released to you: STI Lanyard')
+            ->body->toBe('Sold out before you paid, so you were not charged for: 1 pc of STI Cap.');
+
+        return true;
+    });
 });
 
 test('an order with nothing left in stock cannot be released', function () {
