@@ -157,7 +157,7 @@ test('signing in on a phone tells the owner, so a sign-in that was not them is n
     $this->postJson(route('api.v1.auth.login'), ['email' => $this->buyer->email, 'password' => 'password', 'device_name' => 'Pixel 8'])->assertOk();
 
     Notification::assertSentTo($this->buyer, PhoneSignedIn::class, fn (PhoneSignedIn $notice) => $notice->toPush($this->buyer)['body']
-        === 'Your account was signed in on a phone (Pixel 8) on Nov 15, 2:30 PM. If this was not you, change your password.');
+        === 'Your account was signed in on a phone on Nov 15, 2:30 PM. If this was not you, change your password.');
 
     // A wrong password signs nobody in: nothing is said.
     $this->postJson(route('api.v1.auth.login'), ['email' => $this->specialist->email, 'password' => 'Wrong@2026!', 'device_name' => 'Pixel 8'])->assertUnprocessable();

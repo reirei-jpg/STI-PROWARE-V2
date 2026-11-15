@@ -568,8 +568,8 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     New sign-in on a phone
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    Your account was signed in on a phone ({data.device_name})
-                    on {formatDateTime(data.signed_in_at)}. If this was not you,
+                    Your account was signed in on a phone on{' '}
+                    {formatDateTime(data.signed_in_at)}. If this was not you,
                     change your password.
                 </span>
             </>

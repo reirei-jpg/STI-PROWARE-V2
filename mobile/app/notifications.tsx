@@ -202,7 +202,7 @@ function describe(data: StudentNotificationData): {
         case 'phone_signed_in':
             return {
                 title: 'New sign-in on a phone',
-                body: `Your account was signed in on a phone (${data.device_name}) on ${formatDateTime(data.signed_in_at)}. If this was not you, change your password.`,
+                body: `Your account was signed in on a phone on ${formatDateTime(data.signed_in_at)}. If this was not you, change your password.`,
                 titleClass: 'text-blue-800',
                 stripe: '#3b82f6',
             };

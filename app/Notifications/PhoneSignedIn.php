@@ -43,17 +43,17 @@ class PhoneSignedIn extends Notification implements PushesToPhones
     {
         return [
             'title' => 'New sign-in on a phone',
-            'body' => self::body($this->deviceName, $this->signedInAt),
+            'body' => self::body($this->signedInAt),
             'data' => ['kind' => 'phone_signed_in'],
         ];
     }
 
     /**
-     * "Your account was signed in on a phone (Pixel 8) on Nov 15, 2:30 PM.
+     * "Your account was signed in on a phone on Nov 15, 2:30 PM.
      * If this was not you, change your password."
      */
-    public static function body(string $deviceName, CarbonInterface $signedInAt): string
+    public static function body(CarbonInterface $signedInAt): string
     {
-        return "Your account was signed in on a phone ({$deviceName}) on {$signedInAt->format('M j, g:i A')}. If this was not you, change your password.";
+        return "Your account was signed in on a phone on {$signedInAt->format('M j, g:i A')}. If this was not you, change your password.";
     }
 }
