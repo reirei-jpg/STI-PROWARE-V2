@@ -4,6 +4,7 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Models\User;
+use App\Services\Auth\SignInLock;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 
@@ -25,5 +26,8 @@ class ResetUserPassword implements ResetsUserPasswords
         $user->forceFill([
             'password' => $input['password'],
         ])->save();
+
+        // A new password ends a lock from wrong passwords.
+        SignInLock::clear($user);
     }
 }

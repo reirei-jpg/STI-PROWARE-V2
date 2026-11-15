@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\AppLoginRequest;
 use App\Models\User;
 use App\Providers\FortifyServiceProvider;
+use App\Services\Auth\SignInLock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -20,11 +21,24 @@ class AuthController extends Controller
 {
     public function login(AppLoginRequest $request): JsonResponse
     {
-        $user = User::query()->where('email', $request->string('email')->lower()->value())->first();
+        $user = User::query()->where('email', $request->string('email')->trim()->lower()->value())->first();
 
-        if ($user === null || ! Hash::check($request->string('password')->value(), $user->password)) {
+        if ($user === null) {
             throw ValidationException::withMessages(['email' => FortifyServiceProvider::FAILED_LOGIN]);
         }
+
+        // The same lock as the website (SignInLock).
+        $refusal = SignInLock::refusal($user);
+
+        if ($refusal !== null) {
+            throw ValidationException::withMessages(['email' => $refusal]);
+        }
+
+        if (! Hash::check($request->string('password')->value(), $user->password)) {
+            throw ValidationException::withMessages(['email' => SignInLock::wrongPassword($user) ?? FortifyServiceProvider::FAILED_LOGIN]);
+        }
+
+        SignInLock::clear($user);
 
         if (! $user->isBuyer() && ! $user->isSpecialist()) {
             throw ValidationException::withMessages(['email' => 'The PROWARE app is for students, STI staff and the PROWARE Specialist. Use the website.']);
