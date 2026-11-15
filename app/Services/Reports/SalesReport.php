@@ -126,12 +126,11 @@ final class SalesReport
      * 2 and 3. What we sold: one row per product, all its sizes, colors and
      * prices together, the biggest sales first, with what Head Office charges
      * for it now (its latest eStore order, and how that changed). Searchable
-     * by name or eStore Item Code; or only the products sold below cost, or
-     * whose eStore price changed.
+     * by name or eStore Item Code.
      *
      * @return LengthAwarePaginator<int, SoldProduct>
      */
-    public static function soldProducts(CarbonImmutable $from, CarbonImmutable $to, ?string $search, string $show): LengthAwarePaginator
+    public static function soldProducts(CarbonImmutable $from, CarbonImmutable $to, ?string $search): LengthAwarePaginator
     {
         $lines = self::soldGroups($from, $to, $search)->get()->map(fn (object $row): array => self::soldRow($row));
         $byProduct = $lines->groupBy('product_id');
@@ -140,11 +139,6 @@ final class SalesReport
 
         $rows = $byProduct
             ->map(fn (Collection $variantLines, int|string $productId): array => self::soldProduct($variantLines, $estore[(int) $productId] ?? null))
-            ->filter(fn (array $row): bool => match ($show) {
-                'below_cost' => $row['below_cost'],
-                'changed' => $row['estore_change_centavos'] !== null && $row['estore_change_centavos'] !== 0,
-                default => true,
-            })
             ->sortBy([['price_total_centavos', 'desc'], ['product_name', 'asc']])
             ->values();
 

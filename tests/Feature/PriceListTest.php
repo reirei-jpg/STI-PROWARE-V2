@@ -66,7 +66,7 @@ function soldPieces(Product $product, int $pieces, int $priceEach, ?ProductVaria
     ]);
 }
 
-test('What we sold shows each product\'s eStore Unit Price now and how it changed, with filters and a search by eStore code', function () {
+test('What we sold shows each product\'s eStore Unit Price now and how it changed, and a search by eStore code', function () {
     $tumbler = pricedProduct('STI Thermal Tumbler', 'MTT01-001', 30000);
     orderedAt('MTT01-001', 20000, '31001', '2026-10-01');
     orderedAt('MTT01-001', 25000, '31002', '2026-11-01');
@@ -83,7 +83,6 @@ test('What we sold shows each product\'s eStore Unit Price now and how it change
         ->get(route('sales-reports.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('filters.tab', 'sold')
-            ->where('filters.show', 'all')
             ->has('sold.data', 3)
             ->where('sold.data.0.product_name', 'STI Thermal Tumbler')
             ->where('sold.data.0.item_code', 'MTT01-001')
@@ -100,12 +99,8 @@ test('What we sold shows each product\'s eStore Unit Price now and how it change
             // Never on an eStore order.
             ->where('sold.data.2.estore_unit_price_centavos', null));
 
-    $this->get(route('sales-reports.index', ['show' => 'changed']))
-        ->assertInertia(fn (Assert $page) => $page->has('sold.data', 1)->where('sold.data.0.product_id', $tumbler->id));
     $this->get(route('sales-reports.index', ['search' => 'mly01']))
         ->assertInertia(fn (Assert $page) => $page->has('sold.data', 1)->where('sold.data.0.product_name', 'STI Lanyard'));
-    $this->get(route('sales-reports.index', ['show' => 'cheapest']))
-        ->assertSessionHasErrors('show');
     // The old Prices tab is part of What we sold now.
     $this->get(route('sales-reports.index', ['tab' => 'prices']))
         ->assertSessionHasErrors('tab');

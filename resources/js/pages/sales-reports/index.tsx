@@ -38,7 +38,6 @@ import type {
     FreeRow,
     FreeUniformGroupDetails,
     Paginated,
-    PriceFilter,
     PriceHistory,
     SalesPeriod,
     SalesReportFilters,
@@ -49,12 +48,6 @@ import type {
     SoldRow,
     SpentRow,
 } from '@/types';
-
-const priceFilters: { value: PriceFilter; label: string }[] = [
-    { value: 'all', label: 'All products' },
-    { value: 'below_cost', label: 'Sold below cost' },
-    { value: 'changed', label: 'eStore price changed' },
-];
 
 const periods: { value: SalesPeriod; label: string }[] = [
     { value: 'all', label: 'All time' },
@@ -138,10 +131,6 @@ export default function SalesReportsIndex({
 
         if (merged.search) {
             query.search = merged.search;
-        }
-
-        if (merged.tab === 'sold' && merged.show !== 'all') {
-            query.show = merged.show;
         }
 
         router.get(SalesReportController.index().url, query, {
@@ -370,26 +359,7 @@ export default function SalesReportsIndex({
                     {spent && <SpentTable rows={spent} />}
                     {sold && (
                         <>
-                            <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
-                                <div className="flex flex-wrap gap-2">
-                                    {priceFilters.map((option) => (
-                                        <button
-                                            key={option.value}
-                                            type="button"
-                                            onClick={() =>
-                                                show({ show: option.value })
-                                            }
-                                            className={cn(
-                                                'rounded-full border px-3.5 py-1.5 text-sm font-black transition',
-                                                filters.show === option.value
-                                                    ? 'border-blue-300 bg-blue-50 text-blue-700'
-                                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-                                            )}
-                                        >
-                                            {option.label}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div className="border-b border-slate-100 px-6 py-3">
                                 <p className="text-xs text-slate-500">
                                     One row per product, all its sizes and
                                     colors. eStore price: its latest eStore

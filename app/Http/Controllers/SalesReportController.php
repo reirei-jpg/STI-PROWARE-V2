@@ -32,7 +32,7 @@ class SalesReportController extends Controller
         return Inertia::render('sales-reports/index', [
             'summary' => SalesReport::summary($from, $to),
             'spent' => $tab === 'spent' ? SalesReport::spent($from, $to) : null,
-            'sold' => $tab === 'sold' ? SalesReport::soldProducts($from, $to, $request->search(), $request->show()) : null,
+            'sold' => $tab === 'sold' ? SalesReport::soldProducts($from, $to, $request->search()) : null,
             'best' => $tab === 'best' ? SalesReport::bestSellers($from, $to) : null,
             'free' => $tab === 'free' ? SalesReport::free($from, $to) : null,
             // A product's sizes and colors and its eStore orders, for its View Details pop-up.
@@ -45,7 +45,6 @@ class SalesReportController extends Controller
                 'date_from' => $from->toDateString(),
                 'date_to' => $to->toDateString(),
                 'search' => $request->search(),
-                'show' => $request->show(),
             ],
         ]);
     }

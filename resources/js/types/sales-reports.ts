@@ -2,9 +2,6 @@ export type SalesPeriod = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
 
-/** What we sold: every product, those sold below cost, or those whose eStore price changed. */
-export type PriceFilter = 'all' | 'below_cost' | 'changed';
-
 /** The numbers at the top for the period. */
 export type SalesSummary = {
     /** What the uploaded eStore orders cost. */
@@ -131,8 +128,6 @@ export type SalesReportFilters = {
     date_from: string;
     date_to: string;
     search: string | null;
-    /** Which products What we sold shows. */
-    show: PriceFilter;
 };
 
 /** What we sold: one product, all its sizes, colors and prices together. */

@@ -227,8 +227,6 @@ test('an item put on sale below its Cost shows what was lost', function () {
         ->where('summary.profit_centavos', -10000)
         ->where('sold.data.0.below_cost', true)
         ->where('sold.data.0.loss_centavos', 10000));
-
-    $this->get(route('sales-reports.index', ['show' => 'below_cost']))->assertInertia(fn (Assert $page) => $page->has('sold.data', 1));
 });
 
 test('a price set before a dearer eStore order arrived is flagged on Products and the dashboard', function () {
