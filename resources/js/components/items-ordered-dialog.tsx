@@ -110,12 +110,14 @@ export default function ItemsOrderedDialog({
                                                 </p>
                                             </td>
                                             {item.preorder_quantity === null ? (
-                                                <td
-                                                    colSpan={2}
-                                                    className="px-5 py-3 text-center text-xs font-semibold text-slate-400"
-                                                >
-                                                    Not tracked
-                                                </td>
+                                                <>
+                                                    <td className="px-5 py-3 text-right text-slate-400">
+                                                        —
+                                                    </td>
+                                                    <td className="px-5 py-3 text-right text-slate-400">
+                                                        —
+                                                    </td>
+                                                </>
                                             ) : (
                                                 <>
                                                     <td className="px-5 py-3 text-right whitespace-nowrap">
@@ -136,7 +138,7 @@ export default function ItemsOrderedDialog({
                                                         {item.partly_tracked && (
                                                             <span className="block text-xs font-semibold text-slate-400">
                                                                 older POs not
-                                                                tracked
+                                                                counted
                                                             </span>
                                                         )}
                                                     </td>
