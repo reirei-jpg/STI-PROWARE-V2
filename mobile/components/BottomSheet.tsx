@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { askBeforeLeaving } from '@/lib/unsaved-changes';
 import { useKeyboardHeight } from '@/lib/use-keyboard-height';
 
 /**
@@ -19,6 +20,7 @@ import { useKeyboardHeight } from '@/lib/use-keyboard-height';
  * title with Close, the content (scrolls when long), and a footer that
  * always stays visible. Tapping the dimmed area or Back closes it; while
  * typing, Back first only hides the keyboard, so what was typed is kept.
+ * With unsaved, closing asks first, "Leave without saving?".
  */
 export default function BottomSheet({
     open,
@@ -28,6 +30,7 @@ export default function BottomSheet({
     icon,
     footer,
     children,
+    unsaved = false,
 }: {
     open: boolean;
     onClose: () => void;
@@ -36,10 +39,14 @@ export default function BottomSheet({
     icon?: ReactNode;
     footer: ReactNode;
     children: ReactNode;
+    /** Something was typed and not saved: closing asks first. */
+    unsaved?: boolean;
 }) {
     const insets = useSafeAreaInsets();
     // The sheet is its own window, so it moves up for the keyboard itself.
     const keyboardHeight = useKeyboardHeight();
+
+    const close = (): void => (unsaved ? askBeforeLeaving(onClose) : onClose());
 
     const onBack = (): void => {
         if (Keyboard.isVisible()) {
@@ -48,7 +55,7 @@ export default function BottomSheet({
             return;
         }
 
-        onClose();
+        close();
     };
 
     return (
@@ -65,7 +72,7 @@ export default function BottomSheet({
                 className="flex-1 justify-end"
             >
                 <Pressable
-                    onPress={onClose}
+                    onPress={close}
                     accessibilityLabel="Close"
                     className="absolute inset-0 bg-black/40"
                 />
@@ -91,7 +98,7 @@ export default function BottomSheet({
                             )}
                         </View>
                         <Pressable
-                            onPress={onClose}
+                            onPress={close}
                             accessibilityRole="button"
                             accessibilityLabel="Close"
                             hitSlop={8}

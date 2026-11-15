@@ -178,6 +178,7 @@ export default function OrderScreen() {
                     <BottomSheet
                         open={sheetOpen}
                         onClose={() => setSheetOpen(false)}
+                        unsaved={note.trim() !== '' && !cancelling}
                         title={`Cancel order ${order.number}?`}
                         subtitle={`Why are you cancelling? ${formatPeso(order.total_centavos)} · the items go back on sale`}
                         icon={<XCircle size={20} color="#b91c1c" />}

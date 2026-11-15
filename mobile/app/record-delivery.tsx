@@ -14,10 +14,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import DraftRestoredNotice from '@/components/DraftRestoredNotice';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatConversion, formatUnits, unitWord } from '@/lib/format';
 import type { WaitingDeliveryGroup } from '@/lib/types';
+import { useDraft, useUnsavedChanges } from '@/lib/unsaved-changes';
 
 /** '' counts as 0; anything but digits is not a number (null). */
 function wholeNumber(text: string | undefined): number | null {
@@ -69,6 +71,20 @@ export default function RecordDeliveryScreen() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
+
+    // What was counted is kept until saved, and leaving asks first (like the website).
+    const typed = { salesInvoice, deliveryReceipt, note, totals, splitCounts };
+    const draft = useDraft('delivery', typed, (saved) => {
+        setSalesInvoice(saved.salesInvoice);
+        setDeliveryReceipt(saved.deliveryReceipt);
+        setNote(saved.note);
+        setTotals(saved.totals);
+        setSplitCounts(saved.splitCounts);
+    });
+    const hasTyping =
+        [salesInvoice, deliveryReceipt, note, ...Object.values(totals)].some((value) => value.trim() !== '') ||
+        Object.values(splitCounts).some((counts) => Object.values(counts).some((count) => count.trim() !== ''));
+    useUnsavedChanges(hasTyping && !saving && result === null, { kept: true });
 
     useEffect(() => {
         request<{ groups: WaitingDeliveryGroup[] }>('/specialist/deliveries/waiting')
@@ -214,8 +230,7 @@ export default function RecordDeliveryScreen() {
         }));
 
         try {
-            setResult(
-                await request<{ type: 'success' | 'warning'; message: string }>('/specialist/deliveries', {
+            const saved = await request<{ type: 'success' | 'warning'; message: string }>('/specialist/deliveries', {
                     method: 'POST',
                     body: {
                         sales_invoice_number: salesInvoice.trim(),
@@ -224,8 +239,9 @@ export default function RecordDeliveryScreen() {
                         items,
                         splits,
                     },
-                }),
-            );
+            });
+            draft.clear();
+            setResult(saved);
         } catch (caught) {
             setError(caught instanceof ApiError ? caught.message : 'The delivery could not be recorded. Try again.');
         } finally {
@@ -284,6 +300,8 @@ export default function RecordDeliveryScreen() {
                         Count what arrived and type it below. PROWARE fills the oldest order first.
                     </Text>
                 </View>
+
+                {draft.restored && <DraftRestoredNotice onDiscard={draft.discard} />}
 
                 {loadError ? (
                     <Text className="font-sans-semibold text-sm text-red-600">{loadError}</Text>

@@ -67,6 +67,8 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
             });
             setOpen(null);
             setDating(null);
+            setStartIn(0);
+            setPayDays(7);
             setToast({ type: 'success', message: result.message });
             onChanged();
         } catch (caught) {
@@ -384,7 +386,12 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
             {setUp && (
                 <BottomSheet
                     open={open === 'dates'}
-                    onClose={() => setOpen(null)}
+                    onClose={() => {
+                        setOpen(null);
+                        setStartIn(0);
+                        setPayDays(7);
+                    }}
+                    unsaved={startIn !== 0 || payDays !== 7}
                     title="Payment dates"
                     subtitle={dating?.product_name}
                     icon={<CalendarClock size={20} color="#b45309" />}
@@ -520,7 +527,12 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
             {buyers && (
                 <BottomSheet
                     open={open === 'tell'}
-                    onClose={() => setOpen(null)}
+                    onClose={() => {
+                        setOpen(null);
+                        setProductId(null);
+                        setNote('');
+                    }}
+                    unsaved={productId !== null || note.trim() !== ''}
                     title="Tell top buyers"
                     subtitle="They get a notice and a phone notification. A product can be announced once a day."
                     icon={<Megaphone size={20} color="#2563eb" />}
