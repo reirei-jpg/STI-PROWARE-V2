@@ -55,6 +55,8 @@ class SalesReportRequest extends FormRequest
             'date_from.date_format' => 'Choose a valid "From" date.',
             'date_to.date_format' => 'Choose a valid "To" date.',
             'date_to.after_or_equal' => 'The "To" date cannot be before the "From" date.',
+            // e.g. an old link to the Prices tab, now part of What we sold.
+            'tab.in' => 'Choose What we spent, What we sold, Best sellers or Given free. Prices are on What we sold.',
         ];
     }
 
