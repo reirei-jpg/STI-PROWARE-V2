@@ -49,10 +49,11 @@ class AccountLocked extends Notification implements PushesToPhones
 
     /**
      * "5 wrong passwords were typed for your account, so it is locked until
-     * 2:45 PM. If this was not you, change your password."
+     * 2:45 PM and signed out everywhere. If this was not you, change your
+     * password."
      */
     public static function body(CarbonInterface $lockedUntil): string
     {
-        return SignInLock::MAX_WRONG_PASSWORDS.' wrong passwords were typed for your account, so it is locked until '.SignInLock::timeText($lockedUntil).'. If this was not you, change your password.';
+        return SignInLock::MAX_WRONG_PASSWORDS.' wrong passwords were typed for your account, so it is locked until '.SignInLock::timeText($lockedUntil).' and signed out everywhere. If this was not you, change your password.';
     }
 }

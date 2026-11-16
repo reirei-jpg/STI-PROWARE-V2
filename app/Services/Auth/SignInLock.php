@@ -52,7 +52,7 @@ class SignInLock
 
     /**
      * Counts a wrong password. The 5th in a row locks the account, signs it
-     * out of every phone, and tells the owner and whoever can unlock it;
+     * out everywhere (every browser and phone), and tells the owner and whoever can unlock it;
      * then the lock's message is returned, otherwise null.
      */
     public static function wrongPassword(User $user): ?string
@@ -67,7 +67,7 @@ class SignInLock
 
         $lockedUntil = now()->addMinutes(self::LOCK_MINUTES);
         $user->forceFill(['failed_sign_ins' => 0, 'locked_until' => $lockedUntil])->save();
-        $user->tokens()->delete();
+        SignOutOtherDevices::handle($user);
         AccountLock::query()->create(['user_id' => $user->id, 'locked_until' => $lockedUntil]);
 
         $user->notify(new AccountLocked($lockedUntil));

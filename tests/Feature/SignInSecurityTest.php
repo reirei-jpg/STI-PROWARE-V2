@@ -40,7 +40,7 @@ test('a lock tells the owner and the Specialist; the third lock in a day warns o
     lockOut($this->buyer);
 
     Notification::assertSentTo($this->buyer, AccountLocked::class, fn (AccountLocked $notice) => $notice->toPush($this->buyer)['body']
-        === '5 wrong passwords were typed for your account, so it is locked until 2:45 PM. If this was not you, change your password.');
+        === '5 wrong passwords were typed for your account, so it is locked until 2:45 PM and signed out everywhere. If this was not you, change your password.');
     Notification::assertSentTo($this->specialist, AccountLockedForStaff::class, fn (AccountLockedForStaff $notice) => $notice->toPush($this->specialist) === [
         'title' => 'Account locked: Juan Dela Cruz',
         'body' => '5 wrong passwords in a row. Locked until 2:45 PM.',
@@ -147,6 +147,21 @@ test('a new password signs the account out on every other browser and phone', fu
     expect($this->buyer->refresh()->tokens()->count())->toBe(0)
         ->and($this->buyer->remember_token)->not->toBe('old-remember-token')
         ->and(DB::table('sessions')->where('id', 'other-browser')->exists())->toBeFalse()
+        // Other accounts are not touched.
+        ->and(DB::table('sessions')->where('id', 'someone-else')->exists())->toBeTrue();
+});
+
+test('a locked account is signed out everywhere: every browser and every phone', function () {
+    $this->buyer->createToken('Pixel 8');
+    DB::table('sessions')->insert([
+        ['id' => 'buyers-browser', 'user_id' => $this->buyer->id, 'ip_address' => '10.0.0.2', 'user_agent' => 'Chrome', 'payload' => '', 'last_activity' => now()->timestamp],
+        ['id' => 'someone-else', 'user_id' => $this->specialist->id, 'ip_address' => '10.0.0.3', 'user_agent' => 'Chrome', 'payload' => '', 'last_activity' => now()->timestamp],
+    ]);
+
+    lockOut($this->buyer);
+
+    expect($this->buyer->tokens()->count())->toBe(0)
+        ->and(DB::table('sessions')->where('id', 'buyers-browser')->exists())->toBeFalse()
         // Other accounts are not touched.
         ->and(DB::table('sessions')->where('id', 'someone-else')->exists())->toBeTrue();
 });

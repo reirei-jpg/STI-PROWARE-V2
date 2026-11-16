@@ -533,8 +533,8 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     5 wrong passwords were typed for your account, so it is
-                    locked until {formatDateTime(data.locked_until)}. If this
-                    was not you, change your password.
+                    locked until {formatDateTime(data.locked_until)} and signed
+                    out everywhere. If this was not you, change your password.
                 </span>
             </>
         );

@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
  * After a new password, whoever knew the old one is signed out: every phone
  * (its app token) and every other browser, including one that ticked
  * "Remember me". The browser that changed the password stays signed in.
+ * A locked account is signed out everywhere (no session is kept).
  */
 final class SignOutOtherDevices
 {

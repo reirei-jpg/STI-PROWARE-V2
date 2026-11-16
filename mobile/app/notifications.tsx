@@ -195,7 +195,7 @@ function describe(data: StudentNotificationData): {
         case 'account_locked':
             return {
                 title: 'Your account was locked',
-                body: `5 wrong passwords were typed for your account, so it is locked until ${formatDateTime(data.locked_until)}. If this was not you, change your password.`,
+                body: `5 wrong passwords were typed for your account, so it is locked until ${formatDateTime(data.locked_until)} and signed out everywhere. If this was not you, change your password.`,
                 titleClass: 'text-red-700',
                 stripe: '#f87171',
             };
