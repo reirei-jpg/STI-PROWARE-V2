@@ -29,9 +29,6 @@ use Illuminate\Support\Facades\DB;
  * restocked" is cleared when stock comes in anyway.
  */ final class RestockedPreorders
 {
-    /** How long arrived pieces are held for the student. */
-    public const HOLD_HOURS = 24;
-
     /**
      * Run after a variant's stock changed (inside the change's transaction).
      * The notices are sent once the change is saved.

@@ -26,7 +26,7 @@ const chips: { value: Show; label: string }[] = [
 const descriptions: Record<Show, string> = {
     placed: 'Waiting for the buyer to pay at the cashier and show the receipt and slip. First to pay, first served. Oldest first.',
     picked_up: 'Paid and handed over. Newest first.',
-    cancelled: 'Cancelled by the buyer or by you. Newest first.',
+    cancelled: 'Cancelled by the buyer. Newest first.',
     all: 'Every order, newest first.',
 };
 

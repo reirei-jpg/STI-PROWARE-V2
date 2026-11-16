@@ -243,8 +243,7 @@ function MostPerItemSetting({ setting }: { setting: LimitSetting }) {
                 </p>
                 <label className="block space-y-1.5">
                     <span className="text-sm font-bold text-slate-700">
-                        Most of one item (
-                        {(setting.value + 1).toLocaleString('en-PH')} to{' '}
+                        Most of one item ({setting.min} to{' '}
                         {setting.max.toLocaleString('en-PH')})
                     </span>
                     <input
