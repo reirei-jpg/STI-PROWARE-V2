@@ -1,9 +1,7 @@
-import { Link, router, useForm, useHttp } from '@inertiajs/react';
+import { Link, useForm, useHttp } from '@inertiajs/react';
 import {
     ArrowRight,
     Banknote,
-    CalendarClock,
-    ClipboardList,
     Crown,
     LoaderCircle,
     Megaphone,
@@ -15,15 +13,10 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
-import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
 import PreorderSlipController from '@/actions/App/Http/Controllers/PreorderSlipController';
 import ProductAnnouncementController from '@/actions/App/Http/Controllers/ProductAnnouncementController';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
-import ReadyToOrderController from '@/actions/App/Http/Controllers/ReadyToOrderController';
 import SalesReportController from '@/actions/App/Http/Controllers/SalesReportController';
-import ConfirmDialog from '@/components/confirm-dialog';
-import PreorderCloseDateDialog from '@/components/preorder-close-date-dialog';
-import type { CloseDateTarget } from '@/components/preorder-close-date-dialog';
 import InputError from '@/components/input-error';
 import StaffTag from '@/components/staff-tag';
 import {
@@ -56,17 +49,6 @@ export type StockCardsData = {
         /** The first day of this month. */
         from: string;
         items: { product_id: number; product_name: string; pieces: number }[];
-    };
-    ready_to_order: {
-        /** The Maintenance number of preorders before ordering. */
-        threshold: number;
-        count: number;
-        items: {
-            product_id: number;
-            product_name: string;
-            pieces: number;
-            preorders_close_on: string | null;
-        }[];
     };
     top_buyers: {
         /** The first day of the last 3 months. */
@@ -102,21 +84,6 @@ export type StockCardsData = {
             sent_by: string | null;
         } | null;
     };
-    /** Items with unpaid preorders and no payment dates yet. */
-    preorders_to_set_up: {
-        count: number;
-        items: {
-            product_id: number;
-            product_name: string;
-            /** A Coming Soon item, else a sold-out size waiting for restock. */
-            coming_soon: boolean;
-            buyers: number;
-            pieces: number;
-            preorders_close_on: string | null;
-            expected_arrival_from: string | null;
-        }[];
-        today: string;
-    };
     /** Preorder slips waiting for their items: unpaid (to verify) and paid. */
     preorder_slips: {
         to_verify: number;
@@ -125,20 +92,13 @@ export type StockCardsData = {
     };
 };
 
-type CardKey =
-    | 'low_stock'
-    | 'best_sellers'
-    | 'ready_to_order'
-    | 'top_buyers'
-    | 'set_up'
-    | 'preorder_slips';
+type CardKey = 'low_stock' | 'best_sellers' | 'top_buyers' | 'preorder_slips';
 
 /**
  * The stock cards on the Specialist's dashboard: Low stock, Best sellers
- * this month, and Ready to order (Coming Soon items whose preorders reached
- * the Maintenance number), and Top buyers. A card opens its list; on Ready
- * to order the Specialist chooses Create PO or Leave it for each item; on
- * Top buyers they can tell the top buyers about a product in stock.
+ * this month, Top buyers and Preorders. A card opens its list; on Top
+ * buyers the Specialist can tell the top buyers about a product in stock,
+ * and on Preorders check which preorder slips are paid.
  */
 export default function StockCards({ data }: { data: StockCardsData }) {
     const [open, setOpen] = useState<CardKey | null>(null);
@@ -183,16 +143,6 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                         onOpen={() => setOpen('best_sellers')}
                     />
                     <Card
-                        icon={ClipboardList}
-                        iconClassName="bg-amber-50 text-amber-600"
-                        title="Ready to order"
-                        value={data.ready_to_order.count.toLocaleString(
-                            'en-PH',
-                        )}
-                        detail={`with ${data.ready_to_order.threshold.toLocaleString('en-PH')}+ paid pieces`}
-                        onOpen={() => setOpen('ready_to_order')}
-                    />
-                    <Card
                         icon={Crown}
                         iconClassName="bg-blue-50 text-blue-600"
                         title="Top buyer"
@@ -204,20 +154,6 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                                 : 'No released orders in the last 3 months'
                         }
                         onOpen={() => setOpen('top_buyers')}
-                    />
-                    <Card
-                        icon={CalendarClock}
-                        iconClassName="bg-amber-50 text-amber-600"
-                        title="Preorders to set up"
-                        value={data.preorders_to_set_up.count.toLocaleString(
-                            'en-PH',
-                        )}
-                        detail={
-                            data.preorders_to_set_up.count === 1
-                                ? 'item needs payment dates'
-                                : 'items need payment dates'
-                        }
-                        onOpen={() => setOpen('set_up')}
                     />
                     <Card
                         icon={Banknote}
@@ -241,10 +177,6 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                 <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-2xl [&>button:last-child]:hidden">
                     {open === 'low_stock' && <LowStockList data={data} />}
                     {open === 'best_sellers' && <BestSellerList data={data} />}
-                    {open === 'ready_to_order' && (
-                        <ReadyToOrderList data={data} />
-                    )}
-                    {open === 'set_up' && <SetUpList data={data} />}
                     {open === 'preorder_slips' && (
                         <PreorderSlipsList counts={data.preorder_slips} />
                     )}
@@ -465,134 +397,6 @@ function BestSellerList({ data }: { data: StockCardsData }) {
     );
 }
 
-function ReadyToOrderList({ data }: { data: StockCardsData }) {
-    const { items, threshold, count } = data.ready_to_order;
-    const [busy, setBusy] = useState<number | null>(null);
-    const [confirming, setConfirming] = useState<(typeof items)[number] | null>(
-        null,
-    );
-
-    const act = (url: string, productId: number) => {
-        setBusy(productId);
-        router.post(
-            url,
-            {},
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onFinish: () => {
-                    setBusy(null);
-                    setConfirming(null);
-                },
-            },
-        );
-    };
-
-    return (
-        <>
-            <ListHeader
-                title="Ready to order"
-                description={`Coming Soon items with ${threshold.toLocaleString('en-PH')} or more paid pieces (set on Maintenance; unpaid preorders do not count). Create PO closes their preorders; Leave it keeps them open.`}
-            />
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                {items.length === 0 ? (
-                    <p className="px-6 py-12 text-center text-sm text-slate-500">
-                        No Coming Soon item has {threshold} paid pieces yet.
-                    </p>
-                ) : (
-                    <ul className="divide-y divide-slate-100">
-                        {items.map((item) => (
-                            <li
-                                key={item.product_id}
-                                className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                                <div className="min-w-0">
-                                    <p className="truncate font-black text-slate-900">
-                                        {item.product_name}
-                                    </p>
-                                    <p className="text-sm text-slate-500">
-                                        <span className="font-black text-amber-700">
-                                            {formatUnits(item.pieces, 'Piece')}{' '}
-                                            paid
-                                        </span>{' '}
-                                        ({threshold} needed)
-                                        {item.preorders_close_on &&
-                                            ` · closes ${formatDateOrdered(item.preorders_close_on)}`}
-                                    </p>
-                                </div>
-                                <div className="flex shrink-0 gap-2">
-                                    <button
-                                        type="button"
-                                        disabled={busy !== null}
-                                        onClick={() => setConfirming(item)}
-                                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#0D6EFD] px-3.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-                                    >
-                                        Create PO
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={busy !== null}
-                                        onClick={() =>
-                                            act(
-                                                ReadyToOrderController.leave(
-                                                    item.product_id,
-                                                ).url,
-                                                item.product_id,
-                                            )
-                                        }
-                                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                                    >
-                                        {busy === item.product_id &&
-                                        confirming === null ? (
-                                            <LoaderCircle
-                                                size={14}
-                                                className="animate-spin"
-                                            />
-                                        ) : null}
-                                        Leave it
-                                    </button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-            <ListFooter>
-                <Link
-                    href={PreorderController.index({
-                        query: { stage: 'open' },
-                    })}
-                    className={footerLink}
-                >
-                    {count > items.length
-                        ? `See all ${count} on Preorders`
-                        : 'Open Preorders'}
-                    <ArrowRight size={15} />
-                </Link>
-            </ListFooter>
-
-            {/* Closing preorders cannot be undone here, so it asks first. */}
-            <ConfirmDialog
-                open={confirming !== null}
-                title={`Create a PO for ${confirming?.product_name ?? 'this item'}?`}
-                description={`Its preorders close now and ${confirming ? formatUnits(confirming.pieces, 'Piece') : 'the pieces'} paid move to To order on the Preorders page; buyers can no longer preorder it. Then order them in the eStore and scan the PO.`}
-                cancelLabel="Not yet"
-                confirmLabel="Create PO"
-                busy={busy !== null}
-                onConfirm={() =>
-                    confirming &&
-                    act(
-                        ReadyToOrderController.order(confirming.product_id).url,
-                        confirming.product_id,
-                    )
-                }
-                onClose={() => setConfirming(null)}
-            />
-        </>
-    );
-}
-
-/** "₱480.00", or "from ₱500.00" when sizes have different prices. */
 function priceText(from: number | null, to: number | null): string {
     if (from === null) {
         return '';
@@ -842,87 +646,6 @@ function TopBuyersList({
                     </button>
                 </div>
             </div>
-        </>
-    );
-}
-
-/**
- * Items with unpaid preorders and no payment dates yet, the most preordered
- * first: Set dates opens the payment dates. Until they are set, buyers can
- * pay whenever they like and nothing is dropped.
- */
-function SetUpList({ data }: { data: StockCardsData }) {
-    const { items, count, today } = data.preorders_to_set_up;
-    const [setting, setSetting] = useState<CloseDateTarget | null>(null);
-
-    return (
-        <>
-            <ListHeader
-                title="Preorders to set up"
-                description="Buyers preordered these, but no payment dates are set yet. Set them: buyers are told to pay at the cashier by the close date, or their preorders are dropped."
-            />
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                {items.length === 0 ? (
-                    <p className="px-6 py-12 text-center text-sm text-slate-500">
-                        Every item with preorders has its payment dates.
-                    </p>
-                ) : (
-                    <ul className="divide-y divide-slate-100">
-                        {items.map((item) => (
-                            <li
-                                key={item.product_id}
-                                className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                                <div className="min-w-0">
-                                    <p className="truncate font-black text-slate-900">
-                                        {item.product_name}
-                                    </p>
-                                    <p className="text-sm text-slate-500">
-                                        <span className="font-black text-amber-700">
-                                            {formatUnits(item.pieces, 'Piece')}
-                                        </span>{' '}
-                                        unpaid · {item.buyers}{' '}
-                                        {item.buyers === 1 ? 'buyer' : 'buyers'}{' '}
-                                        ·{' '}
-                                        {item.coming_soon
-                                            ? 'Coming Soon'
-                                            : 'waiting for restock'}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setSetting({
-                                            id: item.product_id,
-                                            name: item.product_name,
-                                            preorders_close_on:
-                                                item.preorders_close_on,
-                                            preorder_pay_from: null,
-                                        })
-                                    }
-                                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#0D6EFD] px-3.5 text-sm font-black text-white transition hover:bg-blue-700"
-                                >
-                                    <CalendarClock size={14} />
-                                    Set dates
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-            <ListFooter>
-                <span className="text-sm text-slate-500">
-                    {count > items.length
-                        ? `Showing ${items.length} of ${count}.`
-                        : ''}
-                </span>
-            </ListFooter>
-
-            <PreorderCloseDateDialog
-                product={setting}
-                today={today}
-                onClose={() => setSetting(null)}
-            />
         </>
     );
 }

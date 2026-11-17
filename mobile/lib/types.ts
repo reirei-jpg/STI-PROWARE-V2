@@ -508,25 +508,6 @@ export type StockCardsData = {
         items: { product_id: number; product_name: string; pieces_left: number; out_of_stock: boolean; warn_at: number; low_sizes?: string | null }[];
     };
     best_sellers: { from: string; items: { product_id: number; product_name: string; pieces: number }[] };
-    ready_to_order: {
-        threshold: number;
-        count: number;
-        items: { product_id: number; product_name: string; pieces: number; preorders_close_on: string | null }[];
-    };
-    /** Items with unpaid preorders and no payment dates yet; missing on an older server. */
-    preorders_to_set_up?: {
-        count: number;
-        items: {
-            product_id: number;
-            product_name: string;
-            coming_soon: boolean;
-            buyers: number;
-            pieces: number;
-            preorders_close_on: string | null;
-            expected_arrival_from: string | null;
-        }[];
-        today: string;
-    };
     /** Preorder slips waiting for their items; missing on an older server. */
     preorder_slips?: { to_verify: number; paid: number; all: number };
     /** Missing on a server from before this card. */
