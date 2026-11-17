@@ -109,6 +109,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('preorders/{product}/payment-dates', [PreorderController::class, 'updatePaymentDates'])->name('preorders.payment-dates');
         Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
         Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');
+        Route::get('preorder-slips', [PreorderSlipController::class, 'index'])->name('preorder-slips.index');
         Route::post('preorder-slips/{preorderSlip}/paid', [PreorderSlipController::class, 'paid'])->name('preorder-slips.paid');
         Route::post('preorder-slips/{preorderSlip}/release', [PreorderSlipController::class, 'release'])->name('preorder-slips.release');
         Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');

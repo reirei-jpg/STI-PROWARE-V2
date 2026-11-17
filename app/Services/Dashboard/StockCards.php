@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Services\Preorders\PaymentDates;
+use App\Services\Preorders\PreorderSlipList;
 use App\Services\Reports\SalesReport;
 use App\Services\Stock\Units;
 use Carbon\CarbonImmutable;
@@ -28,6 +29,8 @@ use Illuminate\Validation\ValidationException;
  *   once 10 more pieces are paid for.
  * - Top buyers: who spent the most in the last 3 months, and telling them
  *   about a product in stock (TopBuyers).
+ * - Preorders: slips waiting for their items, the unpaid ones to verify
+ *   (PreorderSlipList).
  *
  * @phpstan-type LowStockRow array{product_id: int, product_name: string, pieces_left: int, out_of_stock: bool, warn_at: int, low_sizes: string|null}
  * @phpstan-type BestSellerRow array{product_id: int, product_name: string, pieces: int}
@@ -54,7 +57,7 @@ final class StockCards
     }
 
     /**
-     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, ready_to_order: array{threshold: int, count: int, items: list<ReadyRow>}, top_buyers: array<string, mixed>, preorders_to_set_up: array<string, mixed>}
+     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, ready_to_order: array{threshold: int, count: int, items: list<ReadyRow>}, top_buyers: array<string, mixed>, preorders_to_set_up: array<string, mixed>, preorder_slips: array{to_verify: int, paid: int, all: int}}
      */
     public function all(): array
     {
@@ -64,6 +67,7 @@ final class StockCards
             'ready_to_order' => $this->readyToOrder(),
             'top_buyers' => TopBuyers::card(),
             'preorders_to_set_up' => PaymentDates::toSetUp(),
+            'preorder_slips' => PreorderSlipList::counts(),
         ];
     }
 

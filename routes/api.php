@@ -73,6 +73,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('orders', [SpecialistOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [SpecialistOrderController::class, 'show'])->name('orders.show');
         Route::get('slips/{code}', [SpecialistOrderController::class, 'slip'])->name('slips.show');
+        Route::get('preorder-slips', [SpecialistOrderController::class, 'preorderSlips'])->name('preorder-slips.index');
         Route::post('preorder-slips/{preorderSlip}/paid', [SpecialistOrderController::class, 'preorderPaid'])->name('preorder-slips.paid');
         Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
         Route::post('preorder-slips/{preorderSlip}/release', [SpecialistOrderController::class, 'preorderRelease'])->name('preorder-slips.release');
