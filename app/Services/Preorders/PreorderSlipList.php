@@ -5,6 +5,7 @@ namespace App\Services\Preorders;
 use App\Enums\PreorderStatus;
 use App\Models\Preorder;
 use App\Models\PreorderSlip;
+use App\Models\User;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -15,15 +16,18 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * Specialist can check which are paid. "To verify" are the unpaid slips
  * (the buyer still has to show the cashier's receipt); "Paid" are the paid
  * slips not yet released. Check payment opens the slip, where the receipt
- * is checked and the slip is marked paid, as when it is scanned.
+ * is checked and the slip is marked paid, as when it is scanned. The list
+ * shows one card per buyer with all their slips, since a buyer who
+ * preordered two items has two slips (one per press of Preorder).
  *
  * @phpstan-type SlipRow array{slip_id: int, number: string|null, buyer_name: string, buyer_id_number: string|null, is_staff: bool, product_name: string, items: string, pieces: int, amount_centavos: int, paid: bool, paid_on: string|null, pay_from: string|null, pay_until: string|null}
+ * @phpstan-type BuyerRow array{buyer_id: int, buyer_name: string, buyer_id_number: string|null, is_staff: bool, unpaid_slips: int, unpaid_centavos: int, slips: list<SlipRow>}
  */
 final class PreorderSlipList
 {
     public const TABS = ['to_verify', 'paid', 'all'];
 
-    public const PER_PAGE = 20;
+    public const BUYERS_PER_PAGE = 15;
 
     /**
      * The card's numbers.
@@ -39,24 +43,52 @@ final class PreorderSlipList
     }
 
     /**
-     * One page of slips: unpaid first, then the oldest first (first come,
-     * first served), found by slip number or buyer name.
+     * One page of buyers, each with their slips in the tab: buyers with an
+     * unpaid slip first, then the earliest to preorder (first come, first
+     * served). Found by buyer name or slip number.
      *
-     * @return LengthAwarePaginator<int, SlipRow>
+     * @return LengthAwarePaginator<int, BuyerRow>
      */
     public static function page(string $tab, ?string $search): LengthAwarePaginator
     {
-        $page = self::query($tab)
+        $matching = self::query($tab)
             ->when($search !== null, fn (Builder $slips) => $slips->where(fn (Builder $found) => $found
                 ->whereLike('number', "%{$search}%")
                 ->orWhereHas('student', fn (Builder $buyer) => $buyer->whereLike('name', "%{$search}%"))))
+            ->select('user_id');
+        $ofBuyer = fn () => self::query($tab)->whereColumn('preorder_slips.user_id', 'users.id');
+
+        $page = User::query()
+            ->whereIn('id', $matching)
+            ->orderBy($ofBuyer()->selectRaw('min(case when paid_at is null then 0 else 1 end)'))
+            ->orderBy($ofBuyer()->selectRaw('min(id)'))
+            ->orderBy('id')
+            ->paginate(self::BUYERS_PER_PAGE)
+            ->withQueryString();
+
+        // Every slip of the buyers on this page, unpaid first, then the oldest.
+        $slips = self::query($tab)
+            ->whereIn('user_id', $page->getCollection()->modelKeys())
             ->with(['student', 'product', 'preorders.variant'])
             ->orderByRaw('case when paid_at is null then 0 else 1 end')
             ->orderBy('id')
-            ->paginate(self::PER_PAGE)
-            ->withQueryString();
+            ->get()
+            ->groupBy('user_id');
 
-        return $page->through(fn (PreorderSlip $slip): array => self::row($slip));
+        return $page->through(function (User $buyer) use ($slips): array {
+            $rows = array_values(($slips[$buyer->id] ?? collect())->map(fn (PreorderSlip $slip): array => self::row($slip))->all());
+            $unpaid = array_values(array_filter($rows, fn (array $row): bool => ! $row['paid']));
+
+            return [
+                'buyer_id' => $buyer->id,
+                'buyer_name' => $buyer->name,
+                'buyer_id_number' => $buyer->idNumber(),
+                'is_staff' => $buyer->isEmployee(),
+                'unpaid_slips' => count($unpaid),
+                'unpaid_centavos' => array_sum(array_column($unpaid, 'amount_centavos')),
+                'slips' => $rows,
+            ];
+        });
     }
 
     /**

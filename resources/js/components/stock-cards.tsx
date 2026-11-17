@@ -946,8 +946,19 @@ type PreorderSlipRow = {
     pay_until: string | null;
 };
 
+/** One buyer with their slips: a buyer has one slip per press of Preorder. */
+type PreorderBuyerRow = {
+    buyer_id: number;
+    buyer_name: string;
+    buyer_id_number: string | null;
+    is_staff: boolean;
+    unpaid_slips: number;
+    unpaid_centavos: number;
+    slips: PreorderSlipRow[];
+};
+
 type PreorderSlipPage = {
-    data: PreorderSlipRow[];
+    data: PreorderBuyerRow[];
     current_page: number;
     last_page: number;
     total: number;
@@ -1008,13 +1019,13 @@ function PreorderSlipsList({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab, search, page]);
 
-    const rows = result?.data ?? [];
+    const buyers = result?.data ?? [];
 
     return (
         <>
             <ListHeader
                 title="Preorders"
-                description="Preorder slips waiting for their items, unpaid first. Check payment opens the slip: check the cashier's receipt, then mark it paid."
+                description="Preorders waiting for their items, by buyer, unpaid first. Check payment opens the slip: check the cashier's receipt, then mark it paid."
             />
             <div className="space-y-3 border-b border-slate-100 px-6 py-4">
                 <div className="flex flex-wrap gap-2">
@@ -1066,7 +1077,7 @@ function PreorderSlipsList({
                             />
                         ))}
                     </div>
-                ) : rows.length === 0 ? (
+                ) : buyers.length === 0 ? (
                     <p className="px-6 py-12 text-center text-sm text-slate-500">
                         {search.trim() !== ''
                             ? `No slip or buyer in ${slipTabs.find((item) => item.key === tab)?.label} matches "${search.trim()}".`
@@ -1079,71 +1090,99 @@ function PreorderSlipsList({
                 ) : (
                     <ul
                         className={cn(
-                            'divide-y divide-slate-100',
+                            'space-y-3 px-6 py-4',
                             http.processing && 'opacity-60',
                         )}
                     >
-                        {rows.map((row) => (
+                        {buyers.map((buyer) => (
                             <li
-                                key={row.slip_id}
-                                className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                                key={buyer.buyer_id}
+                                className="overflow-hidden rounded-2xl border border-slate-200"
                             >
-                                <div className="min-w-0 space-y-0.5">
-                                    <p className="flex flex-wrap items-center gap-2">
-                                        <span className="font-black text-slate-900">
-                                            {row.number}
-                                        </span>
-                                        <span
-                                            className={cn(
-                                                'rounded-full px-2 py-0.5 text-[11px] font-black ring-1',
-                                                row.paid
-                                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                                                    : 'bg-amber-50 text-amber-700 ring-amber-200',
-                                            )}
-                                        >
-                                            {row.paid
-                                                ? `Paid ${formatDateOrdered(row.paid_on)}`
-                                                : 'Not paid yet'}
-                                        </span>
-                                    </p>
-                                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800">
-                                        {row.buyer_name}
-                                        {row.is_staff && <StaffTag />}
-                                        {row.buyer_id_number && (
-                                            <span className="font-normal text-slate-500">
-                                                {row.buyer_id_number}
+                                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-4 py-3">
+                                    <p className="flex flex-wrap items-center gap-1.5 font-black text-slate-900">
+                                        {buyer.buyer_name}
+                                        {buyer.is_staff && <StaffTag />}
+                                        {buyer.buyer_id_number && (
+                                            <span className="text-sm font-normal text-slate-500">
+                                                {buyer.buyer_id_number}
                                             </span>
                                         )}
                                     </p>
-                                    <p className="text-sm text-slate-600">
-                                        {row.product_name}: {row.items}
-                                    </p>
-                                    <p className="text-sm text-slate-500">
-                                        <span className="font-black text-slate-900">
-                                            {formatPeso(row.amount_centavos)}
-                                        </span>
-                                        {!row.paid &&
-                                            (row.pay_until === null
-                                                ? ' · no payment dates yet'
-                                                : ` · pay ${formatDateOrdered(row.pay_from)} to ${formatDateOrdered(row.pay_until)}`)}
-                                    </p>
+                                    <span
+                                        className={cn(
+                                            'rounded-full px-2.5 py-0.5 text-xs font-black ring-1',
+                                            buyer.unpaid_slips > 0
+                                                ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                                                : 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                                        )}
+                                    >
+                                        {buyer.unpaid_slips > 0
+                                            ? `Not paid: ${formatPeso(buyer.unpaid_centavos)}`
+                                            : 'All paid'}
+                                    </span>
                                 </div>
-                                <Link
-                                    href={
-                                        OrderController.slip({
-                                            query: { code: row.number ?? '' },
-                                        }).url
-                                    }
-                                    className={cn(
-                                        'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3.5 text-sm font-black transition',
-                                        row.paid
-                                            ? 'border border-slate-200 bg-white text-blue-700 hover:bg-blue-50'
-                                            : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
-                                    )}
-                                >
-                                    <Banknote size={14} />
-                                    {row.paid ? 'View slip' : 'Check payment'}
-                                </Link>
+                                <ul className="divide-y divide-slate-100">
+                                    {buyer.slips.map((row) => (
+                                        <li
+                                            key={row.slip_id}
+                                            className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                        >
+                                            <div className="min-w-0 space-y-0.5">
+                                                <p className="text-sm font-bold text-slate-800">
+                                                    {row.product_name}:{' '}
+                                                    {row.items}
+                                                </p>
+                                                <p className="text-sm text-slate-500">
+                                                    {row.number} ·{' '}
+                                                    <span className="font-black text-slate-900">
+                                                        {formatPeso(
+                                                            row.amount_centavos,
+                                                        )}
+                                                    </span>{' '}
+                                                    ·{' '}
+                                                    {row.paid ? (
+                                                        <span className="font-bold text-emerald-700">
+                                                            Paid{' '}
+                                                            {formatDateOrdered(
+                                                                row.paid_on,
+                                                            )}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="font-bold text-amber-700">
+                                                            {row.pay_until ===
+                                                            null
+                                                                ? 'Not paid yet'
+                                                                : `Not paid yet · pay ${formatDateOrdered(row.pay_from)} to ${formatDateOrdered(row.pay_until)}`}
+                                                        </span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <Link
+                                                href={
+                                                    OrderController.slip({
+                                                        query: {
+                                                            code:
+                                                                row.number ??
+                                                                '',
+                                                        },
+                                                    }).url
+                                                }
+                                                className={cn(
+                                                    'inline-flex h-9 shrink-0 items-center gap-1.5 self-start rounded-lg px-3.5 text-sm font-black transition sm:self-auto',
+                                                    row.paid
+                                                        ? 'border border-slate-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                        : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
+                                                )}
+                                            >
+                                                <Banknote size={14} />
+                                                {row.paid
+                                                    ? 'View slip'
+                                                    : 'Check payment'}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
                             </li>
                         ))}
                     </ul>
@@ -1177,7 +1216,7 @@ function PreorderSlipsList({
                 ) : (
                     <span className="text-sm text-slate-500">
                         {result !== null && result.total > 0
-                            ? `${result.total.toLocaleString('en-PH')} ${result.total === 1 ? 'slip' : 'slips'}`
+                            ? `${result.total.toLocaleString('en-PH')} ${result.total === 1 ? 'buyer' : 'buyers'}`
                             : ''}
                     </span>
                 )}

@@ -28,7 +28,18 @@ type SlipRow = {
     pay_until: string | null;
 };
 
-type SlipPage = { data: SlipRow[]; current_page: number; last_page: number; total: number; counts: Counts };
+/** One buyer with their slips: a buyer has one slip per press of Preorder. */
+type BuyerRow = {
+    buyer_id: number;
+    buyer_name: string;
+    buyer_id_number: string | null;
+    is_staff: boolean;
+    unpaid_slips: number;
+    unpaid_centavos: number;
+    slips: SlipRow[];
+};
+
+type SlipPage = { data: BuyerRow[]; current_page: number; last_page: number; total: number; counts: Counts };
 
 const TABS: { key: Tab; label: string }[] = [
     { key: 'to_verify', label: 'To verify' },
@@ -47,7 +58,7 @@ export default function PreorderSlipsCard({ counts: initialCounts }: { counts: C
     const [open, setOpen] = useState(false);
     const [tab, setTab] = useState<Tab>('to_verify');
     const [search, setSearch] = useState('');
-    const [rows, setRows] = useState<SlipRow[]>([]);
+    const [rows, setRows] = useState<BuyerRow[]>([]);
     const [page, setPage] = useState<SlipPage | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -119,7 +130,7 @@ export default function PreorderSlipsCard({ counts: initialCounts }: { counts: C
                 open={open}
                 onClose={() => setOpen(false)}
                 title="Preorders"
-                subtitle="Slips waiting for their items, unpaid first. Check payment opens the slip: check the cashier's receipt, then mark it paid."
+                subtitle="Preorders waiting for their items, by buyer, unpaid first. Check payment opens the slip: check the cashier's receipt, then mark it paid."
                 icon={<Banknote size={20} color="#b45309" />}
                 footer={
                     <Pressable
@@ -175,46 +186,53 @@ export default function PreorderSlipsCard({ counts: initialCounts }: { counts: C
                         </Text>
                     ) : (
                         <View className={`gap-2.5 ${loading ? 'opacity-60' : ''}`}>
-                            {rows.map((row) => (
-                                <View key={row.slip_id} className="gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                    <View className="flex-row flex-wrap items-center gap-2">
-                                        <Text className="font-sans-bold text-sm text-slate-900">{row.number}</Text>
-                                        <View className={`rounded-full px-2 py-0.5 ${row.paid ? 'bg-emerald-50' : 'bg-amber-50'}`}>
-                                            <Text className={`font-sans-bold text-[11px] ${row.paid ? 'text-emerald-700' : 'text-amber-700'}`}>
-                                                {row.paid ? `Paid ${formatDate(row.paid_on)}` : 'Not paid yet'}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View>
+                            {rows.map((buyer) => (
+                                <View key={buyer.buyer_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                    <View className="gap-1 bg-slate-50 px-4 py-3">
                                         <View className="flex-row flex-wrap items-center gap-1.5">
-                                            <Text className="font-sans-bold text-sm text-slate-800">{row.buyer_name}</Text>
-                                            {row.is_staff && (
+                                            <Text className="font-sans-bold text-sm text-slate-900">{buyer.buyer_name}</Text>
+                                            {buyer.is_staff && (
                                                 <View className="rounded-full bg-slate-100 px-2 py-0.5">
                                                     <Text className="font-sans-bold text-[10px] uppercase text-slate-700">Staff</Text>
                                                 </View>
                                             )}
+                                            {buyer.buyer_id_number && (
+                                                <Text className="font-sans text-xs text-slate-500">{buyer.buyer_id_number}</Text>
+                                            )}
                                         </View>
-                                        <Text className="font-sans text-xs text-slate-600">
-                                            {row.product_name}: {row.items}
-                                        </Text>
-                                        <Text className="font-sans text-xs text-slate-500">
-                                            <Text className="font-sans-bold text-slate-900">{formatPeso(row.amount_centavos)}</Text>
-                                            {!row.paid &&
-                                                (row.pay_until === null
-                                                    ? ' · no payment dates yet'
-                                                    : ` · pay ${formatDate(row.pay_from)} to ${formatDate(row.pay_until)}`)}
+                                        <Text className={`font-sans-bold text-xs ${buyer.unpaid_slips > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                            {buyer.unpaid_slips > 0 ? `Not paid: ${formatPeso(buyer.unpaid_centavos)}` : 'All paid'}
                                         </Text>
                                     </View>
-                                    <Pressable
-                                        onPress={() => check(row)}
-                                        accessibilityRole="button"
-                                        className={`flex-row items-center justify-center gap-1.5 rounded-lg px-3 py-2 ${row.paid ? 'border border-slate-300 bg-white' : 'bg-brand'}`}
-                                    >
-                                        <Banknote size={15} color={row.paid ? '#1d4ed8' : '#ffffff'} />
-                                        <Text className={`font-sans-bold text-sm ${row.paid ? 'text-blue-700' : 'text-white'}`}>
-                                            {row.paid ? 'View slip' : 'Check payment'}
-                                        </Text>
-                                    </Pressable>
+                                    {buyer.slips.map((row) => (
+                                        <View key={row.slip_id} className="gap-2 border-t border-slate-100 px-4 py-3">
+                                            <View>
+                                                <Text className="font-sans-bold text-sm text-slate-800">
+                                                    {row.product_name}: {row.items}
+                                                </Text>
+                                                <Text className="font-sans text-xs text-slate-500">
+                                                    {row.number} · <Text className="font-sans-bold text-slate-900">{formatPeso(row.amount_centavos)}</Text> ·{' '}
+                                                    <Text className={`font-sans-bold ${row.paid ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                        {row.paid
+                                                            ? `Paid ${formatDate(row.paid_on)}`
+                                                            : row.pay_until === null
+                                                              ? 'Not paid yet'
+                                                              : `Not paid yet · pay ${formatDate(row.pay_from)} to ${formatDate(row.pay_until)}`}
+                                                    </Text>
+                                                </Text>
+                                            </View>
+                                            <Pressable
+                                                onPress={() => check(row)}
+                                                accessibilityRole="button"
+                                                className={`flex-row items-center justify-center gap-1.5 rounded-lg px-3 py-2 ${row.paid ? 'border border-slate-300 bg-white' : 'bg-brand'}`}
+                                            >
+                                                <Banknote size={15} color={row.paid ? '#1d4ed8' : '#ffffff'} />
+                                                <Text className={`font-sans-bold text-sm ${row.paid ? 'text-blue-700' : 'text-white'}`}>
+                                                    {row.paid ? 'View slip' : 'Check payment'}
+                                                </Text>
+                                            </Pressable>
+                                        </View>
+                                    ))}
                                 </View>
                             ))}
                             {page.current_page < page.last_page && (
@@ -226,7 +244,7 @@ export default function PreorderSlipsCard({ counts: initialCounts }: { counts: C
                                 >
                                     {loading && <ActivityIndicator size="small" color="#0D6EFD" />}
                                     <Text className="font-sans-bold text-sm text-blue-700">
-                                        Show more ({rows.length} of {page.total})
+                                        Show more buyers ({rows.length} of {page.total})
                                     </Text>
                                 </Pressable>
                             )}

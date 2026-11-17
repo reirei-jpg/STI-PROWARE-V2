@@ -52,36 +52,43 @@ test('the Preorders card counts the slips still waiting for their items, unpaid 
     $this->actingAs($this->specialist)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('stockCards.preorder_slips', ['to_verify' => 1, 'paid' => 2, 'all' => 3]));
 
+    // To verify: one card per buyer, with their unpaid slips.
     $this->getJson(route('preorder-slips.index'))
         ->assertOk()
         ->assertJsonPath('total', 1)
-        ->assertJsonPath('data.0', [
+        ->assertJsonPath('data.0.buyer_name', 'Juan Dela Cruz')
+        ->assertJsonPath('data.0.unpaid_slips', 1)
+        ->assertJsonPath('data.0.unpaid_centavos', 170000)
+        ->assertJsonPath('data.0.slips', [[
             'slip_id' => $unpaid->id, 'number' => $unpaid->number, 'buyer_name' => 'Juan Dela Cruz',
             'buyer_id_number' => $juan->idNumber(), 'is_staff' => false, 'product_name' => 'STI Pullover Hoodie',
             'items' => 'L × 2', 'pieces' => 2, 'amount_centavos' => 170000, 'paid' => false, 'paid_on' => null,
             'pay_from' => '2026-11-16', 'pay_until' => '2026-11-20',
-        ]);
+        ]]);
 
-    // All: the unpaid one first, then the paid ones from the oldest.
+    // All: Juan's two slips together (the unpaid one first), then Teresita.
     $this->getJson(route('preorder-slips.index', ['tab' => 'all']))
-        ->assertJsonPath('data.*.number', [$unpaid->number, $paid->number, $readyToPickUp->number])
+        ->assertJsonPath('data.*.buyer_name', ['Juan Dela Cruz', 'Teresita Lim'])
+        ->assertJsonPath('data.0.slips.*.number', [$unpaid->number, $readyToPickUp->number])
+        ->assertJsonPath('data.0.slips.1.items', 'L × 3')
+        ->assertJsonPath('data.0.slips.1.amount_centavos', 255000)
         ->assertJsonPath('data.1.is_staff', true)
-        ->assertJsonPath('data.1.paid_on', '2026-11-17')
-        ->assertJsonPath('data.2.items', 'L × 3')
-        ->assertJsonPath('data.2.amount_centavos', 255000);
+        ->assertJsonPath('data.1.unpaid_slips', 0)
+        ->assertJsonPath('data.1.slips.0.paid_on', '2026-11-17');
 
     // Found by buyer name or slip number.
     $this->getJson(route('preorder-slips.index', ['tab' => 'all', 'search' => 'teresita']))
-        ->assertJsonPath('data.*.number', [$paid->number]);
+        ->assertJsonPath('data.*.buyer_name', ['Teresita Lim']);
     $this->getJson(route('preorder-slips.index', ['tab' => 'all', 'search' => strtolower((string) $readyToPickUp->number)]))
-        ->assertJsonPath('data.*.number', [$readyToPickUp->number]);
+        ->assertJsonPath('data.*.buyer_name', ['Juan Dela Cruz']);
 
     // The phone gets the same list.
     Sanctum::actingAs($this->specialist);
     $this->getJson(route('api.v1.specialist.preorder-slips.index', ['tab' => 'paid']))
         ->assertOk()
         ->assertJsonPath('counts', ['to_verify' => 1, 'paid' => 2, 'all' => 3])
-        ->assertJsonPath('data.*.number', [$paid->number, $readyToPickUp->number]);
+        ->assertJsonPath('data.*.buyer_name', ['Teresita Lim', 'Juan Dela Cruz'])
+        ->assertJsonPath('data.1.slips.*.number', [$readyToPickUp->number]);
     $this->getJson(route('api.v1.specialist.tasks'))
         ->assertJsonPath('stock_cards.preorder_slips.to_verify', 1);
 });
