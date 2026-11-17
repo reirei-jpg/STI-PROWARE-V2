@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Preorders\ReleasePaidPreorder;
+use App\Http\Requests\FilterPreorderSlipsRequest;
 use App\Models\PreorderSlip;
 use App\Services\Preorders\PreorderPayment;
+use App\Services\Preorders\PreorderSlipList;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +20,17 @@ use Inertia\Inertia;
  */
 class PreorderSlipController extends Controller
 {
+    /**
+     * The Preorders card's list on the dashboard: slips to verify or paid.
+     */
+    public function index(FilterPreorderSlipsRequest $request): JsonResponse
+    {
+        return response()->json([
+            ...PreorderSlipList::page($request->tab(), $request->search())->toArray(),
+            'counts' => PreorderSlipList::counts(),
+        ]);
+    }
+
     /**
      * Release the paid preorder's pieces that arrived and are set aside.
      */

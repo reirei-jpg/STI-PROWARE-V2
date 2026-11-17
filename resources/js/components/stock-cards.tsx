@@ -1,6 +1,7 @@
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, router, useForm, useHttp } from '@inertiajs/react';
 import {
     ArrowRight,
+    Banknote,
     CalendarClock,
     ClipboardList,
     Crown,
@@ -11,9 +12,11 @@ import {
     X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import PreorderController from '@/actions/App/Http/Controllers/PreorderController';
+import PreorderSlipController from '@/actions/App/Http/Controllers/PreorderSlipController';
 import ProductAnnouncementController from '@/actions/App/Http/Controllers/ProductAnnouncementController';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import ReadyToOrderController from '@/actions/App/Http/Controllers/ReadyToOrderController';
@@ -22,6 +25,7 @@ import ConfirmDialog from '@/components/confirm-dialog';
 import PreorderCloseDateDialog from '@/components/preorder-close-date-dialog';
 import type { CloseDateTarget } from '@/components/preorder-close-date-dialog';
 import InputError from '@/components/input-error';
+import StaffTag from '@/components/staff-tag';
 import {
     Dialog,
     DialogClose,
@@ -113,6 +117,12 @@ export type StockCardsData = {
         }[];
         today: string;
     };
+    /** Preorder slips waiting for their items: unpaid (to verify) and paid. */
+    preorder_slips: {
+        to_verify: number;
+        paid: number;
+        all: number;
+    };
 };
 
 type CardKey =
@@ -120,7 +130,8 @@ type CardKey =
     | 'best_sellers'
     | 'ready_to_order'
     | 'top_buyers'
-    | 'set_up';
+    | 'set_up'
+    | 'preorder_slips';
 
 /**
  * The stock cards on the Specialist's dashboard: Low stock, Best sellers
@@ -207,7 +218,17 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                                 : 'items need payment dates'
                         }
                         onOpen={() => setOpen('set_up')}
-                    />{' '}
+                    />
+                    <Card
+                        icon={Banknote}
+                        iconClassName="bg-amber-50 text-amber-600"
+                        title="Preorders"
+                        value={data.preorder_slips.to_verify.toLocaleString(
+                            'en-PH',
+                        )}
+                        detail={`unpaid to verify · ${data.preorder_slips.all.toLocaleString('en-PH')} ${data.preorder_slips.all === 1 ? 'slip' : 'slips'} in all`}
+                        onOpen={() => setOpen('preorder_slips')}
+                    />
                 </div>
             </section>
 
@@ -224,6 +245,9 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                         <ReadyToOrderList data={data} />
                     )}
                     {open === 'set_up' && <SetUpList data={data} />}
+                    {open === 'preorder_slips' && (
+                        <PreorderSlipsList counts={data.preorder_slips} />
+                    )}
                     {open === 'top_buyers' && (
                         <TopBuyersList
                             data={data}
@@ -899,6 +923,265 @@ function SetUpList({ data }: { data: StockCardsData }) {
                 today={today}
                 onClose={() => setSetting(null)}
             />
+        </>
+    );
+}
+
+type SlipTab = 'to_verify' | 'paid' | 'all';
+
+type PreorderSlipRow = {
+    slip_id: number;
+    number: string | null;
+    buyer_name: string;
+    buyer_id_number: string | null;
+    is_staff: boolean;
+    product_name: string;
+    /** "L × 2, XL × 1" or "3 pcs". */
+    items: string;
+    pieces: number;
+    amount_centavos: number;
+    paid: boolean;
+    paid_on: string | null;
+    pay_from: string | null;
+    pay_until: string | null;
+};
+
+type PreorderSlipPage = {
+    data: PreorderSlipRow[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    counts: StockCardsData['preorder_slips'];
+};
+
+const slipTabs: { key: SlipTab; label: string }[] = [
+    { key: 'to_verify', label: 'To verify' },
+    { key: 'paid', label: 'Paid' },
+    { key: 'all', label: 'All' },
+];
+
+/**
+ * The Preorders card: a shortcut to the preorder slips still waiting for
+ * their items, unpaid first. Check payment opens the slip, where the
+ * Specialist checks the cashier's receipt and marks it paid (as when the
+ * slip is scanned).
+ */
+function PreorderSlipsList({
+    counts: initialCounts,
+}: {
+    counts: StockCardsData['preorder_slips'];
+}) {
+    const http = useHttp<Record<string, never>, PreorderSlipPage>({});
+    const [tab, setTab] = useState<SlipTab>('to_verify');
+    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [result, setResult] = useState<PreorderSlipPage | null>(null);
+    const [failed, setFailed] = useState(false);
+    const latest = useRef(0);
+    const counts = result?.counts ?? initialCounts;
+
+    // Load the page as the Specialist switches tabs, pages or types.
+    useEffect(() => {
+        const requestNumber = ++latest.current;
+        const timer = window.setTimeout(
+            () =>
+                void http
+                    .get(
+                        PreorderSlipController.index({
+                            query: { tab, search: search.trim(), page },
+                        }).url,
+                        {
+                            onSuccess: (response) => {
+                                if (requestNumber === latest.current) {
+                                    setResult(response);
+                                    setFailed(false);
+                                }
+                            },
+                        },
+                    )
+                    .catch(() => setFailed(true)),
+            search === '' ? 0 : 300,
+        );
+
+        return () => window.clearTimeout(timer);
+        // `http` changes on every render; only these should reload.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab, search, page]);
+
+    const rows = result?.data ?? [];
+
+    return (
+        <>
+            <ListHeader
+                title="Preorders"
+                description="Preorder slips waiting for their items, unpaid first. Check payment opens the slip: check the cashier's receipt, then mark it paid."
+            />
+            <div className="space-y-3 border-b border-slate-100 px-6 py-4">
+                <div className="flex flex-wrap gap-2">
+                    {slipTabs.map((item) => (
+                        <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => {
+                                setTab(item.key);
+                                setPage(1);
+                            }}
+                            className={cn(
+                                'rounded-xl border px-3.5 py-2 text-sm font-black transition',
+                                tab === item.key
+                                    ? 'border-[#0D6EFD] bg-[#0D6EFD] text-white'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                            )}
+                        >
+                            {item.label} (
+                            {counts[item.key].toLocaleString('en-PH')})
+                        </button>
+                    ))}
+                </div>
+                <input
+                    type="search"
+                    value={search}
+                    onChange={(event) => {
+                        setSearch(event.target.value);
+                        setPage(1);
+                    }}
+                    maxLength={120}
+                    placeholder="Search slip number or buyer name"
+                    aria-label="Search slip number or buyer name"
+                    className="h-10 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-slate-900 outline-none focus:border-[#0D6EFD] focus:ring-2 focus:ring-blue-100"
+                />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+                {failed ? (
+                    <p className="px-6 py-12 text-center text-sm text-red-600">
+                        The slips could not be loaded. Check the connection,
+                        then try again.
+                    </p>
+                ) : result === null ? (
+                    <div className="space-y-3 px-6 py-5">
+                        {[0, 1, 2].map((key) => (
+                            <div
+                                key={key}
+                                className="h-16 animate-pulse rounded-2xl bg-slate-100"
+                            />
+                        ))}
+                    </div>
+                ) : rows.length === 0 ? (
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">
+                        {search.trim() !== ''
+                            ? `No slip or buyer in ${slipTabs.find((item) => item.key === tab)?.label} matches "${search.trim()}".`
+                            : tab === 'to_verify'
+                              ? 'Every preorder slip waiting for its items is paid.'
+                              : tab === 'paid'
+                                ? 'No paid preorder slip is waiting for its items.'
+                                : 'No preorder slip is waiting for its items.'}
+                    </p>
+                ) : (
+                    <ul
+                        className={cn(
+                            'divide-y divide-slate-100',
+                            http.processing && 'opacity-60',
+                        )}
+                    >
+                        {rows.map((row) => (
+                            <li
+                                key={row.slip_id}
+                                className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div className="min-w-0 space-y-0.5">
+                                    <p className="flex flex-wrap items-center gap-2">
+                                        <span className="font-black text-slate-900">
+                                            {row.number}
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                'rounded-full px-2 py-0.5 text-[11px] font-black ring-1',
+                                                row.paid
+                                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                                    : 'bg-amber-50 text-amber-700 ring-amber-200',
+                                            )}
+                                        >
+                                            {row.paid
+                                                ? `Paid ${formatDateOrdered(row.paid_on)}`
+                                                : 'Not paid yet'}
+                                        </span>
+                                    </p>
+                                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800">
+                                        {row.buyer_name}
+                                        {row.is_staff && <StaffTag />}
+                                        {row.buyer_id_number && (
+                                            <span className="font-normal text-slate-500">
+                                                {row.buyer_id_number}
+                                            </span>
+                                        )}
+                                    </p>
+                                    <p className="text-sm text-slate-600">
+                                        {row.product_name}: {row.items}
+                                    </p>
+                                    <p className="text-sm text-slate-500">
+                                        <span className="font-black text-slate-900">
+                                            {formatPeso(row.amount_centavos)}
+                                        </span>
+                                        {!row.paid &&
+                                            (row.pay_until === null
+                                                ? ' · no payment dates yet'
+                                                : ` · pay ${formatDateOrdered(row.pay_from)} to ${formatDateOrdered(row.pay_until)}`)}
+                                    </p>
+                                </div>
+                                <Link
+                                    href={
+                                        OrderController.slip({
+                                            query: { code: row.number ?? '' },
+                                        }).url
+                                    }
+                                    className={cn(
+                                        'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3.5 text-sm font-black transition',
+                                        row.paid
+                                            ? 'border border-slate-200 bg-white text-blue-700 hover:bg-blue-50'
+                                            : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
+                                    )}
+                                >
+                                    <Banknote size={14} />
+                                    {row.paid ? 'View slip' : 'Check payment'}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            <ListFooter>
+                {result !== null && result.last_page > 1 ? (
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            disabled={page <= 1 || http.processing}
+                            onClick={() => setPage(page - 1)}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-slate-500">
+                            Page {result.current_page} of {result.last_page}
+                        </span>
+                        <button
+                            type="button"
+                            disabled={
+                                page >= result.last_page || http.processing
+                            }
+                            onClick={() => setPage(page + 1)}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
+                        >
+                            Next
+                        </button>
+                    </div>
+                ) : (
+                    <span className="text-sm text-slate-500">
+                        {result !== null && result.total > 0
+                            ? `${result.total.toLocaleString('en-PH')} ${result.total === 1 ? 'slip' : 'slips'}`
+                            : ''}
+                    </span>
+                )}
+            </ListFooter>
         </>
     );
 }

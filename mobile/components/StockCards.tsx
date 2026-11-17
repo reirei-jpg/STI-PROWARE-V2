@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'reac
 
 import BottomSheet from '@/components/BottomSheet';
 import CenteredToast, { type ToastMessage } from '@/components/CenteredToast';
+import PreorderSlipsCard from '@/components/PreorderSlipsCard';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso, formatUnits } from '@/lib/format';
@@ -199,6 +200,7 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                         </View>
                     </Pressable>
                 )}
+                {data.preorder_slips && <PreorderSlipsCard counts={data.preorder_slips} />}
                 {buyers && (
                     <Pressable
                         onPress={() => setOpen('top_buyers')}

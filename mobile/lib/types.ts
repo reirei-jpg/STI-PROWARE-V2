@@ -527,6 +527,8 @@ export type StockCardsData = {
         }[];
         today: string;
     };
+    /** Preorder slips waiting for their items; missing on an older server. */
+    preorder_slips?: { to_verify: number; paid: number; all: number };
     /** Missing on a server from before this card. */
     top_buyers?: {
         from: string;

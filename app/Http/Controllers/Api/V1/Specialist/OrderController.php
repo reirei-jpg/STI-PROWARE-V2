@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\V1\Specialist;
 use App\Actions\Orders\HandleOrderBySpecialist;
 use App\Actions\Preorders\ReleasePaidPreorder;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterPreorderSlipsRequest;
 use App\Http\Requests\ReleaseOrderRequest;
 use App\Models\Order;
 use App\Models\PreorderSlip;
 use App\Services\Preorders\PreorderPayment;
+use App\Services\Preorders\PreorderSlipList;
 use App\Services\Shop\SpecialistOrders;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,6 +55,17 @@ class OrderController extends Controller
         return $preorderSlip === null
             ? response()->json(['message' => 'This is not a PROWARE issuance slip.'], 404)
             : response()->json(['kind' => 'preorder', ...$preorderSlip]);
+    }
+
+    /**
+     * The Preorders card's list of slips (to verify or paid), as on the website.
+     */
+    public function preorderSlips(FilterPreorderSlipsRequest $request): JsonResponse
+    {
+        return response()->json([
+            ...PreorderSlipList::page($request->tab(), $request->search())->toArray(),
+            'counts' => PreorderSlipList::counts(),
+        ]);
     }
 
     /**
