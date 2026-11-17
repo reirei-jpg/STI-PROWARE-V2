@@ -18,50 +18,13 @@ use Illuminate\Validation\ValidationException;
  * The payment dates of an item's preorders, set by the Specialist: a start
  * date (buyers can pay from then) and a close date (the last day to pay
  * and to preorder). Until they are set, buyers can pay whenever they like
- * and nothing is dropped; the item shows on the dashboard's "Preorders to
- * set up". Once set, buyers with unpaid preorders are told, and preorders
+ * and nothing is dropped. Once set, buyers with unpaid preorders are told, and preorders
  * not paid by the close date are dropped (Not paid in time). For a
  * sold-out size waiting for restock the dates then clear, ready for the
  * next round.
- *
- * @phpstan-type SetUpRow array{product_id: int, product_name: string, coming_soon: bool, buyers: int, pieces: int, preorders_close_on: string|null, expected_arrival_from: string|null}
  */
 final class PaymentDates
 {
-    /** Rows shown on the dashboard card; the count says how many in all. */
-    public const SHOWN = 8;
-
-    /**
-     * Items with unpaid preorders waiting and no payment dates yet, the
-     * most preordered first.
-     *
-     * @return array{count: int, items: list<SetUpRow>, today: string}
-     */
-    public static function toSetUp(): array
-    {
-        $unpaid = fn (Builder $preorders) => self::unpaid($preorders->where('status', PreorderStatus::Active));
-
-        $products = Product::query()
-            ->whereNull('preorder_pay_from')
-            ->whereIn('status', [ProductStatus::Preorder, ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('preorders', $unpaid)
-            ->with(['preorders' => fn ($preorders) => $preorders->where('status', PreorderStatus::Active)->whereNotIn('batch', PreorderSlip::query()->whereNotNull('paid_at')->select('batch'))])
-            ->get()
-            ->map(fn (Product $product): array => [
-                'product_id' => $product->id,
-                'product_name' => $product->name,
-                'coming_soon' => $product->status === ProductStatus::Preorder,
-                'buyers' => $product->preorders->unique('user_id')->count(),
-                'pieces' => (int) $product->preorders->sum('quantity'),
-                'preorders_close_on' => $product->preorders_close_on?->toDateString(),
-                'expected_arrival_from' => $product->expected_arrival_from?->toDateString(),
-            ])
-            ->sortByDesc('pieces')
-            ->values();
-
-        return ['count' => $products->count(), 'items' => array_values($products->take(self::SHOWN)->all()), 'today' => now()->toDateString()];
-    }
-
     /**
      * Set the payment dates and tell the buyers with unpaid preorders.
      *

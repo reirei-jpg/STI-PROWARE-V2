@@ -2,31 +2,20 @@
 
 namespace App\Services\Dashboard;
 
-use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
-use App\Models\PreorderSlip;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Setting;
-use App\Services\Preorders\PaymentDates;
 use App\Services\Preorders\PreorderSlipList;
 use App\Services\Reports\SalesReport;
 use App\Services\Stock\Units;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\ValidationException;
 
 /**
  * The stock cards on the Specialist's dashboard (website and phone To-do):
  *
  * - Low stock: items at or below their low-stock number, the emptiest first.
  * - Best sellers this month, by pieces sold.
- * - Ready to order: Coming Soon items still taking preorders whose PAID
- *   preorders reached the Maintenance number (20 by default; unpaid ones do
- *   not count). The
- *   Specialist either closes its preorders so it moves to To order (then
- *   orders it in the eStore and scans the PO), or leaves it: it comes back
- *   once 10 more pieces are paid for.
  * - Top buyers: who spent the most in the last 3 months, and telling them
  *   about a product in stock (TopBuyers).
  * - Preorders: slips waiting for their items, the unpaid ones to verify
@@ -34,39 +23,21 @@ use Illuminate\Validation\ValidationException;
  *
  * @phpstan-type LowStockRow array{product_id: int, product_name: string, pieces_left: int, out_of_stock: bool, warn_at: int, low_sizes: string|null}
  * @phpstan-type BestSellerRow array{product_id: int, product_name: string, pieces: int}
- * @phpstan-type ReadyRow array{product_id: int, product_name: string, pieces: int, preorders_close_on: string|null}
  */
 final class StockCards
 {
-    public const DEFAULT_PREORDERS_BEFORE_ORDERING = 20;
-
-    public const MIN_PREORDERS_BEFORE_ORDERING = 1;
-
-    public const MAX_PREORDERS_BEFORE_ORDERING = 10000;
-
-    /** Leave it hides an item until this many more pieces are paid for. */
-    public const MORE_BEFORE_SHOWING_AGAIN = 10;
-
     /** Rows shown in a card's list; the count says how many there are in all. */
     public const SHOWN = 8;
 
-    /** The Maintenance number: waiting preorders that make an item ready to order. */
-    public static function preordersBeforeOrdering(): int
-    {
-        return max(self::MIN_PREORDERS_BEFORE_ORDERING, min(self::MAX_PREORDERS_BEFORE_ORDERING, Setting::integer(Setting::PREORDERS_BEFORE_ORDERING, self::DEFAULT_PREORDERS_BEFORE_ORDERING)));
-    }
-
     /**
-     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, ready_to_order: array{threshold: int, count: int, items: list<ReadyRow>}, top_buyers: array<string, mixed>, preorders_to_set_up: array<string, mixed>, preorder_slips: array{to_verify: int, paid: int, all: int}}
+     * @return array{low_stock: array{count: int, items: list<LowStockRow>}, best_sellers: array{from: string, items: list<BestSellerRow>}, top_buyers: array<string, mixed>, preorder_slips: array{to_verify: int, paid: int, all: int}}
      */
     public function all(): array
     {
         return [
             'low_stock' => $this->lowStock(),
             'best_sellers' => $this->bestSellers(),
-            'ready_to_order' => $this->readyToOrder(),
             'top_buyers' => TopBuyers::card(),
-            'preorders_to_set_up' => PaymentDates::toSetUp(),
             'preorder_slips' => PreorderSlipList::counts(),
         ];
     }
@@ -132,99 +103,5 @@ final class StockCards
                 'pieces' => $row['pieces'],
             ], $page->items())),
         ];
-    }
-
-    /**
-     * @return array{threshold: int, count: int, items: list<ReadyRow>}
-     */
-    private function readyToOrder(): array
-    {
-        $threshold = self::preordersBeforeOrdering();
-
-        $products = self::takingPreorders()
-            ->withSum(['preorders as pieces_preordered' => fn (Builder $preorders) => $preorders->where('status', PreorderStatus::Active)->whereIn('batch', PreorderSlip::query()->whereNotNull('paid_at')->select('batch'))], 'quantity')
-            ->get()
-            ->filter(fn (Product $product): bool => self::isReady($product, (int) $product->getAttribute('pieces_preordered'), $threshold))
-            ->map(fn (Product $product): array => [
-                'product_id' => $product->id,
-                'product_name' => $product->name,
-                'pieces' => (int) $product->getAttribute('pieces_preordered'),
-                'preorders_close_on' => $product->preorders_close_on?->toDateString(),
-            ])
-            ->sortByDesc('pieces')
-            ->values();
-
-        return ['threshold' => $threshold, 'count' => $products->count(), 'items' => array_values($products->take(self::SHOWN)->all())];
-    }
-
-    /**
-     * Create PO: its preorders close now, so it moves to To order on the
-     * Preorders page.
-     *
-     * @throws ValidationException when it no longer takes preorders
-     */
-    public static function closeToOrder(Product $product): string
-    {
-        self::refuseUnlessTakingPreorders($product);
-
-        $pieces = self::piecesPreordered($product);
-        $product->forceFill([
-            'preorders_close_on' => CarbonImmutable::yesterday()->toDateString(),
-            'preorder_alert_left_at' => null,
-        ])->save();
-
-        return "Preorders for {$product->name} are closed: ".self::pieces($pieces).' paid are now in To order on the Preorders page. Order them in the eStore, then scan the PO.';
-    }
-
-    /**
-     * Leave it: it keeps taking preorders and comes back once 10 more
-     * pieces are preordered.
-     *
-     * @throws ValidationException when it no longer takes preorders
-     */
-    public static function leave(Product $product): string
-    {
-        self::refuseUnlessTakingPreorders($product);
-
-        $pieces = self::piecesPreordered($product);
-        $product->forceFill(['preorder_alert_left_at' => $pieces])->save();
-
-        return "{$product->name} keeps taking preorders. It shows here again at ".self::pieces($pieces + self::MORE_BEFORE_SHOWING_AGAIN).' paid.';
-    }
-
-    /**
-     * @return Builder<Product>
-     */
-    private static function takingPreorders(): Builder
-    {
-        return Product::query()
-            ->where('status', ProductStatus::Preorder)
-            ->where(fn (Builder $open) => $open->whereNull('preorders_close_on')->orWhereDate('preorders_close_on', '>=', now()->toDateString()));
-    }
-
-    private static function isReady(Product $product, int $pieces, int $threshold): bool
-    {
-        return $pieces >= $threshold
-            && ($product->preorder_alert_left_at === null || $pieces >= $product->preorder_alert_left_at + self::MORE_BEFORE_SHOWING_AGAIN);
-    }
-
-    private static function piecesPreordered(Product $product): int
-    {
-        return (int) $product->preorders()->where('status', PreorderStatus::Active)->paid()->sum('quantity');
-    }
-
-    /**
-     * @throws ValidationException
-     */
-    private static function refuseUnlessTakingPreorders(Product $product): void
-    {
-        if (! $product->acceptsPreorders()) {
-            throw ValidationException::withMessages(['product' => "{$product->name} is no longer taking preorders, so there is nothing to change. See it on the Preorders page."]);
-        }
-    }
-
-    private static function pieces(int $pieces): string
-    {
-        return $pieces.' '.($pieces === 1 ? 'pc' : 'pcs');
     }
 }

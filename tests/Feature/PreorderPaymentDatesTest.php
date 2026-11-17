@@ -12,7 +12,6 @@ use App\Notifications\PreorderPayBy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
-use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-11-14 10:00', 'Asia/Manila'));
@@ -35,19 +34,12 @@ function preorderUnpaidHoodie(User $buyer, int $quantity = 1): PreorderSlip
     return PreorderSlip::query()->where('user_id', $buyer->id)->latest('id')->firstOrFail();
 }
 
-test('an item with unpaid preorders and no payment dates shows on the dashboard until the dates are set', function () {
+test('setting the payment dates tells the buyers with unpaid preorders to pay by then', function () {
     Notification::fake();
     preorderUnpaidHoodie($this->juan, 2);
     $beaSlip = preorderUnpaidHoodie($this->bea);
     // Bea already paid: she is not asked again.
     $this->actingAs($this->specialist)->post(route('preorder-slips.paid', $beaSlip));
-
-    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
-        ->where('stockCards.preorders_to_set_up.count', 1)
-        ->where('stockCards.preorders_to_set_up.items.0', [
-            'product_id' => $this->hoodie->id, 'product_name' => 'STI Batch 2027 Hoodie', 'coming_soon' => true,
-            'buyers' => 1, 'pieces' => 2, 'preorders_close_on' => null, 'expected_arrival_from' => '2027-01-10',
-        ]));
 
     $this->patch(route('preorders.payment-dates', $this->hoodie), ['preorder_pay_from' => '2026-11-15', 'preorders_close_on' => '2026-11-30'])
         ->assertSessionHasNoErrors()
@@ -57,7 +49,6 @@ test('an item with unpaid preorders and no payment dates shows on the dashboard 
         === 'Pay ₱1,500.00 at the cashier with your preorder slip from Nov 15 to Nov 30, 2026. If not paid by then, it is dropped.');
     Notification::assertNotSentTo($this->bea, PreorderPayBy::class);
 
-    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('stockCards.preorders_to_set_up.count', 0));
     $this->actingAs($this->juan)->get(route('my-preorders.index'))->assertInertia(fn (Assert $page) => $page
         ->where('preorders.data.0.pay_from', '2026-11-15')
         ->where('preorders.data.0.pay_until', '2026-11-30'));
@@ -104,11 +95,9 @@ test('a sold-out size gets payment dates for one round; after it the dates clear
     $soldOut = ProductVariant::factory()->for($lanyard)->create(['stock_on_hand' => 0]);
     $this->actingAs($this->juan)->post(route('my-preorders.store', $lanyard), ['product_variant_id' => $soldOut->id, 'quantity' => '1']);
 
-    // On the phone.
-    Sanctum::actingAs($this->specialist);
-    $this->patchJson(route('api.v1.specialist.preorders.payment-dates', $lanyard), ['preorder_pay_from' => '2026-11-14', 'preorders_close_on' => '2026-11-16'])
-        ->assertOk()
-        ->assertJsonPath('message', 'Payment dates for STI Lanyard: Nov 14 to Nov 16, 2026. 1 buyer with an unpaid preorder was told to pay by then.');
+    $this->actingAs($this->specialist)
+        ->patch(route('preorders.payment-dates', $lanyard), ['preorder_pay_from' => '2026-11-14', 'preorders_close_on' => '2026-11-16'])
+        ->assertInertiaFlash('toast.message', 'Payment dates for STI Lanyard: Nov 14 to Nov 16, 2026. 1 buyer with an unpaid preorder was told to pay by then.');
 
     $this->travelTo(CarbonImmutable::parse('2026-11-17 08:00', 'Asia/Manila'));
     $this->artisan('preorders:drop-unpaid');

@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\V1\Specialist\DeliveryController;
 use App\Http\Controllers\Api\V1\Specialist\LockedAccountController;
 use App\Http\Controllers\Api\V1\Specialist\OrderController as SpecialistOrderController;
 use App\Http\Controllers\Api\V1\Specialist\ProductAnnouncementController;
-use App\Http\Controllers\Api\V1\Specialist\ReadyToOrderController;
 use App\Http\Controllers\Api\V1\Specialist\StockController;
 use App\Http\Controllers\Api\V1\Specialist\TaskController;
 use App\Http\Controllers\Api\V1\StorefrontController;
@@ -78,9 +77,6 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
         Route::post('preorder-slips/{preorderSlip}/release', [SpecialistOrderController::class, 'preorderRelease'])->name('preorder-slips.release');
         Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');
-        Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
-        Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');
-        Route::patch('preorders/{product}/payment-dates', [ReadyToOrderController::class, 'paymentDates'])->name('preorders.payment-dates');
         Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');
 
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');

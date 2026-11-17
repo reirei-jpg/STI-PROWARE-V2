@@ -1,7 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     CircleAlert,
-    ClipboardList,
     Gift,
     History,
     LoaderCircle,
@@ -67,14 +66,12 @@ export default function Maintenance({
     promoGroupSize,
     mostPerItem,
     buyersAllowedMore,
-    preordersBeforeOrdering,
     lockedAccounts,
 }: {
     followUpDays: ChoiceSetting;
     promoGroupSize: NumberSetting;
     mostPerItem: LimitSetting;
     buyersAllowedMore: BuyerAllowedMore[];
-    preordersBeforeOrdering: LimitSetting;
     lockedAccounts: LockedAccount[];
 }) {
     return (
@@ -95,15 +92,6 @@ export default function Maintenance({
                             setting={mostPerItem}
                         />
                     </div>
-                </Panel>
-
-                <Panel
-                    title="Preorders"
-                    description="When Coming Soon items are ready to order."
-                >
-                    <PreordersBeforeOrderingSetting
-                        setting={preordersBeforeOrdering}
-                    />
                 </Panel>
 
                 <Panel
@@ -274,83 +262,6 @@ function MostPerItemSetting({ setting }: { setting: LimitSetting }) {
     );
 }
 
-/**
- * How many pieces must be preordered and paid before a Coming Soon item shows on the
- * dashboard as Ready to order, where the Specialist chooses Create PO or
- * Leave it.
- */
-function PreordersBeforeOrderingSetting({
-    setting,
-}: {
-    setting: LimitSetting;
-}) {
-    const form = useForm({ preorders_before_ordering: String(setting.value) });
-    const typed = Number(form.data.preorders_before_ordering) || 0;
-    const changed =
-        form.data.preorders_before_ordering !== '' && typed !== setting.value;
-
-    return (
-        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
-            <SettingText
-                icon={<ClipboardList size={19} className="text-amber-600" />}
-                title="Preorders before ordering"
-                explanation="When this many pieces of a Coming Soon item are preordered AND paid, it shows on the dashboard as Ready to order (unpaid preorders do not count). There you choose Create PO (its preorders close and it moves to To order) or Leave it (it comes back after 10 more are paid for)."
-                example={`Example with ${setting.default}: a hoodie with 22 paid pieces shows as Ready to order; one with 19 paid (and any number unpaid) does not yet.`}
-                setting={setting}
-            />
-
-            <form
-                className="space-y-3 self-start rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    form.patch(
-                        MaintenanceController.updatePreordersBeforeOrdering()
-                            .url,
-                        { preserveScroll: true },
-                    );
-                }}
-            >
-                <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
-                    Now:{' '}
-                    <span className="text-slate-900">
-                        {setting.value.toLocaleString('en-PH')}{' '}
-                        {setting.value === 1 ? 'piece' : 'pieces'}
-                    </span>
-                </p>
-                <label className="block space-y-1.5">
-                    <span className="text-sm font-bold text-slate-700">
-                        Paid pieces ({setting.min} to{' '}
-                        {setting.max.toLocaleString('en-PH')})
-                    </span>
-                    <input
-                        inputMode="numeric"
-                        value={form.data.preorders_before_ordering}
-                        onChange={(event) =>
-                            form.setData(
-                                'preorders_before_ordering',
-                                wholeNumberInput(
-                                    event.target.value,
-                                    setting.max,
-                                ),
-                            )
-                        }
-                        aria-invalid={
-                            form.errors.preorders_before_ordering !== undefined
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
-                    />
-                </label>
-                <InputError message={form.errors.preorders_before_ordering} />
-                <SaveButton disabled={!changed} processing={form.processing} />
-                {!changed && (
-                    <p className="text-center text-xs font-semibold text-slate-500">
-                        Type a different number to save.
-                    </p>
-                )}
-            </form>
-        </div>
-    );
-}
 /**
  * Buyers the Specialist allowed more of one item than everyone else (e.g.
  * 500 shirts for an event), found by their email. They keep their number

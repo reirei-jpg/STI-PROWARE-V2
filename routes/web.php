@@ -20,7 +20,6 @@ use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseOrderDeliveryController;
 use App\Http\Controllers\PurchaseOrderReminderController;
 use App\Http\Controllers\PurchaseOrderScanController;
-use App\Http\Controllers\ReadyToOrderController;
 use App\Http\Controllers\SalesReportController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StudentOrderController;
@@ -91,7 +90,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('maintenance/follow-up-days', [MaintenanceController::class, 'updateFollowUpDays'])->name('maintenance.follow-up-days');
         Route::patch('maintenance/promo-group-size', [MaintenanceController::class, 'updatePromoGroupSize'])->name('maintenance.promo-group-size');
         Route::patch('maintenance/most-per-item', [MaintenanceController::class, 'updateMostPerItem'])->name('maintenance.most-per-item');
-        Route::patch('maintenance/preorders-before-ordering', [MaintenanceController::class, 'updatePreordersBeforeOrdering'])->name('maintenance.preorders-before-ordering');
         Route::post('maintenance/buyers-allowed-more', [MaintenanceController::class, 'allowBuyerMore'])->name('maintenance.buyers-allowed-more.store');
         Route::delete('maintenance/buyers-allowed-more/{buyer}', [MaintenanceController::class, 'removeBuyerAllowance'])->name('maintenance.buyers-allowed-more.destroy');
 
@@ -107,8 +105,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('preorders/{product}', [PreorderController::class, 'show'])->name('preorders.show');
         Route::patch('preorders/{product}/close-date', [PreorderController::class, 'updateCloseDate'])->name('preorders.close-date');
         Route::patch('preorders/{product}/payment-dates', [PreorderController::class, 'updatePaymentDates'])->name('preorders.payment-dates');
-        Route::post('preorders/{product}/create-po', [ReadyToOrderController::class, 'order'])->name('preorders.create-po');
-        Route::post('preorders/{product}/leave', [ReadyToOrderController::class, 'leave'])->name('preorders.leave');
         Route::get('preorder-slips', [PreorderSlipController::class, 'index'])->name('preorder-slips.index');
         Route::post('preorder-slips/{preorderSlip}/paid', [PreorderSlipController::class, 'paid'])->name('preorder-slips.paid');
         Route::post('preorder-slips/{preorderSlip}/release', [PreorderSlipController::class, 'release'])->name('preorder-slips.release');
