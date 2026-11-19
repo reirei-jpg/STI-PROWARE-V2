@@ -18,7 +18,6 @@ use App\Models\StockMovement;
 use App\Services\EstorePo\ItemCode;
 use App\Services\Sales\HeadOfficeCost;
 use App\Services\Sales\SellingBelowCost;
-use App\Services\Stock\LinkedItems;
 use App\Services\Stock\LowStockAlerts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -139,7 +138,6 @@ class ProductController extends Controller
                 ->notLinkedToProduct()
                 ->distinct()
                 ->count('item_code'),
-            'itemsToSplitCount' => LinkedItems::waitingToSplit()->count(),
             'details' => Inertia::optional(fn (): ?array => $request->filled('details') ? $this->details($request->integer('details')) : null),
         ]);
     }

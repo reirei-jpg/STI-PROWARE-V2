@@ -1,7 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
-    Boxes,
     CheckCircle2,
     Link2,
     PackagePlus,
@@ -16,16 +15,9 @@ import LinkItemDialog from '@/components/link-item-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
-import SplitDeliveredDialog from '@/components/split-delivered-dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
-import { formatConversion } from '@/lib/units';
 import { isSameSearch } from '@/lib/utils';
-import type {
-    ItemsToLinkFilters,
-    ItemToLink,
-    ItemToSplit,
-    Paginated,
-} from '@/types';
+import type { ItemsToLinkFilters, ItemToLink, Paginated } from '@/types';
 
 const primaryButtonClasses =
     'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700';
@@ -38,15 +30,12 @@ const primaryButtonClasses =
 export default function ItemsToLink({
     items,
     filters,
-    toSplit,
 }: {
     items: Paginated<ItemToLink>;
     filters: ItemsToLinkFilters;
-    toSplit: ItemToSplit[];
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [linking, setLinking] = useState<ItemToLink | null>(null);
-    const [splitting, setSplitting] = useState<ItemToSplit | null>(null);
     const firstRender = useRef(true);
 
     const showList = (next: ItemsToLinkFilters) => {
@@ -115,50 +104,6 @@ export default function ItemsToLink({
                         />
                     </label>
                 </section>
-
-                {toSplit.length > 0 && (
-                    <Panel
-                        title="Received, split it into stock"
-                        description="These codes are shared by every variant of a product (e.g. every color). Count what arrived and enter how many of each, so each variant gets its own stock."
-                    >
-                        <ul className="divide-y divide-slate-100">
-                            {toSplit.map((item) => (
-                                <li
-                                    key={item.item_code}
-                                    className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div>
-                                        <p className="font-mono font-black text-blue-700">
-                                            {item.item_code}
-                                        </p>
-                                        <p className="mt-1 text-sm font-semibold text-slate-800">
-                                            {item.product_name} ·{' '}
-                                            {item.split_into.length} variants
-                                        </p>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            Arrived, not in stock yet:{' '}
-                                            <span className="font-black text-amber-700">
-                                                {formatConversion(
-                                                    item.units_waiting,
-                                                    item.unit_name,
-                                                    item.pieces_per_unit,
-                                                )}
-                                            </span>
-                                        </p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSplitting(item)}
-                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700"
-                                    >
-                                        <Boxes size={16} />
-                                        Split into stock
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    </Panel>
-                )}
 
                 <Panel
                     title="Not Linked Yet"
@@ -345,10 +290,6 @@ export default function ItemsToLink({
             </div>
 
             <LinkItemDialog item={linking} onClose={() => setLinking(null)} />
-            <SplitDeliveredDialog
-                item={splitting}
-                onClose={() => setSplitting(null)}
-            />
         </>
     );
 }

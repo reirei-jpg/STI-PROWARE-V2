@@ -12,7 +12,6 @@ use App\Services\Storefront\StorefrontFeed;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 /**
  * Adds delivered items to stock. An item is added once its eStore Item Code
@@ -21,11 +20,8 @@ use Illuminate\Validation\ValidationException;
  * added). Head Office's quantity becomes pieces through the pack the item
  * comes in, e.g. 2 × Pack (50 pieces) = 100 pieces.
  *
- * When several variants share the code (e.g. an umbrella in every color),
- * the Specialist says how many pieces of each variant arrived, and each
- * variant gets its own stock movement. Until then the item waits.
- *
- * Each delivered item is added at most once per variant; the stock
+ * Each Item Code is one size or color, so a delivered item goes into that
+ * one variant. Each delivered item is added at most once; the stock
  * movements table refuses a second one. Students waiting for a sold-out
  * size that arrived are notified, and a product that was sold out is NEW
  * for 3 days.
@@ -38,21 +34,19 @@ final class DeliveredStock
     ) {}
 
     /**
-     * Add the delivered items whose eStore Item Code is linked. Items already
-     * in stock, items not linked yet, and items of a shared code without a
-     * split are skipped.
+     * Add the delivered items whose Item Code is linked. Items already in
+     * stock and items not linked yet are skipped.
      *
      * @param  Collection<int, DeliveryItem>  $deliveryItems
-     * @param  array<int, array<int, int>>  $splits  pieces by variant id, by delivery item id (shared codes only)
      * @return int pieces added to stock
      */
-    public function add(Collection $deliveryItems, ?User $recordedBy, array $splits = []): int
+    public function add(Collection $deliveryItems, ?User $recordedBy): int
     {
         if ($deliveryItems->isEmpty()) {
             return 0;
         }
 
-        return DB::transaction(function () use ($deliveryItems, $recordedBy, $splits): int {
+        return DB::transaction(function () use ($deliveryItems, $recordedBy): int {
             $waiting = DeliveryItem::query()
                 ->with('purchaseOrderItem')
                 ->whereKey($deliveryItems->modelKeys())
@@ -74,33 +68,15 @@ final class DeliveredStock
             $restockedIds = [];
 
             foreach ($waiting as $item) {
-                $variants = $variantsByCode->get($item->purchaseOrderItem->item_code);
+                $variant = $variantsByCode->get($item->purchaseOrderItem->item_code)?->first();
 
-                if ($variants === null) {
+                if ($variant === null) {
                     continue;
                 }
 
-                if ($variants->count() === 1) {
-                    /** @var ProductVariant $variant */
-                    $variant = $variants->first();
-                    $piecesPerUnit = $variant->estorePack->pieces ?? 1;
-                    $piecesAdded += $this->addToVariant($variant, $item, $item->quantity_received, $variant->estorePack->name ?? 'Piece', $piecesPerUnit, $piecesPerUnit, $recordedBy);
-                    $restockedIds[] = $variant->id;
-
-                    continue;
-                }
-
-                // Counted by the piece, but the eStore price is per eStore unit.
-                $estoreUnitPieces = self::piecesPerUnit($item->purchaseOrderItem->item_code);
-
-                foreach ($variants as $variant) {
-                    $pieces = $splits[$item->id][$variant->id] ?? 0;
-
-                    if ($pieces > 0) {
-                        $piecesAdded += $this->addToVariant($variant, $item, $pieces, 'Piece', 1, $estoreUnitPieces, $recordedBy);
-                        $restockedIds[] = $variant->id;
-                    }
-                }
+                $piecesPerUnit = $variant->estorePack->pieces ?? 1;
+                $piecesAdded += $this->addToVariant($variant, $item, $item->quantity_received, $variant->estorePack->name ?? 'Piece', $piecesPerUnit, $piecesPerUnit, $recordedBy);
+                $restockedIds[] = $variant->id;
             }
 
             // A product that was sold out and got stock again is NEW (Coming
@@ -126,9 +102,8 @@ final class DeliveredStock
     }
 
     /**
-     * Add every delivered item of the variant's eStore Item Code that is not
-     * in stock yet, e.g. right after the Specialist links the code. Items
-     * of a shared code wait for their split instead.
+     * Add every delivered item of the variant's Item Code that is not in
+     * stock yet, e.g. right after the Specialist links the code.
      *
      * @return int pieces added to stock
      */
@@ -139,65 +114,6 @@ final class DeliveredStock
         }
 
         return $this->add($this->waitingItems($variant->estore_item_code), $recordedBy);
-    }
-
-    /**
-     * Split everything received of a shared code that is not in stock yet:
-     * the pieces counted for each variant, which must add up to what
-     * arrived. Older deliveries are filled first.
-     *
-     * @param  array<int, int>  $piecesByVariant
-     * @return int pieces added to stock
-     */
-    public function splitWaiting(string $itemCode, array $piecesByVariant, User $recordedBy): int
-    {
-        return DB::transaction(function () use ($itemCode, $piecesByVariant, $recordedBy): int {
-            $items = $this->waitingItems($itemCode);
-            $piecesPerUnit = self::piecesPerUnit($itemCode);
-            $arrived = (int) $items->sum('quantity_received') * $piecesPerUnit;
-
-            if ($items->isEmpty() || array_sum($piecesByVariant) !== $arrived) {
-                throw ValidationException::withMessages(['pieces' => 'What is waiting changed while you were typing. Check it again.']);
-            }
-
-            return $this->add($items, $recordedBy, self::allocate($items, $piecesByVariant, $piecesPerUnit));
-        });
-    }
-
-    /**
-     * Share the pieces counted per variant over delivered items of one
-     * shared code, the oldest first, so each delivered item gets exactly
-     * its own number of pieces.
-     *
-     * @param  Collection<int, DeliveryItem>  $items
-     * @param  array<int, int>  $piecesByVariant
-     * @return array<int, array<int, int>> pieces by variant id, by delivery item id
-     */
-    public static function allocate(Collection $items, array $piecesByVariant, int $piecesPerUnit): array
-    {
-        $left = array_filter($piecesByVariant, fn (int $pieces): bool => $pieces > 0);
-        $splits = [];
-
-        foreach ($items->sortBy('id') as $item) {
-            $needed = $item->quantity_received * $piecesPerUnit;
-
-            foreach ($left as $variantId => $pieces) {
-                if ($needed === 0) {
-                    break;
-                }
-
-                $taken = min($needed, $pieces);
-                $splits[$item->id][$variantId] = $taken;
-                $needed -= $taken;
-                $left[$variantId] -= $taken;
-
-                if ($left[$variantId] === 0) {
-                    unset($left[$variantId]);
-                }
-            }
-        }
-
-        return $splits;
     }
 
     /**
@@ -215,16 +131,6 @@ final class DeliveredStock
             ->get(['id'])
             ->map(fn (Product $product): int => $product->id)
             ->all();
-    }
-
-    /**
-     * Pieces in one eStore unit of the code: 1 by the piece, or the pack's.
-     */
-    public static function piecesPerUnit(string $itemCode): int
-    {
-        $variant = ProductVariant::query()->with('estorePack')->where('estore_item_code', $itemCode)->first();
-
-        return $variant?->estorePack->pieces ?? 1;
     }
 
     /**

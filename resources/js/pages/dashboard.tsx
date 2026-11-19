@@ -1,7 +1,6 @@
 import { Head, Link, usePage, usePoll } from '@inertiajs/react';
 import {
     ArrowRight,
-    Boxes,
     CalendarClock,
     CalendarDays,
     CheckCircle2,
@@ -43,7 +42,6 @@ type Task = {
         | 'below_cost'
         | 'low_stock'
         | 'out_of_stock'
-        | 'split'
         | 'link'
         | 'delivery'
         | 'last_day'
@@ -69,7 +67,6 @@ const taskIcons: Record<Task['kind'], LucideIcon> = {
     below_cost: TriangleAlert,
     low_stock: TriangleAlert,
     out_of_stock: TriangleAlert,
-    split: Boxes,
     link: Link2,
     delivery: Truck,
     last_day: Hourglass,
@@ -84,7 +81,6 @@ const taskIconClasses: Partial<Record<Task['kind'], string>> = {
     below_cost: 'bg-red-50 text-red-700',
     low_stock: 'bg-amber-50 text-amber-700',
     out_of_stock: 'bg-red-50 text-red-700',
-    split: 'bg-emerald-50 text-emerald-700',
     link: 'bg-amber-50 text-amber-700',
     delivery: 'bg-blue-50 text-blue-700',
     last_day: 'bg-red-50 text-red-700',

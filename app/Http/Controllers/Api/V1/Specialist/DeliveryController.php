@@ -43,7 +43,6 @@ class DeliveryController extends Controller
             $request->user(),
             $request->deliveryDetails(),
             $request->receivedQuantities(),
-            $request->splitsByCode(),
         );
 
         return response()->json(DeliveryScreens::recordedMessage($delivery), 201);

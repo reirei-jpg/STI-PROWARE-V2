@@ -66,7 +66,6 @@ class DeliveryController extends Controller
             $request->user(),
             $request->deliveryDetails(),
             $request->receivedQuantities(),
-            $request->splitsByCode(),
         );
 
         Inertia::flash('toast', DeliveryScreens::recordedMessage($delivery));

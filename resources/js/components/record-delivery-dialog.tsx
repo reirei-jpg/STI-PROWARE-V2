@@ -17,7 +17,6 @@ import InputError from '@/components/input-error';
 import RequiredLabel, { RequiredNote } from '@/components/required-label';
 import {
     Quantity,
-    SplitCounts,
     deliveryInputClasses,
 } from '@/components/record-delivery-parts';
 import {
@@ -177,18 +176,14 @@ function DeliveryForm({
         errors,
         processing,
         rows,
-        splitGroups,
         rowErrors,
         rowProblem,
         receivedNowOf,
         totalReceived,
         groupReceivedNow,
-        splitProblem,
         hasProblems,
         notLinkedReceived,
         setRowQuantity,
-        splitCounts,
-        setSplitCount,
         submit,
     } = delivery;
 
@@ -197,10 +192,9 @@ function DeliveryForm({
         .filter((group) => group.stock_target && groupReceivedNow(group) > 0)
         .map((group) => {
             const target = group.stock_target!;
-            const name =
-                target.has_options && target.split_into.length <= 1
-                    ? `${target.product_name} (${target.variant_label})`
-                    : target.product_name;
+            const name = target.has_options
+                ? `${target.product_name} (${target.variant_label})`
+                : target.product_name;
 
             return `${formatUnits(groupReceivedNow(group) * target.pieces_per_unit, 'Piece')} to ${name}`;
         });
@@ -322,8 +316,6 @@ function DeliveryForm({
                             </thead>
                             {groups.map((group) => {
                                 const target = group.stock_target;
-                                const isSplit =
-                                    (target?.split_into.length ?? 0) > 1;
 
                                 return (
                                     <tbody
@@ -401,16 +393,11 @@ function DeliveryForm({
                                                                             .value,
                                                                     )
                                                                 }
-                                                                readOnly={
-                                                                    isSplit
-                                                                }
                                                                 inputMode="numeric"
                                                                 placeholder="0"
                                                                 className={cn(
                                                                     deliveryInputClasses,
                                                                     'w-24 text-right',
-                                                                    isSplit &&
-                                                                        'bg-slate-50 text-slate-500',
                                                                     problem &&
                                                                         'border-red-300 focus:border-red-400 focus:ring-red-100',
                                                                 )}
@@ -425,12 +412,7 @@ function DeliveryForm({
                                                                 </span>
                                                             )}
                                                         </span>
-                                                        {isSplit && (
-                                                            <p className="mt-1 text-right text-xs text-slate-500">
-                                                                From the counts
-                                                                below
-                                                            </p>
-                                                        )}
+
                                                         {target &&
                                                             !problem &&
                                                             receivedNow > 0 &&
@@ -456,42 +438,6 @@ function DeliveryForm({
                                                 </tr>
                                             );
                                         })}
-                                        {isSplit && target && (
-                                            <tr>
-                                                <td
-                                                    colSpan={5}
-                                                    className="bg-slate-50/60 p-0"
-                                                >
-                                                    <SplitCounts
-                                                        group={group}
-                                                        counts={
-                                                            splitCounts[
-                                                                group.item_code
-                                                            ] ?? {}
-                                                        }
-                                                        onChange={(
-                                                            variantId,
-                                                            value,
-                                                        ) =>
-                                                            setSplitCount(
-                                                                group,
-                                                                variantId,
-                                                                value,
-                                                            )
-                                                        }
-                                                        problem={
-                                                            splitProblem(
-                                                                group,
-                                                            ) ??
-                                                            errors[
-                                                                `splits.${splitGroups.indexOf(group)}`
-                                                            ] ??
-                                                            null
-                                                        }
-                                                    />
-                                                </td>
-                                            </tr>
-                                        )}
                                     </tbody>
                                 );
                             })}
@@ -602,10 +548,7 @@ function ItemNote({ group }: { group: WaitingItemGroup }) {
     return (
         <p className="mt-0.5 text-xs font-semibold text-emerald-700">
             → {target.product_name}
-            {target.split_into.length > 1
-                ? ' · count each color below'
-                : target.has_options && ` (${target.variant_label})`}{' '}
-            ·{' '}
+            {target.has_options && ` (${target.variant_label})`} ·{' '}
             {target.pieces_per_unit > 1
                 ? `by the ${target.unit_name} (${target.pieces_per_unit.toLocaleString('en-PH')} pcs)`
                 : 'by the piece'}

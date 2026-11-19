@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Boxes,
     Eye,
     Hourglass,
     Link2,
@@ -70,7 +69,6 @@ export default function ProductsIndex({
     products,
     filters,
     itemsToLinkCount,
-    itemsToSplitCount,
     lowStockCount,
     slowMovingCount,
     details,
@@ -79,7 +77,6 @@ export default function ProductsIndex({
     filters: ProductFilters;
     itemsToLinkCount: number;
     /** Shared codes that arrived but are not split by variant yet. */
-    itemsToSplitCount: number;
     lowStockCount: number;
     slowMovingCount: number;
     /** The product opened in View Details, loaded when it opens. */
@@ -157,11 +154,11 @@ export default function ProductsIndex({
                             >
                                 <Link2 size={18} />
                                 Items to Link
-                                {itemsToLinkCount + itemsToSplitCount > 0 && (
+                                {itemsToLinkCount > 0 && (
                                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
-                                        {(
-                                            itemsToLinkCount + itemsToSplitCount
-                                        ).toLocaleString('en-PH')}
+                                        {itemsToLinkCount.toLocaleString(
+                                            'en-PH',
+                                        )}
                                     </span>
                                 )}
                             </Link>
@@ -193,27 +190,6 @@ export default function ProductsIndex({
                         >
                             <Link2 size={15} />
                             Link Items
-                        </Link>
-                    </section>
-                )}
-
-                {itemsToSplitCount > 0 && (
-                    <section className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-                        <p
-                            className="flex items-center gap-2 text-sm font-bold text-emerald-900"
-                            title="Their code is shared by every variant (e.g. every color). Enter how many of each arrived so each variant gets its stock."
-                        >
-                            <Boxes size={16} className="shrink-0" />
-                            {itemsToSplitCount === 1
-                                ? '1 delivered item is waiting to be split into stock'
-                                : `${itemsToSplitCount.toLocaleString('en-PH')} delivered items are waiting to be split into stock`}
-                        </p>
-                        <Link
-                            href={ItemLinkController.index()}
-                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
-                        >
-                            <Boxes size={15} />
-                            Split into stock
                         </Link>
                     </section>
                 )}

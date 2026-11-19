@@ -135,10 +135,11 @@ final class StockCost
                     return;
                 }
 
-                // A shared code split by the piece still came in eStore units.
+                // Counted by the piece, it still came in eStore units: those of
+                // the pack its size or color is sent in.
                 $estoreUnitPieces = $movement->unit_name !== null && $movement->unit_name !== 'Piece'
                     ? (int) $movement->pieces_per_unit
-                    : DeliveredStock::piecesPerUnit($item->purchaseOrderItem->item_code);
+                    : (int) (ProductVariant::query()->with('estorePack')->find($movement->product_variant_id)->estorePack->pieces ?? 1);
 
                 $movement->forceFill(['cost_centavos' => self::ofDelivery($item, $movement->quantity, $estoreUnitPieces)])->saveQuietly();
             });

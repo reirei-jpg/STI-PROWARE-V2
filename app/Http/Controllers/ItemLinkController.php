@@ -4,17 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterItemsToLinkRequest;
 use App\Http\Requests\LinkItemRequest;
-use App\Http\Requests\SplitDeliveredItemRequest;
 use App\Models\DeliveryItem;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use App\Services\Stock\DeliveredStock;
-use App\Services\Stock\LinkedItems;
-use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,54 +81,7 @@ class ItemLinkController extends Controller
                 ];
             }),
             'filters' => ['search' => $search],
-            'toSplit' => $this->waitingToSplit(),
         ]);
-    }
-
-    /**
-     * Items of a code shared by several variants (e.g. every color) that
-     * arrived but are not in stock yet, because nobody said how many of
-     * each variant came, e.g. received before the code was linked.
-     *
-     * @return list<array{item_code: string, description: string, product_name: string, unit_name: string, pieces_per_unit: int, units_waiting: int, pieces_waiting: int, split_into: list<array{id: int, label: string, stock_on_hand: int}>}>
-     */
-    private function waitingToSplit(): array
-    {
-        $waiting = LinkedItems::waitingToSplit();
-        $variantsByCode = LinkedItems::variantsByCode($waiting->pluck('item_code')->all());
-
-        return array_values($waiting->map(function (DeliveryItem $row) use ($variantsByCode): array {
-            $code = (string) $row->getAttribute('item_code');
-            $target = LinkedItems::target($variantsByCode->get($code) ?? new EloquentCollection);
-            $units = (int) $row->getAttribute('units_waiting');
-
-            return [
-                'item_code' => $code,
-                'description' => (string) $row->getAttribute('description'),
-                'product_name' => $target['product_name'],
-                'unit_name' => $target['unit_name'],
-                'pieces_per_unit' => $target['pieces_per_unit'],
-                'units_waiting' => $units,
-                'pieces_waiting' => $units * $target['pieces_per_unit'],
-                'split_into' => $target['split_into'],
-            ];
-        })->all());
-    }
-
-    /**
-     * Put what arrived of a shared code into stock, as counted per variant.
-     */
-    public function split(SplitDeliveredItemRequest $request, DeliveredStock $deliveredStock): RedirectResponse
-    {
-        $code = $request->itemCode();
-        $pieces = $deliveredStock->splitWaiting($code, $request->piecesByVariant(), $request->user());
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => 'Added '.Units::count($pieces, 'Piece')." of {$code} to stock: ".$request->summary().'.',
-        ]);
-
-        return back();
     }
 
     /**
@@ -177,19 +126,16 @@ class ItemLinkController extends Controller
     }
 
     /**
-     * Put the eStore Item Code on the variant chosen (or on the variants
-     * ticked, which then share it), with how Head Office sends it, then add
-     * its earlier deliveries to stock. A shared code's earlier deliveries
-     * wait to be split by variant.
+     * Put the Item Code on the one variant chosen (each size or color has
+     * its own), with how Head Office sends it, then add its earlier
+     * deliveries to stock.
      */
     public function store(LinkItemRequest $request, DeliveredStock $deliveredStock): RedirectResponse
     {
-        $variants = $request->variants();
-        $variant = $variants->firstOrFail();
+        $variant = $request->variants()->firstOrFail();
         $code = $request->itemCode();
-        $shared = $variants->count() > 1;
 
-        $piecesAdded = DB::transaction(function () use ($request, $variants, $variant, $code, $shared, $deliveredStock): int {
+        $piecesAdded = DB::transaction(function () use ($request, $variant, $code, $deliveredStock): int {
             $packId = match ($request->input('sent_by')) {
                 'pack' => (int) $request->input('pack_id'),
                 'new_pack' => $variant->product->packs()->create([
@@ -202,23 +148,10 @@ class ItemLinkController extends Controller
                 default => null,
             };
 
-            ProductVariant::query()->whereKey($variants->modelKeys())->update(['estore_item_code' => $code, 'estore_pack_id' => $packId]);
+            $variant->forceFill(['estore_item_code' => $code, 'estore_pack_id' => $packId])->save();
 
-            return $shared ? 0 : $deliveredStock->addWaitingFor($variant->refresh(), $request->user());
+            return $deliveredStock->addWaitingFor($variant->refresh(), $request->user());
         });
-
-        if ($shared) {
-            $waiting = collect($this->waitingToSplit())->firstWhere('item_code', $code);
-            $labels = $variants->map(fn (ProductVariant $chosen): string => $chosen->label())->implode(', ');
-
-            Inertia::flash('toast', [
-                'type' => 'success',
-                'message' => "{$code} is now linked to {$variant->product->name} ({$labels}). When it arrives, enter how many of each you received."
-                    .($waiting !== null ? ' What already arrived is under "Received, split it into stock" above: enter how many of each it was.' : ''),
-            ]);
-
-            return back();
-        }
 
         Inertia::flash('toast', [
             'type' => 'success',

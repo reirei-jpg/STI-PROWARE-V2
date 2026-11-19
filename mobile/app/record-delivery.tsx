@@ -46,14 +46,11 @@ const upTo = (value: string, most: number): string => {
 const remainingOf = (group: WaitingDeliveryGroup): number =>
     group.rows.reduce((sum, row) => sum + row.quantity_remaining, 0);
 
-const isSplit = (group: WaitingDeliveryGroup): boolean => (group.stock_target?.split_into.length ?? 0) > 1;
-
 /**
  * Record Delivery on the Specialist's phone, with the website's rules: SI #
  * and DR #, and how many of each waiting item arrived (it is received on the
- * day it is recorded). A total fills the oldest order first. An item code shared by
- * several variants (e.g. every color) is counted per variant, and the counts
- * must make whole boxes. Linked items go into stock; the others are
+ * day it is recorded). A total fills the oldest order first. Each Item Code is
+ * one size or color, so a linked item goes into that one; the others are
  * recorded and wait to be linked on the website.
  */
 export default function RecordDeliveryScreen() {
@@ -66,7 +63,6 @@ export default function RecordDeliveryScreen() {
     const [deliveryReceipt, setDeliveryReceipt] = useState('');
     const [note, setNote] = useState('');
     const [totals, setTotals] = useState<Record<string, string>>({});
-    const [splitCounts, setSplitCounts] = useState<Record<string, Record<number, string>>>({});
     const [searchText, setSearchText] = useState('');
 
     const [saving, setSaving] = useState(false);
@@ -74,17 +70,14 @@ export default function RecordDeliveryScreen() {
     const [result, setResult] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
 
     // What was counted is kept until saved, and leaving asks first (like the website).
-    const typed = { salesInvoice, deliveryReceipt, note, totals, splitCounts };
+    const typed = { salesInvoice, deliveryReceipt, note, totals };
     const draft = useDraft('delivery', typed, (saved) => {
         setSalesInvoice(saved.salesInvoice);
         setDeliveryReceipt(saved.deliveryReceipt);
         setNote(saved.note);
         setTotals(saved.totals);
-        setSplitCounts(saved.splitCounts);
     });
-    const hasTyping =
-        [salesInvoice, deliveryReceipt, note, ...Object.values(totals)].some((value) => value.trim() !== '') ||
-        Object.values(splitCounts).some((counts) => Object.values(counts).some((count) => count.trim() !== ''));
+    const hasTyping = [salesInvoice, deliveryReceipt, note, ...Object.values(totals)].some((value) => value.trim() !== '');
     useUnsavedChanges(hasTyping && !saving && result === null, { kept: true });
 
     useEffect(() => {
@@ -96,33 +89,7 @@ export default function RecordDeliveryScreen() {
     }, [request]);
 
     /** How many arrived for a code, in Head Office's unit; null when not a number. */
-    const unitsFor = (group: WaitingDeliveryGroup): number | null => {
-        if (!isSplit(group)) {
-            return wholeNumber(totals[group.item_code]);
-        }
-
-        const counted = countedPieces(group);
-        const perUnit = group.stock_target?.pieces_per_unit ?? 1;
-
-        return counted === null || counted % perUnit !== 0 ? null : counted / perUnit;
-    };
-
-    const countedPieces = (group: WaitingDeliveryGroup): number | null => {
-        let total = 0;
-
-        for (const variant of group.stock_target?.split_into ?? []) {
-            const pieces = wholeNumber(splitCounts[group.item_code]?.[variant.id]);
-
-            if (pieces === null) {
-                return null;
-            }
-
-            total += pieces;
-        }
-
-        return total;
-    };
-
+    const unitsFor = (group: WaitingDeliveryGroup): number | null => wholeNumber(totals[group.item_code]);
     /** The units for a code shared out over its orders, oldest first. */
     const sharesFor = (group: WaitingDeliveryGroup): Map<number, number> => {
         let left = unitsFor(group) ?? 0;
@@ -137,39 +104,17 @@ export default function RecordDeliveryScreen() {
         return shares;
     };
 
-    /** Why a code's numbers cannot be saved, in the website's words. */
+    /** Why a code's number cannot be saved, in the website's words. */
     const problemOf = (group: WaitingDeliveryGroup): string | null => {
         const remaining = remainingOf(group);
-        const target = group.stock_target;
+        const typed = wholeNumber(totals[group.item_code]);
 
-        if (!isSplit(group)) {
-            const typed = wholeNumber(totals[group.item_code]);
-
-            return typed === null
-                ? 'Enter a whole number.'
-                : typed > remaining
-                  ? `Only ${remaining.toLocaleString('en-PH')} left to receive for this item.`
-                  : null;
-        }
-
-        const counted = countedPieces(group);
-        const perUnit = target?.pieces_per_unit ?? 1;
-
-        if (counted === null) {
-            return 'Enter whole numbers.';
-        }
-
-        if (counted % perUnit !== 0) {
-            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but Head Office sends this by the ${target?.unit_name} of ${perUnit} pcs, so the total must be a multiple of ${perUnit}.`;
-        }
-
-        if (counted / perUnit > remaining) {
-            return `Only ${formatUnits(remaining * perUnit, 'Piece')} left to receive for this item.`;
-        }
-
-        return null;
+        return typed === null
+            ? 'Enter a whole number.'
+            : typed > remaining
+              ? `Only ${remaining.toLocaleString('en-PH')} left to receive for this item.`
+              : null;
     };
-
     const all = groups ?? [];
     const receiving = all.filter((group) => (unitsFor(group) ?? 0) > 0);
     const problems = all.filter((group) => problemOf(group) !== null);
@@ -222,13 +167,6 @@ export default function RecordDeliveryScreen() {
                     quantity_received: quantity,
                 })),
         );
-        const splits = receiving.filter(isSplit).map((group) => ({
-            item_code: group.item_code,
-            pieces: (group.stock_target?.split_into ?? []).map((variant) => ({
-                product_variant_id: variant.id,
-                pieces: wholeNumber(splitCounts[group.item_code]?.[variant.id]) ?? 0,
-            })),
-        }));
 
         try {
             const saved = await request<{ type: 'success' | 'warning'; message: string }>('/specialist/deliveries', {
@@ -238,7 +176,6 @@ export default function RecordDeliveryScreen() {
                         delivery_receipt_number: deliveryReceipt.trim(),
                         note: note.trim(),
                         items,
-                        splits,
                     },
             });
             draft.clear();
@@ -363,14 +300,6 @@ export default function RecordDeliveryScreen() {
                                 group={group}
                                 total={totals[group.item_code] ?? ''}
                                 onTotal={(value) => setTotals({ ...totals, [group.item_code]: value })}
-                                counts={splitCounts[group.item_code] ?? {}}
-                                onCount={(variantId, value) =>
-                                    setSplitCounts({
-                                        ...splitCounts,
-                                        [group.item_code]: { ...splitCounts[group.item_code], [variantId]: value },
-                                    })
-                                }
-                                counted={countedPieces(group)}
                                 units={unitsFor(group) ?? 0}
                                 shares={sharesFor(group)}
                                 problem={problemOf(group)}
@@ -429,9 +358,6 @@ function GroupCard({
     group,
     total,
     onTotal,
-    counts,
-    onCount,
-    counted,
     units,
     shares,
     problem,
@@ -439,16 +365,12 @@ function GroupCard({
     group: WaitingDeliveryGroup;
     total: string;
     onTotal: (value: string) => void;
-    counts: Record<number, string>;
-    onCount: (variantId: number, value: string) => void;
-    counted: number | null;
     units: number;
     shares: Map<number, number>;
     problem: string | null;
 }) {
     const target = group.stock_target;
     const remaining = remainingOf(group);
-    const split = isSplit(group);
 
     return (
         <View
@@ -471,7 +393,7 @@ function GroupCard({
                         Into stock:{' '}
                         <Text className="font-sans-bold">
                             {target.product_name}
-                            {split ? '' : target.has_options ? ` (${target.variant_label})` : ''}
+                            {target.has_options ? ` (${target.variant_label})` : ''}
                         </Text>
                         {' · '}
                         {target.pieces_per_unit > 1
@@ -488,30 +410,7 @@ function GroupCard({
                 </View>
             )}
 
-            {split && target ? (
-                <View className="gap-2">
-                    <Text className="font-sans-bold text-sm text-slate-700">How many of each arrived (pcs)</Text>
-                    {target.split_into.map((variant) => (
-                        <View key={variant.id} className="flex-row items-center gap-3">
-                            <Text className="flex-1 font-sans-semibold text-sm text-slate-800">{variant.label}</Text>
-                            <TextInput
-                                value={counts[variant.id] ?? ''}
-                                // Kept as typed: more than is left shows "Only … left" in red.
-                                onChangeText={(value) => onCount(variant.id, upTo(value, MOST_RECEIVED))}
-                                keyboardType="number-pad"
-                                placeholder="0"
-                                placeholderTextColor="#94a3b8"
-                                accessibilityLabel={`${variant.label} pieces`}
-                                className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-right font-sans-bold text-base text-slate-900"
-                            />
-                        </View>
-                    ))}
-                    <Text className="font-sans-semibold text-xs text-slate-600">
-                        Total counted: {formatUnits(counted ?? 0, 'Piece')}
-                    </Text>
-                </View>
-            ) : (
-                <View className="gap-1">
+            <View className="gap-1">
                     <RequiredLabel>How many arrived</RequiredLabel>
                     <View className="flex-row items-center gap-3">
                         <TextInput
@@ -534,7 +433,6 @@ function GroupCard({
                         </Text>
                     )}
                 </View>
-            )}
 
             {problem && <Text className="font-sans-semibold text-sm text-red-600">{problem}</Text>}
 

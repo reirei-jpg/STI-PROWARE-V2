@@ -575,8 +575,6 @@ export type WaitingDeliveryGroup = {
         has_options: boolean;
         unit_name: string;
         pieces_per_unit: number;
-        /** Several variants share the code: count how many of each arrived. */
-        split_into: { id: number; label: string; stock_on_hand: number }[];
     } | null;
     rows: {
         purchase_order_item_id: number;

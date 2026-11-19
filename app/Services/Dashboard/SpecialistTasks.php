@@ -10,7 +10,6 @@ use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Services\Deliveries\FollowUp;
 use App\Services\Sales\SellingBelowCost;
-use App\Services\Stock\LinkedItems;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -45,7 +44,6 @@ final class SpecialistTasks
             'now' => [
                 ...$this->sellingBelowCost(),
                 ...$this->lowStock(),
-                ...$this->waitingToSplit(),
                 ...$this->arrivedNotLinked(),
             ],
             'today' => [
@@ -171,21 +169,6 @@ final class SpecialistTasks
         }
 
         return count($shown) === 1 ? $shown[0] : implode(', ', array_slice($shown, 0, -1)).' and '.end($shown);
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function waitingToSplit(): array
-    {
-        return array_values(LinkedItems::waitingToSplit()->map(fn (DeliveryItem $row): array => self::task(
-            key: 'split-'.$row->getAttribute('item_code'),
-            kind: 'split',
-            title: $row->getAttribute('item_code').' arrived: split it into stock',
-            detail: $row->getAttribute('description').' · '.number_format((int) $row->getAttribute('units_waiting')).' received. Enter how many of each variant came.',
-            label: 'Split into stock',
-            url: route('item-links.index'),
-        ))->all());
     }
 
     /**

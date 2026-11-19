@@ -1,10 +1,9 @@
 import { useForm } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import { useFormDraft } from '@/hooks/use-form-draft';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { wholeNumberInput } from '@/lib/number-input';
-import { formatUnits } from '@/lib/units';
 import type { WaitingItemGroup, WaitingItemRow } from '@/types';
 
 /** The most one box takes, as on the server (RecordDeliveryRequest). */
@@ -33,8 +32,9 @@ export function wholeNumber(value: string | undefined): number | null {
 /**
  * Recording a delivery, shared by the Record Delivery page and the Record
  * Delivery popup of one purchase order, so both check the same things: the
- * form, what was typed per order and per color, why something cannot be
- * saved, what saving adds to stock, and saving itself.
+ * form, what was typed per order, why something cannot be saved, what
+ * saving adds to stock, and saving itself. Each Item Code is one size or
+ * color, so what arrives goes into that one.
  */
 export function useRecordDelivery(
     groups: WaitingItemGroup[],
@@ -48,38 +48,20 @@ export function useRecordDelivery(
     });
     const { data, setData } = form;
     const errors = form.errors as Record<string, string | undefined>;
-    // Pieces counted per variant, for codes shared by several variants.
-    const [splitCounts, setSplitCounts] = useState<
-        Record<string, Record<number, string>>
-    >({});
-    // What was counted is kept until saved, per purchase order.
+    // What was counted is kept until saved, per purchase order ("-v2":
+    // drafts from before, with counts per color, are not brought back).
     const draft = useFormDraft(
-        `delivery-${purchaseOrderId}`,
-        { form: data, splits: splitCounts },
-        (saved) => {
-            setData(saved.form);
-            setSplitCounts(saved.splits);
-        },
+        `delivery-v2-${purchaseOrderId}`,
+        data,
+        (saved) => setData(saved),
     );
 
     // Leaving with counts typed asks first (the draft keeps them).
-    const unsaved = useUnsavedChanges(
-        (form.isDirty ||
-            Object.values(splitCounts).some((counts) =>
-                Object.values(counts).some((count) => count !== ''),
-            )) &&
-            !form.processing,
-        { kept: true },
-    );
+    const unsaved = useUnsavedChanges(form.isDirty && !form.processing, {
+        kept: true,
+    });
 
     const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
-    const splitGroups = useMemo(
-        () =>
-            groups.filter(
-                (group) => (group.stock_target?.split_into.length ?? 0) > 1,
-            ),
-        [groups],
-    );
 
     // Server errors point at a row by its position in the list sent.
     const rowErrors = useMemo(() => {
@@ -124,54 +106,7 @@ export function useRecordDelivery(
     const remainingOf = (group: WaitingItemGroup) =>
         group.rows.reduce((sum, row) => sum + row.quantity_remaining, 0);
 
-    /** Pieces counted per variant of a shared code; null if one is not a number. */
-    const countedPieces = (group: WaitingItemGroup): number | null => {
-        let total = 0;
-
-        for (const variant of group.stock_target?.split_into ?? []) {
-            const pieces = wholeNumber(
-                splitCounts[group.item_code]?.[variant.id],
-            );
-
-            if (pieces === null) {
-                return null;
-            }
-
-            total += pieces;
-        }
-
-        return total;
-    };
-
-    /** Why a shared code's counts do not fit what the orders receive. */
-    const splitProblem = (group: WaitingItemGroup): string | null => {
-        const target = group.stock_target;
-        const counted = countedPieces(group);
-
-        if (target === null || counted === null) {
-            return counted === null ? 'Enter whole numbers.' : null;
-        }
-
-        const arriving = groupReceivedNow(group) * target.pieces_per_unit;
-
-        if (counted % target.pieces_per_unit !== 0) {
-            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but Head Office sends this by the ${target.unit_name} of ${target.pieces_per_unit} pcs, so the total must be a multiple of ${target.pieces_per_unit}.`;
-        }
-
-        if (counted / target.pieces_per_unit > remainingOf(group)) {
-            return `Only ${formatUnits(remainingOf(group) * target.pieces_per_unit, 'Piece')} left to receive for this item.`;
-        }
-
-        if (counted !== arriving) {
-            return `Your counts add up to ${formatUnits(counted, 'Piece')}, but the orders below receive ${formatUnits(arriving, 'Piece')}. Make them match.`;
-        }
-
-        return null;
-    };
-
-    const hasProblems =
-        rows.some((row) => rowProblem(row) !== null) ||
-        splitGroups.some((group) => splitProblem(group) !== null);
+    const hasProblems = rows.some((row) => rowProblem(row) !== null);
 
     // What saving adds to stock, in pieces, and how many typed items are
     // not linked to a product (recorded, but not added to stock).
@@ -198,51 +133,6 @@ export function useRecordDelivery(
             ),
         });
 
-    const shareOut = (group: WaitingItemGroup, total: number | null) => {
-        if (total === null || total > remainingOf(group)) {
-            return;
-        }
-
-        let left = total;
-        const quantities = { ...data.quantities };
-
-        for (const row of group.rows) {
-            const share = Math.min(left, row.quantity_remaining);
-            quantities[row.purchase_order_item_id] =
-                share > 0 ? String(share) : '';
-            left -= share;
-        }
-
-        setData('quantities', quantities);
-    };
-
-    /**
-     * A shared code is counted per variant (e.g. 5 Black, 3 Red); the total
-     * fills the orders, oldest first, in Head Office's unit.
-     */
-    const setSplitCount = (
-        group: WaitingItemGroup,
-        variantId: number,
-        value: string,
-    ) => {
-        const target = group.stock_target;
-        // Kept as typed: more than is left shows "Only … left" (splitProblem).
-        const counts = {
-            ...splitCounts[group.item_code],
-            [variantId]: wholeNumberInput(value, MOST_RECEIVED),
-        };
-        setSplitCounts({ ...splitCounts, [group.item_code]: counts });
-
-        const pieces = Object.values(counts).reduce(
-            (sum, count) => sum + (wholeNumber(count) ?? 0),
-            0,
-        );
-
-        if (target && pieces % target.pieces_per_unit === 0) {
-            shareOut(group, pieces / target.pieces_per_unit);
-        }
-    };
-
     /**
      * Save the delivery. From a purchase order's popup it stays on that
      * page and closes the popup when saved.
@@ -259,16 +149,6 @@ export function useRecordDelivery(
                 purchase_order_item_id: row.purchase_order_item_id,
                 quantity_received:
                     current.quantities[row.purchase_order_item_id] ?? '',
-            })),
-            splits: splitGroups.map((group) => ({
-                item_code: group.item_code,
-                pieces: (group.stock_target?.split_into ?? []).map(
-                    (variant) => ({
-                        product_variant_id: variant.id,
-                        pieces:
-                            splitCounts[group.item_code]?.[variant.id] ?? '',
-                    }),
-                ),
             })),
         }));
 
@@ -290,21 +170,16 @@ export function useRecordDelivery(
         errors,
         processing: form.processing,
         rows,
-        splitGroups,
         rowErrors,
         rowProblem,
         receivedNowOf,
         totalReceived,
         groupReceivedNow,
         remainingOf,
-        countedPieces,
-        splitProblem,
         hasProblems,
         piecesIntoStock,
         notLinkedReceived,
         setRowQuantity,
-        splitCounts,
-        setSplitCount,
         submit,
     };
 }

@@ -172,8 +172,8 @@ export type OrderDeliveryRecord = {
         description: string;
         quantity_received: number;
         /**
-         * What went into stock: one entry, or one per variant when the
-         * variants share the code. Empty while not linked (or not split).
+         * What went into stock (the size or color of its Item Code).
+         * Empty while not linked.
          */
         added_to_stock: {
             product_name: string;
