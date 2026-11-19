@@ -374,7 +374,7 @@ export default function ProductsIndex({
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="w-24 font-bold">
-                                        Time:
+                                        Period:
                                     </span>
                                     {(
                                         [
@@ -468,20 +468,17 @@ export default function ProductsIndex({
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="w-24 font-bold">
-                                        How slow:
+                                        Units sold:
                                     </span>
                                     {(
                                         [
                                             [
                                                 'all',
-                                                `All slow (${SLOW_MOST_SOLD} sold or fewer)`,
+                                                `${SLOW_MOST_SOLD} or fewer`,
                                             ],
-                                            ['none', 'No sales'],
-                                            ['few', '1–2 sold'],
-                                            [
-                                                'some',
-                                                `3–${SLOW_MOST_SOLD} sold`,
-                                            ],
+                                            ['none', 'None'],
+                                            ['few', '1–2'],
+                                            ['some', `3–${SLOW_MOST_SOLD}`],
                                         ] as const
                                     ).map(([value, label]) => (
                                         <button
