@@ -28,7 +28,7 @@ export default function ProductDetailsDialog({
     details,
     onClose,
     onPutOnSale,
-    onlyDrafts = false,
+    only = null,
 }: {
     /** The row that was opened; null when the popup is closed. */
     product: ProductListItem | null;
@@ -36,12 +36,15 @@ export default function ProductDetailsDialog({
     details: ProductDetails | null | undefined;
     onClose: () => void;
     onPutOnSale: (productId: number) => void;
-    /** Opened from the Draft list: only the Draft sizes or colors are shown. */
-    onlyDrafts?: boolean;
+    /**
+     * Opened from the Draft, Low stock or Out of stock list: only those
+     * sizes or colors are shown.
+     */
+    only?: 'draft' | 'low' | 'out' | null;
 }) {
     // From the Draft list, a product in the store shows only its Draft part.
     const draftPart =
-        onlyDrafts && product !== null && product.status !== 'draft';
+        only === 'draft' && product !== null && product.status !== 'draft';
     const canSell =
         !draftPart &&
         product !== null &&
@@ -216,9 +219,13 @@ export default function ProductDetailsDialog({
                                 <h3 className="text-xs font-black tracking-wide text-slate-500 uppercase">
                                     {draftPart
                                         ? 'Draft sizes / colors'
-                                        : hasOptions
-                                          ? 'Stock per size / color'
-                                          : 'Stock'}
+                                        : only === 'low'
+                                          ? 'Sizes / colors low on stock'
+                                          : only === 'out'
+                                            ? 'Sizes / colors out of stock'
+                                            : hasOptions
+                                              ? 'Stock per size / color'
+                                              : 'Stock'}
                                 </h3>
                                 {details === undefined ? (
                                     <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
@@ -267,121 +274,135 @@ export default function ProductDetailsDialog({
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
-                                                {(draftPart
-                                                    ? details.variants.filter(
-                                                          (variant) =>
-                                                              variant.is_draft,
-                                                      )
-                                                    : details.variants
-                                                ).map((variant) => {
-                                                    // A Draft is not sold yet, so it is never out of stock or low.
-                                                    const isOut =
-                                                        details.watched_for_low_stock &&
-                                                        !variant.is_draft &&
-                                                        variant.free_to_sell ===
-                                                            0;
-                                                    const isLow =
-                                                        details.watched_for_low_stock &&
-                                                        !variant.is_draft &&
-                                                        !isOut &&
-                                                        variant.free_to_sell <=
-                                                            details.low_stock_alert_at;
+                                                {details.variants
+                                                    .filter((variant) =>
+                                                        draftPart
+                                                            ? variant.is_draft
+                                                            : only === 'low'
+                                                              ? variant.status ===
+                                                                    'available' &&
+                                                                variant.free_to_sell >
+                                                                    0 &&
+                                                                variant.free_to_sell <=
+                                                                    details.low_stock_alert_at
+                                                              : only === 'out'
+                                                                ? variant.status ===
+                                                                      'available' &&
+                                                                  variant.free_to_sell ===
+                                                                      0
+                                                                : true,
+                                                    )
+                                                    .map((variant) => {
+                                                        // A Draft is not sold yet, so it is never out of stock or low.
+                                                        const isOut =
+                                                            details.watched_for_low_stock &&
+                                                            !variant.is_draft &&
+                                                            variant.free_to_sell ===
+                                                                0;
+                                                        const isLow =
+                                                            details.watched_for_low_stock &&
+                                                            !variant.is_draft &&
+                                                            !isOut &&
+                                                            variant.free_to_sell <=
+                                                                details.low_stock_alert_at;
 
-                                                    return (
-                                                        <tr key={variant.id}>
-                                                            <td className="px-4 py-2.5 font-mono text-xs whitespace-nowrap text-slate-600">
-                                                                {variant.item_code ??
-                                                                    'Not linked'}
-                                                            </td>
-                                                            <td className="px-4 py-2.5 font-semibold text-slate-900">
-                                                                {variant.label ??
-                                                                    product.name}
-                                                            </td>
-                                                            <td className="px-4 py-2.5">
-                                                                <ProductStatusBadge
-                                                                    // Available with no pieces left reads as Out of stock.
-                                                                    status={
-                                                                        variant.status ===
-                                                                            'available' &&
-                                                                        variant.stock_on_hand ===
-                                                                            0
-                                                                            ? 'out_of_stock'
-                                                                            : variant.status
-                                                                    }
-                                                                    label={
-                                                                        variant.status ===
-                                                                            'available' &&
-                                                                        variant.stock_on_hand ===
-                                                                            0
-                                                                            ? 'Out of stock'
-                                                                            : variant.status_label
-                                                                    }
-                                                                />
-                                                            </td>
-                                                            <NumberCell>
-                                                                {variant.stock_on_hand.toLocaleString(
-                                                                    'en-PH',
-                                                                )}{' '}
-                                                                pcs
-                                                            </NumberCell>
-                                                            {showsHeld && (
-                                                                <NumberCell className="text-slate-500">
-                                                                    {variant.held_pieces.toLocaleString(
+                                                        return (
+                                                            <tr
+                                                                key={variant.id}
+                                                            >
+                                                                <td className="px-4 py-2.5 font-mono text-xs whitespace-nowrap text-slate-600">
+                                                                    {variant.item_code ??
+                                                                        'Not linked'}
+                                                                </td>
+                                                                <td className="px-4 py-2.5 font-semibold text-slate-900">
+                                                                    {variant.label ??
+                                                                        product.name}
+                                                                </td>
+                                                                <td className="px-4 py-2.5">
+                                                                    <ProductStatusBadge
+                                                                        // Available with no pieces left reads as Out of stock.
+                                                                        status={
+                                                                            variant.status ===
+                                                                                'available' &&
+                                                                            variant.stock_on_hand ===
+                                                                                0
+                                                                                ? 'out_of_stock'
+                                                                                : variant.status
+                                                                        }
+                                                                        label={
+                                                                            variant.status ===
+                                                                                'available' &&
+                                                                            variant.stock_on_hand ===
+                                                                                0
+                                                                                ? 'Out of stock'
+                                                                                : variant.status_label
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <NumberCell>
+                                                                    {variant.stock_on_hand.toLocaleString(
                                                                         'en-PH',
+                                                                    )}{' '}
+                                                                    pcs
+                                                                </NumberCell>
+                                                                {showsHeld && (
+                                                                    <NumberCell className="text-slate-500">
+                                                                        {variant.held_pieces.toLocaleString(
+                                                                            'en-PH',
+                                                                        )}
+                                                                    </NumberCell>
+                                                                )}
+                                                                <NumberCell
+                                                                    className={cn(
+                                                                        'font-black',
+                                                                        isOut
+                                                                            ? 'text-red-600'
+                                                                            : isLow
+                                                                              ? 'text-amber-700'
+                                                                              : 'text-slate-900',
+                                                                    )}
+                                                                >
+                                                                    {isOut ? (
+                                                                        'Out of stock'
+                                                                    ) : (
+                                                                        <>
+                                                                            {variant.free_to_sell.toLocaleString(
+                                                                                'en-PH',
+                                                                            )}{' '}
+                                                                            pcs
+                                                                            {isLow && (
+                                                                                <LowDot />
+                                                                            )}
+                                                                        </>
                                                                     )}
                                                                 </NumberCell>
-                                                            )}
-                                                            <NumberCell
-                                                                className={cn(
-                                                                    'font-black',
-                                                                    isOut
-                                                                        ? 'text-red-600'
-                                                                        : isLow
-                                                                          ? 'text-amber-700'
-                                                                          : 'text-slate-900',
-                                                                )}
-                                                            >
-                                                                {isOut ? (
-                                                                    'Out of stock'
-                                                                ) : (
-                                                                    <>
-                                                                        {variant.free_to_sell.toLocaleString(
-                                                                            'en-PH',
-                                                                        )}{' '}
-                                                                        pcs
-                                                                        {isLow && (
-                                                                            <LowDot />
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </NumberCell>
-                                                            <NumberCell>
-                                                                {variant.price_centavos ===
-                                                                null ? (
-                                                                    '—'
-                                                                ) : variant.sale_price_centavos !==
-                                                                  null ? (
-                                                                    <>
-                                                                        <span className="mr-1.5 text-xs text-slate-400 line-through">
-                                                                            {formatPeso(
-                                                                                variant.price_centavos,
-                                                                            )}
-                                                                        </span>
-                                                                        <span className="font-black text-red-600">
-                                                                            {formatPeso(
-                                                                                variant.sale_price_centavos,
-                                                                            )}
-                                                                        </span>
-                                                                    </>
-                                                                ) : (
-                                                                    formatPeso(
-                                                                        variant.price_centavos,
-                                                                    )
-                                                                )}
-                                                            </NumberCell>
-                                                        </tr>
-                                                    );
-                                                })}
+                                                                <NumberCell>
+                                                                    {variant.price_centavos ===
+                                                                    null ? (
+                                                                        '—'
+                                                                    ) : variant.sale_price_centavos !==
+                                                                      null ? (
+                                                                        <>
+                                                                            <span className="mr-1.5 text-xs text-slate-400 line-through">
+                                                                                {formatPeso(
+                                                                                    variant.price_centavos,
+                                                                                )}
+                                                                            </span>
+                                                                            <span className="font-black text-red-600">
+                                                                                {formatPeso(
+                                                                                    variant.sale_price_centavos,
+                                                                                )}
+                                                                            </span>
+                                                                        </>
+                                                                    ) : (
+                                                                        formatPeso(
+                                                                            variant.price_centavos,
+                                                                        )
+                                                                    )}
+                                                                </NumberCell>
+                                                            </tr>
+                                                        );
+                                                    })}
                                             </tbody>
                                         </table>
                                     </div>

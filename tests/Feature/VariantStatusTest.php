@@ -209,3 +209,23 @@ test('an Available option with no pieces left counts as Out of stock on the Prod
             ->where('products.data.0.stock_on_hand', 0)
             ->where('products.data.0.variant_statuses', ['available' => 0, 'out_of_stock' => 1, 'preorder' => 0, 'draft' => 1]));
 });
+
+test('Low stock lists sizes with a few pieces left; Out of stock lists the ones with none', function () {
+    [, $navy, $red] = savedBagongProduct(navyStock: 2);
+    $red->update(['status' => ProductStatus::Available]);
+    $this->actingAs($this->specialist);
+
+    $this->get(route('products.index', ['stock' => 'low']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('lowStockCount', 1)
+            ->where('outOfStockCount', 1)
+            ->where('products.data.0.stock_sizes', [['label' => 'S / Navy Blue', 'free_to_sell' => 2]]));
+
+    $this->get(route('products.index', ['stock' => 'out']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('products.data.0.stock_sizes', [['label' => 'S / Red', 'free_to_sell' => 0]]));
+
+    $navy->forceFill(['stock_on_hand' => 20])->save();
+
+    $this->get(route('products.index', ['stock' => 'low']))->assertInertia(fn (Assert $page) => $page->has('products.data', 0));
+});

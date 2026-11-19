@@ -44,6 +44,8 @@ export type ProductListItem = {
     variant_statuses: Record<VariantStatus | 'out_of_stock', number>;
     /** Pieces of its Draft sizes or colors (shown in the Draft list). */
     draft_stock_on_hand: number;
+    /** In the Low stock or Out of stock list: those sizes or colors (label null without options). */
+    stock_sizes: { label: string | null; free_to_sell: number }[] | null;
     updated_at: string | null;
 };
 
@@ -81,7 +83,7 @@ export type ProductDetails = {
 export type ProductFilters = {
     search: string | null;
     status: ProductStatus | null;
-    stock: 'low' | 'slow' | null;
+    stock: 'low' | 'out' | 'slow' | null;
     /** Slow-moving means no sales for this many days. */
     slow_days: number;
 };

@@ -75,7 +75,11 @@ class ProductController extends Controller
                 ->where('status', $chosen)
                 ->when($chosen === ProductStatus::Draft, fn (Builder $withDrafts) => $withDrafts
                     ->orWhereHas('variants', fn (Builder $variants) => $variants->where('status', ProductStatus::Draft)))))
-            ->when($stockFilter === 'low', fn (Builder $query) => $query->lowOnStock())
+            ->when($stockFilter === 'low', fn (Builder $query) => $query->lowButNotOut())
+            ->when($stockFilter === 'out', fn (Builder $query) => $query->soldOut())
+            // The Low stock and Out of stock lists show only those sizes or colors.
+            ->when($stockFilter === 'low', fn (Builder $query) => $query->with(['variants' => fn ($variants) => $variants->lowOnShelf()->orderBy('position')]))
+            ->when($stockFilter === 'out', fn (Builder $query) => $query->with(['variants' => fn ($variants) => $variants->nothingLeft()->orderBy('position')]))
             ->when($stockFilter === 'slow', fn (Builder $query) => $query->slowMoving($slowDays))
             ->latest('updated_at')
             ->latest('id')
@@ -117,6 +121,13 @@ class ProductController extends Controller
                 'last_sale_at' => $product->getAttribute('last_sale_at')?->toIso8601String(),
                 'photo_url' => $product->mainPhoto?->url(),
                 'variants_count' => $product->variants_count,
+                // In the Low stock or Out of stock list: those sizes or colors, with what is left.
+                'stock_sizes' => in_array($stockFilter, ['low', 'out'], true)
+                    ? $product->variants->map(fn (ProductVariant $variant): array => [
+                        'label' => $variant->choices === [] ? null : $variant->label(),
+                        'free_to_sell' => $variant->freeToSell(),
+                    ])->values()->all()
+                    : null,
                 // How many sizes or colors have each status, e.g. 12 Available and 6 Draft.
                 'variant_statuses' => [
                     'available' => (int) $product->getAttribute('available_variants_count'),
@@ -135,7 +146,8 @@ class ProductController extends Controller
                 'stock' => $stockFilter,
                 'slow_days' => $slowDays,
             ],
-            'lowStockCount' => Product::query()->lowOnStock()->count(),
+            'lowStockCount' => Product::query()->lowButNotOut()->count(),
+            'outOfStockCount' => Product::query()->soldOut()->count(),
             'slowMovingCount' => Product::query()->slowMoving($slowDays)->count(),
             'itemsToLinkCount' => PurchaseOrderItem::query()
                 ->notLinkedToProduct()

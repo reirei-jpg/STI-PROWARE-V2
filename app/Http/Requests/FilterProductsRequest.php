@@ -24,7 +24,7 @@ class FilterProductsRequest extends FormRequest
         return [
             'search' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', Rule::enum(ProductStatus::class)],
-            'stock' => ['nullable', 'in:low,slow'],
+            'stock' => ['nullable', 'in:low,out,slow'],
             'slow_days' => ['nullable', 'integer', 'min:1', 'max:365'],
         ];
     }
@@ -42,12 +42,16 @@ class FilterProductsRequest extends FormRequest
     }
 
     /**
-     * @return 'low'|'slow'|null
+     * Low stock (a few pieces left), Out of stock (none left) or
+     * Slow-moving.
+     *
+     * @return 'low'|'out'|'slow'|null
      */
     public function stockFilter(): ?string
     {
         return match ($this->input('stock')) {
             'low' => 'low',
+            'out' => 'out',
             'slow' => 'slow',
             default => null,
         };

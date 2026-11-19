@@ -186,6 +186,33 @@ class Product extends Model
     }
 
     /**
+     * Products in the store with a size or color running low: a few pieces
+     * left, at or below the low-stock number, but not none (those are
+     * Out of stock, see soldOut).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function lowButNotOut(Builder $query): void
+    {
+        $query->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
+            ->whereHas('variants', fn (Builder $variants) => $variants->lowOnShelf());
+    }
+
+    /**
+     * Products in the store with a size or color that has nothing left to
+     * sell.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function soldOut(Builder $query): void
+    {
+        $query->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
+            ->whereHas('variants', fn (Builder $variants) => $variants->nothingLeft());
+    }
+
+    /**
      * Available products with stock that first arrived at least $days ago
      * and sold nothing in the last $days: candidates for Put on Sale. A sale
      * is an order placed for it that was not cancelled.

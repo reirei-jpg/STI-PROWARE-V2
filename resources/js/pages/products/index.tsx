@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     Eye,
     Hourglass,
+    PackageX,
     Link2,
     Package,
     Plus,
@@ -70,6 +71,7 @@ export default function ProductsIndex({
     filters,
     itemsToLinkCount,
     lowStockCount,
+    outOfStockCount,
     slowMovingCount,
     details,
 }: {
@@ -78,6 +80,7 @@ export default function ProductsIndex({
     itemsToLinkCount: number;
     /** Shared codes that arrived but are not split by variant yet. */
     lowStockCount: number;
+    outOfStockCount: number;
     slowMovingCount: number;
     /** The product opened in View Details, loaded when it opens. */
     details?: ProductDetails | null;
@@ -277,6 +280,36 @@ export default function ProductsIndex({
                                     showList({
                                         ...filters,
                                         stock:
+                                            filters.stock === 'out'
+                                                ? null
+                                                : 'out',
+                                    })
+                                }
+                                aria-pressed={filters.stock === 'out'}
+                                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                    filters.stock === 'out'
+                                        ? 'bg-red-600 text-white'
+                                        : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                }`}
+                            >
+                                <PackageX size={14} />
+                                Out of stock
+                                <span
+                                    className={`rounded-full px-1.5 text-[11px] font-black ${
+                                        filters.stock === 'out'
+                                            ? 'bg-white/25'
+                                            : 'bg-red-100'
+                                    }`}
+                                >
+                                    {outOfStockCount.toLocaleString('en-PH')}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    showList({
+                                        ...filters,
+                                        stock:
                                             filters.stock === 'slow'
                                                 ? null
                                                 : 'slow',
@@ -431,10 +464,19 @@ export default function ProductsIndex({
                                                         {product.name}
                                                     </p>
                                                     <p className="mt-0.5 text-xs text-slate-500">
-                                                        {/* The Draft list shows only the Draft sizes or colors. */}
-                                                        {showsDraftPart(product)
-                                                            ? `${product.variant_statuses.draft} Draft ${product.variant_statuses.draft === 1 ? 'variant' : 'variants'}`
-                                                            : `${product.variants_count} ${product.variants_count === 1 ? 'variant' : 'variants'}${statusBreakdown(product.variant_statuses)}`}
+                                                        {/* The Draft, Low stock and Out of stock lists show
+                                                            only those sizes or colors. */}
+                                                        {product.stock_sizes
+                                                            ? stockSizesLine(
+                                                                  product.stock_sizes,
+                                                                  filters.stock ===
+                                                                      'out',
+                                                              )
+                                                            : showsDraftPart(
+                                                                    product,
+                                                                )
+                                                              ? `${product.variant_statuses.draft} Draft ${product.variant_statuses.draft === 1 ? 'variant' : 'variants'}`
+                                                              : `${product.variants_count} ${product.variants_count === 1 ? 'variant' : 'variants'}${statusBreakdown(product.variant_statuses)}`}
                                                         {product.updated_at &&
                                                             ` · updated ${formatDateOrdered(product.updated_at)}`}
                                                     </p>
@@ -455,7 +497,22 @@ export default function ProductsIndex({
                                                 <td className="px-5 py-3.5">
                                                     {/* In the Draft list, a product in the store
                                                         shows the Draft sizes or colors it is listed for. */}
-                                                    {showsDraftPart(product) ? (
+                                                    {product.stock_sizes ? (
+                                                        filters.stock ===
+                                                        'out' ? (
+                                                            <ProductStatusBadge
+                                                                status="out_of_stock"
+                                                                label="Out of stock"
+                                                            />
+                                                        ) : (
+                                                            <ProductStatusBadge
+                                                                status="preorder"
+                                                                label="Low stock"
+                                                            />
+                                                        )
+                                                    ) : showsDraftPart(
+                                                          product,
+                                                      ) ? (
                                                         <ProductStatusBadge
                                                             status="draft"
                                                             label="Draft"
@@ -478,14 +535,15 @@ export default function ProductsIndex({
                                                             }
                                                         />
                                                     )}
-                                                    {product.sale_ends_at && (
-                                                        <p className="mt-1 text-xs font-bold whitespace-nowrap text-red-700">
-                                                            until{' '}
-                                                            {formatDateOrdered(
-                                                                product.sale_ends_at,
-                                                            )}
-                                                        </p>
-                                                    )}
+                                                    {product.sale_ends_at &&
+                                                        !product.stock_sizes && (
+                                                            <p className="mt-1 text-xs font-bold whitespace-nowrap text-red-700">
+                                                                until{' '}
+                                                                {formatDateOrdered(
+                                                                    product.sale_ends_at,
+                                                                )}
+                                                            </p>
+                                                        )}
                                                 </td>
                                                 <td className="px-5 py-3.5 text-right">
                                                     <StudentPrice
@@ -507,7 +565,37 @@ export default function ProductsIndex({
                                                     {/* In the Draft list, a product in the store shows the
                                                         pieces of its Draft sizes or colors. In the store with
                                                         nothing left: Out of stock, not "0 pcs Low". */}
-                                                    {showsDraftPart(product) ? (
+                                                    {product.stock_sizes ? (
+                                                        filters.stock ===
+                                                        'out' ? (
+                                                            <span className="text-sm font-black text-red-600">
+                                                                Out of stock
+                                                            </span>
+                                                        ) : (
+                                                            <>
+                                                                <span className="text-base font-black text-amber-700">
+                                                                    {product.stock_sizes
+                                                                        .reduce(
+                                                                            (
+                                                                                sum,
+                                                                                size,
+                                                                            ) =>
+                                                                                sum +
+                                                                                size.free_to_sell,
+                                                                            0,
+                                                                        )
+                                                                        .toLocaleString(
+                                                                            'en-PH',
+                                                                        )}
+                                                                </span>{' '}
+                                                                <span className="text-xs text-slate-500">
+                                                                    pcs left
+                                                                </span>
+                                                            </>
+                                                        )
+                                                    ) : showsDraftPart(
+                                                          product,
+                                                      ) ? (
                                                         <>
                                                             <span className="text-base font-black text-slate-400">
                                                                 {product.draft_stock_on_hand.toLocaleString(
@@ -593,7 +681,13 @@ export default function ProductsIndex({
                         : undefined
                 }
                 onClose={() => setViewingId(null)}
-                onlyDrafts={filters.status === 'draft'}
+                only={
+                    filters.stock === 'low' || filters.stock === 'out'
+                        ? filters.stock
+                        : filters.status === 'draft'
+                          ? 'draft'
+                          : null
+                }
                 onPutOnSale={(productId) => {
                     setViewingId(null);
                     setSelling(productId);
@@ -693,4 +787,36 @@ function statusBreakdown(
         .map(([status, label]) => `${counts[status]} ${label}`);
 
     return parts.length > 1 ? ` · ${parts.join(' · ')}` : '';
+}
+
+/**
+ * The sizes or colors a product is in the Low stock or Out of stock list
+ * for: "Low: S 2 pcs, M 3 pcs and 2 more", or "Out of stock: S, XL". Without
+ * options: "Low: 5 pcs left" or "Out of stock".
+ */
+function stockSizesLine(
+    sizes: { label: string | null; free_to_sell: number }[],
+    out: boolean,
+): string {
+    const named = sizes.filter((size) => size.label !== null);
+
+    if (named.length === 0) {
+        const left = sizes.reduce((sum, size) => sum + size.free_to_sell, 0);
+
+        return out
+            ? 'Out of stock'
+            : `Low: ${left} ${left === 1 ? 'pc' : 'pcs'} left`;
+    }
+
+    const shown = named
+        .slice(0, 3)
+        .map((size) =>
+            out
+                ? size.label
+                : `${size.label} ${size.free_to_sell} ${size.free_to_sell === 1 ? 'pc' : 'pcs'}`,
+        )
+        .join(', ');
+    const more = named.length - 3;
+
+    return `${out ? 'Out of stock' : 'Low'}: ${shown}${more > 0 ? ` and ${more} more` : ''}`;
 }

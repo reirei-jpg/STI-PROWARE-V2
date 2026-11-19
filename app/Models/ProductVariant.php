@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\ProductStatus;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -83,6 +85,33 @@ class ProductVariant extends Model
     public function freeToSell(): int
     {
         return max(0, $this->stock_on_hand - $this->held_pieces - $this->preorder_held_pieces);
+    }
+
+    /**
+     * Sizes or colors on sale (not Drafts) with a few pieces left: at or
+     * below the product's low-stock number, but not none.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function lowOnShelf(Builder $query): void
+    {
+        $query->where('product_variants.status', '!=', ProductStatus::Draft)
+            ->whereRaw(self::FREE_TO_SELL_SQL.' > 0')
+            ->whereRaw(self::FREE_TO_SELL_SQL.' <= (select low_stock_alert_at from products where products.id = product_variants.product_id)');
+    }
+
+    /**
+     * Available sizes or colors with nothing left to sell: Out of stock.
+     * (A Preorder size that never had stock is not out of stock.)
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function nothingLeft(Builder $query): void
+    {
+        $query->where('product_variants.status', ProductStatus::Available)
+            ->whereRaw(self::FREE_TO_SELL_SQL.' <= 0');
     }
 
     /**
