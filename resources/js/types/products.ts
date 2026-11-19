@@ -44,8 +44,10 @@ export type ProductListItem = {
     variant_statuses: Record<VariantStatus | 'out_of_stock', number>;
     /** Pieces of its Draft sizes or colors (shown in the Draft list). */
     draft_stock_on_hand: number;
-    /** Days since its last sale, or since it arrived when never sold; null before any stock. */
+    /** Slow-moving: days since its last sale (up to the end of the time), or since it arrived when never sold. */
     days_without_sale: number | null;
+    /** Slow-moving: pieces sold in the time chosen. */
+    sold_in_period: number | null;
     /** In the Low stock or Out of stock list: those sizes or colors (label null without options). */
     stock_sizes: { label: string | null; free_to_sell: number }[] | null;
     updated_at: string | null;
@@ -88,10 +90,13 @@ export type ProductFilters = {
     stock: 'low' | 'out' | 'slow' | null;
     /** Slow-moving means no sales for this many days (a link from the Dashboard). */
     slow_days: number;
-    /** No sale in the last week, month or year, or since a day picked on the calendar. */
-    slow?: 'week' | 'month' | 'year' | 'date' | 'days';
-    /** The day picked on the calendar ("YYYY-MM-DD"). */
-    slow_since?: string | null;
+    /** The last week, month or year, or From – To days picked on the calendar. */
+    slow?: 'week' | 'month' | 'year' | 'range' | 'days';
+    /** The From and To days picked on the calendar ("YYYY-MM-DD"). */
+    slow_from?: string | null;
+    slow_to?: string | null;
+    /** How slow: all slow (5 sold or fewer), no sales, 1–2 sold, or 3–5 sold. */
+    sold?: 'all' | 'none' | 'few' | 'some';
 };
 
 /** What the Put on Sale pop-up loads. */

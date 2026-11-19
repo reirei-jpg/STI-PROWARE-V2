@@ -512,6 +512,9 @@ test('an order waiting for payment holds no stock, and only a released order is 
         ->where('movements.data.0.type', 'sale')
         ->where('movements.data.0.order', ['number' => 'PW-0001', 'student_name' => 'Juan Dela Cruz'])
     );
+    // 2 sold is still slow-moving (5 or fewer), but no longer "No sales".
     $this->get(route('products.index', ['stock' => 'slow']))
-        ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 0));
+        ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 1)->where('products.data.0.sold_in_period', 2));
+    $this->get(route('products.index', ['stock' => 'slow', 'sold' => 'none']))
+        ->assertInertia(fn (Assert $page) => $page->has('products.data', 0));
 });

@@ -59,16 +59,24 @@ function filterQuery(filters: ProductFilters): Record<string, string> {
         query.stock = filters.stock;
     }
 
-    // Slow-moving starts at 1 month; another choice is kept in the address.
-    if (filters.stock === 'slow' && filters.slow && filters.slow !== 'month') {
+    // Slow-moving starts at 1 month and All slow; other choices are kept in the address.
+    if (filters.stock === 'slow') {
         if (filters.slow === 'days') {
             query.slow_days = String(filters.slow_days);
-        } else {
+        } else if (filters.slow && filters.slow !== 'month') {
             query.slow = filters.slow;
         }
 
-        if (filters.slow === 'date' && filters.slow_since) {
-            query.slow_since = filters.slow_since;
+        if (filters.slow === 'range' && filters.slow_from) {
+            query.slow_from = filters.slow_from;
+
+            if (filters.slow_to) {
+                query.slow_to = filters.slow_to;
+            }
+        }
+
+        if (filters.sold && filters.sold !== 'all') {
+            query.sold = filters.sold;
         }
     }
 
@@ -215,7 +223,7 @@ export default function ProductsIndex({
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500">
                                     {filters.stock === 'slow'
-                                        ? 'The longest without a sale first.'
+                                        ? 'The fewest sold first.'
                                         : 'Most recently changed first.'}
                                 </p>
                             </div>
@@ -357,15 +365,15 @@ export default function ProductsIndex({
                             <section className="space-y-3 rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm text-red-900">
                                 <p className="leading-6">
                                     <b>Slow-moving:</b> products in the store
-                                    with stock that sold nothing in the time you
-                                    choose, the longest without a sale first. A
-                                    product never sold counts from the day its
-                                    stock arrived. Put them on sale to clear
-                                    them.
+                                    with stock that sold {SLOW_MOST_SOLD} pieces
+                                    or fewer in the time you choose, the fewest
+                                    sold first. A product never sold counts from
+                                    the day its stock arrived. Put them on sale
+                                    to clear them.
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="font-bold">
-                                        No sale in:
+                                    <span className="w-24 font-bold">
+                                        Time:
                                     </span>
                                     {(
                                         [
@@ -381,51 +389,119 @@ export default function ProductsIndex({
                                                 showList({
                                                     ...filters,
                                                     slow: value,
-                                                    slow_since: null,
+                                                    slow_from: null,
+                                                    slow_to: null,
                                                 })
                                             }
                                             aria-pressed={
                                                 (filters.slow ?? 'month') ===
                                                 value
                                             }
-                                            className={`rounded-lg px-3 py-2 text-xs font-black transition ${
+                                            className={chipClasses(
                                                 (filters.slow ?? 'month') ===
-                                                value
-                                                    ? 'bg-red-600 text-white'
-                                                    : 'border border-red-200 bg-white text-red-700 hover:bg-red-50'
-                                            }`}
+                                                    value,
+                                            )}
                                         >
                                             {label}
                                         </button>
                                     ))}
-                                    <label
-                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-black ${
-                                            filters.slow === 'date'
+                                    <span
+                                        className={`inline-flex flex-wrap items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-black ${
+                                            filters.slow === 'range'
                                                 ? 'bg-red-600 text-white'
                                                 : 'border border-red-200 bg-white text-red-700'
                                         }`}
                                     >
                                         <CalendarDays size={14} />
-                                        Since
+                                        From
                                         <input
                                             type="date"
-                                            value={filters.slow_since ?? ''}
-                                            max={new Date().toLocaleDateString(
-                                                'en-CA',
-                                            )}
+                                            value={filters.slow_from ?? ''}
+                                            max={today}
                                             onChange={(event) =>
                                                 event.target.value !== '' &&
                                                 showList({
                                                     ...filters,
-                                                    slow: 'date',
-                                                    slow_since:
+                                                    slow: 'range',
+                                                    slow_from:
                                                         event.target.value,
+                                                    // A To day before the new From day is cleared.
+                                                    slow_to:
+                                                        filters.slow_to &&
+                                                        filters.slow_to >=
+                                                            event.target.value
+                                                            ? filters.slow_to
+                                                            : null,
                                                 })
                                             }
-                                            aria-label="No sale since this day"
+                                            aria-label="From this day"
                                             className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none"
                                         />
-                                    </label>
+                                        To
+                                        <input
+                                            type="date"
+                                            value={filters.slow_to ?? ''}
+                                            min={filters.slow_from ?? undefined}
+                                            max={today}
+                                            disabled={!filters.slow_from}
+                                            onChange={(event) =>
+                                                showList({
+                                                    ...filters,
+                                                    slow: 'range',
+                                                    slow_to:
+                                                        event.target.value ||
+                                                        null,
+                                                })
+                                            }
+                                            aria-label="To this day (empty: today)"
+                                            title={
+                                                filters.slow_from
+                                                    ? 'Empty means today.'
+                                                    : 'Pick the From day first.'
+                                            }
+                                            className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none disabled:opacity-50"
+                                        />
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="w-24 font-bold">
+                                        How slow:
+                                    </span>
+                                    {(
+                                        [
+                                            [
+                                                'all',
+                                                `All slow (${SLOW_MOST_SOLD} sold or fewer)`,
+                                            ],
+                                            ['none', 'No sales'],
+                                            ['few', '1–2 sold'],
+                                            [
+                                                'some',
+                                                `3–${SLOW_MOST_SOLD} sold`,
+                                            ],
+                                        ] as const
+                                    ).map(([value, label]) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() =>
+                                                showList({
+                                                    ...filters,
+                                                    sold: value,
+                                                })
+                                            }
+                                            aria-pressed={
+                                                (filters.sold ?? 'all') ===
+                                                value
+                                            }
+                                            className={chipClasses(
+                                                (filters.sold ?? 'all') ===
+                                                    value,
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
                                 </div>{' '}
                             </section>
                         )}
@@ -437,14 +513,18 @@ export default function ProductsIndex({
                                 className="mx-auto text-slate-300"
                             />
                             <h3 className="mt-4 text-lg font-black text-slate-800">
-                                {isFiltered
-                                    ? 'No products match your search or filter'
-                                    : 'No products yet'}
+                                {filters.stock === 'slow'
+                                    ? 'No slow-moving products in this time'
+                                    : isFiltered
+                                      ? 'No products match your search or filter'
+                                      : 'No products yet'}
                             </h3>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                                {isFiltered
-                                    ? 'Try another name or status, or clear the filters.'
-                                    : 'Add the first product, e.g. the 42nd Anniversary Shirt, with its photo and price.'}
+                                {filters.stock === 'slow'
+                                    ? `A product counts only when it was already in stock on the first day${filters.slow === 'range' && filters.slow_from ? ` (${formatDateOrdered(filters.slow_from)})` : ''}, so it had the whole time to sell. Choose an earlier day or another time.`
+                                    : isFiltered
+                                      ? 'Try another name or status, or clear the filters.'
+                                      : 'Add the first product, e.g. the 42nd Anniversary Shirt, with its photo and price.'}
                             </p>
                             {isFiltered ? (
                                 <button
@@ -457,7 +537,9 @@ export default function ProductsIndex({
                                             stock: null,
                                             slow_days: filters.slow_days,
                                             slow: 'month',
-                                            slow_since: null,
+                                            slow_from: null,
+                                            slow_to: null,
+                                            sold: 'all',
                                         });
                                     }}
                                     className={`mt-6 ${primaryButtonClasses}`}
@@ -523,29 +605,39 @@ export default function ProductsIndex({
                                                     </p>
                                                     {filters.stock ===
                                                         'slow' && (
-                                                        <p className="mt-0.5 text-xs text-slate-500">
-                                                            {product.days_without_sale !==
+                                                        <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                                                            {product.sold_in_period !==
                                                                 null && (
-                                                                <b className="text-red-700">
-                                                                    {product.days_without_sale.toLocaleString(
+                                                                <span
+                                                                    className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+                                                                        product.sold_in_period ===
+                                                                        0
+                                                                            ? 'bg-red-100 text-red-700'
+                                                                            : product.sold_in_period <=
+                                                                                2
+                                                                              ? 'bg-amber-100 text-amber-800'
+                                                                              : 'bg-slate-100 text-slate-700'
+                                                                    }`}
+                                                                >
+                                                                    {product.sold_in_period.toLocaleString(
                                                                         'en-PH',
                                                                     )}{' '}
-                                                                    {product.days_without_sale ===
-                                                                    1
-                                                                        ? 'day'
-                                                                        : 'days'}{' '}
-                                                                    without a
-                                                                    sale ·{' '}
-                                                                </b>
+                                                                    sold
+                                                                </span>
                                                             )}
-                                                            In stock since{' '}
-                                                            {formatDateOrdered(
-                                                                product.first_received_at,
-                                                            )}
-                                                            {' · '}
-                                                            {product.last_sale_at
-                                                                ? `last sale ${formatDateOrdered(product.last_sale_at)}`
-                                                                : 'no sales yet'}
+                                                            <span>
+                                                                {product.days_without_sale !==
+                                                                    null &&
+                                                                    `${product.days_without_sale.toLocaleString('en-PH')} ${product.days_without_sale === 1 ? 'day' : 'days'} since ${product.last_sale_at ? 'its last sale' : 'it arrived'} · `}
+                                                                In stock since{' '}
+                                                                {formatDateOrdered(
+                                                                    product.first_received_at,
+                                                                )}
+                                                                {' · '}
+                                                                {product.last_sale_at
+                                                                    ? `last sale ${formatDateOrdered(product.last_sale_at)}`
+                                                                    : 'no sales yet'}
+                                                            </span>
                                                         </p>
                                                     )}
                                                 </td>
@@ -874,4 +966,19 @@ function stockSizesLine(
     const more = named.length - 3;
 
     return `${out ? 'Out of stock' : 'Low'}: ${shown}${more > 0 ? ` and ${more} more` : ''}`;
+}
+
+/** At most this many pieces sold in the time chosen: slow-moving (FilterProductsRequest). */
+const SLOW_MOST_SOLD = 5;
+
+/** Today on this computer, "YYYY-MM-DD", the latest day the calendars allow. */
+const today = new Date().toLocaleDateString('en-CA');
+
+/** A Slow-moving choice button, red while chosen. */
+function chipClasses(chosen: boolean): string {
+    return `rounded-lg px-3 py-2 text-xs font-black transition ${
+        chosen
+            ? 'bg-red-600 text-white'
+            : 'border border-red-200 bg-white text-red-700 hover:bg-red-50'
+    }`;
 }

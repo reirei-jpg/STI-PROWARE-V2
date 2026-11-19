@@ -374,7 +374,7 @@ test('the list can be searched by name and filtered by status', function () {
             ->has('products.data', 1)
             ->where('products.data.0.name', '42nd Anniversary Shirt')
             ->where('products.data.0.status_label', 'Preorder')
-            ->where('filters', ['search' => 'anniversary', 'status' => 'preorder', 'stock' => null, 'slow_days' => 18, 'slow' => 'month', 'slow_since' => null])
+            ->where('filters', ['search' => 'anniversary', 'status' => 'preorder', 'stock' => null, 'slow_days' => 18, 'slow' => 'month', 'slow_from' => null, 'slow_to' => null, 'sold' => 'all'])
         );
 });
 

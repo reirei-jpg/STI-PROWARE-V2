@@ -283,7 +283,7 @@ test('slow-moving lists available products in stock that sold nothing in the cho
 
     $this->get(route('products.index', ['stock' => 'slow', 'slow' => 'week']))
         ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 3)->has('products.data', 3));
-    $this->get(route('products.index', ['stock' => 'slow', 'slow' => 'date', 'slow_since' => now()->subDays(45)->toDateString()]))
+    $this->get(route('products.index', ['stock' => 'slow', 'slow' => 'range', 'slow_from' => now()->subDays(45)->toDateString()]))
         ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 1)->where('products.data.0.name', 'Corrected Lanyard'));
     $this->get(route('products.index', ['stock' => 'slow', 'slow' => 'year']))
         ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 0));

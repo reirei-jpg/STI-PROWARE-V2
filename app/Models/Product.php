@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
 use Carbon\CarbonInterface;
+use Closure;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 
 /**
@@ -228,20 +230,49 @@ class Product extends Model
 
     /**
      * Available products with stock that arrived before $since and sold
-     * nothing since then (the Products list's 1 week, 1 month, 1 year or a
-     * day picked on the calendar).
+     * nothing since then.
      *
      * @param  Builder<self>  $query
      */
     #[Scope]
     protected function slowMovingSince(Builder $query, CarbonInterface $since): void
     {
+        $this->slowSelling($query, $since, now(), 0, 0);
+    }
+
+    /**
+     * Available products with stock that arrived before $from and sold only
+     * $fewest to $most pieces from $from to $to (the Products list's
+     * Slow-moving: 1 week, 1 month, 1 year or From – To, and how slow).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function slowSelling(Builder $query, CarbonInterface $from, CarbonInterface $to, int $fewest, int $most): void
+    {
         $query->where('status', ProductStatus::Available)
             ->whereHas('variants', fn (Builder $variants) => $variants->where('stock_on_hand', '>', 0))
-            ->whereHas('variants.stockMovements', fn (Builder $movements) => $movements->where('created_at', '<=', $since))
-            ->whereDoesntHave('variants.stockMovements', fn (Builder $movements) => $movements
-                ->where('created_at', '>', $since)
-                ->where('type', StockMovementType::Sale)
-                ->whereHas('orderItem.order', fn (Builder $orders) => $orders->where('status', '!=', OrderStatus::Cancelled)));
+            ->whereHas('variants.stockMovements', fn (Builder $movements) => $movements->where('created_at', '<=', $from))
+            ->where(self::piecesSoldBetween($from, $to), '>=', $fewest)
+            ->where(self::piecesSoldBetween($from, $to), '<=', $most);
+    }
+
+    /**
+     * Pieces of the product sold from $from to $to, as a subquery on
+     * products: its orders that were not cancelled.
+     *
+     * @return Closure(QueryBuilder): QueryBuilder
+     */
+    public static function piecesSoldBetween(CarbonInterface $from, CarbonInterface $to): Closure
+    {
+        return fn (QueryBuilder $sold) => $sold->from('stock_movements')
+            ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
+            ->join('order_items', 'order_items.id', '=', 'stock_movements.order_item_id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->whereColumn('product_variants.product_id', 'products.id')
+            ->where('stock_movements.type', StockMovementType::Sale->value)
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->whereBetween('stock_movements.created_at', [$from, $to])
+            ->selectRaw('coalesce(sum(0 - stock_movements.quantity), 0)');
     }
 }

@@ -40,7 +40,8 @@ class ProductController extends Controller
         $status = $request->status();
         $stockFilter = $request->stockFilter();
         $slowDays = $request->slowMovingDays();
-        $slowSince = $request->slowSince();
+        [$slowFrom, $slowTo] = $request->slowPeriod();
+        [$fewestSold, $mostSold] = $request->soldRange();
 
         $belowCost = collect(SellingBelowCost::products())->keyBy('product_id');
 
@@ -81,14 +82,21 @@ class ProductController extends Controller
             // The Low stock and Out of stock lists show only those sizes or colors.
             ->when($stockFilter === 'low', fn (Builder $query) => $query->with(['variants' => fn ($variants) => $variants->lowOnShelf()->orderBy('position')]))
             ->when($stockFilter === 'out', fn (Builder $query) => $query->with(['variants' => fn ($variants) => $variants->nothingLeft()->orderBy('position')]))
-            ->when($stockFilter === 'slow', fn (Builder $query) => $query->slowMovingSince($slowSince))
-            // Slow-moving: the longest without a sale first (never sold: since it arrived).
+            // Slow-moving: the fewest pieces sold in the time first, then the
+            // longest since its last sale up to the end of the time (never
+            // sold: since it arrived).
             ->when($stockFilter === 'slow', fn (Builder $query) => $query
-                ->addSelect(['quiet_since' => $movementsOfThisProduct()
-                    ->leftJoin('order_items', 'order_items.id', '=', 'stock_movements.order_item_id')
-                    ->leftJoin('orders', 'orders.id', '=', 'order_items.order_id')
-                    ->selectRaw('coalesce(max(case when stock_movements.type = ? and orders.status <> ? then stock_movements.created_at end), min(stock_movements.created_at))', [StockMovementType::Sale->value, OrderStatus::Cancelled->value]),
+                ->slowSelling($slowFrom, $slowTo, $fewestSold, $mostSold)
+                ->addSelect([
+                    'sold_in_period' => Product::piecesSoldBetween($slowFrom, $slowTo),
+                    'quiet_since' => $movementsOfThisProduct()
+                        ->leftJoin('order_items', 'order_items.id', '=', 'stock_movements.order_item_id')
+                        ->leftJoin('orders', 'orders.id', '=', 'order_items.order_id')
+                        ->where('stock_movements.created_at', '<=', $slowTo)
+                        ->selectRaw('coalesce(max(case when stock_movements.type = ? and orders.status <> ? then stock_movements.created_at end), min(stock_movements.created_at))', [StockMovementType::Sale->value, OrderStatus::Cancelled->value]),
                 ])
+                ->withCasts(['quiet_since' => 'datetime'])
+                ->orderBy('sold_in_period')
                 ->orderBy('quiet_since'))
             ->latest('updated_at')
             ->latest('id')
@@ -128,7 +136,11 @@ class ProductController extends Controller
                 'sale_ends_at' => $product->status === ProductStatus::OnSale ? $product->sale_ends_at?->toIso8601String() : null,
                 'first_received_at' => $product->getAttribute('first_received_at')?->toIso8601String(),
                 // Days since its last sale, or since it arrived when never sold.
-                'days_without_sale' => ($product->getAttribute('last_sale_at') ?? $product->getAttribute('first_received_at'))?->startOfDay()->diffInDays(now()->startOfDay()),
+                'days_without_sale' => $stockFilter === 'slow'
+                    ? $product->getAttribute('quiet_since')?->startOfDay()->diffInDays($slowTo->startOfDay())
+                    : null,
+                // Slow-moving: the pieces sold in the time chosen.
+                'sold_in_period' => $stockFilter === 'slow' ? (int) $product->getAttribute('sold_in_period') : null,
                 'last_sale_at' => $product->getAttribute('last_sale_at')?->toIso8601String(),
                 'photo_url' => $product->mainPhoto?->url(),
                 'variants_count' => $product->variants_count,
@@ -157,11 +169,13 @@ class ProductController extends Controller
                 'stock' => $stockFilter,
                 'slow_days' => $slowDays,
                 'slow' => $request->slowChoice(),
-                'slow_since' => $request->slowChoice() === 'date' ? $slowSince->toDateString() : null,
+                'slow_from' => $request->slowChoice() === 'range' ? $slowFrom->toDateString() : null,
+                'slow_to' => $request->slowChoice() === 'range' ? $slowTo->toDateString() : null,
+                'sold' => $request->soldChoice(),
             ],
             'lowStockCount' => Product::query()->lowButNotOut()->count(),
             'outOfStockCount' => Product::query()->soldOut()->count(),
-            'slowMovingCount' => Product::query()->slowMovingSince($slowSince)->count(),
+            'slowMovingCount' => Product::query()->slowSelling($slowFrom, $slowTo, 0, FilterProductsRequest::SLOW_MOST_SOLD)->count(),
             'itemsToLinkCount' => PurchaseOrderItem::query()
                 ->notLinkedToProduct()
                 ->distinct()
