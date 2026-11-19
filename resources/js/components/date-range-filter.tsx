@@ -1,6 +1,7 @@
 import { CalendarDays, X } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { openCalendar } from '@/lib/open-calendar';
 
 const inputClasses =
     'h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100';
@@ -52,6 +53,7 @@ export default function DateRangeFilter({
                     </span>
                     <input
                         type="date"
+                        onClick={openCalendar}
                         value={dateFrom ?? ''}
                         max={dateTo ?? undefined}
                         onChange={(event) =>
@@ -68,6 +70,7 @@ export default function DateRangeFilter({
                     </span>
                     <input
                         type="date"
+                        onClick={openCalendar}
                         value={dateTo ?? ''}
                         min={dateFrom ?? undefined}
                         onChange={(event) =>

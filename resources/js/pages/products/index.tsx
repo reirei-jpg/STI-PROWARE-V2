@@ -21,6 +21,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import ProductDetailsDialog from '@/components/product-details-dialog';
 import ProductStatusBadge from '@/components/product-status-badge';
 import { isOutOfStock } from '@/lib/product-stock';
+import { openCalendar } from '@/lib/open-calendar';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { isSameSearch } from '@/lib/utils';
@@ -416,6 +417,7 @@ export default function ProductsIndex({
                                         From
                                         <input
                                             type="date"
+                                            onClick={openCalendar}
                                             value={filters.slow_from ?? ''}
                                             max={today}
                                             onChange={(event) =>
@@ -435,11 +437,12 @@ export default function ProductsIndex({
                                                 })
                                             }
                                             aria-label="From this day"
-                                            className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none"
+                                            className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none"
                                         />
                                         To
                                         <input
                                             type="date"
+                                            onClick={openCalendar}
                                             value={filters.slow_to ?? ''}
                                             min={filters.slow_from ?? undefined}
                                             max={today}
@@ -459,7 +462,7 @@ export default function ProductsIndex({
                                                     ? 'Empty means today.'
                                                     : 'Pick the From day first.'
                                             }
-                                            className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none disabled:opacity-50"
+                                            className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                         />
                                     </span>
                                 </div>
