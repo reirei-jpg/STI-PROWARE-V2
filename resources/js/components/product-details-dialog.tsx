@@ -28,7 +28,7 @@ export default function ProductDetailsDialog({
     details,
     onClose,
     onPutOnSale,
-    draftsFirst = false,
+    onlyDrafts = false,
 }: {
     /** The row that was opened; null when the popup is closed. */
     product: ProductListItem | null;
@@ -36,10 +36,14 @@ export default function ProductDetailsDialog({
     details: ProductDetails | null | undefined;
     onClose: () => void;
     onPutOnSale: (productId: number) => void;
-    /** Opened from the Draft list: the Draft sizes or colors come first. */
-    draftsFirst?: boolean;
+    /** Opened from the Draft list: only the Draft sizes or colors are shown. */
+    onlyDrafts?: boolean;
 }) {
+    // From the Draft list, a product in the store shows only its Draft part.
+    const draftPart =
+        onlyDrafts && product !== null && product.status !== 'draft';
     const canSell =
+        !draftPart &&
         product !== null &&
         (product.status === 'on_sale' ||
             (product.status === 'available' && product.stock_on_hand > 0));
@@ -66,10 +70,17 @@ export default function ProductDetailsDialog({
                                         <DialogTitle className="text-xl font-black text-slate-900">
                                             {product.name}
                                         </DialogTitle>
-                                        <ProductStatusBadge
-                                            status={product.status}
-                                            label={product.status_label}
-                                        />
+                                        {draftPart ? (
+                                            <ProductStatusBadge
+                                                status="draft"
+                                                label="Draft"
+                                            />
+                                        ) : (
+                                            <ProductStatusBadge
+                                                status={product.status}
+                                                label={product.status_label}
+                                            />
+                                        )}
                                     </div>
                                     <DialogDescription className="sr-only">
                                         Stock, price and actions for this
@@ -128,7 +139,14 @@ export default function ProductDetailsDialog({
                                     <Price product={product} />
                                 </Fact>
                                 <Fact label="Stock">
-                                    {isOutOfStock(product) ? (
+                                    {draftPart ? (
+                                        <span className="text-slate-500">
+                                            {product.draft_stock_on_hand.toLocaleString(
+                                                'en-PH',
+                                            )}{' '}
+                                            pcs
+                                        </span>
+                                    ) : isOutOfStock(product) ? (
                                         <span className="text-red-600">
                                             Out of stock
                                         </span>
@@ -186,9 +204,11 @@ export default function ProductDetailsDialog({
 
                             <div className="px-6 py-5">
                                 <h3 className="text-xs font-black tracking-wide text-slate-500 uppercase">
-                                    {hasOptions
-                                        ? 'Stock per size / color'
-                                        : 'Stock'}
+                                    {draftPart
+                                        ? 'Draft sizes / colors'
+                                        : hasOptions
+                                          ? 'Stock per size / color'
+                                          : 'Stock'}
                                 </h3>
                                 {details === undefined ? (
                                     <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
@@ -234,17 +254,11 @@ export default function ProductDetailsDialog({
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
-                                                {(draftsFirst
-                                                    ? [
-                                                          ...details.variants.filter(
-                                                              (variant) =>
-                                                                  variant.is_draft,
-                                                          ),
-                                                          ...details.variants.filter(
-                                                              (variant) =>
-                                                                  !variant.is_draft,
-                                                          ),
-                                                      ]
+                                                {(draftPart
+                                                    ? details.variants.filter(
+                                                          (variant) =>
+                                                              variant.is_draft,
+                                                      )
                                                     : details.variants
                                                 ).map((variant) => {
                                                     // A Draft is not sold yet, so it is never out of stock or low.

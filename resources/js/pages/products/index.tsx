@@ -87,6 +87,10 @@ export default function ProductsIndex({
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [slowDays, setSlowDays] = useState(String(filters.slow_days));
+    // The Draft list shows only the Draft part of a product whose other
+    // sizes or colors are in the store.
+    const showsDraftPart = (product: ProductListItem): boolean =>
+        filters.status === 'draft' && product.status !== 'draft';
     const [selling, setSelling] = useState<number | null>(null);
     const [viewingId, setViewingId] = useState<number | null>(null);
     const viewing =
@@ -451,14 +455,10 @@ export default function ProductsIndex({
                                                         {product.name}
                                                     </p>
                                                     <p className="mt-0.5 text-xs text-slate-500">
-                                                        {product.variants_count}{' '}
-                                                        {product.variants_count ===
-                                                        1
-                                                            ? 'variant'
-                                                            : 'variants'}
-                                                        {statusBreakdown(
-                                                            product.variant_statuses,
-                                                        )}
+                                                        {/* The Draft list shows only the Draft sizes or colors. */}
+                                                        {showsDraftPart(product)
+                                                            ? `${product.variant_statuses.draft} Draft ${product.variant_statuses.draft === 1 ? 'variant' : 'variants'}`
+                                                            : `${product.variants_count} ${product.variants_count === 1 ? 'variant' : 'variants'}${statusBreakdown(product.variant_statuses)}`}
                                                         {product.updated_at &&
                                                             ` · updated ${formatDateOrdered(product.updated_at)}`}
                                                     </p>
@@ -479,25 +479,11 @@ export default function ProductsIndex({
                                                 <td className="px-5 py-3.5">
                                                     {/* In the Draft list, a product in the store
                                                         shows the Draft sizes or colors it is listed for. */}
-                                                    {filters.status ===
-                                                        'draft' &&
-                                                    product.status !==
-                                                        'draft' ? (
-                                                        <>
-                                                            <ProductStatusBadge
-                                                                status="draft"
-                                                                label={`${product.variant_statuses.draft} Draft`}
-                                                            />
-                                                            <p className="mt-1 text-xs whitespace-nowrap text-slate-500">
-                                                                {product.variants_count -
-                                                                    product
-                                                                        .variant_statuses
-                                                                        .draft}{' '}
-                                                                {
-                                                                    product.status_label
-                                                                }
-                                                            </p>
-                                                        </>
+                                                    {showsDraftPart(product) ? (
+                                                        <ProductStatusBadge
+                                                            status="draft"
+                                                            label="Draft"
+                                                        />
                                                     ) : (
                                                         <ProductStatusBadge
                                                             status={
@@ -537,10 +523,7 @@ export default function ProductsIndex({
                                                     {/* In the Draft list, a product in the store shows the
                                                         pieces of its Draft sizes or colors. In the store with
                                                         nothing left: Out of stock, not "0 pcs Low". */}
-                                                    {filters.status ===
-                                                        'draft' &&
-                                                    product.status !==
-                                                        'draft' ? (
+                                                    {showsDraftPart(product) ? (
                                                         <>
                                                             <span className="text-base font-black text-slate-400">
                                                                 {product.draft_stock_on_hand.toLocaleString(
@@ -626,7 +609,7 @@ export default function ProductsIndex({
                         : undefined
                 }
                 onClose={() => setViewingId(null)}
-                draftsFirst={filters.status === 'draft'}
+                onlyDrafts={filters.status === 'draft'}
                 onPutOnSale={(productId) => {
                     setViewingId(null);
                     setSelling(productId);
