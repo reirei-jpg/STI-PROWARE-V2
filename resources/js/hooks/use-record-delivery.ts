@@ -127,13 +127,6 @@ export function useRecordDelivery(
             [row.purchase_order_item_id]: value.slice(0, 12),
         });
 
-    /** "All" on a row: what is left of it arrived. */
-    const fillRow = (row: WaitingItemRow) =>
-        setData('quantities', {
-            ...data.quantities,
-            [row.purchase_order_item_id]: String(row.quantity_remaining),
-        });
-
     /** "Everything arrived": what is left of every row arrived. */
     const fillAll = () =>
         setData(
@@ -193,7 +186,6 @@ export function useRecordDelivery(
         piecesIntoStock,
         notLinkedReceived,
         setRowQuantity,
-        fillRow,
         fillAll,
         submit,
     };

@@ -250,8 +250,28 @@ export default function RecordDeliveryScreen() {
                     </View>
                 ) : (
                     <>
+                        <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                            <Text className="font-sans-bold text-sm text-slate-900">
+                                DELIVERY PAPERS <Text className="font-sans text-slate-500">(optional)</Text>
+                            </Text>
+                            <View className="flex-row gap-2">
+                                <View className="flex-1 gap-1">
+                                    <Text className="font-sans-bold text-xs text-slate-600">SI # (Sales Invoice)</Text>
+                                    <Field value={salesInvoice} onChangeText={setSalesInvoice} maxLength={40} />
+                                </View>
+                                <View className="flex-1 gap-1">
+                                    <Text className="font-sans-bold text-xs text-slate-600">DR # (Delivery Receipt)</Text>
+                                    <Field value={deliveryReceipt} onChangeText={setDeliveryReceipt} maxLength={40} />
+                                </View>
+                            </View>
+                            <View className="gap-1">
+                                <Text className="font-sans-bold text-xs text-slate-600">Note</Text>
+                                <Field value={note} onChangeText={setNote} maxLength={500} placeholder="e.g. 1 box slightly damaged" />
+                            </View>
+                        </View>
+
                         <View className="gap-2">
-                            <Text className="font-sans-bold text-sm text-slate-900">1. WHAT ARRIVED</Text>
+                            <Text className="font-sans-bold text-sm text-slate-900">WHAT ARRIVED</Text>
                             <Text className="font-sans text-sm text-slate-600">
                                 Type at least one <RequiredLabel>How many arrived</RequiredLabel> before Stock In can be pressed.
                             </Text>
@@ -300,26 +320,6 @@ export default function RecordDeliveryScreen() {
                                 problem={problemOf(group)}
                             />
                         ))}
-
-                        <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
-                            <Text className="font-sans-bold text-sm text-slate-900">
-                                2. DELIVERY PAPERS <Text className="font-sans text-slate-500">(optional)</Text>
-                            </Text>
-                            <View className="flex-row gap-2">
-                                <View className="flex-1 gap-1">
-                                    <Text className="font-sans-bold text-xs text-slate-600">SI # (Sales Invoice)</Text>
-                                    <Field value={salesInvoice} onChangeText={setSalesInvoice} maxLength={40} />
-                                </View>
-                                <View className="flex-1 gap-1">
-                                    <Text className="font-sans-bold text-xs text-slate-600">DR # (Delivery Receipt)</Text>
-                                    <Field value={deliveryReceipt} onChangeText={setDeliveryReceipt} maxLength={40} />
-                                </View>
-                            </View>
-                            <View className="gap-1">
-                                <Text className="font-sans-bold text-xs text-slate-600">Note</Text>
-                                <Field value={note} onChangeText={setNote} maxLength={500} placeholder="e.g. 1 box slightly damaged" />
-                            </View>
-                        </View>
                     </>
                 )}
             </ScrollView>
@@ -442,15 +442,6 @@ function GroupCard({
                         <Text className="flex-1 font-sans-semibold text-sm text-slate-500">
                             {target ? unitWord(units, target.unit_name) : 'as ordered on the eStore'}
                         </Text>
-                        <Pressable
-                            onPress={() => onTotal(String(remaining))}
-                            disabled={total === String(remaining)}
-                            accessibilityRole="button"
-                            accessibilityLabel={`All of ${group.item_code} arrived`}
-                            className={`rounded-xl border border-slate-200 bg-white px-4 py-2.5 ${total === String(remaining) ? 'opacity-50' : ''}`}
-                        >
-                            <Text className="font-sans-bold text-sm text-slate-700">All</Text>
-                        </Pressable>
                     </View>
                     {target && units > 0 && problem === null && (
                         <Text className="font-sans-bold text-xs text-emerald-700">

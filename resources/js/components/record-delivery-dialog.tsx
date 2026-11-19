@@ -181,8 +181,8 @@ export default function RecordDeliveryDialog({
 }
 
 /**
- * 1. What arrived: this order's items with a Received now box each.
- * 2. Delivery papers: SI #, DR # and a note, all optional.
+ * Delivery papers: SI #, DR # and a note, all optional.
+ * What arrived: this order's items with a Received now box each.
  * Then the live summary with Save.
  */
 function DeliveryForm({
@@ -214,7 +214,6 @@ function DeliveryForm({
         hasProblems,
         notLinkedReceived,
         setRowQuantity,
-        fillRow,
         fillAll,
         submit,
     } = delivery;
@@ -286,11 +285,72 @@ function DeliveryForm({
                     </div>
                 )}
 
+                <section className="border-b border-slate-200 bg-slate-50/60 px-6 py-5">
+                    <h3 className="text-sm font-black tracking-wide text-slate-900 uppercase">
+                        Delivery papers{' '}
+                        <span className="font-semibold text-slate-500 normal-case">
+                            (optional)
+                        </span>
+                    </h3>
+                    <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                        <Field
+                            label="SI # (Sales Invoice)"
+                            error={errors.sales_invoice_number}
+                        >
+                            <input
+                                value={data.sales_invoice_number}
+                                onChange={(event) =>
+                                    setData(
+                                        'sales_invoice_number',
+                                        event.target.value,
+                                    )
+                                }
+                                maxLength={40}
+                                placeholder="e.g. 1210000031492"
+                                className={cn(
+                                    deliveryInputClasses,
+                                    'font-mono',
+                                )}
+                            />
+                        </Field>
+                        <Field
+                            label="DR # (Delivery Receipt)"
+                            error={errors.delivery_receipt_number}
+                        >
+                            <input
+                                value={data.delivery_receipt_number}
+                                onChange={(event) =>
+                                    setData(
+                                        'delivery_receipt_number',
+                                        event.target.value,
+                                    )
+                                }
+                                maxLength={40}
+                                className={cn(
+                                    deliveryInputClasses,
+                                    'font-mono',
+                                )}
+                            />
+                        </Field>
+                        <Field label="Note" error={errors.note}>
+                            <input
+                                value={data.note}
+                                onChange={(event) =>
+                                    setData('note', event.target.value)
+                                }
+                                maxLength={500}
+                                placeholder="e.g. 1 box slightly damaged"
+                                className={deliveryInputClasses}
+                            />
+                        </Field>
+                    </div>
+                </section>
+
                 <section className="px-6 py-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h3 className="text-sm font-black tracking-wide text-slate-900 uppercase">
-                                1. What arrived
+                                What arrived
                             </h3>
                             <p className="mt-0.5 text-sm text-slate-600">
                                 <RequiredLabel>Received now</RequiredLabel> (at
@@ -349,73 +409,11 @@ function DeliveryForm({
                                             onChange={(value) =>
                                                 setRowQuantity(row, value)
                                             }
-                                            onAll={() => fillRow(row)}
                                         />
                                     ))}
                                 </tbody>
                             ))}
                         </table>
-                    </div>
-                </section>
-
-                <section className="border-t border-slate-200 bg-slate-50/60 px-6 py-5">
-                    <h3 className="text-sm font-black tracking-wide text-slate-900 uppercase">
-                        2. Delivery papers{' '}
-                        <span className="font-semibold text-slate-500 normal-case">
-                            (optional)
-                        </span>
-                    </h3>
-                    <div className="mt-3 grid gap-4 sm:grid-cols-3">
-                        <Field
-                            label="SI # (Sales Invoice)"
-                            error={errors.sales_invoice_number}
-                        >
-                            <input
-                                value={data.sales_invoice_number}
-                                onChange={(event) =>
-                                    setData(
-                                        'sales_invoice_number',
-                                        event.target.value,
-                                    )
-                                }
-                                maxLength={40}
-                                placeholder="e.g. 1210000031492"
-                                className={cn(
-                                    deliveryInputClasses,
-                                    'font-mono',
-                                )}
-                            />
-                        </Field>
-                        <Field
-                            label="DR # (Delivery Receipt)"
-                            error={errors.delivery_receipt_number}
-                        >
-                            <input
-                                value={data.delivery_receipt_number}
-                                onChange={(event) =>
-                                    setData(
-                                        'delivery_receipt_number',
-                                        event.target.value,
-                                    )
-                                }
-                                maxLength={40}
-                                className={cn(
-                                    deliveryInputClasses,
-                                    'font-mono',
-                                )}
-                            />
-                        </Field>
-                        <Field label="Note" error={errors.note}>
-                            <input
-                                value={data.note}
-                                onChange={(event) =>
-                                    setData('note', event.target.value)
-                                }
-                                maxLength={500}
-                                placeholder="e.g. 1 box slightly damaged"
-                                className={deliveryInputClasses}
-                            />
-                        </Field>
                     </div>
                 </section>
             </div>
@@ -500,8 +498,7 @@ function DeliveryForm({
 
 /**
  * One ordered item: its code and name with where it goes into stock, how
- * many are left of how many were ordered, and its Received now box with
- * an All button that types everything left.
+ * many are left of how many were ordered, and its Received now box.
  */
 function ItemRow({
     group,
@@ -511,7 +508,6 @@ function ItemRow({
     receivedNow,
     problem,
     onChange,
-    onAll,
 }: {
     group: WaitingItemGroup;
     value: string;
@@ -520,7 +516,6 @@ function ItemRow({
     receivedNow: number;
     problem: string | null;
     onChange: (value: string) => void;
-    onAll: () => void;
 }) {
     const target = group.stock_target;
 
@@ -559,15 +554,6 @@ function ItemRow({
                             {unitWord(receivedNow, target.unit_name)}
                         </span>
                     )}
-                    <button
-                        type="button"
-                        onClick={onAll}
-                        disabled={value === String(remaining)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label={`All arrived: ${group.item_code}`}
-                    >
-                        All
-                    </button>
                 </span>
 
                 {target &&
