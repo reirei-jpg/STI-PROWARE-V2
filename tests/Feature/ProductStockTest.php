@@ -32,7 +32,7 @@ function deliveryOf(PurchaseOrder $order, string $code, int $quantity): array
 }
 
 /**
- * A Draft product form with one variant carrying this eStore Item Code.
+ * A Draft product form with one variant carrying this Item Code.
  *
  * @return array<string, mixed>
  */
@@ -260,7 +260,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
     ],
     'a code no uploaded order has' => [
         fn () => ['item_code' => 'XX01-01', 'product_variant_ids' => [ProductVariant::factory()->create()->id], 'sent_by' => 'piece'],
-        'item_code', 'No uploaded order has the eStore Item Code XX01-01.',
+        'item_code', 'No uploaded order has the Item Code XX01-01.',
     ],
     'a code already linked' => [
         function () {
@@ -277,7 +277,7 @@ test('linking explains what is wrong', function (array $payload, string $field, 
 
             return ['item_code' => 'UTMP02-03', 'product_variant_ids' => [ProductVariant::factory()->create(['estore_item_code' => 'UTMP02-04'])->id], 'sent_by' => 'piece'];
         },
-        'product_variant_ids', 'This variant already has the eStore Item Code UTMP02-04. Choose another variant.',
+        'product_variant_ids', 'This variant already has the Item Code UTMP02-04. Choose another variant.',
     ],
     'a pack of another product' => [
         function () {

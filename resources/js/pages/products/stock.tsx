@@ -60,7 +60,7 @@ export default function ProductStock({
     );
     const sharedCode =
         codes.size === 1 && variants[0]?.estore_item_code
-            ? `eStore Item Code ${variants[0].estore_item_code}, sent by the ${variants[0].sent_by ?? 'piece'}`
+            ? `Item Code ${variants[0].estore_item_code}, sent by the ${variants[0].sent_by ?? 'piece'}`
             : null;
     const summary = [
         `${formatUnits(product.stock_on_hand, 'Piece')} on the shelf`,
@@ -135,7 +135,7 @@ export default function ProductStock({
                                     sharedCode === null
                                         ? variant.estore_item_code
                                             ? variant.estore_item_code
-                                            : 'No eStore code'
+                                            : 'No Item Code'
                                         : null
                                 }
                             />
@@ -145,8 +145,8 @@ export default function ProductStock({
                     variants[0] &&
                     !variants[0].estore_item_code && (
                         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-900">
-                            No eStore Item Code yet, so deliveries do not reach
-                            this stock. Add it in Edit Product.
+                            No Item Code yet, so deliveries do not reach this
+                            stock. Add it in Edit Product.
                         </p>
                     )
                 )}

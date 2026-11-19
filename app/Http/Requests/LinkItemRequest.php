@@ -68,7 +68,7 @@ class LinkItemRequest extends FormRequest
                 $code = $this->itemCode();
 
                 if (! PurchaseOrderItem::query()->where('item_code', $code)->exists()) {
-                    $validator->errors()->add('item_code', "No uploaded order has the eStore Item Code {$code}.");
+                    $validator->errors()->add('item_code', "No uploaded order has the Item Code {$code}.");
 
                     return;
                 }
@@ -95,8 +95,8 @@ class LinkItemRequest extends FormRequest
 
                 if ($withCode !== null) {
                     $validator->errors()->add('product_variant_ids', $variants->count() === 1
-                        ? "This variant already has the eStore Item Code {$withCode->estore_item_code}. Choose another variant."
-                        : "{$withCode->label()} already has its own eStore Item Code {$withCode->estore_item_code}. Untick it.");
+                        ? "This variant already has the Item Code {$withCode->estore_item_code}. Choose another variant."
+                        : "{$withCode->label()} already has its own Item Code {$withCode->estore_item_code}. Untick it.");
                 }
 
                 if ($this->input('sent_by') === 'pack' && ! $variant->product->packs()->whereKey((int) $this->input('pack_id'))->exists()) {

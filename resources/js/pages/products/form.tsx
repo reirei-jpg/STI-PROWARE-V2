@@ -1090,10 +1090,10 @@ export default function ProductForm({
                                 · {fromItem.description}
                             </p>
                             <p className="mt-1 leading-6">
-                                Its eStore Item Code is already on the variant
-                                below, so its deliveries go into stock when you
-                                save. If the item comes in sizes or colors, add
-                                the options first, then put{' '}
+                                Its Item Code is already on the variant below,
+                                so its deliveries go into stock when you save.
+                                If the item comes in sizes or colors, add the
+                                options first, then put{' '}
                                 <span className="font-mono">
                                     {fromItem.item_code}
                                 </span>{' '}

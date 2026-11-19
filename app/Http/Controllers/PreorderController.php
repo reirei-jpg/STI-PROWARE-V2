@@ -117,7 +117,7 @@ class PreorderController extends Controller
      * products whose preorders closed and the sold-out sizes students are
      * waiting for, only the sizes or colors with pieces, and a total per
      * product. With ?product= it is that one product's preorders so far.
-     * The eStore Item Code column is left out when no row has one.
+     * The Item Code column is left out when no row has one.
      */
     public function export(Request $request): StreamedResponse
     {
@@ -189,7 +189,7 @@ class PreorderController extends Controller
             // Lets Excel read the file as UTF-8 (₱, ñ).
             fwrite($file, "\xEF\xBB\xBF");
             fputcsv($file, array_values(array_filter(
-                ['Product', 'Size / Color', $withCodes ? 'eStore Item Code' : null, 'Preorders Close', 'No. of Students', 'Pieces to Order'],
+                ['Product', 'Size / Color', $withCodes ? 'Item Code' : null, 'Preorders Close', 'No. of Students', 'Pieces to Order'],
                 fn (?string $heading): bool => $heading !== null,
             )), escape: '');
 

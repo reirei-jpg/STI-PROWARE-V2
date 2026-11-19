@@ -33,7 +33,7 @@ const inputClasses =
 /**
  * The uniform sets, one per course: what its free set is made of (the
  * blouse and / or polo, and the pants), each an existing product with its
- * own eStore Item Code and sizes. Sold as a set, students can also buy it
+ * own Item Code and sizes. Sold as a set, students can also buy it
  * whole in the store, at what its pieces cost (girls choose the ladies'
  * pants or the skirt). Add a set, or change one.
  */
@@ -332,8 +332,8 @@ function SetEditor({
             </div>
 
             <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                Each is a product in Products, with its own eStore Item Code and
-                sizes. A product not there yet? Add it in Products first.
+                Each is a product in Products, with its own Item Code and sizes.
+                A product not there yet? Add it in Products first.
                 {set &&
                     ' Students already given this set keep the pieces they got.'}
             </p>

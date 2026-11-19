@@ -152,7 +152,7 @@ test('an option that already has its own code cannot be linked to another', func
     $this->actingAs($this->specialist);
 
     $this->post(route('item-links.store'), ['item_code' => 'PRUM01-01', 'product_variant_ids' => [$red->id], 'sent_by' => 'piece'])
-        ->assertSessionHasErrors(['product_variant_ids' => 'This variant already has the eStore Item Code PRUM01-02. Choose another variant.']);
+        ->assertSessionHasErrors(['product_variant_ids' => 'This variant already has the Item Code PRUM01-02. Choose another variant.']);
 
     expect([$black->refresh()->estore_item_code, $red->refresh()->estore_item_code, $navy->refresh()->estore_item_code])
         ->toBe([null, 'PRUM01-02', null]);

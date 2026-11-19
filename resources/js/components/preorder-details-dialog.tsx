@@ -164,7 +164,7 @@ export default function PreorderDetailsDialog({
                                                     Size / Color
                                                 </TableHeading>
                                                 <TableHeading>
-                                                    eStore Item Code
+                                                    Item Code
                                                 </TableHeading>
                                                 <TableHeading align="right">
                                                     Students

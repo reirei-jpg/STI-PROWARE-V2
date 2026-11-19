@@ -329,7 +329,7 @@ test('what to order downloads as a CSV for Excel: closed preorders only, sizes w
     $lines = array_map('str_getcsv', explode("\n", trim(str_replace("\xEF\xBB\xBF", '', $response->streamedContent()))));
 
     expect($lines)->toBe([
-        ['Product', 'Size / Color', 'eStore Item Code', 'Preorders Close', 'No. of Students', 'Pieces to Order'],
+        ['Product', 'Size / Color', 'Item Code', 'Preorders Close', 'No. of Students', 'Pieces to Order'],
         ['42nd Anniversary Shirt', 'S/M', 'PRSH01-01', 'Oct 2, 2026', '1', '2'],
         ['42nd Anniversary Shirt', 'M/L', '', 'Oct 2, 2026', '2', '4'],
         ['42nd Anniversary Shirt', 'Total', '', '', '2', '6'],

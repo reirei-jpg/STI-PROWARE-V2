@@ -1424,9 +1424,7 @@ function SoldDetailsDialog({
                                 {details.product_name}
                             </DialogTitle>
                             <DialogDescription className="text-sm text-slate-500">
-                                {details.estore?.item_code ??
-                                    'No eStore Item Code'}{' '}
-                                ·{' '}
+                                {details.estore?.item_code ?? 'No Item Code'} ·{' '}
                                 {formatUnits(
                                     details.variants.reduce(
                                         (sum, variant) =>
