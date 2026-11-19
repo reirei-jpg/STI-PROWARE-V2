@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import DraftRestoredNotice from '@/components/draft-restored-notice';
 import EndSaleButton from '@/components/end-sale-button';
 import InputError from '@/components/input-error';
@@ -24,6 +25,7 @@ import Panel, { TableHeading } from '@/components/panel';
 import { useFormDraft } from '@/hooks/use-form-draft';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { formatDateTime, formatPeso } from '@/lib/format';
+import { nextProductCode, variantCodes } from '@/lib/item-codes';
 import { priceInput, wholeNumberInput } from '@/lib/number-input';
 import { optionPresets, presetChoices } from '@/lib/product-option-presets';
 import { variantCombinations } from '@/lib/product-variants';
@@ -36,6 +38,7 @@ import type {
     ProductOptionInput,
     ProductPackInput,
     ProductStatus,
+    VariantStatus,
 } from '@/types';
 
 const MAX_PHOTOS = 6;
@@ -69,13 +72,22 @@ type PhotoInput = {
     label: string;
 };
 
-/** A variant's own Selling Price per piece (optional). */
+/**
+ * A variant's own Selling Price per piece (optional), its status, and its
+ * Item Code: made from the product's code until it is typed by hand.
+ */
 type VariantInput = {
     price: string;
+    status: VariantStatus;
+    code: string;
+    code_typed: boolean;
 };
 
 type ProductFormData = {
     name: string;
+    /** The product's own Item Code (BP-01); made from the name until typed by hand. */
+    item_code: string;
+    item_code_typed: boolean;
     sold_by_piece: boolean;
     price: string;
     status: ProductStatus;
@@ -89,23 +101,24 @@ type ProductFormData = {
     packs: ProductPackInput[];
     options: ProductOptionInput[];
     variant_inputs: Record<string, VariantInput>;
-    /** The product's one eStore Item Code, used by every variant. */
-    shared_item_code: string;
+    /** How Head Office sends the item: by the piece (empty) or in a pack. */
     shared_pack_key: string;
-    /** Combinations that do not exist (e.g. Pink in 32 oz): not saved, not shown to students. */
-    unavailable: string[];
     /** Options added to a product that had none: the variant its stock already is. */
     existing_stock_combination: string;
 };
 
+/** A new variant starts as a Draft with a code made from the product's. */
 const emptyVariantInput: VariantInput = {
     price: '',
+    status: 'draft',
+    code: '',
+    code_typed: false,
 };
 
 /** Keeps only digits, so "50 pcs" becomes "50", up to 100,000 (as the server allows). */
 const digitsOnly = (value: string) => wholeNumberInput(value, 100000);
 
-const statuses: { value: ProductStatus; label: string; description: string }[] =
+const statuses: { value: VariantStatus; label: string; description: string }[] =
     [
         {
             value: 'draft',
@@ -150,15 +163,16 @@ function errorBelongsTo(key: string, field: keyof ProductFormData): boolean {
 
     switch (field) {
         case 'variant_inputs':
-            return top === 'variants' && part === 'price';
-        case 'shared_item_code':
-            return top === 'variants' && part === 'estore_item_code';
+            return (
+                top === 'variants' &&
+                ['price', 'status', 'estore_item_code'].includes(part)
+            );
+        case 'item_code_typed':
+            return top === 'item_code';
         case 'shared_pack_key':
             return top === 'variants' && part === 'estore_pack_key';
         case 'options':
             return top === 'options' || top === 'variants';
-        case 'unavailable':
-            return top === 'options';
         case 'sold_by_piece':
             return ['sold_by_piece', 'price', 'packs'].includes(top);
         case 'packs':
@@ -183,6 +197,7 @@ export default function ProductForm({
     fromItem,
     costs,
     today,
+    usedProductCodes,
 }: {
     product: EditableProduct | null;
     fromItem: ProductFromItem | null;
@@ -190,9 +205,10 @@ export default function ProductForm({
     costs: Record<string, number>;
     /** Today in the school's time zone, "YYYY-MM-DD". */
     today: string;
+    /** Other products' own Item Codes, for the next free number (BP-02). */
+    usedProductCodes: string[];
 }) {
-    // A product has one eStore Item Code: its sizes, colors and departments
-    // all use it. A saved product shows the code its variants have.
+    // Head Office sends every variant the same way (by the piece or a pack).
     const savedVariants = product?.variants ?? [];
     const savedCodedVariant =
         savedVariants.find((variant) => variant.estore_item_code !== '') ??
@@ -200,6 +216,9 @@ export default function ProductForm({
 
     const form = useForm<ProductFormData>({
         name: product?.name ?? fromItem?.description.slice(0, 120) ?? '',
+        // A saved code (or the eStore item's) is kept as it is.
+        item_code: product?.item_code || fromItem?.item_code || '',
+        item_code_typed: Boolean(product?.item_code || fromItem),
         sold_by_piece: product?.sold_by_piece ?? true,
         price: product?.price ?? '',
         status: product?.status ?? 'draft',
@@ -228,28 +247,30 @@ export default function ProductForm({
             })) ?? [],
         packs: product?.packs ?? [],
         options: product?.options ?? [],
+        // Saved variants keep their status and code; combinations never
+        // saved (once "unavailable") start as Drafts.
         variant_inputs: product
             ? Object.fromEntries(
                   product.variants.map((variant) => [
                       variant.combination,
-                      { price: variant.price },
+                      {
+                          price: variant.price,
+                          status: variant.status,
+                          code: variant.estore_item_code,
+                          code_typed: variant.estore_item_code !== '',
+                      },
                   ]),
               )
-            : {},
-        shared_item_code:
-            savedCodedVariant?.estore_item_code ?? fromItem?.item_code ?? '',
+            : fromItem
+              ? {
+                    '': {
+                        ...emptyVariantInput,
+                        code: fromItem.item_code,
+                        code_typed: true,
+                    },
+                }
+              : {},
         shared_pack_key: savedCodedVariant?.estore_pack_key ?? '',
-        // A saved product's combinations without a variant were marked as not available.
-        unavailable: product
-            ? variantCombinations(product.options)
-                  .map((combination) => combination.key)
-                  .filter(
-                      (key) =>
-                          !product.variants.some(
-                              (variant) => variant.combination === key,
-                          ),
-                  )
-            : [],
         existing_stock_combination: '',
     });
 
@@ -257,10 +278,12 @@ export default function ProductForm({
 
     // What was typed is kept until saved; new photos cannot be kept, so
     // they are added again after a draft is brought back.
+    // "-v2": drafts kept before variants had their own status and code are
+    // not brought back.
     const draft = useFormDraft(
         product
-            ? `product-${product.id}`
-            : `new-product-${fromItem?.item_code ?? ''}`,
+            ? `product-${product.id}-v2`
+            : `new-product-${fromItem?.item_code ?? ''}-v2`,
         { ...data, photos: data.photos.filter((photo) => photo.file === null) },
         (saved) => setData(saved),
     );
@@ -306,17 +329,6 @@ export default function ProductForm({
             (option) => option.name.trim() !== '' && option.choices.length > 0,
         ),
     );
-    // The combinations that exist and are saved as variants.
-    const availableCombinations = combinations.filter(
-        (combination) => !data.unavailable.includes(combination.key),
-    );
-    const setAvailable = (key: string, available: boolean) =>
-        setData(
-            'unavailable',
-            available
-                ? data.unavailable.filter((current) => current !== key)
-                : [...data.unavailable, key],
-        );
     const stockByCombination: Record<string, number> = Object.fromEntries(
         (product?.variants ?? []).map((variant) => [
             variant.combination,
@@ -336,22 +348,83 @@ export default function ProductForm({
     const hasVariants = combinations.length > 1;
     const everyVariantPriced =
         hasVariants &&
-        availableCombinations.every(
+        combinations.every(
             (combination) => variantInput(combination.key).price.trim() !== '',
         );
+
+    // The product's code: made from the name (the next free number) until
+    // typed by hand. Each variant's code is made from it (BP-01-S-RED)
+    // until that one is typed by hand.
+    const productCode = data.item_code_typed
+        ? data.item_code.trim().toUpperCase()
+        : nextProductCode(tidyProductName(data.name), usedProductCodes);
+    const autoCodes = variantCodes(productCode, combinations);
+    const codeOf = (key: string): string => {
+        const input = variantInput(key);
+
+        return input.code_typed
+            ? input.code.trim().toUpperCase()
+            : (autoCodes[key] ?? '');
+    };
+    const someCodesTyped = combinations.some(
+        (combination) => variantInput(combination.key).code_typed,
+    );
+
+    // The product's status follows from its variants' (as the server
+    // works it out): Available when any is (On Sale stays On Sale), else
+    // Preorder when any is, else Draft.
+    const variantStatuses = combinations.map(
+        (combination) => variantInput(combination.key).status,
+    );
+    const status: ProductStatus = variantStatuses.includes('available')
+        ? data.status === 'on_sale'
+            ? 'on_sale'
+            : 'available'
+        : variantStatuses.includes('preorder')
+          ? 'preorder'
+          : 'draft';
+    const savedStatusOf = (key: string): VariantStatus | null =>
+        savedVariants.find((variant) => variant.combination === key)?.status ??
+        null;
+
     /**
-     * The code and pack every variant is saved with: the product's one
-     * eStore Item Code (sizes, colors and departments all use it).
+     * Whether a variant can be set to this status, and why not: with no
+     * stock it cannot be Available (unless it already is, sold out); with
+     * stock it cannot be a Preorder, nor go back to Draft once in the store.
      */
-    const productCode = {
-        estore_item_code: data.shared_item_code,
-        estore_pack_key: data.shared_pack_key,
+    const statusBlockedBecause = (
+        key: string,
+        target: VariantStatus,
+    ): string | null => {
+        const stock = stockByCombination[key] ?? 0;
+        const saved = savedStatusOf(key);
+
+        if (target === 'available' && stock === 0 && saved !== 'available') {
+            return 'no stock yet';
+        }
+
+        if (target === 'preorder' && stock > 0) {
+            return 'has stock';
+        }
+
+        if (
+            target === 'draft' &&
+            stock > 0 &&
+            saved !== null &&
+            saved !== 'draft'
+        ) {
+            return 'in the store with stock';
+        }
+
+        return null;
     };
 
-    // The Cost per piece (what PROWARE paid on the eStore order for the
-    // product's code, per piece of the pack it comes in), shown beside the
+    // The Cost per piece (what PROWARE paid on the eStore order for a
+    // variant's code, per piece of the pack it comes in), shown beside the
     // Selling Price.
-    const unitPrice = costs[productCode.estore_item_code.trim().toUpperCase()];
+    const unitPrice = combinations
+        .map((combination) => costs[codeOf(combination.key)])
+        .find((price) => price !== undefined);
     const costPerPiece =
         unitPrice === undefined
             ? null
@@ -359,8 +432,7 @@ export default function ProductForm({
                   unitPrice /
                       (Number(
                           data.packs.find(
-                              (pack) =>
-                                  pack.key === productCode.estore_pack_key,
+                              (pack) => pack.key === data.shared_pack_key,
                           )?.pieces,
                       ) || 1),
               );
@@ -370,14 +442,14 @@ export default function ProductForm({
     // A new close date cannot be before today; a date already saved that
     // has passed (preorders closed) may stay as it is.
     const closeDateInPast =
-        data.status === 'preorder' &&
+        status === 'preorder' &&
         data.preorders_close_on !== '' &&
         data.preorders_close_on < today &&
         data.preorders_close_on !== (product?.preorders_close_on ?? '');
 
     // The expected arrival is after the close date, first day first.
     const arrivalProblem =
-        data.status !== 'preorder'
+        status !== 'preorder'
             ? undefined
             : data.expected_arrival_from !== '' &&
                 data.preorders_close_on !== '' &&
@@ -385,7 +457,7 @@ export default function ProductForm({
               ? `The expected arrival must be after the close date (${formatDay(data.preorders_close_on)}).`
               : undefined;
     const arrivalEndProblem =
-        data.status === 'preorder' &&
+        status === 'preorder' &&
         data.expected_arrival_from !== '' &&
         data.expected_arrival_to !== '' &&
         data.expected_arrival_to < data.expected_arrival_from
@@ -402,26 +474,24 @@ export default function ProductForm({
         [],
     );
 
+    // The status and codes shown on the page are the ones saved.
     const submit = () => {
         form.transform((current) => ({
             name: current.name,
+            item_code: productCode,
             sold_by_piece: current.sold_by_piece,
             price: current.sold_by_piece ? current.price : '',
-            status: current.status,
+            status,
             preorders_close_on:
-                current.status === 'preorder' ? current.preorders_close_on : '',
+                status === 'preorder' ? current.preorders_close_on : '',
             expected_arrival_from:
-                current.status === 'preorder'
-                    ? current.expected_arrival_from
-                    : '',
+                status === 'preorder' ? current.expected_arrival_from : '',
             expected_arrival_to:
-                current.status === 'preorder'
-                    ? current.expected_arrival_to
-                    : '',
+                status === 'preorder' ? current.expected_arrival_to : '',
             early_bird_price:
-                current.status === 'preorder' ? current.early_bird_price : '',
+                status === 'preorder' ? current.early_bird_price : '',
             early_bird_pieces:
-                current.status === 'preorder' ? current.early_bird_pieces : '',
+                status === 'preorder' ? current.early_bird_pieces : '',
             low_stock_alert_at: current.low_stock_alert_at,
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
@@ -437,25 +507,23 @@ export default function ProductForm({
                 price: pack.sold_to_students ? pack.price : '',
             })),
             options: current.options,
-            unavailable: combinations
-                .map((combination) => combination.key)
-                .filter((key) => current.unavailable.includes(key)),
             existing_stock_combination:
                 withoutOptions !== null &&
-                availableCombinations.some(
+                combinations.some(
                     (combination) =>
                         combination.key === current.existing_stock_combination,
                 )
                     ? current.existing_stock_combination
                     : '',
-            variants: availableCombinations.map((combination) => {
+            variants: combinations.map((combination) => {
                 const input =
                     current.variant_inputs[combination.key] ??
                     emptyVariantInput;
 
                 return {
                     combination: combination.key,
-                    estore_item_code: current.shared_item_code,
+                    status: input.status,
+                    estore_item_code: codeOf(combination.key),
                     estore_pack_key: current.shared_pack_key,
                     price: current.sold_by_piece ? input.price : '',
                 };
@@ -555,15 +623,43 @@ export default function ProductForm({
             data.options.map((current, i) => (i === index ? option : current)),
         );
 
-    const updateVariant = (
-        key: string,
-        field: keyof VariantInput,
-        value: string,
-    ) =>
+    const updateVariant = (key: string, changes: Partial<VariantInput>) =>
         setData('variant_inputs', {
             ...data.variant_inputs,
-            [key]: { ...variantInput(key), [field]: value },
+            [key]: { ...variantInput(key), ...changes },
         });
+
+    /** Every variant that can be set to this status gets it. */
+    const setEveryStatus = (target: VariantStatus) =>
+        setData(
+            'variant_inputs',
+            Object.fromEntries([
+                ...Object.entries(data.variant_inputs),
+                ...combinations.map((combination) => [
+                    combination.key,
+                    statusBlockedBecause(combination.key, target) === null
+                        ? { ...variantInput(combination.key), status: target }
+                        : variantInput(combination.key),
+                ]),
+            ]),
+        );
+
+    /** Every variant's code is made from the product's code again. */
+    const useAutomaticCodes = () =>
+        setData(
+            'variant_inputs',
+            Object.fromEntries([
+                ...Object.entries(data.variant_inputs),
+                ...combinations.map((combination) => [
+                    combination.key,
+                    {
+                        ...variantInput(combination.key),
+                        code: '',
+                        code_typed: false,
+                    },
+                ]),
+            ]),
+        );
 
     const addPack = () => {
         const key = `new-${nextPackNumber.current++}`;
@@ -591,22 +687,19 @@ export default function ProductForm({
 
     /** The variants whose eStore item Head Office sends in this pack. */
     const variantsUsingPack = (key: string) =>
-        productCode.estore_pack_key === key ? combinations : [];
+        data.shared_pack_key === key ? combinations : [];
 
     const packLabel = (pack: ProductPackInput) =>
         `${pack.name.trim() || 'Pack'} (${pack.pieces || '?'} pcs)`;
 
-    // The eStore item this product is created from, if the product's code
-    // was changed to a different one.
+    // The eStore item this product is created from, if no variant has its
+    // code any more.
     const fromItemCodeMissing =
         fromItem !== null &&
-        productCode.estore_item_code.trim().toUpperCase() !==
-            fromItem.item_code;
+        !combinations.some(
+            (combination) => codeOf(combination.key) === fromItem.item_code,
+        );
 
-    // Server errors for the shared code come back on the variants.
-    const sharedCodeError = combinations
-        .map((_, index) => errors[`variants.${index}.estore_item_code`])
-        .find(Boolean);
     const sharedPackError = combinations
         .map((_, index) => errors[`variants.${index}.estore_pack_key`])
         .find(Boolean);
@@ -629,6 +722,8 @@ export default function ProductForm({
                 };
             case 'name':
                 return { place: 'Product name', section: 'product-details' };
+            case 'item_code':
+                return { place: 'Item Code', section: 'product-details' };
             case 'price':
                 return {
                     place: 'Selling Price per piece',
@@ -660,20 +755,23 @@ export default function ProductForm({
             }
             case 'options':
                 return { place: 'Options', section: 'product-options' };
-            case 'variants':
+            case 'variants': {
+                const variant = combinations[number]?.label ?? 'a variant';
+
                 return {
                     place:
                         part === 'estore_item_code'
-                            ? 'eStore Item Code'
+                            ? `Item Code of ${variant}`
                             : part === 'estore_pack_key'
                               ? 'Head Office sends it by'
                               : part === 'price'
-                                ? `Price for ${availableCombinations[number]?.label ?? 'a variant'}`
-                                : 'Variants',
+                                ? `Price for ${variant}`
+                                : part === 'status'
+                                  ? `Status of ${variant}`
+                                  : 'Variants',
                     section: 'product-variants',
                 };
-            case 'unavailable':
-                return { place: 'Variants', section: 'product-variants' };
+            }
             case 'existing_stock_combination':
                 return {
                     place: 'Stock already on hand',
@@ -701,8 +799,7 @@ export default function ProductForm({
         }
     };
 
-    // The boxes the server refused, top of the page first, each told once
-    // (one eStore Item Code error comes back for every variant).
+    // The boxes the server refused, top of the page first, each told once.
     const problems = Object.entries(errors)
         .filter((entry): entry is [string, string] => Boolean(entry[1]))
         .map(([key, message]) => ({ key, message, ...problemPlace(key) }))
@@ -751,21 +848,25 @@ export default function ProductForm({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data]);
 
-    // What pressing Save will save, e.g. "STI Aqua Flask · 3 variants (Pink /
-    // 32 oz unavailable) · Available: visible to students".
-    const unavailableLabels = combinations
-        .filter((combination) => data.unavailable.includes(combination.key))
-        .map((combination) => combination.label);
+    // How many variants have each status, e.g. "2 Preorder, 10 Draft".
+    const statusCounts = statuses
+        .map(({ value, label }) => ({
+            label,
+            count: variantStatuses.filter((current) => current === value)
+                .length,
+        }))
+        .filter(({ count }) => count > 0)
+        .map(({ label, count }) => `${count} ${label}`)
+        .join(', ');
+
+    // What pressing Save will save, e.g. "BP-01 Bagong Product · 12
+    // variants (2 Preorder, 10 Draft) · Preorder: open until Nov 30, 2026".
     const summary = [
-        tidyProductName(data.name) || 'This product',
+        [productCode, tidyProductName(data.name) || 'This product']
+            .filter(Boolean)
+            .join(' '),
         hasVariants
-            ? `${availableCombinations.length} ${availableCombinations.length === 1 ? 'variant' : 'variants'}${
-                  unavailableLabels.length === 0
-                      ? ''
-                      : unavailableLabels.length <= 3
-                        ? ` (${unavailableLabels.join(', ')} unavailable)`
-                        : ` (${unavailableLabels.length} unavailable)`
-              }`
+            ? `${combinations.length} variants (${statusCounts})`
             : null,
         {
             draft: 'Draft: not visible to students',
@@ -775,10 +876,64 @@ export default function ProductForm({
                     : `Preorder: open until ${formatDay(data.preorders_close_on)}${data.expected_arrival_from && data.expected_arrival_to ? `, expected ${formatDay(data.expected_arrival_from)} to ${formatDay(data.expected_arrival_to)}` : ''}`,
             available: 'Available: visible to students',
             on_sale: 'On Sale: visible to students',
-        }[data.status],
+        }[status],
     ]
         .filter(Boolean)
         .join(' · ');
+
+    // Save Product can be pressed only when everything needed is filled in
+    // and nothing typed is wrong; these are what is still missing.
+    const missing = [
+        data.name.trim() === '' && 'Product name',
+        status !== 'draft' &&
+            data.photos.length === 0 &&
+            'Photos (only a Draft can be saved without one)',
+        data.sold_by_piece &&
+            data.price.trim() === '' &&
+            'Selling Price per piece',
+        !data.sold_by_piece &&
+            !data.packs.some((pack) => pack.sold_to_students) &&
+            'How students buy it (by the piece or a pack)',
+        data.packs.some(
+            (pack) =>
+                pack.name.trim() === '' ||
+                pack.pieces.trim() === '' ||
+                (pack.sold_to_students && pack.price.trim() === ''),
+        ) && 'Pack name, pieces and price',
+        data.low_stock_alert_at.trim() === '' &&
+            'Notify me when stock falls to',
+        data.options.some(
+            (option) => option.choices.length > 0 && option.name.trim() === '',
+        ) && 'Option name',
+        withoutOptions !== null &&
+            withoutOptions.stock_on_hand > 0 &&
+            combinations[0]?.key !== '' &&
+            data.existing_stock_combination === '' &&
+            'Which variant the stock on hand is',
+        status === 'preorder' &&
+            data.preorders_close_on === '' &&
+            'Preorders close on',
+        status === 'preorder' &&
+            (data.expected_arrival_from === '' ||
+                data.expected_arrival_to === '') &&
+            'Expected arrival',
+        status === 'preorder' &&
+            (data.early_bird_price.trim() === '') !==
+                (data.early_bird_pieces.trim() === '') &&
+            'Early-bird price and pieces (both or neither)',
+        (closeDateInPast ||
+            arrivalProblem !== undefined ||
+            arrivalEndProblem !== undefined) &&
+            'Preorder dates (see the message in red)',
+    ].filter((item): item is string => typeof item === 'string');
+
+    // Save Product first asks "Save this product?".
+    const [confirming, setConfirming] = useState(false);
+    const askToSave = () => {
+        if (missing.length === 0 && !processing) {
+            setConfirming(true);
+        }
+    };
 
     return (
         <>
@@ -787,7 +942,7 @@ export default function ProductForm({
             <form
                 onSubmit={(event) => {
                     event.preventDefault();
-                    submit();
+                    askToSave();
                 }}
                 className="space-y-7"
             >
@@ -1013,6 +1168,52 @@ export default function ProductForm({
                                         </span>
                                     </p>
                                 )}
+                        </Field>
+                        <Field
+                            label="Item Code"
+                            hint={
+                                data.item_code_typed
+                                    ? 'Each variant’s code starts with it, e.g. BP-01-S-RED.'
+                                    : 'Made from the name. Each variant’s code starts with it, e.g. BP-01-S-RED. You can change it.'
+                            }
+                            error={errors.item_code}
+                        >
+                            <div className="flex gap-2">
+                                <input
+                                    value={productCode}
+                                    onChange={(event) =>
+                                        setData((current) => ({
+                                            ...current,
+                                            item_code:
+                                                event.target.value.toUpperCase(),
+                                            item_code_typed: true,
+                                        }))
+                                    }
+                                    maxLength={30}
+                                    placeholder="Type the product name first"
+                                    aria-invalid={Boolean(errors.item_code)}
+                                    className={cn(
+                                        inputClasses,
+                                        'font-mono uppercase',
+                                    )}
+                                />
+                                {data.item_code_typed &&
+                                    !product?.item_code && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setData((current) => ({
+                                                    ...current,
+                                                    item_code: '',
+                                                    item_code_typed: false,
+                                                }))
+                                            }
+                                            className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                        >
+                                            Make it again
+                                        </button>
+                                    )}
+                            </div>
                         </Field>
                     </div>
                 </Panel>
@@ -1482,7 +1683,7 @@ export default function ProductForm({
                     id="product-variants"
                     className="scroll-mt-24"
                     title="Variants"
-                    description={`Every combination of the options (sizes, colors, departments). Untick a combination that does not exist (e.g. a color that does not come in 32 oz); students will not see it. They are the same eStore item, so they all use the product's one eStore Item Code. Give a variant its own Selling Price when it costs more or less (e.g. a bigger size); leave it empty to use the default${data.sold_by_piece && data.price ? ` (₱${data.price})` : ''}.`}
+                    description={`Every combination of the options (sizes, colors, departments). Each has its own Item Code, made from the product's code, and its own status: a Draft is hidden from students. Give a variant its own Selling Price when it costs more or less (e.g. a bigger size); leave it empty to use the default${data.sold_by_piece && data.price ? ` (₱${data.price})` : ''}.`}
                 >
                     {fromItemCodeMissing && fromItem && (
                         <p className="border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800">
@@ -1490,33 +1691,11 @@ export default function ProductForm({
                             <span className="font-mono font-black">
                                 {fromItem.item_code}
                             </span>
-                            , but the eStore Item Code below is different.
+                            , but no variant below has that Item Code.
                         </p>
                     )}
                     <div className="space-y-3 border-b border-slate-100 px-6 py-5">
                         <div className="grid gap-4 md:grid-cols-2">
-                            <label className="grid gap-1.5">
-                                <span className="text-sm font-black text-slate-700">
-                                    eStore Item Code
-                                </span>
-                                <input
-                                    value={data.shared_item_code}
-                                    onChange={(event) =>
-                                        setData(
-                                            'shared_item_code',
-                                            event.target.value,
-                                        )
-                                    }
-                                    maxLength={40}
-                                    placeholder="e.g. PRUM01-01"
-                                    aria-invalid={Boolean(sharedCodeError)}
-                                    className={cn(
-                                        inputClasses,
-                                        'font-mono uppercase',
-                                    )}
-                                />
-                                <InputError message={sharedCodeError} />
-                            </label>
                             <label className="grid gap-1.5">
                                 <span className="text-sm font-black text-slate-700">
                                     Head Office sends it by
@@ -1541,9 +1720,20 @@ export default function ProductForm({
                                 </select>
                                 <InputError message={sharedPackError} />
                             </label>
+                            {someCodesTyped && productCode !== '' && (
+                                <div className="grid content-end gap-1.5">
+                                    <button
+                                        type="button"
+                                        onClick={useAutomaticCodes}
+                                        className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    >
+                                        Make every code from {productCode}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         {withoutOptions !== null &&
-                            availableCombinations.length > 0 && (
+                            combinations[0]?.key !== '' && (
                                 <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                                     <label className="grid gap-1.5">
                                         <span className="text-sm font-black text-amber-900">
@@ -1573,16 +1763,14 @@ export default function ProductForm({
                                             <option value="">
                                                 Choose the variant…
                                             </option>
-                                            {availableCombinations.map(
-                                                (combination) => (
-                                                    <option
-                                                        key={combination.key}
-                                                        value={combination.key}
-                                                    >
-                                                        {combination.label}
-                                                    </option>
-                                                ),
-                                            )}
+                                            {combinations.map((combination) => (
+                                                <option
+                                                    key={combination.key}
+                                                    value={combination.key}
+                                                >
+                                                    {combination.label}
+                                                </option>
+                                            ))}
                                         </select>
                                     </label>
                                     <p className="text-xs leading-5 text-amber-800">
@@ -1598,25 +1786,14 @@ export default function ProductForm({
                                     />
                                 </div>
                             )}
-                        {availableCombinations.length > 1 && (
-                            <p className="text-xs leading-5 text-slate-500">
-                                All {availableCombinations.length} variants use
-                                this code
-                                {data.shared_item_code.trim() !== '' &&
-                                    ` (${data.shared_item_code.trim().toUpperCase()})`}
-                                . When it arrives, you enter how many of each
-                                you received.
-                            </p>
-                        )}
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-175">
+                        <table className="w-full min-w-200">
                             <thead className="bg-slate-50">
                                 <tr>
-                                    {hasVariants && (
-                                        <TableHeading>Available</TableHeading>
-                                    )}
+                                    <TableHeading>Item Code</TableHeading>
                                     <TableHeading>Variant</TableHeading>
+                                    <TableHeading>Status</TableHeading>
                                     <TableHeading>
                                         Own Selling Price per piece (optional)
                                     </TableHeading>
@@ -1628,102 +1805,135 @@ export default function ProductForm({
                                 </tr>
                             </thead>
                             <tbody>
-                                {combinations.map((combination) => {
-                                    const available =
-                                        !data.unavailable.includes(
-                                            combination.key,
-                                        );
-                                    const index =
-                                        availableCombinations.indexOf(
-                                            combination,
-                                        );
-                                    const hasStock =
-                                        (stockByCombination[combination.key] ??
-                                            0) > 0;
+                                {combinations.map((combination, index) => {
+                                    const input = variantInput(combination.key);
+                                    const isDraft = input.status === 'draft';
+                                    const codeError =
+                                        errors[
+                                            `variants.${index}.estore_item_code`
+                                        ];
+                                    const statusError =
+                                        errors[`variants.${index}.status`];
 
                                     return (
                                         <tr
                                             key={combination.key}
                                             className={cn(
                                                 'border-t border-slate-100 align-top',
-                                                !available && 'bg-slate-50/80',
+                                                isDraft && 'bg-slate-50/80',
                                             )}
                                         >
-                                            {hasVariants && (
-                                                <td className="px-5 py-4">
-                                                    <label
-                                                        className={cn(
-                                                            'flex h-11 items-center gap-2 text-sm font-bold',
-                                                            hasStock &&
-                                                                available
-                                                                ? 'cursor-not-allowed text-slate-400'
-                                                                : 'cursor-pointer text-slate-700',
-                                                        )}
-                                                        title={
-                                                            hasStock &&
-                                                            available
-                                                                ? 'Cannot be marked unavailable because it has stock.'
-                                                                : undefined
-                                                        }
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={available}
-                                                            disabled={
-                                                                hasStock &&
-                                                                available
-                                                            }
-                                                            onChange={(event) =>
-                                                                setAvailable(
-                                                                    combination.key,
-                                                                    event.target
-                                                                        .checked,
-                                                                )
-                                                            }
-                                                            className="h-5 w-5 accent-[#0D6EFD]"
-                                                            aria-label={`${combination.label} is available`}
-                                                        />
-                                                        {available
-                                                            ? 'Yes'
-                                                            : 'No'}
-                                                    </label>
-                                                </td>
-                                            )}
+                                            <td className="px-5 py-4">
+                                                <input
+                                                    value={codeOf(
+                                                        combination.key,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        updateVariant(
+                                                            combination.key,
+                                                            {
+                                                                code: event.target.value.toUpperCase(),
+                                                                code_typed: true,
+                                                            },
+                                                        )
+                                                    }
+                                                    maxLength={40}
+                                                    placeholder="Item Code"
+                                                    aria-label={`Item Code of ${combination.label}`}
+                                                    aria-invalid={Boolean(
+                                                        codeError,
+                                                    )}
+                                                    className={cn(
+                                                        inputClasses,
+                                                        'w-52 font-mono text-xs uppercase',
+                                                    )}
+                                                />
+                                                <InputError
+                                                    className="mt-1"
+                                                    message={codeError}
+                                                />
+                                            </td>
                                             <td
                                                 className={cn(
                                                     'px-5 py-4 font-black',
-                                                    available
-                                                        ? 'text-slate-900'
-                                                        : 'text-slate-400',
+                                                    isDraft
+                                                        ? 'text-slate-500'
+                                                        : 'text-slate-900',
                                                 )}
                                             >
-                                                <span
-                                                    className={cn(
-                                                        !available &&
-                                                            'line-through',
-                                                    )}
-                                                >
+                                                <span className="flex min-h-11 items-center">
                                                     {combination.label}
                                                 </span>
-                                                {!available && (
-                                                    <span className="mt-0.5 block text-xs font-semibold text-slate-500">
-                                                        Unavailable · hidden
-                                                        from students
+                                                {isDraft && (
+                                                    <span className="block text-xs font-semibold text-slate-500">
+                                                        Hidden from students
                                                     </span>
                                                 )}
                                             </td>
                                             <td className="px-5 py-4">
-                                                <PesoInput
-                                                    value={
-                                                        variantInput(
+                                                <select
+                                                    value={input.status}
+                                                    onChange={(event) =>
+                                                        updateVariant(
                                                             combination.key,
-                                                        ).price
+                                                            {
+                                                                status: event
+                                                                    .target
+                                                                    .value as VariantStatus,
+                                                            },
+                                                        )
                                                     }
+                                                    aria-label={`Status of ${combination.label}`}
+                                                    aria-invalid={Boolean(
+                                                        statusError,
+                                                    )}
+                                                    className={cn(
+                                                        inputClasses,
+                                                        'w-56',
+                                                    )}
+                                                >
+                                                    {statuses.map((choice) => {
+                                                        const blocked =
+                                                            statusBlockedBecause(
+                                                                combination.key,
+                                                                choice.value,
+                                                            );
+
+                                                        return (
+                                                            <option
+                                                                key={
+                                                                    choice.value
+                                                                }
+                                                                value={
+                                                                    choice.value
+                                                                }
+                                                                disabled={
+                                                                    blocked !==
+                                                                        null &&
+                                                                    input.status !==
+                                                                        choice.value
+                                                                }
+                                                            >
+                                                                {choice.label}
+                                                                {blocked !==
+                                                                    null &&
+                                                                    ` (${blocked})`}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </select>
+                                                <InputError
+                                                    className="mt-1"
+                                                    message={statusError}
+                                                />
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <PesoInput
+                                                    value={input.price}
                                                     onChange={(value) =>
                                                         updateVariant(
                                                             combination.key,
-                                                            'price',
-                                                            value,
+                                                            { price: value },
                                                         )
                                                     }
                                                     placeholder={
@@ -1733,27 +1943,21 @@ export default function ProductForm({
                                                             : 'Not sold by the piece'
                                                     }
                                                     disabled={
-                                                        !data.sold_by_piece ||
-                                                        !available
+                                                        !data.sold_by_piece
                                                     }
-                                                    invalid={
-                                                        index !== -1 &&
-                                                        Boolean(
-                                                            errors[
-                                                                `variants.${index}.price`
-                                                            ],
-                                                        )
-                                                    }
+                                                    invalid={Boolean(
+                                                        errors[
+                                                            `variants.${index}.price`
+                                                        ],
+                                                    )}
                                                     label={`Price for ${combination.label}`}
                                                 />
                                                 <InputError
                                                     className="mt-1"
                                                     message={
-                                                        index === -1
-                                                            ? undefined
-                                                            : errors[
-                                                                  `variants.${index}.price`
-                                                              ]
+                                                        errors[
+                                                            `variants.${index}.price`
+                                                        ]
                                                     }
                                                 />
                                             </td>
@@ -1783,14 +1987,13 @@ export default function ProductForm({
                         </table>
                     </div>
                 </Panel>
-
                 <Panel
                     id="product-status"
                     className="scroll-mt-24"
                     title="Where it shows"
-                    description="Choose how students see this product on the storefront. To put it on sale, use Put on Sale on the Products list."
+                    description="Set each variant's status in the Variants table. The product shows as Available when any variant is, else as a Preorder when any variant is, else it stays a Draft. To put it on sale, use Put on Sale on the Products list."
                 >
-                    {data.status === 'on_sale' ? (
+                    {status === 'on_sale' ? (
                         <div className="m-6 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex items-start gap-3">
                                 <Flame size={20} className="mt-0.5 shrink-0" />
@@ -1821,42 +2024,65 @@ export default function ProductForm({
                             )}
                         </div>
                     ) : (
-                        <div className="grid gap-3 p-6 md:grid-cols-3">
-                            {statuses.map((status) => (
-                                <label
-                                    key={status.value}
-                                    className={cn(
-                                        'cursor-pointer rounded-2xl border-2 p-4 transition',
-                                        data.status === status.value
-                                            ? 'border-[#0D6EFD] bg-blue-50'
-                                            : 'border-slate-200 bg-white hover:border-slate-300',
-                                    )}
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <input
-                                            type="radio"
-                                            name="status"
-                                            value={status.value}
-                                            checked={
-                                                data.status === status.value
-                                            }
-                                            onChange={() =>
-                                                setData('status', status.value)
-                                            }
-                                            className="h-4 w-4 accent-[#0D6EFD]"
-                                        />
-                                        <span className="font-black text-slate-900">
-                                            {status.label}
+                        <div className="space-y-4 p-6">
+                            <div className="rounded-2xl border-2 border-[#0D6EFD] bg-blue-50 p-4">
+                                <p className="font-black text-slate-900">
+                                    Shows as:{' '}
+                                    {
+                                        statuses.find(
+                                            (choice) => choice.value === status,
+                                        )?.label
+                                    }
+                                    {hasVariants && (
+                                        <span className="font-semibold text-slate-600">
+                                            {' '}
+                                            ({statusCounts})
                                         </span>
+                                    )}
+                                </p>
+                                <p className="mt-1 text-sm leading-5 text-slate-600">
+                                    {
+                                        statuses.find(
+                                            (choice) => choice.value === status,
+                                        )?.description
+                                    }
+                                </p>
+                            </div>
+                            {hasVariants && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-sm font-black text-slate-700">
+                                        Set every variant to:
                                     </span>
-                                    <span className="mt-2 block text-sm leading-5 text-slate-500">
-                                        {status.description}
-                                    </span>
-                                </label>
-                            ))}
+                                    {statuses.map((choice) => (
+                                        <button
+                                            key={choice.value}
+                                            type="button"
+                                            disabled={combinations.every(
+                                                (combination) =>
+                                                    statusBlockedBecause(
+                                                        combination.key,
+                                                        choice.value,
+                                                    ) !== null,
+                                            )}
+                                            onClick={() =>
+                                                setEveryStatus(choice.value)
+                                            }
+                                            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            {choice.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {!hasVariants && (
+                                <p className="text-sm text-slate-500">
+                                    Change it with the Status in the Variants
+                                    table above.
+                                </p>
+                            )}
                         </div>
-                    )}
-                    {data.status === 'preorder' && (
+                    )}{' '}
+                    {status === 'preorder' && (
                         <div className="border-t border-slate-100 bg-amber-50/40 px-6 py-5">
                             <div className="max-w-md space-y-4">
                                 <Field
@@ -2051,11 +2277,11 @@ export default function ProductForm({
                     </Link>
                     <button
                         type="submit"
-                        disabled={
-                            processing ||
-                            closeDateInPast ||
-                            arrivalProblem !== undefined ||
-                            arrivalEndProblem !== undefined
+                        disabled={processing || missing.length > 0}
+                        title={
+                            missing.length > 0
+                                ? `Fill in first: ${missing.join(', ')}`
+                                : undefined
                         }
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         data-test="save-product-button"
@@ -2068,7 +2294,45 @@ export default function ProductForm({
                         {processing ? 'Saving...' : 'Save Product'}
                     </button>
                 </div>
+                {missing.length > 0 && (
+                    <p
+                        className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900"
+                        data-test="save-product-missing"
+                    >
+                        <span className="font-black">
+                            Save Product works once these are filled in:
+                        </span>{' '}
+                        {missing.join(', ')}.
+                    </p>
+                )}
             </form>
+
+            <ConfirmDialog
+                open={confirming}
+                title="Save this product?"
+                description={
+                    <span className="block space-y-1">
+                        <span className="block">{summary}</span>
+                        {status === 'draft' ? (
+                            <span className="block">
+                                It stays hidden from students.
+                            </span>
+                        ) : (
+                            <span className="block">
+                                Students and STI staff will see it in the store.
+                            </span>
+                        )}
+                    </span>
+                }
+                confirmLabel="Save Product"
+                cancelLabel="Go back"
+                busy={processing}
+                onConfirm={() => {
+                    setConfirming(false);
+                    submit();
+                }}
+                onClose={() => setConfirming(false)}
+            />
         </>
     );
 }
@@ -2276,8 +2540,9 @@ function OptionTab({
 /**
  * One option: its name (e.g. Size) and its choices. For common options
  * (Size, Program, Color, Capacity) the ready-made choices are a checklist
- * to tick; anything else is typed in the "Other" box (Enter, a comma or
- * "Add"). Ticked choices keep the checklist's order, typed ones follow.
+ * to tick; anything else is typed in a box opened by "Add choice" (Enter,
+ * a comma or "Add"). Ticked choices keep the checklist's order, typed ones
+ * follow.
  */
 function OptionEditor({
     option,
@@ -2294,6 +2559,8 @@ function OptionEditor({
 }) {
     const [draft, setDraft] = useState('');
     const [duplicate, setDuplicate] = useState<string | null>(null);
+    // The typing box opens only after "Add choice" is pressed.
+    const [adding, setAdding] = useState(false);
 
     const preset = presetChoices(option.name);
     const sameChoice = (a: string, b: string) =>
@@ -2352,6 +2619,17 @@ function OptionEditor({
             event.preventDefault();
             addChoice();
         }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeTyping();
+        }
+    };
+
+    const closeTyping = () => {
+        setDraft('');
+        setDuplicate(null);
+        setAdding(false);
     };
 
     return (
@@ -2397,7 +2675,6 @@ function OptionEditor({
                 <span className="text-sm font-black text-slate-700">
                     Choices
                 </span>
-
                 {option.choices.length === 0 && (
                     <p className="mt-1 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
                         No choices yet — tick at least one to use this option.
@@ -2405,7 +2682,6 @@ function OptionEditor({
                         product.
                     </p>
                 )}
-
                 {preset && (
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                         {preset.map((choice) => (
@@ -2429,58 +2705,77 @@ function OptionEditor({
                         ))}
                     </div>
                 )}
-
                 {preset && (
                     <span className="mt-4 block text-xs font-bold tracking-wide text-slate-400 uppercase">
                         Other (not in the list)
                     </span>
                 )}
-                <div className="mt-1.5 flex min-h-11 flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
-                    {typedChoices.map((choice) => (
-                        <span
-                            key={choice}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-100 py-1 pr-1 pl-2.5 text-sm font-bold text-blue-800"
-                        >
-                            {choice}
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setChoices(
-                                        option.choices.filter(
-                                            (current) => current !== choice,
-                                        ),
-                                    )
-                                }
-                                className="rounded p-0.5 hover:bg-blue-200"
-                                aria-label={`Remove ${choice}`}
+                {(typedChoices.length > 0 || adding) && (
+                    <div className="mt-1.5 flex min-h-11 flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+                        {typedChoices.map((choice) => (
+                            <span
+                                key={choice}
+                                className="inline-flex items-center gap-1 rounded-lg bg-blue-100 py-1 pr-1 pl-2.5 text-sm font-bold text-blue-800"
                             >
-                                <X size={13} />
-                            </button>
-                        </span>
-                    ))}
-                    <input
-                        value={draft}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={onKeyDown}
-                        maxLength={40}
-                        placeholder={
-                            preset
-                                ? 'Type another choice, then press Enter'
-                                : option.choices.length === 0
-                                  ? 'Type a choice, then press Enter'
-                                  : 'Add another'
-                        }
-                        className="h-8 min-w-32 flex-1 bg-transparent px-1.5 text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                        aria-label={`Add a choice to ${option.name || 'this option'}`}
-                    />
+                                {choice}
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setChoices(
+                                            option.choices.filter(
+                                                (current) => current !== choice,
+                                            ),
+                                        )
+                                    }
+                                    className="rounded p-0.5 hover:bg-blue-200"
+                                    aria-label={`Remove ${choice}`}
+                                >
+                                    <X size={13} />
+                                </button>
+                            </span>
+                        ))}
+                        {adding && (
+                            <>
+                                <input
+                                    value={draft}
+                                    onChange={(event) =>
+                                        setDraft(event.target.value)
+                                    }
+                                    onKeyDown={onKeyDown}
+                                    maxLength={40}
+                                    autoFocus
+                                    placeholder="Type a choice, then press Enter"
+                                    className="h-8 min-w-32 flex-1 bg-transparent px-1.5 text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                    aria-label={`Add a choice to ${option.name || 'this option'}`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addChoice}
+                                    className="rounded-xl bg-[#0D6EFD] px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700"
+                                >
+                                    Add
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={closeTyping}
+                                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Done
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+                {!adding && (
                     <button
                         type="button"
-                        onClick={addChoice}
-                        className="rounded-xl bg-[#0D6EFD] px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700"
+                        onClick={() => setAdding(true)}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                     >
-                        Add
+                        <Plus size={15} />
+                        {preset ? 'Add a choice not in the list' : 'Add choice'}
                     </button>
-                </div>
+                )}{' '}
                 <InputError
                     className="mt-1"
                     message={duplicate ?? choicesError}

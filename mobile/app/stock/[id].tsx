@@ -79,8 +79,9 @@ export default function StockScreen() {
 
                     <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
                         {stock.variants.map((variant, position) => {
-                            const out = variant.stock_on_hand === 0;
-                            const low = !out && variant.stock_on_hand <= stock.product.low_stock_alert_at;
+                            // A Draft size is not sold yet, so it is never low or out of stock.
+                            const out = !variant.is_draft && variant.stock_on_hand === 0;
+                            const low = !out && !variant.is_draft && variant.stock_on_hand <= stock.product.low_stock_alert_at;
 
                             return (
                                 <View
@@ -103,7 +104,11 @@ export default function StockScreen() {
                                         <Text
                                             className={`font-sans-bold text-xs ${out ? 'text-red-700' : low ? 'text-amber-700' : 'text-slate-700'}`}
                                         >
-                                            {out ? 'Out of stock' : formatUnits(variant.stock_on_hand, 'Piece')}
+                                            {variant.is_draft && variant.stock_on_hand === 0
+                                                ? 'Draft'
+                                                : out
+                                                  ? 'Out of stock'
+                                                  : formatUnits(variant.stock_on_hand, 'Piece')}
                                         </Text>
                                     </View>
                                 </View>

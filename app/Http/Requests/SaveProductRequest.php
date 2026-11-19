@@ -420,7 +420,7 @@ class SaveProductRequest extends FormRequest
                 $validator->errors()->add($field, 'It has no stock yet, so it cannot be Available. Choose Preorder or Draft. It becomes Available by itself when stock arrives.');
             } elseif ($status === ProductStatus::Preorder->value && $stock > 0) {
                 $validator->errors()->add($field, "It has {$pieces} in stock, so it cannot be a Preorder. Choose Available.");
-            } elseif ($status === ProductStatus::Draft->value && $stock > 0 && $variant !== null && ! $variant->isDraft()) {
+            } elseif ($status === ProductStatus::Draft->value && $stock > 0 && ! $variant->isDraft()) {
                 $validator->errors()->add($field, "It is in the store with {$pieces} in stock, so it cannot go back to Draft.");
             } elseif ($status === ProductStatus::Draft->value && $buyers > 0) {
                 $validator->errors()->add($field, ($buyers === 1 ? '1 buyer has' : "{$buyers} buyers have").' preordered it, so it cannot be a Draft.');
