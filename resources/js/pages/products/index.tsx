@@ -30,6 +30,7 @@ import type {
     ProductFilters,
     ProductListItem,
     ProductStatus,
+    VariantStatus,
 } from '@/types';
 
 const primaryButtonClasses =
@@ -455,6 +456,9 @@ export default function ProductsIndex({
                                                         1
                                                             ? 'variant'
                                                             : 'variants'}
+                                                        {statusBreakdown(
+                                                            product.variant_statuses,
+                                                        )}
                                                         {product.updated_at &&
                                                             ` · updated ${formatDateOrdered(product.updated_at)}`}
                                                     </p>
@@ -657,4 +661,22 @@ function StudentPrice({ product }: { product: ProductListItem }) {
             ))}
         </div>
     );
+}
+
+/**
+ * " · 12 Available · 6 Draft" when a product's sizes or colors do not all
+ * have the same status; nothing when they do.
+ */
+function statusBreakdown(counts: Record<VariantStatus, number>): string {
+    const parts = (
+        [
+            ['available', 'Available'],
+            ['preorder', 'Preorder'],
+            ['draft', 'Draft'],
+        ] as const
+    )
+        .filter(([status]) => counts[status] > 0)
+        .map(([status, label]) => `${counts[status]} ${label}`);
+
+    return parts.length > 1 ? ` · ${parts.join(' · ')}` : '';
 }

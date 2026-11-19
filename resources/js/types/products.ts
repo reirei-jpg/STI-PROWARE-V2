@@ -40,6 +40,8 @@ export type ProductListItem = {
     last_sale_at: string | null;
     photo_url: string | null;
     variants_count: number;
+    /** How many sizes or colors have each status. */
+    variant_statuses: Record<VariantStatus, number>;
     updated_at: string | null;
 };
 
@@ -59,6 +61,10 @@ export type ProductDetails = {
         id: number;
         /** Null for a product without sizes or colors. */
         label: string | null;
+        /** Its own Item Code, e.g. BP-01-S-G11-RED; null while not linked. */
+        item_code: string | null;
+        status: VariantStatus;
+        status_label: string;
         /** Hidden from buyers (not sold yet), so never out of stock or low. */
         is_draft: boolean;
         stock_on_hand: number;

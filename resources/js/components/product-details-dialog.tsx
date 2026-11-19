@@ -50,7 +50,7 @@ export default function ProductDetailsDialog({
             open={product !== null}
             onOpenChange={(open) => !open && onClose()}
         >
-            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-3xl [&>button:last-child]:hidden">
+            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-5xl [&>button:last-child]:hidden">
                 {product && (
                     <>
                         <header className="border-b border-slate-200 px-6 py-5">
@@ -209,11 +209,13 @@ export default function ProductDetailsDialog({
                                         <table className="w-full text-sm">
                                             <thead className="bg-slate-50">
                                                 <tr>
+                                                    <Heading>Item Code</Heading>
                                                     <Heading>
                                                         {hasOptions
                                                             ? 'Size / Color'
                                                             : 'Item'}
                                                     </Heading>
+                                                    <Heading>Status</Heading>
                                                     <Heading right>
                                                         In stock
                                                     </Heading>
@@ -248,14 +250,23 @@ export default function ProductDetailsDialog({
                                                             <tr
                                                                 key={variant.id}
                                                             >
+                                                                <td className="px-4 py-2.5 font-mono text-xs whitespace-nowrap text-slate-600">
+                                                                    {variant.item_code ??
+                                                                        'Not linked'}
+                                                                </td>
                                                                 <td className="px-4 py-2.5 font-semibold text-slate-900">
                                                                     {variant.label ??
                                                                         product.name}
-                                                                    {variant.is_draft && (
-                                                                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-600">
-                                                                            Draft
-                                                                        </span>
-                                                                    )}
+                                                                </td>
+                                                                <td className="px-4 py-2.5">
+                                                                    <ProductStatusBadge
+                                                                        status={
+                                                                            variant.status
+                                                                        }
+                                                                        label={
+                                                                            variant.status_label
+                                                                        }
+                                                                    />
                                                                 </td>
                                                                 <NumberCell>
                                                                     {variant.stock_on_hand.toLocaleString(

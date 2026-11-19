@@ -8,6 +8,7 @@ use App\Services\Stock\RestockedPreorders;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     Storage::fake('public');
@@ -171,4 +172,18 @@ test('an option whose own code was never ordered gets its cost from the product\
     $this->actingAs($this->specialist)
         ->put(route('products.update', $product), bagongProductForm(['navy' => 'available', 'red' => 'draft'], ['item_code' => 'BP-01']))
         ->assertSessionHasErrors(['price' => 'The Selling Price (₱150.00) is below the Cost on the eStore order (₱160.00 per piece). Check the price from Head Office.']);
+});
+
+test('the Draft button also lists products with some options kept as a Draft, with how many of each', function () {
+    [$bagong] = savedBagongProduct(navyStock: 5);
+    Product::factory()->create(['name' => 'STI Lanyard', 'status' => ProductStatus::Available]);
+    Product::factory()->create(['name' => 'Chibi Keychain', 'status' => ProductStatus::Draft]);
+
+    $this->actingAs($this->specialist)
+        ->get(route('products.index', ['status' => 'draft']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('products.data', 2)
+            ->where('products.data.0.name', 'Chibi Keychain')
+            ->where('products.data.1.name', 'Bagong Product')
+            ->where('products.data.1.variant_statuses', ['available' => 1, 'preorder' => 0, 'draft' => 1]));
 });

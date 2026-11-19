@@ -50,7 +50,12 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->with(['mainPhoto', 'packs'])
-            ->withCount('variants')
+            ->withCount([
+                'variants',
+                'variants as available_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Available),
+                'variants as preorder_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Preorder),
+                'variants as draft_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Draft),
+            ])
             ->withSum('variants', 'stock_on_hand')
             ->withMin('variants as lowest_variant_sale_price', 'sale_price_centavos')
             ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft)])
@@ -63,7 +68,11 @@ class ProductController extends Controller
             ])
             ->withCasts(['first_received_at' => 'datetime', 'last_sale_at' => 'datetime'])
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
-            ->when($status, fn (Builder $query, ProductStatus $chosen) => $query->where('status', $chosen))
+            // Draft also lists products with some sizes or colors kept as a Draft.
+            ->when($status, fn (Builder $query, ProductStatus $chosen) => $query->where(fn (Builder $matching) => $matching
+                ->where('status', $chosen)
+                ->when($chosen === ProductStatus::Draft, fn (Builder $withDrafts) => $withDrafts
+                    ->orWhereHas('variants', fn (Builder $variants) => $variants->where('status', ProductStatus::Draft)))))
             ->when($stockFilter === 'low', fn (Builder $query) => $query->lowOnStock())
             ->when($stockFilter === 'slow', fn (Builder $query) => $query->slowMoving($slowDays))
             ->latest('updated_at')
@@ -104,6 +113,12 @@ class ProductController extends Controller
                 'last_sale_at' => $product->getAttribute('last_sale_at')?->toIso8601String(),
                 'photo_url' => $product->mainPhoto?->url(),
                 'variants_count' => $product->variants_count,
+                // How many sizes or colors have each status, e.g. 12 Available and 6 Draft.
+                'variant_statuses' => [
+                    'available' => (int) $product->getAttribute('available_variants_count'),
+                    'preorder' => (int) $product->getAttribute('preorder_variants_count'),
+                    'draft' => (int) $product->getAttribute('draft_variants_count'),
+                ],
                 'updated_at' => $product->updated_at?->toIso8601String(),
             ]);
 
@@ -157,6 +172,9 @@ class ProductController extends Controller
             'variants' => $product->variants->map(fn (ProductVariant $variant): array => [
                 'id' => $variant->id,
                 'label' => $variant->choices === [] ? null : $variant->label(),
+                'item_code' => $variant->estore_item_code,
+                'status' => $variant->status->value,
+                'status_label' => $variant->status->label(),
                 // Hidden from buyers, so never out of stock or low.
                 'is_draft' => $variant->isDraft(),
                 'stock_on_hand' => $variant->stock_on_hand,
