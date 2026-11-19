@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProductStatus;
 use App\Enums\UniformSetFor;
 use App\Models\ProductVariant;
 use App\Models\UniformSet;
@@ -26,8 +27,8 @@ class AddSetToCartRequest extends FormRequest
     {
         return [
             'for' => ['required', Rule::enum(UniformSetFor::class)],
-            'top_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
-            'bottom_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
+            'top_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')->whereNot('status', ProductStatus::Draft->value)],
+            'bottom_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')->whereNot('status', ProductStatus::Draft->value)],
             'quantity' => ['required', 'integer', 'min:1', 'max:'.BuyerLimit::for($this->user())],
             // Undo after Remove: put the set back, ticked as it was.
             'undo_remove' => ['sometimes', 'boolean'],

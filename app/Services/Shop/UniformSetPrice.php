@@ -19,8 +19,8 @@ final class UniformSetPrice
      */
     public static function shares(UniformSet $set, ProductVariant $top, ProductVariant $bottom): ?array
     {
-        $topPrice = ShopPrice::canBuy($top->product) ? ShopPrice::perPiece($top) : null;
-        $bottomPrice = ShopPrice::canBuy($bottom->product) ? ShopPrice::perPiece($bottom) : null;
+        $topPrice = ShopPrice::canBuy($top->product) && ! $top->isDraft() ? ShopPrice::perPiece($top) : null;
+        $bottomPrice = ShopPrice::canBuy($bottom->product) && ! $bottom->isDraft() ? ShopPrice::perPiece($bottom) : null;
 
         if (! $set->sold_as_set || $topPrice === null || $bottomPrice === null) {
             return null;

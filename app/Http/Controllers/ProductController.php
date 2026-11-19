@@ -53,7 +53,7 @@ class ProductController extends Controller
             ->withCount('variants')
             ->withSum('variants', 'stock_on_hand')
             ->withMin('variants as lowest_variant_sale_price', 'sale_price_centavos')
-            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')])
+            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft)])
             ->addSelect([
                 'first_received_at' => $movementsOfThisProduct()->selectRaw('min(stock_movements.created_at)'),
                 'last_sale_at' => $movementsOfThisProduct()
@@ -187,6 +187,7 @@ class ProductController extends Controller
             // What PROWARE paid per eStore unit, shown beside the Selling Price.
             'costs' => $orderedItem === null ? [] : HeadOfficeCost::latestUnitPrices([$orderedItem->item_code]),
             'today' => now()->toDateString(),
+            'usedProductCodes' => $this->usedProductCodes(null),
         ]);
     }
 
@@ -206,6 +207,7 @@ class ProductController extends Controller
             'product' => [
                 'id' => $product->id,
                 'name' => $product->name,
+                'item_code' => $product->item_code ?? '',
                 'sold_by_piece' => $product->sold_by_piece,
                 'price' => $product->price_centavos === null ? '' : $this->pesos($product->price_centavos),
                 'status' => $product->status->value,
@@ -235,6 +237,7 @@ class ProductController extends Controller
                 ])->all(),
                 'variants' => $product->variants->map(fn (ProductVariant $variant): array => [
                     'combination' => $variant->combination,
+                    'status' => $variant->status->value,
                     'estore_item_code' => $variant->estore_item_code ?? '',
                     'estore_pack_key' => $variant->estore_pack_id === null ? '' : (string) $variant->estore_pack_id,
                     'price' => $variant->price_centavos === null ? '' : $this->pesos($variant->price_centavos),
@@ -245,6 +248,7 @@ class ProductController extends Controller
             // What PROWARE paid per eStore unit, shown beside the Selling Price.
             'costs' => HeadOfficeCost::latestUnitPrices(array_values(array_unique(array_filter($product->variants->pluck('estore_item_code')->all(), 'is_string')))),
             'today' => now()->toDateString(),
+            'usedProductCodes' => $this->usedProductCodes($product->id),
         ]);
     }
 
@@ -264,22 +268,45 @@ class ProductController extends Controller
     private function flashSaved(Product $product, int $piecesAdded): void
     {
         $variants = $product->variants()->count();
+        $drafts = $product->status === ProductStatus::Draft ? 0 : $product->variants()->where('status', ProductStatus::Draft)->count();
 
         $message = "{$product->name} has been saved"
             .($product->status === ProductStatus::Draft ? ' as a draft' : '')
             .($variants > 1 ? " with {$variants} variants" : '').'. '
             .match ($product->status) {
-                ProductStatus::Draft => 'It is not in the store yet; set it to Available when it is ready to sell.',
+                // Without stock it cannot be Available yet (SaveProductRequest).
+                ProductStatus::Draft => $product->variants()->sum('stock_on_hand') > 0
+                    ? 'It is not in the store yet; set it to Available when it is ready to sell.'
+                    : 'It is not in the store yet.',
                 ProductStatus::Preorder => 'It is open for preorders until '.$product->preorders_close_on?->format('M j, Y').' and expected to arrive '.$product->expectedArrivalText().'.',
                 ProductStatus::Available => 'It is now in the store for students and STI staff.',
                 ProductStatus::OnSale => 'It is currently on sale.',
             };
+
+        if ($drafts > 0) {
+            $message .= ' '.($drafts === 1 ? '1 variant stays hidden as a Draft.' : "{$drafts} variants stay hidden as Drafts.");
+        }
 
         if ($piecesAdded > 0) {
             $message .= ' '.number_format($piecesAdded).($piecesAdded === 1 ? ' piece' : ' pieces').' from earlier deliveries '.($piecesAdded === 1 ? 'has' : 'have').' been added to stock.';
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+    }
+
+    /**
+     * Other products' own Item Codes, so the form can give a new product
+     * the next free number (BP-02 after BP-01).
+     *
+     * @return list<string>
+     */
+    private function usedProductCodes(?int $exceptProductId): array
+    {
+        return array_values(Product::query()
+            ->whereNotNull('item_code')
+            ->when($exceptProductId !== null, fn (Builder $query) => $query->whereKeyNot($exceptProductId))
+            ->pluck('item_code')
+            ->all());
     }
 
     /**

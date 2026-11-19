@@ -91,7 +91,7 @@ final class CartView
         $inSet = $line->set_key !== null;
         $unitPrice = match (true) {
             $inSet => $setPrices[$line->id] ?? null,
-            ShopPrice::canBuy($product) => ShopPrice::perUnit($variant, $line->pack),
+            ShopPrice::canBuy($product) && ! $variant->isDraft() => ShopPrice::perUnit($variant, $line->pack),
             default => null,
         };
         $setPrice = $inSet

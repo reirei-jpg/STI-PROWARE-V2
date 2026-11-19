@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $product_id
  * @property string $combination
+ * @property ProductStatus $status Draft (hidden from buyers), Preorder or Available
  * @property list<array{option: string, choice: string}> $choices
  * @property string|null $estore_item_code
  * @property int|null $estore_pack_id
@@ -45,7 +46,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['combination', 'choices', 'estore_item_code', 'estore_pack_id', 'price_centavos', 'position'])]
+#[Fillable(['combination', 'status', 'choices', 'estore_item_code', 'estore_pack_id', 'price_centavos', 'position'])]
 class ProductVariant extends Model
 {
     /** @use HasFactory<ProductVariantFactory> */
@@ -60,6 +61,7 @@ class ProductVariant extends Model
     protected function casts(): array
     {
         return [
+            'status' => ProductStatus::class,
             'choices' => 'array',
             'price_centavos' => 'integer',
             'sale_price_centavos' => 'integer',
@@ -84,13 +86,23 @@ class ProductVariant extends Model
     }
 
     /**
+     * A Draft variant is hidden from buyers, e.g. a color not sold yet,
+     * while the product's other variants are in the store.
+     */
+    public function isDraft(): bool
+    {
+        return $this->status === ProductStatus::Draft;
+    }
+
+    /**
      * Students can preorder this size while it is sold out: the product is
-     * for sale (Available or On Sale), none is left to buy, and the
-     * Specialist has not said it will not be restocked.
+     * for sale (Available or On Sale), the size is not a Draft, none is left
+     * to buy, and the Specialist has not said it will not be restocked.
      */
     public function canBePreordered(): bool
     {
         return in_array($this->product->status, [ProductStatus::Available, ProductStatus::OnSale], true)
+            && ! $this->isDraft()
             && $this->freeToSell() === 0
             && $this->not_restocked_at === null;
     }

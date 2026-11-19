@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Actions\Preorders\EditPreorderByStudent;
 use App\Enums\PreorderStatus;
+use App\Enums\ProductStatus;
 use App\Models\Preorder;
 use App\Models\ProductVariant;
 use App\Services\Shop\BuyerLimit;
@@ -33,7 +34,7 @@ class EditPreorderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')->where('product_id', $this->preorder()->product_id)],
+            'product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')->where('product_id', $this->preorder()->product_id)->whereNot('status', ProductStatus::Draft->value)],
             'quantity' => ['required', 'integer', 'min:1', 'max:'.BuyerLimit::for($this->user())],
         ];
     }

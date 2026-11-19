@@ -51,6 +51,9 @@ class SaveProductRequest extends FormRequest
     /** The highest price anyone can type anywhere in PROWARE, in pesos. */
     public const MAX_PRICE_PESOS = 100000;
 
+    /** What each variant can be set to on the form. */
+    public const VARIANT_STATUSES = ['draft', 'preorder', 'available'];
+
     /** The highest Cost per piece on the eStore orders, once prices were checked. */
     private ?int $highestCostPerPiece = null;
 
@@ -73,6 +76,8 @@ class SaveProductRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:120'],
+            // Empty: PROWARE makes one from the name (ProductCode).
+            'item_code' => ['nullable', 'string', 'max:30'],
             'sold_by_piece' => ['required', 'boolean'],
             'price' => [
                 'bail',
@@ -147,6 +152,7 @@ class SaveProductRequest extends FormRequest
             // Adding options to a product with stock: the variant that stock is.
             'existing_stock_combination' => ['nullable', 'string', 'max:500'],
             'variants.*.combination' => ['present', 'nullable', 'string'],
+            'variants.*.status' => ['nullable', Rule::in(self::VARIANT_STATUSES)],
             'variants.*.estore_item_code' => ['nullable', 'string', 'max:40'],
             'variants.*.estore_pack_key' => ['nullable', 'string', 'max:40'],
             'variants.*.price' => ['bail', 'nullable', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_PRICE_PESOS],
@@ -203,7 +209,56 @@ class SaveProductRequest extends FormRequest
             'options.max' => 'A product can have up to '.self::MAX_OPTIONS.' options.',
             'options.*.choices.*.required' => 'A choice cannot be blank.',
             'variants.*.price.decimal' => 'Enter variant prices in pesos, e.g. 450.',
+            'variants.*.status.in' => 'Choose Draft, Preorder or Available.',
+            'item_code.max' => 'The Item Code may not be longer than 30 characters.',
         ];
+    }
+
+    /**
+     * The form sets a status on each variant; the product's own status
+     * follows from them: Available when any variant is (On Sale stays On
+     * Sale), else Preorder when any variant is, else Draft. A form that
+     * sends no variant statuses keeps sending the product's status.
+     */
+    protected function prepareForValidation(): void
+    {
+        $statuses = $this->variantStatuses();
+
+        if ($statuses === []) {
+            return;
+        }
+
+        $product = $this->route('product');
+        $onSale = $product instanceof Product && $product->status === ProductStatus::OnSale;
+
+        $this->merge(['status' => match (true) {
+            in_array(ProductStatus::Available->value, $statuses, true) => $onSale ? ProductStatus::OnSale->value : ProductStatus::Available->value,
+            in_array(ProductStatus::Preorder->value, $statuses, true) => ProductStatus::Preorder->value,
+            default => ProductStatus::Draft->value,
+        }]);
+    }
+
+    /**
+     * The status sent for each variant, by its position in the form; empty
+     * when the form sent none.
+     *
+     * @return array<int, string>
+     */
+    public function variantStatuses(): array
+    {
+        /** @var array<int, mixed> $variants */
+        $variants = (array) $this->input('variants', []);
+        $statuses = [];
+
+        foreach ($variants as $index => $variant) {
+            $status = is_array($variant) ? ($variant['status'] ?? null) : null;
+
+            if (is_string($status) && in_array($status, self::VARIANT_STATUSES, true)) {
+                $statuses[$index] = $status;
+            }
+        }
+
+        return $statuses;
     }
 
     /**
@@ -280,7 +335,13 @@ class SaveProductRequest extends FormRequest
                 }
 
                 $this->validateUniqueName($validator);
-                $this->validateStatusFitsStock($validator);
+
+                if ($this->variantStatuses() === []) {
+                    $this->validateStatusFitsStock($validator);
+                } else {
+                    $this->validateVariantStatuses($validator);
+                }
+
                 $this->validatePacks($validator);
                 $this->validatePreorderCloseDate($validator);
                 $this->validateItemCodes($validator);
@@ -320,6 +381,50 @@ class SaveProductRequest extends FormRequest
 
         if ($status === ProductStatus::Draft->value && LowStockAlerts::isSold($product)) {
             $validator->errors()->add('status', "{$product->name} is in the store with {$stock} in stock, so it cannot go back to Draft. Keep it Available, or correct its stock first.");
+        }
+    }
+
+    /**
+     * Each variant's status must fit its stock: with no stock it cannot be
+     * Available (it becomes Available by itself when stock arrives; one
+     * already Available stays so when it sells out); with stock it cannot
+     * be a Preorder, nor go back to Draft once in the store. A variant
+     * buyers preordered cannot be hidden as a Draft.
+     */
+    private function validateVariantStatuses(Validator $validator): void
+    {
+        $product = $this->route('product');
+        $saved = $product instanceof Product ? $product->variants()->get()->keyBy('combination') : collect();
+        $stockGoesTo = $this->stockWithoutOptionsGoesTo();
+
+        /** @var array<int, array{combination?: string|null}> $variants */
+        $variants = $this->input('variants', []);
+        $preordersByVariant = Preorder::query()
+            ->whereIn('product_variant_id', $saved->pluck('id'))
+            ->whereIn('status', [PreorderStatus::Active, PreorderStatus::Arrived])
+            ->groupBy('product_variant_id')
+            ->selectRaw('product_variant_id, count(distinct user_id) as buyers')
+            ->pluck('buyers', 'product_variant_id');
+
+        foreach ($this->variantStatuses() as $index => $status) {
+            $combination = (string) ($variants[$index]['combination'] ?? '');
+
+            /** @var ProductVariant|null $variant */
+            $variant = $saved->get($combination) ?? ($stockGoesTo === $combination ? $saved->get('') : null);
+            $stock = $variant === null ? 0 : $variant->stock_on_hand;
+            $pieces = Units::count($stock, 'Piece');
+            $buyers = $variant === null ? 0 : (int) ($preordersByVariant[$variant->id] ?? 0);
+            $field = "variants.{$index}.status";
+
+            if ($status === ProductStatus::Available->value && $stock === 0 && $variant?->status !== ProductStatus::Available) {
+                $validator->errors()->add($field, 'It has no stock yet, so it cannot be Available. Choose Preorder or Draft. It becomes Available by itself when stock arrives.');
+            } elseif ($status === ProductStatus::Preorder->value && $stock > 0) {
+                $validator->errors()->add($field, "It has {$pieces} in stock, so it cannot be a Preorder. Choose Available.");
+            } elseif ($status === ProductStatus::Draft->value && $stock > 0 && $variant !== null && ! $variant->isDraft()) {
+                $validator->errors()->add($field, "It is in the store with {$pieces} in stock, so it cannot go back to Draft.");
+            } elseif ($status === ProductStatus::Draft->value && $buyers > 0) {
+                $validator->errors()->add($field, ($buyers === 1 ? '1 buyer has' : "{$buyers} buyers have").' preordered it, so it cannot be a Draft.');
+            }
         }
     }
 
@@ -717,9 +822,10 @@ class SaveProductRequest extends FormRequest
     }
 
     /**
-     * A product has one eStore Item Code: every size, color and department
-     * uses it (e.g. one umbrella code for every color), and Head Office
-     * sends it the same way for all of them. A code belongs to one product.
+     * A code belongs to one product: its own Item Code (BP-01) and its
+     * variants' codes (BP-01-S-RED) cannot be another product's. Variants
+     * usually have their own codes; variants that share one (e.g. Head
+     * Office's one umbrella code for every color) must be sent the same way.
      */
     private function validateItemCodes(Validator $validator): void
     {
@@ -727,19 +833,15 @@ class SaveProductRequest extends FormRequest
         $productId = $product instanceof Product ? $product->id : null;
         $packKeyByCode = [];
 
+        $ownCode = ItemCode::normalize($this->input('item_code'));
+        $ownerOfOwnCode = $ownCode === null ? null : $this->otherProductWithCode($ownCode, $productId);
+
+        if ($ownerOfOwnCode !== null) {
+            $validator->errors()->add('item_code', "The Item Code {$ownCode} already belongs to \"{$ownerOfOwnCode->name}\".");
+        }
+
         /** @var array<int, array{estore_item_code?: string|null, estore_pack_key?: string|null}> $variants */
         $variants = $this->input('variants', []);
-
-        $codes = array_unique(array_map(
-            fn (array $variant): string => ItemCode::normalize($variant['estore_item_code'] ?? null) ?? '',
-            $variants,
-        ));
-
-        if (count($codes) > 1) {
-            $validator->errors()->add('variants.0.estore_item_code', 'A product has one eStore Item Code: every size and color uses it.');
-
-            return;
-        }
 
         foreach ($variants as $index => $variant) {
             $code = ItemCode::normalize($variant['estore_item_code'] ?? null);
@@ -760,15 +862,25 @@ class SaveProductRequest extends FormRequest
 
             $packKeyByCode[$code] = $packKey;
 
-            $usedElsewhere = ProductVariant::query()
-                ->where('estore_item_code', $code)
-                ->when($productId, fn (Builder $query, int $id) => $query->where('product_id', '!=', $id))
-                ->with('product:id,name')
-                ->first();
+            $usedElsewhere = $this->otherProductWithCode($code, $productId);
 
             if ($usedElsewhere !== null) {
-                $validator->errors()->add("variants.{$index}.estore_item_code", "The eStore Item Code {$code} already belongs to \"{$usedElsewhere->product->name}\".");
+                $validator->errors()->add("variants.{$index}.estore_item_code", "The Item Code {$code} already belongs to \"{$usedElsewhere->name}\".");
             }
         }
+    }
+
+    /**
+     * Another product that already uses this code, as its own Item Code or
+     * on one of its variants.
+     */
+    private function otherProductWithCode(string $code, ?int $exceptProductId): ?Product
+    {
+        return Product::query()
+            ->when($exceptProductId, fn (Builder $query, int $id) => $query->whereKeyNot($id))
+            ->where(fn (Builder $query) => $query
+                ->where('item_code', $code)
+                ->orWhereHas('variants', fn (Builder $variants) => $variants->where('estore_item_code', $code)))
+            ->first(['id', 'name']);
     }
 }

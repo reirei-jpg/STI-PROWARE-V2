@@ -271,7 +271,7 @@ test('an eStore Item Code already on another product is refused', function () {
         ->post(route('products.store'), productForm([
             'variants' => [['combination' => '', 'estore_item_code' => 'PRCU01-01', 'price' => '']],
         ]))
-        ->assertSessionHasErrors(['variants.0.estore_item_code' => 'The eStore Item Code PRCU01-01 already belongs to "Chibi Keychain".']);
+        ->assertSessionHasErrors(['variants.0.estore_item_code' => 'The Item Code PRCU01-01 already belongs to "Chibi Keychain".']);
 });
 
 test('editing keeps, removes, adds and reorders photos', function () {
@@ -329,7 +329,7 @@ test('editing options keeps the variants that still exist and gives new ones the
     ])->and($variants->first()->id)->toBe($small->id);
 });
 
-test('every size and color of a product uses its one eStore Item Code', function () {
+test('each size and color can have its own Item Code', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('products.store'), productForm([
             'options' => [['name' => 'Color', 'choices' => ['Black', 'Blue']]],
@@ -338,9 +338,10 @@ test('every size and color of a product uses its one eStore Item Code', function
                 ['combination' => 'Color: Blue', 'estore_item_code' => 'PRUM01-02', 'price' => ''],
             ],
         ]))
-        ->assertSessionHasErrors(['variants.0.estore_item_code' => 'A product has one eStore Item Code: every size and color uses it.']);
+        ->assertSessionHasNoErrors();
 
-    expect(Product::count())->toBe(0);
+    expect(Product::sole()->variants->pluck('estore_item_code', 'combination')->all())
+        ->toBe(['Color: Black' => 'PRUM01-01', 'Color: Blue' => 'PRUM01-02']);
 });
 
 test('variants may have their own Selling Price with the same eStore Item Code', function () {

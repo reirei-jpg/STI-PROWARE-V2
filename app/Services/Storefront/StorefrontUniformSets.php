@@ -166,7 +166,8 @@ final class StorefrontUniformSets
             'product_id' => $product->id,
             'name' => $product->name,
             'kind' => $kind,
-            'sizes' => array_values($product->variants->map(function (ProductVariant $variant) use ($product): array {
+            // Draft sizes are not sold yet.
+            'sizes' => array_values($product->variants->reject(fn (ProductVariant $variant): bool => $variant->isDraft())->map(function (ProductVariant $variant) use ($product): array {
                 $variant->setRelation('product', $product);
 
                 return [

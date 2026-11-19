@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Specialist;
 
+use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterStockHistoryRequest;
 use App\Models\Product;
@@ -32,7 +33,7 @@ class StockController extends Controller
             ->with('mainPhoto')
             ->withSum('variants', 'stock_on_hand')
             ->withSum('variants', 'held_pieces')
-            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')])
+            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft)])
             ->when($search !== '', fn (Builder $query) => $query->whereLike('name', "%{$search}%"))
             ->when($request->boolean('low'), fn (Builder $query) => $query->lowOnStock())
             ->orderBy('name')

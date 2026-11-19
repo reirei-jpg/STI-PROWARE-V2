@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductPack;
 use App\Models\ProductVariant;
@@ -54,7 +55,8 @@ class AddToCartRequest extends FormRequest
      */
     public function rules(): array
     {
-        $variantExists = Rule::exists('product_variants', 'id')->where('product_id', $this->product()->id);
+        // A Draft size or color is not sold yet.
+        $variantExists = Rule::exists('product_variants', 'id')->where('product_id', $this->product()->id)->whereNot('status', ProductStatus::Draft->value);
         $packExists = Rule::exists('product_packs', 'id')->where('product_id', $this->product()->id)->where('sold_to_students', true);
 
         if (! $this->hasList()) {
