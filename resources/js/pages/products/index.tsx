@@ -367,10 +367,10 @@ export default function ProductsIndex({
                                 <p className="leading-6">
                                     <b>Slow-moving:</b> products in the store
                                     with stock that sold {SLOW_MOST_SOLD} pieces
-                                    or fewer in the time you choose, the fewest
-                                    sold first. A product never sold counts from
-                                    the day its stock arrived. Put them on sale
-                                    to clear them.
+                                    or fewer in the period you choose, the
+                                    fewest sold first. A product never sold
+                                    counts from the day its stock arrived. Put
+                                    them on sale to clear them.
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="w-24 font-bold">
@@ -414,56 +414,70 @@ export default function ProductsIndex({
                                         }`}
                                     >
                                         <CalendarDays size={14} />
-                                        From
-                                        <input
-                                            type="date"
-                                            onClick={openCalendar}
-                                            value={filters.slow_from ?? ''}
-                                            max={today}
-                                            onChange={(event) =>
-                                                event.target.value !== '' &&
-                                                showList({
-                                                    ...filters,
-                                                    slow: 'range',
-                                                    slow_from:
-                                                        event.target.value,
-                                                    // A To day before the new From day is cleared.
-                                                    slow_to:
-                                                        filters.slow_to &&
-                                                        filters.slow_to >=
-                                                            event.target.value
-                                                            ? filters.slow_to
-                                                            : null,
-                                                })
-                                            }
-                                            aria-label="From this day"
-                                            className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none"
-                                        />
-                                        To
-                                        <input
-                                            type="date"
-                                            onClick={openCalendar}
-                                            value={filters.slow_to ?? ''}
-                                            min={filters.slow_from ?? undefined}
-                                            max={today}
-                                            disabled={!filters.slow_from}
-                                            onChange={(event) =>
-                                                showList({
-                                                    ...filters,
-                                                    slow: 'range',
-                                                    slow_to:
-                                                        event.target.value ||
-                                                        null,
-                                                })
-                                            }
-                                            aria-label="To this day (empty: today)"
-                                            title={
-                                                filters.slow_from
-                                                    ? 'Empty means today.'
-                                                    : 'Pick the From day first.'
-                                            }
-                                            className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                                        />
+                                        {/* Clicking the word or the box opens the calendar. */}
+                                        <label className="inline-flex cursor-pointer items-center gap-2">
+                                            From
+                                            <input
+                                                type="date"
+                                                onClick={openCalendar}
+                                                value={filters.slow_from ?? ''}
+                                                max={today}
+                                                onChange={(event) =>
+                                                    event.target.value !== '' &&
+                                                    showList({
+                                                        ...filters,
+                                                        slow: 'range',
+                                                        slow_from:
+                                                            event.target.value,
+                                                        // A To day before the new From day is cleared.
+                                                        slow_to:
+                                                            filters.slow_to &&
+                                                            filters.slow_to >=
+                                                                event.target
+                                                                    .value
+                                                                ? filters.slow_to
+                                                                : null,
+                                                    })
+                                                }
+                                                aria-label="From this day"
+                                                className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none"
+                                            />
+                                        </label>
+                                        <label className="inline-flex cursor-pointer items-center gap-2">
+                                            To
+                                            <input
+                                                type="date"
+                                                onClick={openCalendar}
+                                                value={filters.slow_to ?? ''}
+                                                min={
+                                                    filters.slow_from ??
+                                                    undefined
+                                                }
+                                                max={today}
+                                                disabled={!filters.slow_from}
+                                                onChange={(event) =>
+                                                    showList({
+                                                        ...filters,
+                                                        slow: 'range',
+                                                        slow_to:
+                                                            event.target
+                                                                .value || null,
+                                                    })
+                                                }
+                                                aria-label="To this day (empty: today)"
+                                                title={
+                                                    filters.slow_from
+                                                        ? 'Empty means today.'
+                                                        : 'Pick the From day first.'
+                                                }
+                                                className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                            />
+                                        </label>
+                                        {!filters.slow_from && (
+                                            <span className="font-semibold">
+                                                (pick From first)
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
