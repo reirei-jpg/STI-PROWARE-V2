@@ -3,11 +3,7 @@ import { useMemo } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import { useFormDraft } from '@/hooks/use-form-draft';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { wholeNumberInput } from '@/lib/number-input';
 import type { WaitingItemGroup, WaitingItemRow } from '@/types';
-
-/** The most one box takes, as on the server (RecordDeliveryRequest). */
-const MOST_RECEIVED = 1_000_000;
 
 type DeliveryForm = {
     sales_invoice_number: string;
@@ -84,7 +80,7 @@ export function useRecordDelivery(
         );
 
         if (quantity === null) {
-            return 'Enter a whole number.';
+            return 'Enter a whole number, e.g. 5.';
         }
 
         if (quantity > row.quantity_remaining) {
@@ -122,16 +118,33 @@ export function useRecordDelivery(
         (group) => group.stock_target === null && groupReceivedNow(group) > 0,
     ).length;
 
-    // Kept as typed: more than is left turns the box red with "Only … left"
-    // (rowProblem) instead of being changed behind the Specialist's back.
+    // Kept exactly as typed (".5", "-1", letters): anything but a whole
+    // number, or more than is left, turns the box red (rowProblem) and Save
+    // stays off, instead of being changed behind the Specialist's back.
     const setRowQuantity = (row: WaitingItemRow, value: string) =>
         setData('quantities', {
             ...data.quantities,
-            [row.purchase_order_item_id]: wholeNumberInput(
-                value,
-                MOST_RECEIVED,
-            ),
+            [row.purchase_order_item_id]: value.slice(0, 12),
         });
+
+    /** "All" on a row: what is left of it arrived. */
+    const fillRow = (row: WaitingItemRow) =>
+        setData('quantities', {
+            ...data.quantities,
+            [row.purchase_order_item_id]: String(row.quantity_remaining),
+        });
+
+    /** "Everything arrived": what is left of every row arrived. */
+    const fillAll = () =>
+        setData(
+            'quantities',
+            Object.fromEntries(
+                rows.map((row) => [
+                    row.purchase_order_item_id,
+                    String(row.quantity_remaining),
+                ]),
+            ),
+        );
 
     /**
      * Save the delivery. From a purchase order's popup it stays on that
@@ -180,6 +193,8 @@ export function useRecordDelivery(
         piecesIntoStock,
         notLinkedReceived,
         setRowQuantity,
+        fillRow,
+        fillAll,
         submit,
     };
 }

@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DraftRestoredNotice from '@/components/DraftRestoredNotice';
-import RequiredLabel, { RequiredNote } from '@/components/RequiredLabel';
+import RequiredLabel from '@/components/RequiredLabel';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatConversion, formatUnits, unitWord } from '@/lib/format';
@@ -32,16 +32,6 @@ function wholeNumber(text: string | undefined): number | null {
 
     return /^\d+$/.test(trimmed) ? Number(trimmed) : null;
 }
-
-/** The most one box takes, as on the server (RecordDeliveryRequest). */
-const MOST_RECEIVED = 1_000_000;
-
-/** Digits only, never above `most`. */
-const upTo = (value: string, most: number): string => {
-    const digits = value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 7);
-
-    return digits !== '' && Number(digits) > most ? String(Math.max(0, most)) : digits;
-};
 
 const remainingOf = (group: WaitingDeliveryGroup): number =>
     group.rows.reduce((sum, row) => sum + row.quantity_remaining, 0);
@@ -110,7 +100,7 @@ export default function RecordDeliveryScreen() {
         const typed = wholeNumber(totals[group.item_code]);
 
         return typed === null
-            ? 'Enter a whole number.'
+            ? 'Enter a whole number, e.g. 5.'
             : typed > remaining
               ? `Only ${remaining.toLocaleString('en-PH')} left to receive for this item.`
               : null;
@@ -133,6 +123,11 @@ export default function RecordDeliveryScreen() {
             group.description.toLowerCase().includes(term) ||
             group.rows.some((row) => (row.order_number ?? '').toLowerCase().includes(term)),
     );
+
+    /** "Everything arrived": what is left of every item shown arrived. */
+    const fillShown = (): void =>
+        setTotals({ ...totals, ...Object.fromEntries(visible.map((group) => [group.item_code, String(remainingOf(group))])) });
+    const everythingShownTyped = visible.every((group) => totals[group.item_code] === String(remainingOf(group)));
 
     // Saving adds the stock and serves and notifies waiting buyers at once,
     // and cannot be undone, so the Specialist answers first.
@@ -255,22 +250,22 @@ export default function RecordDeliveryScreen() {
                     </View>
                 ) : (
                     <>
-                        <RequiredNote saveLabel="Stock In" />
-                        <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
-                            <View className="flex-row gap-2">
-                                <View className="flex-1 gap-1">
-                                    <Text className="font-sans-bold text-xs text-slate-600">SI # (optional)</Text>
-                                    <Field value={salesInvoice} onChangeText={setSalesInvoice} maxLength={40} />
-                                </View>
-                                <View className="flex-1 gap-1">
-                                    <Text className="font-sans-bold text-xs text-slate-600">DR # (optional)</Text>
-                                    <Field value={deliveryReceipt} onChangeText={setDeliveryReceipt} maxLength={40} />
-                                </View>
-                            </View>
-                            <View className="gap-1">
-                                <Text className="font-sans-bold text-xs text-slate-600">Note (optional)</Text>
-                                <Field value={note} onChangeText={setNote} maxLength={500} />
-                            </View>
+                        <View className="gap-2">
+                            <Text className="font-sans-bold text-sm text-slate-900">1. WHAT ARRIVED</Text>
+                            <Text className="font-sans text-sm text-slate-600">
+                                Type at least one <RequiredLabel>How many arrived</RequiredLabel> before Stock In can be pressed.
+                            </Text>
+                            <Pressable
+                                onPress={fillShown}
+                                disabled={visible.length === 0 || everythingShownTyped}
+                                accessibilityRole="button"
+                                className={`flex-row items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 py-3 ${visible.length === 0 || everythingShownTyped ? 'opacity-50' : ''}`}
+                            >
+                                <Boxes size={17} color="#047857" />
+                                <Text className="font-sans-bold text-sm text-emerald-800">
+                                    {term === '' ? 'Everything arrived' : 'Everything shown arrived'}
+                                </Text>
+                            </Pressable>
                         </View>
 
                         <View className="flex-row items-center gap-2 rounded-full border border-slate-200 bg-white px-4">
@@ -299,12 +294,32 @@ export default function RecordDeliveryScreen() {
                                 key={group.item_code}
                                 group={group}
                                 total={totals[group.item_code] ?? ''}
-                                onTotal={(value) => setTotals({ ...totals, [group.item_code]: value })}
+                                onTotal={(value) => setTotals({ ...totals, [group.item_code]: value.slice(0, 12) })}
                                 units={unitsFor(group) ?? 0}
                                 shares={sharesFor(group)}
                                 problem={problemOf(group)}
                             />
                         ))}
+
+                        <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                            <Text className="font-sans-bold text-sm text-slate-900">
+                                2. DELIVERY PAPERS <Text className="font-sans text-slate-500">(optional)</Text>
+                            </Text>
+                            <View className="flex-row gap-2">
+                                <View className="flex-1 gap-1">
+                                    <Text className="font-sans-bold text-xs text-slate-600">SI # (Sales Invoice)</Text>
+                                    <Field value={salesInvoice} onChangeText={setSalesInvoice} maxLength={40} />
+                                </View>
+                                <View className="flex-1 gap-1">
+                                    <Text className="font-sans-bold text-xs text-slate-600">DR # (Delivery Receipt)</Text>
+                                    <Field value={deliveryReceipt} onChangeText={setDeliveryReceipt} maxLength={40} />
+                                </View>
+                            </View>
+                            <View className="gap-1">
+                                <Text className="font-sans-bold text-xs text-slate-600">Note</Text>
+                                <Field value={note} onChangeText={setNote} maxLength={500} placeholder="e.g. 1 box slightly damaged" />
+                            </View>
+                        </View>
                     </>
                 )}
             </ScrollView>
@@ -315,10 +330,14 @@ export default function RecordDeliveryScreen() {
                     className="gap-2 border-t border-slate-200 bg-white px-4 pt-3"
                 >
                     {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
-                    {receiving.length === 0 && (
-                        <Text className="font-sans-bold text-xs text-amber-800">
-                            Stock In works once you type how many arrived for at least one item.
-                        </Text>
+                    {problems.length > 0 ? (
+                        <Text className="font-sans-bold text-xs text-red-600">Fix the boxes marked in red first.</Text>
+                    ) : (
+                        receiving.length === 0 && (
+                            <Text className="font-sans-bold text-xs text-amber-800">
+                                Type how many arrived, or press Everything arrived.
+                            </Text>
+                        )
                     )}
                     {/* What saving adds shows only once the numbers can be saved. */}
                     {receiving.length > 0 && problems.length === 0 && (
@@ -390,15 +409,12 @@ function GroupCard({
                 <View className="flex-row items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2">
                     <Boxes size={15} color="#047857" />
                     <Text className="flex-1 font-sans text-xs leading-5 text-emerald-900">
-                        Into stock:{' '}
+                        Goes into:{' '}
                         <Text className="font-sans-bold">
                             {target.product_name}
-                            {target.has_options ? ` (${target.variant_label})` : ''}
+                            {target.has_options ? ` · ${target.variant_label}` : ''}
                         </Text>
-                        {' · '}
-                        {target.pieces_per_unit > 1
-                            ? `sent by the ${target.unit_name} (${target.pieces_per_unit} pcs each)`
-                            : 'sent by the piece'}
+                        {target.pieces_per_unit > 1 ? ` · by the ${target.unit_name} (${target.pieces_per_unit} pcs each)` : ''}
                     </Text>
                 </View>
             ) : (
@@ -415,17 +431,26 @@ function GroupCard({
                     <View className="flex-row items-center gap-3">
                         <TextInput
                             value={total}
-                            // Kept as typed: more than is left shows "Only … left" in red.
-                            onChangeText={(value) => onTotal(upTo(value, MOST_RECEIVED))}
-                            keyboardType="number-pad"
+                            // Kept as typed (".5", "-1", letters): a wrong number shows in red and blocks Stock In.
+                            onChangeText={onTotal}
+                            keyboardType="numbers-and-punctuation"
                             placeholder="0"
                             placeholderTextColor="#94a3b8"
                             accessibilityLabel={`How many ${group.item_code} arrived`}
-                            className="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-right font-sans-bold text-base text-slate-900"
+                            className={`w-28 rounded-xl border bg-white px-3 py-2.5 text-right font-sans-bold text-base text-slate-900 ${problem ? 'border-red-400' : 'border-slate-200'}`}
                         />
-                        <Text className="font-sans-semibold text-sm text-slate-500">
+                        <Text className="flex-1 font-sans-semibold text-sm text-slate-500">
                             {target ? unitWord(units, target.unit_name) : 'as ordered on the eStore'}
                         </Text>
+                        <Pressable
+                            onPress={() => onTotal(String(remaining))}
+                            disabled={total === String(remaining)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`All of ${group.item_code} arrived`}
+                            className={`rounded-xl border border-slate-200 bg-white px-4 py-2.5 ${total === String(remaining) ? 'opacity-50' : ''}`}
+                        >
+                            <Text className="font-sans-bold text-sm text-slate-700">All</Text>
+                        </Pressable>
                     </View>
                     {target && units > 0 && problem === null && (
                         <Text className="font-sans-bold text-xs text-emerald-700">

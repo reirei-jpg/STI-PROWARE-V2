@@ -29,6 +29,8 @@ class PurchaseOrderDeliveryController extends Controller
     {
         return response()->json([
             'order_number' => $purchaseOrder->order_number,
+            // Shown at the top of Stock In: when it was ordered.
+            'date_ordered' => $purchaseOrder->date_ordered->toDateString(),
             'is_open' => $purchaseOrder->delivery_status->isOpen(),
             'groups' => DeliveryScreens::waiting($purchaseOrder->id),
             'today' => now()->toDateString(),

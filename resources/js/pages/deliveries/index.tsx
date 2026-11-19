@@ -2,7 +2,6 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     CircleAlert,
-    ExternalLink,
     Eye,
     PackageCheck,
     Plus,
@@ -14,13 +13,13 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
-import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import DateRangeFilter from '@/components/date-range-filter';
 import DeliveryDetailsDialog from '@/components/delivery-details-dialog';
 import DeliveryProgress from '@/components/delivery-progress';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
 import { formatUnits } from '@/lib/units';
@@ -92,6 +91,8 @@ export default function DeliveriesIndex({
     const [search, setSearch] = useState(filters.search ?? '');
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [recordingId, setRecordingId] = useState<number | null>(null);
+    // The order opened with View order, shown here (not on Purchase Orders).
+    const [viewingOrderId, setViewingOrderId] = useState<number | null>(null);
     const firstRender = useRef(true);
     const showingWaiting = waitingLists.includes(filters.show);
     const isFiltered = Boolean(
@@ -335,11 +336,16 @@ export default function DeliveriesIndex({
                             followUpDays={summary.follow_up_days}
                             canRecord={canRecord}
                             onRecord={setRecordingId}
+                            onOpen={setViewingOrderId}
                         />
                     )}
                 </Panel>
             </div>
 
+            <PurchaseOrderDetailsDialog
+                purchaseOrderId={viewingOrderId}
+                onClose={() => setViewingOrderId(null)}
+            />
             <RecordDeliveryDialog
                 purchaseOrderId={recordingId}
                 onClose={() => setRecordingId(null)}
@@ -641,11 +647,14 @@ function WaitingTable({
     followUpDays,
     canRecord,
     onRecord,
+    onOpen,
 }: {
     orders: Paginated<WaitingOrderRow>;
     followUpDays: number;
     canRecord: boolean;
     onRecord: (purchaseOrderId: number) => void;
+    /** Opens the order's details here, without leaving Stock In. */
+    onOpen: (purchaseOrderId: number) => void;
 }) {
     if (orders.data.length === 0) {
         return (
@@ -735,15 +744,14 @@ function WaitingTable({
                                                 Stock In
                                             </button>
                                         )}
-                                        <Link
-                                            href={PurchaseOrderController.index(
-                                                { query: { view: order.id } },
-                                            )}
+                                        <button
+                                            type="button"
+                                            onClick={() => onOpen(order.id)}
                                             className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
                                         >
-                                            <ExternalLink size={15} />
-                                            Open order
-                                        </Link>
+                                            <Eye size={15} />
+                                            View order
+                                        </button>
                                     </div>
                                 </td>
                             </tr>

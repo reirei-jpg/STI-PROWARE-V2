@@ -38,8 +38,12 @@ class RecordDeliveryRequest extends FormRequest
     {
         return [
             'items.required' => 'There are no items waiting for delivery.',
-            'items.*.quantity_received.integer' => 'Enter a whole number.',
+            'items.*.quantity_received.integer' => 'Enter a whole number, e.g. 5.',
             'items.*.quantity_received.min' => 'The quantity cannot be negative.',
+            'items.*.quantity_received.max' => 'Enter at most 1,000,000.',
+            'sales_invoice_number.max' => 'The SI # (Sales Invoice number) may not be longer than 40 characters.',
+            'delivery_receipt_number.max' => 'The DR # (Delivery Receipt number) may not be longer than 40 characters.',
+            'note.max' => 'The note may not be longer than 500 characters.',
         ];
     }
 

@@ -135,7 +135,7 @@ test('record delivery lists the orders still waiting, oldest first, and each pop
 });
 
 test('the record delivery popup of an order lists only that order\'s waiting items', function () {
-    $order = orderWith(['UTMP02-03' => 10, 'UTMS02-03' => 5], ['order_number' => '30722']);
+    $order = orderWith(['UTMP02-03' => 10, 'UTMS02-03' => 5], ['order_number' => '30722', 'date_ordered' => '2026-11-11']);
     orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
     $order->items()->where('item_code', 'UTMS02-03')->update(['quantity_delivered' => 5]);
     $order->refreshDeliveryProgress();
@@ -144,6 +144,7 @@ test('the record delivery popup of an order lists only that order\'s waiting ite
         ->getJson(route('purchase-orders.waiting-items', $order))
         ->assertOk()
         ->assertJsonPath('order_number', '30722')
+        ->assertJsonPath('date_ordered', '2026-11-11')
         ->assertJsonPath('is_open', true)
         ->assertJsonCount(1, 'groups')
         ->assertJsonPath('groups.0.item_code', 'UTMP02-03')
@@ -170,6 +171,19 @@ test('a delivery recorded from an order\'s popup stays on the page it came from'
 
     expect($order->refresh()->delivery_status)->toBe(DeliveryStatus::Completed);
 });
+
+test('a received quantity that is not a whole number is refused with a plain message', function (mixed $typed) {
+    $order = orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
+
+    $this->actingAs($this->specialist)
+        ->post(route('deliveries.store'), [
+            'received_on' => now()->toDateString(),
+            'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => $typed]],
+        ])
+        ->assertSessionHasErrors(['items.0.quantity_received' => 'Enter a whole number, e.g. 5.']);
+
+    expect($order->refresh()->items()->sole()->quantity_delivered)->toBe(0);
+})->with(['.5', 'abc', '2.5']);
 
 test('an order not complete after the follow-up days is shown to follow up with Head Office', function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-29 09:00', 'Asia/Manila'));
