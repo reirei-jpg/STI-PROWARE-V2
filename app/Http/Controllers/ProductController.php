@@ -51,7 +51,9 @@ class ProductController extends Controller
             ->with(['mainPhoto', 'packs'])
             ->withCount([
                 'variants',
-                'variants as available_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Available),
+                // Available with no pieces left reads as Out of stock.
+                'variants as available_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Available)->where('stock_on_hand', '>', 0),
+                'variants as out_of_stock_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Available)->where('stock_on_hand', 0),
                 'variants as preorder_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Preorder),
                 'variants as draft_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Draft),
             ])
@@ -118,6 +120,7 @@ class ProductController extends Controller
                 // How many sizes or colors have each status, e.g. 12 Available and 6 Draft.
                 'variant_statuses' => [
                     'available' => (int) $product->getAttribute('available_variants_count'),
+                    'out_of_stock' => (int) $product->getAttribute('out_of_stock_variants_count'),
                     'preorder' => (int) $product->getAttribute('preorder_variants_count'),
                     'draft' => (int) $product->getAttribute('draft_variants_count'),
                 ],

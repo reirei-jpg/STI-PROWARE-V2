@@ -187,7 +187,7 @@ test('the Draft button also lists products with some options kept as a Draft, wi
             ->has('products.data', 2)
             ->where('products.data.0.name', 'Chibi Keychain')
             ->where('products.data.1.name', 'Bagong Product')
-            ->where('products.data.1.variant_statuses', ['available' => 1, 'preorder' => 0, 'draft' => 1]));
+            ->where('products.data.1.variant_statuses', ['available' => 1, 'out_of_stock' => 0, 'preorder' => 0, 'draft' => 1]));
 });
 
 test('a Draft option\'s price counts nowhere: not in what students pay, nor as selling below cost', function () {
@@ -198,4 +198,14 @@ test('a Draft option\'s price counts nowhere: not in what students pay, nor as s
 
     expect(PriceList::studentPrices($product->load('variants'))->all())->toBe([15000])
         ->and(SellingBelowCost::products())->toBe([]);
+});
+
+test('an Available option with no pieces left counts as Out of stock on the Products list', function () {
+    savedBagongProduct(navyStock: 0);
+
+    $this->actingAs($this->specialist)
+        ->get(route('products.index', ['search' => 'Bagong']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('products.data.0.stock_on_hand', 0)
+            ->where('products.data.0.variant_statuses', ['available' => 0, 'out_of_stock' => 1, 'preorder' => 0, 'draft' => 1]));
 });

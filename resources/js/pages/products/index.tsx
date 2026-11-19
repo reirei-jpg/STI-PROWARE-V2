@@ -460,6 +460,14 @@ export default function ProductsIndex({
                                                             status="draft"
                                                             label="Draft"
                                                         />
+                                                    ) : isOutOfStock(
+                                                          product,
+                                                      ) ? (
+                                                        // In the store with nothing left: not "Available".
+                                                        <ProductStatusBadge
+                                                            status="out_of_stock"
+                                                            label="Out of stock"
+                                                        />
                                                     ) : (
                                                         <ProductStatusBadge
                                                             status={
@@ -670,10 +678,13 @@ function StudentPrice({ product }: { product: ProductListItem }) {
  * " · 12 Available · 6 Draft" when a product's sizes or colors do not all
  * have the same status; nothing when they do.
  */
-function statusBreakdown(counts: Record<VariantStatus, number>): string {
+function statusBreakdown(
+    counts: Record<VariantStatus | 'out_of_stock', number>,
+): string {
     const parts = (
         [
             ['available', 'Available'],
+            ['out_of_stock', 'Out of stock'],
             ['preorder', 'Preorder'],
             ['draft', 'Draft'],
         ] as const

@@ -75,6 +75,11 @@ export default function ProductDetailsDialog({
                                                 status="draft"
                                                 label="Draft"
                                             />
+                                        ) : isOutOfStock(product) ? (
+                                            <ProductStatusBadge
+                                                status="out_of_stock"
+                                                label="Out of stock"
+                                            />
                                         ) : (
                                             <ProductStatusBadge
                                                 status={product.status}
@@ -286,11 +291,22 @@ export default function ProductDetailsDialog({
                                                             </td>
                                                             <td className="px-4 py-2.5">
                                                                 <ProductStatusBadge
+                                                                    // Available with no pieces left reads as Out of stock.
                                                                     status={
-                                                                        variant.status
+                                                                        variant.status ===
+                                                                            'available' &&
+                                                                        variant.stock_on_hand ===
+                                                                            0
+                                                                            ? 'out_of_stock'
+                                                                            : variant.status
                                                                     }
                                                                     label={
-                                                                        variant.status_label
+                                                                        variant.status ===
+                                                                            'available' &&
+                                                                        variant.stock_on_hand ===
+                                                                            0
+                                                                            ? 'Out of stock'
+                                                                            : variant.status_label
                                                                     }
                                                                 />
                                                             </td>

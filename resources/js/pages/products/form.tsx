@@ -390,6 +390,10 @@ export default function ProductForm({
     const savedStatusOf = (key: string): VariantStatus | null =>
         savedVariants.find((variant) => variant.combination === key)?.status ??
         null;
+    /** Available, with no pieces left: it reads as Out of stock. */
+    const isOutOfStockRow = (key: string): boolean =>
+        variantInput(key).status === 'available' &&
+        (stockByCombination[key] ?? 0) === 0;
 
     /**
      * Whether a variant can be set to this status, and why not: with no
@@ -855,15 +859,29 @@ export default function ProductForm({
     }, [data]);
 
     // How many variants have each status, e.g. "2 Preorder, 10 Draft".
-    const statusCounts = statuses
-        .map(({ value, label }) => ({
+    // Available with no pieces left reads as Out of stock.
+    const outOfStockRows = combinations.filter((combination) =>
+        isOutOfStockRow(combination.key),
+    ).length;
+    const statusCounts = [
+        ...statuses.map(({ value, label }) => ({
             label,
-            count: variantStatuses.filter((current) => current === value)
-                .length,
-        }))
+            count:
+                variantStatuses.filter((current) => current === value).length -
+                (value === 'available' ? outOfStockRows : 0),
+        })),
+        { label: 'Out of stock', count: outOfStockRows },
+    ]
         .filter(({ count }) => count > 0)
         .map(({ label, count }) => `${count} ${label}`)
         .join(', ');
+    // In the store with no pieces left at all: it shows as Out of stock.
+    const showsOutOfStock =
+        (status === 'available' || status === 'on_sale') &&
+        product !== null &&
+        combinations.every(
+            (combination) => (stockByCombination[combination.key] ?? 0) === 0,
+        );
 
     // What pressing Save will save, e.g. "BP-01 Bagong Product · 12
     // variants (2 Preorder, 10 Draft) · Preorder: open until Nov 30, 2026".
@@ -2060,7 +2078,15 @@ export default function ProductForm({
                                                                         choice.value
                                                                 }
                                                             >
-                                                                {choice.label}
+                                                                {choice.value ===
+                                                                    'available' &&
+                                                                (stockByCombination[
+                                                                    combination
+                                                                        .key
+                                                                ] ?? 0) === 0 &&
+                                                                blocked === null
+                                                                    ? 'Out of stock'
+                                                                    : choice.label}
                                                                 {blocked !==
                                                                     null &&
                                                                     ` (${blocked})`}
@@ -2174,11 +2200,12 @@ export default function ProductForm({
                             <div className="rounded-2xl border-2 border-[#0D6EFD] bg-blue-50 p-4">
                                 <p className="font-black text-slate-900">
                                     Shows as:{' '}
-                                    {
-                                        statuses.find(
-                                            (choice) => choice.value === status,
-                                        )?.label
-                                    }
+                                    {showsOutOfStock
+                                        ? 'Out of stock'
+                                        : statuses.find(
+                                              (choice) =>
+                                                  choice.value === status,
+                                          )?.label}
                                     {hasVariants && (
                                         <span className="font-semibold text-slate-600">
                                             {' '}

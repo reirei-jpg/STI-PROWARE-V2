@@ -44,7 +44,10 @@ class StockController extends Controller
                 'id' => $product->id,
                 'name' => $product->name,
                 'photo_url' => $product->mainPhoto?->url(),
-                'status_label' => $product->status->label(),
+                // In the store with no pieces left reads as Out of stock, not Available.
+                'status_label' => LowStockAlerts::isSold($product) && (int) $product->getAttribute('variants_sum_stock_on_hand') === 0
+                    ? 'Out of stock'
+                    : $product->status->label(),
                 'stock_on_hand' => (int) $product->getAttribute('variants_sum_stock_on_hand'),
                 'held_pieces' => (int) $product->getAttribute('variants_sum_held_pieces'),
                 'low_stock_alert_at' => $product->low_stock_alert_at,

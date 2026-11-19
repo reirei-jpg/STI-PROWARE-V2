@@ -40,8 +40,8 @@ export type ProductListItem = {
     last_sale_at: string | null;
     photo_url: string | null;
     variants_count: number;
-    /** How many sizes or colors have each status. */
-    variant_statuses: Record<VariantStatus, number>;
+    /** How many sizes or colors have each status; Available ones with no pieces count as out_of_stock. */
+    variant_statuses: Record<VariantStatus | 'out_of_stock', number>;
     /** Pieces of its Draft sizes or colors (shown in the Draft list). */
     draft_stock_on_hand: number;
     updated_at: string | null;
