@@ -626,6 +626,7 @@ export default function ProductsIndex({
                         : undefined
                 }
                 onClose={() => setViewingId(null)}
+                draftsFirst={filters.status === 'draft'}
                 onPutOnSale={(productId) => {
                     setViewingId(null);
                     setSelling(productId);
