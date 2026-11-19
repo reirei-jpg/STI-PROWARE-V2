@@ -367,8 +367,11 @@ export default function ProductForm({
             ? input.code.trim().toUpperCase()
             : (autoCodes[key] ?? '');
     };
-    const someCodesTyped = combinations.some(
-        (combination) => variantInput(combination.key).code_typed,
+    // Codes that differ from the ones made from the product's code (typed
+    // by hand, or saved before): only then can they all be made again.
+    const someCodesDiffer = combinations.some(
+        (combination) =>
+            codeOf(combination.key) !== (autoCodes[combination.key] ?? ''),
     );
 
     // The product's status follows from its variants' (as the server
@@ -1855,14 +1858,19 @@ export default function ProductForm({
                                 </select>
                                 <InputError message={sharedPackError} />
                             </label>
-                            {someCodesTyped && productCode !== '' && (
+                            {someCodesDiffer && productCode !== '' && (
                                 <div className="grid content-end gap-1.5">
+                                    <span className="text-xs leading-5 text-slate-500">
+                                        Some Item Codes below are not made from{' '}
+                                        {productCode}. This button makes them
+                                        all again, e.g. {productCode}-S-RED.
+                                    </span>
                                     <button
                                         type="button"
                                         onClick={useAutomaticCodes}
                                         className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                                     >
-                                        Make every code from {productCode}
+                                        Remake all codes from {productCode}
                                     </button>
                                 </div>
                             )}
