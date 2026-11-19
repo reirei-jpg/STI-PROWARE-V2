@@ -259,7 +259,9 @@ final class FreeUniformScreens
      */
     private static function sizes(Product $product): array
     {
+        // Draft sizes are not given out yet.
         return array_values($product->variants
+            ->reject(fn (ProductVariant $variant): bool => $variant->isDraft())
             ->sortBy('position')
             ->map(fn (ProductVariant $variant): array => [
                 'id' => $variant->id,

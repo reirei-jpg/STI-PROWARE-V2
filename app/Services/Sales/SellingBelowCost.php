@@ -22,8 +22,10 @@ final class SellingBelowCost
      */
     public static function products(): array
     {
+        // Draft sizes or colors are not sold, so they cannot sell below cost.
         $variants = ProductVariant::query()
             ->whereNotNull('estore_item_code')
+            ->where('status', '!=', ProductStatus::Draft)
             ->whereHas('product', fn (Builder $products) => $products->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale, ProductStatus::Preorder]))
             ->with(['product', 'estorePack'])
             ->get();

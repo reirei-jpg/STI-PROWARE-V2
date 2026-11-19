@@ -4,6 +4,8 @@ use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Services\Reports\PriceList;
+use App\Services\Sales\SellingBelowCost;
 use App\Services\Stock\RestockedPreorders;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
@@ -186,4 +188,14 @@ test('the Draft button also lists products with some options kept as a Draft, wi
             ->where('products.data.0.name', 'Chibi Keychain')
             ->where('products.data.1.name', 'Bagong Product')
             ->where('products.data.1.variant_statuses', ['available' => 1, 'preorder' => 0, 'draft' => 1]));
+});
+
+test('a Draft option\'s price counts nowhere: not in what students pay, nor as selling below cost', function () {
+    [$product, , $red] = savedBagongProduct(navyStock: 5);
+    $red->update(['price_centavos' => 5000]);
+    $order = orderWith(['BP-01-S-RED' => 10]);
+    $order->items()->update(['unit_price_centavos' => 16000]);
+
+    expect(PriceList::studentPrices($product->load('variants'))->all())->toBe([15000])
+        ->and(SellingBelowCost::products())->toBe([]);
 });

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProductStatus;
 use App\Enums\UniformBottom;
 use App\Enums\UniformTop;
 use App\Models\ProductVariant;
@@ -215,6 +216,7 @@ class RecordFreeUniformGroupRequest extends FormRequest
 
     private static function isSizeOf(mixed $variantId, int $productId): bool
     {
-        return is_numeric($variantId) && ProductVariant::query()->whereKey((int) $variantId)->where('product_id', $productId)->exists();
+        // A Draft size is not given out yet.
+        return is_numeric($variantId) && ProductVariant::query()->whereKey((int) $variantId)->where('product_id', $productId)->where('status', '!=', ProductStatus::Draft)->exists();
     }
 }

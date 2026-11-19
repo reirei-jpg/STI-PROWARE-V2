@@ -161,7 +161,8 @@ final class PriceList
     /**
      * What students pay for one piece now, per size or color: the sale
      * price while On Sale, else the normal price; for a product sold only
-     * by the pack, the pack's price divided by its pieces.
+     * by the pack, the pack's price divided by its pieces. Draft sizes or
+     * colors are not sold, so their prices do not count.
      *
      * @return Collection<int, int>
      */
@@ -169,6 +170,7 @@ final class PriceList
     {
         if ($product->sold_by_piece) {
             return $product->variants
+                ->reject(fn (ProductVariant $variant): bool => $variant->isDraft())
                 ->map(fn (ProductVariant $variant): ?int => $variant->setRelation('product', $product)->salePiecePrice() ?? $variant->normalPiecePrice())
                 ->filter(fn (?int $price): bool => $price !== null)
                 ->values();

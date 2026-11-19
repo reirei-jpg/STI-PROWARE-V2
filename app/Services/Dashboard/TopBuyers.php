@@ -173,7 +173,8 @@ final class TopBuyers
     {
         return Product::query()
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0'));
+            // Only sizes or colors buyers can get: not Drafts.
+            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')->where('product_variants.status', '!=', ProductStatus::Draft));
     }
 
     /**
