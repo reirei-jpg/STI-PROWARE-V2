@@ -42,6 +42,8 @@ export type ProductListItem = {
     variants_count: number;
     /** How many sizes or colors have each status. */
     variant_statuses: Record<VariantStatus, number>;
+    /** Pieces of its Draft sizes or colors (shown in the Draft list). */
+    draft_stock_on_hand: number;
     updated_at: string | null;
 };
 

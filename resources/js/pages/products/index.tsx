@@ -477,12 +477,37 @@ export default function ProductsIndex({
                                                     )}
                                                 </td>
                                                 <td className="px-5 py-3.5">
-                                                    <ProductStatusBadge
-                                                        status={product.status}
-                                                        label={
-                                                            product.status_label
-                                                        }
-                                                    />
+                                                    {/* In the Draft list, a product in the store
+                                                        shows the Draft sizes or colors it is listed for. */}
+                                                    {filters.status ===
+                                                        'draft' &&
+                                                    product.status !==
+                                                        'draft' ? (
+                                                        <>
+                                                            <ProductStatusBadge
+                                                                status="draft"
+                                                                label={`${product.variant_statuses.draft} Draft`}
+                                                            />
+                                                            <p className="mt-1 text-xs whitespace-nowrap text-slate-500">
+                                                                {product.variants_count -
+                                                                    product
+                                                                        .variant_statuses
+                                                                        .draft}{' '}
+                                                                {
+                                                                    product.status_label
+                                                                }
+                                                            </p>
+                                                        </>
+                                                    ) : (
+                                                        <ProductStatusBadge
+                                                            status={
+                                                                product.status
+                                                            }
+                                                            label={
+                                                                product.status_label
+                                                            }
+                                                        />
+                                                    )}
                                                     {product.sale_ends_at && (
                                                         <p className="mt-1 text-xs font-bold whitespace-nowrap text-red-700">
                                                             until{' '}
@@ -509,8 +534,26 @@ export default function ProductsIndex({
                                                     )}
                                                 </td>
                                                 <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                                                    {/* In the store with nothing left: Out of stock, not "0 pcs Low". */}
-                                                    {isOutOfStock(product) ? (
+                                                    {/* In the Draft list, a product in the store shows the
+                                                        pieces of its Draft sizes or colors. In the store with
+                                                        nothing left: Out of stock, not "0 pcs Low". */}
+                                                    {filters.status ===
+                                                        'draft' &&
+                                                    product.status !==
+                                                        'draft' ? (
+                                                        <>
+                                                            <span className="text-base font-black text-slate-400">
+                                                                {product.draft_stock_on_hand.toLocaleString(
+                                                                    'en-PH',
+                                                                )}
+                                                            </span>{' '}
+                                                            <span className="text-xs text-slate-500">
+                                                                pcs
+                                                            </span>
+                                                        </>
+                                                    ) : isOutOfStock(
+                                                          product,
+                                                      ) ? (
                                                         <span className="text-sm font-black text-red-600">
                                                             Out of stock
                                                         </span>

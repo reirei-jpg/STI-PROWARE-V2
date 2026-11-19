@@ -57,6 +57,7 @@ class ProductController extends Controller
                 'variants as draft_variants_count' => fn (Builder $variants) => $variants->where('status', ProductStatus::Draft),
             ])
             ->withSum('variants', 'stock_on_hand')
+            ->withSum(['variants as draft_stock_on_hand' => fn (Builder $variants) => $variants->where('status', ProductStatus::Draft)], 'stock_on_hand')
             ->withMin('variants as lowest_variant_sale_price', 'sale_price_centavos')
             ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft)])
             ->addSelect([
@@ -104,6 +105,8 @@ class ProductController extends Controller
                     ->values()
                     ->all(),
                 'stock_on_hand' => (int) $product->getAttribute('variants_sum_stock_on_hand'),
+                // The pieces of its Draft sizes or colors, shown in the Draft list.
+                'draft_stock_on_hand' => (int) $product->getAttribute('draft_stock_on_hand'),
                 'low_stock_alert_at' => $product->low_stock_alert_at,
                 'low_stock' => LowStockAlerts::isSold($product) && (bool) $product->getAttribute('has_variant_at_alert'),
                 // Sold for less than one piece cost on the latest eStore order.
