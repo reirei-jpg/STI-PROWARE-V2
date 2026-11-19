@@ -51,7 +51,8 @@ test('the CSV lists every sale of the chosen dates with its date, in the order t
         ->and($csv)->not->toContain('STI Cap')
         ->toContain("Sales\n\"Orders released\",3\n\"Pieces sold\",4\n\"Total sales\",\"₱1,160.00\"")
         ->toContain("Profit\n\"Cost of the items sold\",₱280.00\nProfit,₱130.00")
-        ->toContain("Expenses\n\"Spent on eStore orders\",₱0.00\n\"Sales minus expenses\",\"₱1,160.00\"")
+        ->toContain("Purchases\n\"Total purchases\",₱0.00\n\"Sales minus purchases\",\"₱1,160.00\"")
+        ->not->toContain('Did not arrive')
         ->not->toContain('Lost on items sold below cost')
         ->toContain('1 sold item has no Cost yet');
 });

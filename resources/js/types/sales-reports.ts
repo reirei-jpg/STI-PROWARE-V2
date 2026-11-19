@@ -4,8 +4,12 @@ export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
 
 /** The numbers at the top for the period. */
 export type SalesSummary = {
-    /** What the uploaded eStore orders cost. */
+    /** What the uploaded eStore orders cost (closed short: only what arrived). */
     spent_centavos: number;
+    /** What orders closed short ordered but never received (not counted). */
+    not_arrived_centavos: number;
+    /** How many orders were closed short with something not arriving. */
+    short_orders: number;
     purchase_orders: number;
     /** The part of it ordered for buyers' preorders. */
     spent_for_preorders_centavos: number;
@@ -37,7 +41,12 @@ export type SpentRow = {
     items_count: number;
     /** "STI Varsity Hoodie", or "BSIT Polo and 3 more". */
     items_label: string;
+    /** What counts: all of it, or what arrived on an order closed short. */
     total_centavos: number;
+    /** The amount on the eStore order. */
+    ordered_centavos: number;
+    /** Ordered but never received (closed short); 0 otherwise. */
+    not_arrived_centavos: number;
     uploaded_by: string;
     delivery_status:
         | 'awaiting'
@@ -47,11 +56,13 @@ export type SpentRow = {
     delivery_status_label: string;
     /** All the quantities ordered, as on the eStore order. */
     quantity_ordered: number;
+    /** All the quantities received so far. */
+    quantity_received: number;
     /** How much of it was for buyers' preorders; null on POs saved before this was tracked. */
     preorder_quantity: number | null;
 };
 
-/** One size or color sold at one price (a product's View Details on What we sold). */
+/** One size or color sold at one price (a product's View Details on Sales). */
 export type SoldRow = {
     key: string;
     variant_id: number;
@@ -138,7 +149,7 @@ export type SalesReportFilters = {
     search: string | null;
 };
 
-/** What we sold: one product, all its sizes, colors and prices together. */
+/** Sales: one product, all its sizes, colors and prices together. */
 export type SoldProduct = {
     product_id: number;
     product_name: string;
@@ -169,7 +180,7 @@ export type SoldProduct = {
     estore_previous_order_number: string | null;
 };
 
-/** A product's View Details on What we sold. */
+/** A product's View Details on Sales. */
 export type SoldDetails = {
     product_id: number;
     product_name: string;

@@ -58,10 +58,10 @@ const periods: { value: SalesPeriod; label: string }[] = [
 ];
 
 const tabs: { value: SalesTab; label: string }[] = [
-    { value: 'spent', label: 'What we spent' },
-    { value: 'sold', label: 'What we sold' },
-    { value: 'best', label: 'Best sellers' },
-    { value: 'free', label: 'Given free' },
+    { value: 'spent', label: 'Purchases' },
+    { value: 'sold', label: 'Sales' },
+    { value: 'best', label: 'Top Sellers' },
+    { value: 'free', label: 'Free Uniforms' },
 ];
 
 /**
@@ -87,9 +87,9 @@ export default function SalesReportsIndex({
     sold: Paginated<SoldProduct> | null;
     best: Paginated<BestSellerRow> | null;
     free: Paginated<FreeRow> | null;
-    /** The group opened with View Details on Given free; undefined until loaded. */
+    /** The group opened with View Details on Free Uniforms; undefined until loaded. */
     free_group?: FreeUniformGroupDetails | null;
-    /** The product opened with View Details on What we sold; undefined until loaded. */
+    /** The product opened with View Details on Sales; undefined until loaded. */
     sold_details?: SoldDetails | null;
     filters: SalesReportFilters;
 }) {
@@ -178,7 +178,7 @@ export default function SalesReportsIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Sales Reports"
-                    description="What we spent on eStore orders, what we sold and the profit with our prices beside the eStore prices, our best sellers, what we sold below cost, and what free uniforms were worth."
+                    description="Purchases from the eStore, sales and profit with our prices beside the eStore prices, top sellers, sales below cost, and what free uniforms were worth."
                 />
 
                 <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -263,9 +263,14 @@ export default function SalesReportsIndex({
                     <Card
                         icon={ShoppingCart}
                         tone="blue"
-                        label="Spent on eStore orders"
+                        label="Total Purchases"
                         value={formatPeso(summary.spent_centavos)}
                         detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} · by Date Ordered${summary.spent_for_preorders_centavos > 0 ? ` · Preorders ${formatPeso(summary.spent_for_preorders_centavos)}` : ''}`}
+                        note={
+                            summary.not_arrived_centavos > 0
+                                ? `${formatPeso(summary.not_arrived_centavos)} did not arrive (${summary.short_orders} ${summary.short_orders === 1 ? 'order' : 'orders'} closed short) · not counted`
+                                : undefined
+                        }
                         onClick={() => show({ tab: 'spent' })}
                     />
                     <Card
@@ -299,7 +304,7 @@ export default function SalesReportsIndex({
                     <Card
                         icon={Gift}
                         tone="amber"
-                        label="Given free"
+                        label="Free Uniforms"
                         value={formatPeso(summary.free_cost_centavos)}
                         detail={`${formatUnits(summary.free_pieces, 'Piece')} at Cost · ${formatPeso(summary.free_price_centavos)} at Price`}
                         onClick={() => show({ tab: 'free' })}
@@ -461,8 +466,9 @@ const spentStatusClasses: Record<SpentRow['delivery_status'], string> = {
 };
 
 /**
- * 1. The uploaded eStore orders of the period: what was bought, whether it
- * arrived, how much was for buyers' preorders and what it cost. A click
+ * 1. Purchases: the uploaded eStore orders of the period: what was bought,
+ * whether it arrived, how much was for buyers' preorders and what it cost
+ * (closed short: only what arrived, with what did not arrive). A click
  * opens the order with its items (to read only: Stock In is on Purchase
  * Orders).
  */
@@ -558,8 +564,28 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                                         </span>
                                     )}
                                 </td>
-                                <td className="px-5 py-4 text-right text-base font-black text-slate-900">
-                                    {formatPeso(row.total_centavos)}
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                    <p className="text-base font-black text-slate-900">
+                                        {formatPeso(row.total_centavos)}
+                                    </p>
+                                    {/* Closed short: only what arrived counts. */}
+                                    {row.not_arrived_centavos > 0 && (
+                                        <>
+                                            <p className="text-xs font-semibold text-slate-500">
+                                                of{' '}
+                                                {formatPeso(
+                                                    row.ordered_centavos,
+                                                )}{' '}
+                                                ordered
+                                            </p>
+                                            <p className="text-xs font-bold text-red-600">
+                                                {formatPeso(
+                                                    row.not_arrived_centavos,
+                                                )}{' '}
+                                                did not arrive
+                                            </p>
+                                        </>
+                                    )}
                                 </td>
                                 <td className="px-5 py-4 text-slate-700">
                                     {row.uploaded_by}
@@ -582,6 +608,13 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                     </tbody>
                 </table>
             </TableScroll>
+            {rows.data.some((row) => row.not_arrived_centavos > 0) && (
+                <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-500">
+                    An order closed short (the rest will not arrive) counts only
+                    what arrived. What did not arrive is shown in red and is not
+                    counted.
+                </p>
+            )}
             {rows.data.some((row) => row.preorder_quantity === null) && (
                 <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-500">
                     Preorders "—": ordered before preorders were counted.
@@ -677,7 +710,7 @@ function BestSellersTable({ rows }: { rows: Paginated<BestSellerRow> }) {
 
 /** 2 and 3. Each item sold at each price: Cost, Price, Profit. */
 /**
- * 2. What we sold: one row per product, all its sizes, colors and prices
+ * 2. Sales: one row per product, all its sizes, colors and prices
  * together, with its eStore price now. View Details shows each size or
  * color, and what Head Office charged on each eStore order of it.
  */
@@ -1240,7 +1273,7 @@ function FreePiecesDialog({
             <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-4xl">
                 <div className="border-b border-slate-100 px-6 py-5">
                     <DialogTitle className="text-lg font-black text-slate-900">
-                        Given free · not in a group
+                        Free Uniforms · not in a group
                     </DialogTitle>
                     <DialogDescription className="text-sm text-slate-500">
                         {row && formatDateOrdered(row.given_at.slice(0, 10))} ·
@@ -1375,7 +1408,7 @@ function PriceChange({
     );
 }
 /**
- * A product's View Details on What we sold: each size or color at each
+ * A product's View Details on Sales: each size or color at each
  * price it sold for (with Set cost when a Cost is missing), and what Head
  * Office charged on each eStore order of it (its Unit Price, up or down).
  */

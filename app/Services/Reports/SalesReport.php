@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\DeliveryStatus;
 use App\Enums\LowerPriceReason;
 use App\Enums\OrderStatus;
 use App\Enums\StockCorrectionReason;
@@ -23,7 +24,8 @@ use Illuminate\Support\Collection;
 
 /**
  * The Sales Reports for a period, in four parts:
- * 1. Spent: the uploaded eStore purchase orders and what they cost.
+ * 1. Purchases: the uploaded eStore purchase orders and what they cost
+ *    (an order closed short: only what arrived).
  * 2. Sold: each product sold (released orders), all its sizes and colors
  *    together, with its Cost (what PROWARE paid on the eStore order, oldest
  *    pieces first), its Price (what the student paid; on sale when lower
@@ -47,7 +49,7 @@ final class SalesReport
     /**
      * The numbers at the top.
      *
-     * @return array{spent_centavos: int, purchase_orders: int, spent_for_preorders_centavos: int, price_centavos: int, cost_centavos: int, costed_price_centavos: int, profit_centavos: int, orders: int, pieces: int, missing_cost_lines: int, below_cost_lines: int, below_cost_loss_centavos: int, free_pieces: int, free_cost_centavos: int, free_price_centavos: int}
+     * @return array{spent_centavos: int, not_arrived_centavos: int, short_orders: int, purchase_orders: int, spent_for_preorders_centavos: int, price_centavos: int, cost_centavos: int, costed_price_centavos: int, profit_centavos: int, orders: int, pieces: int, missing_cost_lines: int, below_cost_lines: int, below_cost_loss_centavos: int, free_pieces: int, free_cost_centavos: int, free_price_centavos: int}
      */
     public static function summary(CarbonImmutable $from, CarbonImmutable $to): array
     {
@@ -64,17 +66,17 @@ final class SalesReport
             ->first();
 
         $free = self::givenFree($from, $to)->get();
+        $purchaseOrders = self::purchaseOrders($from, $to)->with('items')->get();
+        $amounts = $purchaseOrders->map(fn (PurchaseOrder $order): array => self::purchaseAmounts($order));
 
         return [
-            'spent_centavos' => (int) self::purchaseOrders($from, $to)->get()->sum(fn (PurchaseOrder $order): int => self::orderTotal($order)),
-            'purchase_orders' => self::purchaseOrders($from, $to)->count(),
+            // Closed short: only what arrived counts.
+            'spent_centavos' => (int) $amounts->sum('counted'),
+            'not_arrived_centavos' => (int) $amounts->sum('not_arrived'),
+            'short_orders' => $amounts->filter(fn (array $amount): bool => $amount['not_arrived'] > 0)->count(),
+            'purchase_orders' => $purchaseOrders->count(),
             // The part of it ordered for buyers' preorders (POs from before this was tracked count as own orders).
-            'spent_for_preorders_centavos' => (int) PurchaseOrderItem::query()
-                ->whereIn('purchase_order_id', self::purchaseOrders($from, $to)->select('id'))
-                ->where('preorder_quantity', '>', 0)
-                ->where('quantity_ordered', '>', 0)
-                ->get()
-                ->sum(fn (PurchaseOrderItem $item): int => intdiv($item->amount_centavos * (int) $item->preorder_quantity, $item->quantity_ordered)),
+            'spent_for_preorders_centavos' => (int) $purchaseOrders->sum(fn (PurchaseOrder $order): int => (int) $order->items->sum(fn (PurchaseOrderItem $item): int => self::preorderAmount($order, $item))),
             'price_centavos' => (int) ($sold->price ?? 0),
             'cost_centavos' => (int) ($sold->cost ?? 0),
             // The Price of the sales that have a Cost: what Profit is worked out from.
@@ -92,10 +94,11 @@ final class SalesReport
     }
 
     /**
-     * 1. The eStore purchase orders ordered in the period, newest first:
-     * what was bought (by name), what it cost, and whether it arrived.
+     * 1. Purchases: the eStore purchase orders ordered in the period, newest
+     * first: what was bought (by name), what it cost, and whether it arrived.
+     * An order closed short counts only what arrived.
      *
-     * @return LengthAwarePaginator<int, array{id: int, order_number: string|null, date_ordered: string, items_count: int, items_label: string, total_centavos: int, uploaded_by: string, delivery_status: string, delivery_status_label: string, quantity_ordered: int, preorder_quantity: int|null}>
+     * @return LengthAwarePaginator<int, array{id: int, order_number: string|null, date_ordered: string, items_count: int, items_label: string, total_centavos: int, ordered_centavos: int, not_arrived_centavos: int, uploaded_by: string, delivery_status: string, delivery_status_label: string, quantity_ordered: int, quantity_received: int, preorder_quantity: int|null}>
      */
     public static function spent(CarbonImmutable $from, CarbonImmutable $to): LengthAwarePaginator
     {
@@ -104,6 +107,7 @@ final class SalesReport
             ->withCount('items')
             ->withSum('items', 'amount_centavos')
             ->withSum('items', 'quantity_ordered')
+            ->withSum('items', 'quantity_delivered')
             ->withSum('items', 'preorder_quantity')
             ->withCount(['items as untracked_items_count' => fn (Builder $items) => $items->whereNull('preorder_quantity')])
             ->latest('date_ordered')
@@ -117,14 +121,32 @@ final class SalesReport
                 'items_count' => (int) $order->getAttribute('items_count'),
                 // "STI Varsity Hoodie", or "BSIT Polo and 3 more".
                 'items_label' => self::itemsLabel($order),
-                'total_centavos' => self::orderTotal($order),
+                ...self::purchaseRowAmounts($order),
                 'uploaded_by' => $order->uploader->name,
                 'delivery_status' => $order->delivery_status->value,
                 'delivery_status_label' => $order->delivery_status->label(),
                 'quantity_ordered' => (int) $order->getAttribute('items_sum_quantity_ordered'),
+                'quantity_received' => (int) $order->getAttribute('items_sum_quantity_delivered'),
                 // How much was for buyers' preorders; null on POs saved before this was tracked.
                 'preorder_quantity' => (int) $order->getAttribute('untracked_items_count') > 0 ? null : (int) $order->getAttribute('items_sum_preorder_quantity'),
             ]);
+    }
+
+    /**
+     * A Purchases row's amounts: what counts (all of it, or what arrived on
+     * an order closed short), what was ordered, and what did not arrive.
+     *
+     * @return array{total_centavos: int, ordered_centavos: int, not_arrived_centavos: int}
+     */
+    private static function purchaseRowAmounts(PurchaseOrder $order): array
+    {
+        $amounts = self::purchaseAmounts($order);
+
+        return [
+            'total_centavos' => $amounts['counted'],
+            'ordered_centavos' => $amounts['ordered'],
+            'not_arrived_centavos' => $amounts['not_arrived'],
+        ];
     }
 
     /**
@@ -471,7 +493,55 @@ final class SalesReport
      */
     private static function orderTotal(PurchaseOrder $order): int
     {
-        return $order->total_amount_centavos ?? (int) ($order->getAttribute('items_sum_amount_centavos') ?? $order->items()->sum('amount_centavos'));
+        return $order->total_amount_centavos ?? (int) ($order->getAttribute('items_sum_amount_centavos') ?? $order->items->sum('amount_centavos'));
+    }
+
+    /**
+     * What an eStore order counts for in Purchases: all of it, or, once it
+     * was closed with the rest not arriving, only the items that arrived
+     * (each at its own price), and what did not arrive.
+     *
+     * @return array{ordered: int, counted: int, not_arrived: int}
+     */
+    private static function purchaseAmounts(PurchaseOrder $order): array
+    {
+        $ordered = self::orderTotal($order);
+
+        if ($order->delivery_status !== DeliveryStatus::CompletedShort) {
+            return ['ordered' => $ordered, 'counted' => $ordered, 'not_arrived' => 0];
+        }
+
+        $arrived = (int) $order->items->sum(fn (PurchaseOrderItem $item): int => self::amountFor($item, $item->quantity_delivered));
+
+        return ['ordered' => $ordered, 'counted' => $arrived, 'not_arrived' => max(0, $ordered - $arrived)];
+    }
+
+    /**
+     * The part of an item's eStore amount that buyers' preorders took. On an
+     * order closed short, only the pieces that arrived (preorders are served
+     * first).
+     */
+    private static function preorderAmount(PurchaseOrder $order, PurchaseOrderItem $item): int
+    {
+        $pieces = (int) $item->preorder_quantity;
+
+        if ($order->delivery_status === DeliveryStatus::CompletedShort) {
+            $pieces = min($pieces, $item->quantity_delivered);
+        }
+
+        return self::amountFor($item, $pieces);
+    }
+
+    /**
+     * An item's eStore amount for some of what was ordered.
+     */
+    private static function amountFor(PurchaseOrderItem $item, int $quantity): int
+    {
+        if ($item->quantity_ordered <= 0 || $quantity <= 0) {
+            return 0;
+        }
+
+        return intdiv($item->amount_centavos * min($quantity, $item->quantity_ordered), $item->quantity_ordered);
     }
 
     /**

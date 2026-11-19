@@ -104,7 +104,7 @@ test('What we sold shows each product\'s eStore Unit Price now and how it change
         ->assertInertia(fn (Assert $page) => $page->has('sold.data', 1)->where('sold.data.0.product_name', 'STI Lanyard'));
     // The old Prices tab is part of What we sold now.
     $this->get(route('sales-reports.index', ['tab' => 'prices']))
-        ->assertSessionHasErrors(['tab' => 'Choose What we spent, What we sold, Best sellers or Given free. Prices are on What we sold.']);
+        ->assertSessionHasErrors(['tab' => 'Choose Purchases, Sales, Top Sellers or Free Uniforms. Prices are on Sales.']);
 });
 
 test('a product\'s sizes are one row on What we sold; View Details has each size and what Head Office charged on every eStore order', function () {

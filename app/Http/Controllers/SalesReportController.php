@@ -54,7 +54,7 @@ class SalesReportController extends Controller
      * title with the period, every sale (one row per item of a released
      * order) with its date, in the order they happened (morning first), a TOTAL
      * row, and the summary at the bottom (sales, cost, profit, and the
-     * eStore orders spent on in the same period).
+     * eStore purchases of the same period).
      */
     public function export(SalesReportRequest $request): StreamedResponse
     {
@@ -126,9 +126,12 @@ class SalesReportController extends Controller
                 $row(['Lost on items sold below cost', $money($summary['below_cost_loss_centavos'])]);
             }
             $row([]);
-            $row(['Expenses']);
-            $row(['Spent on eStore orders', $money($summary['spent_centavos'])]);
-            $row(['Sales minus expenses', $money($summary['price_centavos'] - $summary['spent_centavos'])]);
+            $row(['Purchases']);
+            $row(['Total purchases', $money($summary['spent_centavos'])]);
+            if ($summary['not_arrived_centavos'] > 0) {
+                $row(['Did not arrive (not counted)', $money($summary['not_arrived_centavos'])]);
+            }
+            $row(['Sales minus purchases', $money($summary['price_centavos'] - $summary['spent_centavos'])]);
 
             if ($summary['missing_cost_lines'] > 0) {
                 $row([]);

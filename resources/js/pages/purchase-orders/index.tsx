@@ -283,7 +283,7 @@ export default function PurchaseOrdersIndex({
                         // Sales Reports are the Specialist's; the School Admin goes to the list.
                         onClick={isSpecialist ? openWhatWeSpent : scrollToList}
                         actionLabel={
-                            isSpecialist ? 'Open What we spent' : 'See the list'
+                            isSpecialist ? 'Open Purchases' : 'See the list'
                         }
                     />
                 </section>
