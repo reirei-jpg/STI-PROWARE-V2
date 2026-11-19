@@ -182,7 +182,9 @@ class ProductController extends Controller
                 // Hidden from buyers, so never out of stock or low.
                 'is_draft' => $variant->isDraft(),
                 'stock_on_hand' => $variant->stock_on_hand,
-                'held_pieces' => $variant->held_pieces,
+                // Orders do not hold stock: only paid preorders do (arrived, and
+                // the order made when one is released).
+                'held_pieces' => $variant->held_pieces + $variant->preorder_held_pieces,
                 'free_to_sell' => $variant->freeToSell(),
                 'price_centavos' => $variant->price_centavos ?? $product->price_centavos,
                 'sale_price_centavos' => $onSale ? ($variant->sale_price_centavos ?? $product->sale_price_centavos) : null,

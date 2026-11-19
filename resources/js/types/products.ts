@@ -70,6 +70,7 @@ export type ProductDetails = {
         /** Hidden from buyers (not sold yet), so never out of stock or low. */
         is_draft: boolean;
         stock_on_hand: number;
+        /** Pieces kept for paid preorders (orders do not hold stock). */
         held_pieces: number;
         free_to_sell: number;
         price_centavos: number | null;

@@ -47,6 +47,11 @@ export default function ProductDetailsDialog({
         product !== null &&
         (product.status === 'on_sale' ||
             (product.status === 'available' && product.stock_on_hand > 0));
+    // Only paid preorders hold pieces now; the column shows only when some are.
+    const showsHeld =
+        details !== null &&
+        details !== undefined &&
+        details.variants.some((variant) => variant.held_pieces > 0);
     const hasOptions =
         details !== null &&
         details !== undefined &&
@@ -247,9 +252,12 @@ export default function ProductDetailsDialog({
                                                     <Heading right>
                                                         In stock
                                                     </Heading>
-                                                    <Heading right>
-                                                        Held for orders
-                                                    </Heading>
+                                                    {showsHeld && (
+                                                        <Heading right>
+                                                            Held for paid
+                                                            preorders
+                                                        </Heading>
+                                                    )}
                                                     <Heading right>
                                                         Free to sell
                                                     </Heading>
@@ -316,11 +324,13 @@ export default function ProductDetailsDialog({
                                                                 )}{' '}
                                                                 pcs
                                                             </NumberCell>
-                                                            <NumberCell className="text-slate-500">
-                                                                {variant.held_pieces.toLocaleString(
-                                                                    'en-PH',
-                                                                )}
-                                                            </NumberCell>
+                                                            {showsHeld && (
+                                                                <NumberCell className="text-slate-500">
+                                                                    {variant.held_pieces.toLocaleString(
+                                                                        'en-PH',
+                                                                    )}
+                                                                </NumberCell>
+                                                            )}
                                                             <NumberCell
                                                                 className={cn(
                                                                     'font-black',
