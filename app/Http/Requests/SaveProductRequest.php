@@ -715,18 +715,21 @@ class SaveProductRequest extends FormRequest
         $variants = $this->input('variants', []);
         $packPieces = array_column($this->packs(), 'pieces', 'key');
         $codes = array_values(array_filter(array_map(fn (array $variant): ?string => ItemCode::normalize($variant['estore_item_code'] ?? null), $variants)));
-        $unitPrices = HeadOfficeCost::latestUnitPrices($codes);
+        // A code never ordered yet uses the product's own (the old shared) code.
+        $productCode = ItemCode::normalize($this->input('item_code'));
+        $unitPrices = HeadOfficeCost::latestUnitPrices(array_values(array_unique(array_filter([...$codes, $productCode]))));
         $productPrice = $this->boolean('sold_by_piece') ? $this->centavos('price') : null;
         $highestCost = null;
 
         foreach ($variants as $index => $variant) {
             $code = ItemCode::normalize($variant['estore_item_code'] ?? null);
+            $unitPrice = ($code === null ? null : $unitPrices[$code] ?? null) ?? ($productCode === null ? null : $unitPrices[$productCode] ?? null);
 
-            if ($code === null || ! isset($unitPrices[$code])) {
+            if ($unitPrice === null) {
                 continue;
             }
 
-            $cost = (int) round($unitPrices[$code] / max(1, $packPieces[(string) ($variant['estore_pack_key'] ?? '')] ?? 1));
+            $cost = (int) round($unitPrice / max(1, $packPieces[(string) ($variant['estore_pack_key'] ?? '')] ?? 1));
             $highestCost = max($highestCost ?? 0, $cost);
             $this->highestCostPerPiece = $highestCost;
             $ownPrice = ($variant['price'] ?? '') === '' ? null : self::toCentavos((string) $variant['price']);
@@ -823,15 +826,14 @@ class SaveProductRequest extends FormRequest
 
     /**
      * A code belongs to one product: its own Item Code (BP-01) and its
-     * variants' codes (BP-01-S-RED) cannot be another product's. Variants
-     * usually have their own codes; variants that share one (e.g. Head
-     * Office's one umbrella code for every color) must be sent the same way.
+     * variants' codes (BP-01-S-RED) cannot be another product's. Each
+     * variant has its own code, so a delivery goes only into that variant.
      */
     private function validateItemCodes(Validator $validator): void
     {
         $product = $this->route('product');
         $productId = $product instanceof Product ? $product->id : null;
-        $packKeyByCode = [];
+        $indexByCode = [];
 
         $ownCode = ItemCode::normalize($this->input('item_code'));
         $ownerOfOwnCode = $ownCode === null ? null : $this->otherProductWithCode($ownCode, $productId);
@@ -840,7 +842,7 @@ class SaveProductRequest extends FormRequest
             $validator->errors()->add('item_code', "The Item Code {$ownCode} already belongs to \"{$ownerOfOwnCode->name}\".");
         }
 
-        /** @var array<int, array{estore_item_code?: string|null, estore_pack_key?: string|null}> $variants */
+        /** @var array<int, array{combination?: string|null, estore_item_code?: string|null, estore_pack_key?: string|null}> $variants */
         $variants = $this->input('variants', []);
 
         foreach ($variants as $index => $variant) {
@@ -850,17 +852,15 @@ class SaveProductRequest extends FormRequest
                 continue;
             }
 
-            $packKey = (string) ($variant['estore_pack_key'] ?? '');
-
-            if (array_key_exists($code, $packKeyByCode)) {
-                if ($packKeyByCode[$code] !== $packKey) {
-                    $validator->errors()->add("variants.{$index}.estore_pack_key", "Variants that share {$code} must be sent the same way by Head Office.");
-                }
+            // One code is one option, so a delivery of it goes only there.
+            if (array_key_exists($code, $indexByCode)) {
+                $other = self::combinationLabel((string) ($variants[$indexByCode[$code]]['combination'] ?? ''));
+                $validator->errors()->add("variants.{$index}.estore_item_code", "Each option needs its own Item Code. {$code} is already on {$other}.");
 
                 continue;
             }
 
-            $packKeyByCode[$code] = $packKey;
+            $indexByCode[$code] = $index;
 
             $usedElsewhere = $this->otherProductWithCode($code, $productId);
 
@@ -868,6 +868,17 @@ class SaveProductRequest extends FormRequest
                 $validator->errors()->add("variants.{$index}.estore_item_code", "The Item Code {$code} already belongs to \"{$usedElsewhere->name}\".");
             }
         }
+    }
+
+    /**
+     * "Size: S | Color: Red" as "S / Red", as the form shows a variant.
+     */
+    private static function combinationLabel(string $combination): string
+    {
+        return implode(' / ', array_map(
+            fn (string $part): string => trim((string) preg_replace('/^[^:]*:\s*/', '', $part)),
+            explode(' | ', $combination),
+        ));
     }
 
     /**

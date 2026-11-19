@@ -132,23 +132,9 @@ function LinkItemForm({
         });
     };
 
-    const toggleVariant = (id: number) =>
-        setData(
-            'product_variant_ids',
-            data.product_variant_ids.includes(id)
-                ? data.product_variant_ids.filter((chosen) => chosen !== id)
-                : [...data.product_variant_ids, id],
-        );
+    // One code is one option: choosing an option replaces the one before.
+    const chooseVariant = (id: number) => setData('product_variant_ids', [id]);
 
-    const freeVariants =
-        product?.variants.filter(
-            (variant) => variant.estore_item_code === null,
-        ) ?? [];
-    const allFreeTicked =
-        freeVariants.length > 0 &&
-        freeVariants.every((variant) =>
-            data.product_variant_ids.includes(variant.id),
-        );
     const shared = data.product_variant_ids.length > 1;
 
     const chosenPack = product?.packs.find(
@@ -385,15 +371,22 @@ function LinkItemForm({
                                                     <button
                                                         type="button"
                                                         disabled={processing}
+                                                        // With several options, the Specialist picks the one it is.
                                                         onClick={() =>
-                                                            askBeforeLinkTo(
-                                                                result,
-                                                            )
+                                                            free === 1
+                                                                ? askBeforeLinkTo(
+                                                                      result,
+                                                                  )
+                                                                : chooseProduct(
+                                                                      result,
+                                                                  )
                                                         }
                                                         className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0D6EFD] px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
                                                     >
                                                         <Link2 size={14} />
-                                                        Link to this product
+                                                        {free === 1
+                                                            ? 'Link to this product'
+                                                            : 'Choose the option'}
                                                     </button>
                                                 ) : (
                                                     <span className="shrink-0 text-xs font-semibold text-slate-400">
@@ -416,31 +409,12 @@ function LinkItemForm({
                             <p className="text-sm font-black text-slate-700">
                                 2. Which variant is it?
                             </p>
-                            {freeVariants.length > 1 && (
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setData(
-                                            'product_variant_ids',
-                                            allFreeTicked
-                                                ? []
-                                                : freeVariants.map(
-                                                      (variant) => variant.id,
-                                                  ),
-                                        )
-                                    }
-                                    className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                                >
-                                    {allFreeTicked ? 'Untick all' : 'Tick all'}
-                                </button>
-                            )}
                         </div>
                         {product.variants.length > 1 && (
                             <p className="text-xs leading-5 text-slate-500">
-                                Tick one, or tick several if they all come under
-                                this one code (e.g. sizes S, M and L of one
-                                jacket). For several, you enter how many of each
-                                you received when it arrives.
+                                Choose the one option this item is. Each option
+                                has its own Item Code, so its deliveries go only
+                                into that option.
                             </p>
                         )}
                         <div className="grid gap-2 sm:grid-cols-2">
@@ -464,11 +438,12 @@ function LinkItemForm({
                                         )}
                                     >
                                         <input
-                                            type="checkbox"
+                                            type="radio"
+                                            name="link-variant"
                                             disabled={taken}
                                             checked={ticked}
                                             onChange={() =>
-                                                toggleVariant(variant.id)
+                                                chooseVariant(variant.id)
                                             }
                                             className="h-4 w-4 shrink-0 accent-[#0D6EFD]"
                                         />
@@ -485,13 +460,6 @@ function LinkItemForm({
                                 );
                             })}
                         </div>
-                        {shared && (
-                            <p className="rounded-xl bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
-                                {data.product_variant_ids.length} variants will
-                                share {item.item_code}. When it arrives, Record
-                                Delivery shows a box for each of them.
-                            </p>
-                        )}
                         <InputError message={errors.product_variant_ids} />
                     </section>
                 )}
@@ -649,7 +617,7 @@ function LinkItemForm({
                 {data.product_variant_ids.length === 0 && (
                     <p className="mr-auto text-xs font-semibold text-slate-500">
                         {product
-                            ? 'Tick at least one variant to link.'
+                            ? 'Choose the option to link.'
                             : 'Press Link to this product, or choose its variants yourself.'}
                     </p>
                 )}

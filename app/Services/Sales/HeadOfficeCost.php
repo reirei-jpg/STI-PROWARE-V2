@@ -12,6 +12,9 @@ use App\Models\PurchaseOrderItem;
  * it in. With several variants the highest cost is used, so a sale price
  * below it always loses money. Unknown when no variant is linked to an
  * eStore item.
+ *
+ * A variant whose own code was never ordered uses the product's own Item
+ * Code: the one code every size or color shared on the earlier orders.
  */
 final class HeadOfficeCost
 {
@@ -28,11 +31,12 @@ final class HeadOfficeCost
             return null;
         }
 
-        $latestPrices = self::latestUnitPrices(array_values(array_filter($linked->pluck('estore_item_code')->all(), 'is_string')));
+        $latestPrices = self::latestUnitPrices(array_values(array_filter([...$linked->pluck('estore_item_code')->all(), $product->item_code], 'is_string')));
 
         $costs = $linked
-            ->filter(fn (ProductVariant $variant): bool => isset($latestPrices[$variant->estore_item_code]))
-            ->map(fn (ProductVariant $variant): int => (int) round($latestPrices[$variant->estore_item_code] / ($variant->estorePack->pieces ?? 1)));
+            ->map(fn (ProductVariant $variant): ?int => $latestPrices[$variant->estore_item_code] ?? ($product->item_code === null ? null : $latestPrices[$product->item_code] ?? null))
+            ->filter(fn (?int $unitPrice): bool => $unitPrice !== null)
+            ->map(fn (int $unitPrice, int $key): int => (int) round($unitPrice / ($linked->get($key)?->estorePack->pieces ?? 1)));
 
         return $costs->isEmpty() ? null : (int) $costs->max();
     }

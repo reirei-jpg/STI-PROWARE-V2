@@ -34,7 +34,8 @@ final class SellingBelowCost
 
         $latestItems = PurchaseOrderItem::query()
             ->with('purchaseOrder')
-            ->whereIn('item_code', $variants->pluck('estore_item_code')->unique()->all())
+            // A code never ordered yet uses its product's own (the old shared) code.
+            ->whereIn('item_code', $variants->pluck('estore_item_code')->merge($variants->pluck('product.item_code'))->filter()->unique()->values()->all())
             ->orderByDesc('id')
             ->get()
             ->unique('item_code')
@@ -43,7 +44,7 @@ final class SellingBelowCost
         $furthestBelow = [];
 
         foreach ($variants as $variant) {
-            $item = $latestItems->get($variant->estore_item_code);
+            $item = $latestItems->get($variant->estore_item_code) ?? $latestItems->get((string) $variant->product->item_code);
             // Its sale price while On Sale, else its normal price.
             $price = $variant->salePiecePrice() ?? $variant->normalPiecePrice();
 

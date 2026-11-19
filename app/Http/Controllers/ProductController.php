@@ -246,7 +246,8 @@ class ProductController extends Controller
             ],
             'fromItem' => null,
             // What PROWARE paid per eStore unit, shown beside the Selling Price.
-            'costs' => HeadOfficeCost::latestUnitPrices(array_values(array_unique(array_filter($product->variants->pluck('estore_item_code')->all(), 'is_string')))),
+            // With the product's own code: what the sizes or colors cost on orders made before each had its own.
+            'costs' => HeadOfficeCost::latestUnitPrices(array_values(array_unique(array_filter([...$product->variants->pluck('estore_item_code')->all(), $product->item_code], 'is_string')))),
             'today' => now()->toDateString(),
             'usedProductCodes' => $this->usedProductCodes($product->id),
         ]);

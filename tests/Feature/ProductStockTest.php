@@ -449,7 +449,7 @@ test('the link pop-up starts from the eStore name: the same name first, and a na
         ->assertJsonPath('products.0.name', 'STI Mug');
 });
 
-test('a product made for preorders is linked to its new eStore code with one button, then the sizes that arrived go into stock and the students who preordered are notified', function () {
+test('a product made for preorders is linked to its new eStore code for one size, then what arrived goes into stock and the students who preordered are notified', function () {
     Notification::fake();
     $product = Product::factory()->create(['name' => 'STI Cap', 'status' => ProductStatus::Preorder]);
     $small = ProductVariant::factory()->for($product)->create(['combination' => 'Size: S', 'choices' => [['option' => 'Size', 'choice' => 'S']], 'stock_on_hand' => 0]);
@@ -459,20 +459,15 @@ test('a product made for preorders is linked to its new eStore code with one but
     $order = orderWith(['PRCP01-01' => 10]);
     $this->actingAs($this->specialist)->post(route('deliveries.store'), deliveryOf($order, 'PRCP01-01', 10))->assertSessionHasNoErrors();
 
-    // "Link to this product": every size without a code, by the piece.
+    // One code is one size: the code is for size S.
     $this->post(route('item-links.store'), [
         'item_code' => 'PRCP01-01',
-        'product_variant_ids' => [$small->id, $large->id],
+        'product_variant_ids' => [$small->id],
         'sent_by' => 'piece',
     ])->assertSessionHasNoErrors();
 
-    $this->post(route('item-links.split'), [
-        'item_code' => 'PRCP01-01',
-        'pieces' => [['product_variant_id' => $small->id, 'pieces' => 6], ['product_variant_id' => $large->id, 'pieces' => 4]],
-    ])->assertSessionHasNoErrors();
-
-    expect($small->refresh()->stock_on_hand)->toBe(6)
-        ->and($large->refresh()->stock_on_hand)->toBe(4)
+    expect($small->refresh()->stock_on_hand)->toBe(10)
+        ->and($large->refresh()->stock_on_hand)->toBe(0)
         ->and($product->refresh()->status)->toBe(ProductStatus::Available);
     Notification::assertSentTo($juan, PreorderReady::class);
 });

@@ -162,3 +162,13 @@ test('a Preorder variant becomes Available when its stock comes in; a Draft one 
     expect($navy->refresh()->status)->toBe(ProductStatus::Available)
         ->and($product->refresh()->status)->toBe(ProductStatus::Available);
 });
+
+test('an option whose own code was never ordered gets its cost from the product\'s old shared code', function () {
+    [$product] = savedBagongProduct(navyStock: 5);
+    $order = orderWith(['BP-01' => 10]);
+    $order->items()->update(['unit_price_centavos' => 16000]);
+
+    $this->actingAs($this->specialist)
+        ->put(route('products.update', $product), bagongProductForm(['navy' => 'available', 'red' => 'draft'], ['item_code' => 'BP-01']))
+        ->assertSessionHasErrors(['price' => 'The Selling Price (₱150.00) is below the Cost on the eStore order (₱160.00 per piece). Check the price from Head Office.']);
+});

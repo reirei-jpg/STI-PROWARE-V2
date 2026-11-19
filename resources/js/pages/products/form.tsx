@@ -422,9 +422,11 @@ export default function ProductForm({
     // The Cost per piece (what PROWARE paid on the eStore order for a
     // variant's code, per piece of the pack it comes in), shown beside the
     // Selling Price.
-    const unitPrice = combinations
-        .map((combination) => costs[codeOf(combination.key)])
-        .find((price) => price !== undefined);
+    // A code never ordered yet uses the product's own (the old shared) code.
+    const unitPrice =
+        combinations
+            .map((combination) => costs[codeOf(combination.key)])
+            .find((price) => price !== undefined) ?? costs[productCode];
     const costPerPiece =
         unitPrice === undefined
             ? null

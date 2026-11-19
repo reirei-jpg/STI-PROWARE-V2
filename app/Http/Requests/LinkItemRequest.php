@@ -12,9 +12,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * Link an eStore item from Items to Link: which variant it is, or which
- * variants share it (e.g. sizes S, M and L under one jacket code), and
- * whether Head Office sends it by the piece, by one of the product's packs,
+ * Link an eStore item from Items to Link: the one variant it is (each
+ * size or color has its own Item Code), and whether Head Office sends it by the piece, by one of the product's packs,
  * or by a new pack typed here.
  */
 class LinkItemRequest extends FormRequest
@@ -85,8 +84,9 @@ class LinkItemRequest extends FormRequest
                 $variants = $this->variants();
                 $variant = $variants->firstOrFail();
 
-                if ($variants->pluck('product_id')->unique()->count() > 1) {
-                    $validator->errors()->add('product_variant_ids', 'Choose variants of one product only.');
+                // One code is one option: its deliveries go only there.
+                if ($variants->count() > 1) {
+                    $validator->errors()->add('product_variant_ids', 'Choose one option only. Each option has its own Item Code.');
 
                     return;
                 }

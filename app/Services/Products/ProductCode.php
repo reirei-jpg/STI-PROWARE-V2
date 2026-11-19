@@ -50,4 +50,75 @@ final class ProductCode
 
         return sprintf('%s-%02d', $prefix, $highest + 1);
     }
+
+    /**
+     * Each variant's own code: the product's code and a short form of each
+     * of its choices, e.g. BP-01 with S, Grade 11 (Senior High), Navy Blue →
+     * BP-01-S-G11-NAVY. Two choices of one option that would get the same
+     * short form (Light Blue, Light Gray) use all their words instead. The
+     * same as the form's (resources/js/lib/item-codes.ts).
+     *
+     * @param  array<int, list<array{option: string, choice: string}>>  $variantChoices  by variant key
+     * @return array<int, string> by the same keys
+     */
+    public static function variantCodes(string $productCode, array $variantChoices): array
+    {
+        $choicesByOption = [];
+
+        foreach ($variantChoices as $choices) {
+            foreach ($choices as $choice) {
+                $choicesByOption[$choice['option']][$choice['choice']] = true;
+            }
+        }
+
+        $shorts = [];
+
+        foreach ($choicesByOption as $option => $choices) {
+            $first = [];
+
+            foreach (array_keys($choices) as $choice) {
+                $first[$choice] = self::shortChoice((string) $choice);
+            }
+
+            $counts = array_count_values($first);
+
+            foreach ($first as $choice => $short) {
+                $shorts[$option][$choice] = $counts[$short] > 1 ? implode('', self::words((string) $choice)) : $short;
+            }
+        }
+
+        return array_map(
+            fn (array $choices): string => implode('-', array_filter([
+                mb_strtoupper(trim($productCode)),
+                ...array_map(fn (array $choice): string => $shorts[$choice['option']][$choice['choice']] ?? '', $choices),
+            ], fn (string $part): bool => $part !== '')),
+            $variantChoices,
+        );
+    }
+
+    /**
+     * "Grade 11 (Senior High)" → G11, "Navy Blue" → NAVY, "500 ml" → 500ML.
+     */
+    private static function shortChoice(string $choice): string
+    {
+        if (preg_match('/grade\s*(\d+)/i', $choice, $grade)) {
+            return 'G'.$grade[1];
+        }
+
+        $words = self::words($choice);
+
+        if ($words === []) {
+            return '';
+        }
+
+        return preg_match('/^\d+$/', $words[0]) && isset($words[1]) ? $words[0].$words[1] : $words[0];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function words(string $text): array
+    {
+        return preg_split('/[^\p{L}\p{N}]+/u', mb_strtoupper($text), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    }
 }

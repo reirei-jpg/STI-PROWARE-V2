@@ -27,7 +27,7 @@ final class PriceList
      */
     public static function estoreRows(Collection $products): array
     {
-        $ordersByCode = self::orderedItems(array_values(array_unique(array_filter($products->flatMap(fn (Product $product) => $product->variants->pluck('estore_item_code'))->all(), 'is_string'))));
+        $ordersByCode = self::orderedItems(array_values(array_unique($products->flatMap(fn (Product $product): array => self::codesOf($product))->all())));
         $rows = [];
 
         foreach ($products as $product) {
@@ -54,8 +54,7 @@ final class PriceList
 
         $variant = self::linkedVariant($product);
         $piecesPerUnit = max(1, $variant->estorePack->pieces ?? 1);
-        $code = $variant?->estore_item_code;
-        $items = $code === null ? [] : (self::orderedItems([$code])[$code] ?? []);
+        $items = self::itemsOf($product, self::orderedItems(self::codesOf($product)));
         $prices = self::studentPrices($product);
         $orders = [];
 
@@ -75,7 +74,7 @@ final class PriceList
         return [
             'product_id' => $product->id,
             'product_name' => $product->name,
-            'item_code' => $variant?->estore_item_code,
+            'item_code' => $product->item_code ?? $variant?->estore_item_code,
             'unit_name' => $variant?->estorePack->name ?? 'Piece',
             'pieces_per_unit' => $piecesPerUnit,
             'price_from_centavos' => $prices->min(),
@@ -93,7 +92,7 @@ final class PriceList
     {
         $variant = self::linkedVariant($product);
         $piecesPerUnit = max(1, $variant->estorePack->pieces ?? 1);
-        $items = $variant?->estore_item_code === null ? [] : ($ordersByCode[$variant->estore_item_code] ?? []);
+        $items = self::itemsOf($product, $ordersByCode);
         $latest = $items[0] ?? null;
         $previous = $items[1] ?? null;
         $cost = $latest === null ? null : (int) round($latest->unit_price_centavos / $piecesPerUnit);
@@ -104,7 +103,7 @@ final class PriceList
         return [
             'product_id' => $product->id,
             'product_name' => $product->name,
-            'item_code' => $variant?->estore_item_code,
+            'item_code' => $product->item_code ?? $variant?->estore_item_code,
             'unit_name' => $variant?->estorePack->name ?? 'Piece',
             'pieces_per_unit' => $piecesPerUnit,
             'unit_price_centavos' => $latest?->unit_price_centavos,
@@ -124,7 +123,35 @@ final class PriceList
     }
 
     /**
-     * The variant linked to an eStore Item Code (a product has one code).
+     * Every code a product's eStore order lines can have: each variant's
+     * own, and the product's own (the one code its sizes or colors shared
+     * on earlier orders).
+     *
+     * @return list<string>
+     */
+    private static function codesOf(Product $product): array
+    {
+        return array_values(array_unique(array_filter([...$product->variants->pluck('estore_item_code')->all(), $product->item_code], 'is_string')));
+    }
+
+    /**
+     * The order lines of any of the product's codes, the latest uploaded
+     * first.
+     *
+     * @param  array<string, list<PurchaseOrderItem>>  $ordersByCode
+     * @return list<PurchaseOrderItem>
+     */
+    private static function itemsOf(Product $product, array $ordersByCode): array
+    {
+        $items = array_merge(...array_map(fn (string $code): array => $ordersByCode[$code] ?? [], self::codesOf($product)));
+        usort($items, fn (PurchaseOrderItem $a, PurchaseOrderItem $b): int => $b->id <=> $a->id);
+
+        return $items;
+    }
+
+    /**
+     * The first variant linked to an eStore Item Code: how Head Office
+     * sends the product (by the piece or a pack).
      */
     private static function linkedVariant(Product $product): ?ProductVariant
     {
