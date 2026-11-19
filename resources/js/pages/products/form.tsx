@@ -882,55 +882,141 @@ export default function ProductForm({
         .join(' · ');
 
     // Save Product can be pressed only when everything needed is filled in
-    // and nothing typed is wrong; these are what is still missing.
+    // and nothing typed is wrong; these are what is still missing, each with
+    // the message shown under its box.
     const missing = [
-        data.name.trim() === '' && 'Product name',
+        data.name.trim() === '' && {
+            key: 'name',
+            label: 'Product name',
+            message: 'Enter the product name.',
+            section: 'product-details',
+        },
         status !== 'draft' &&
-            data.photos.length === 0 &&
-            'Photos (only a Draft can be saved without one)',
+            data.photos.length === 0 && {
+                key: 'photos',
+                label: 'Photos',
+                message:
+                    'Add at least one photo. Only a Draft can be saved without a photo.',
+                section: 'product-photos',
+            },
         data.sold_by_piece &&
-            data.price.trim() === '' &&
-            'Selling Price per piece',
+            data.price.trim() === '' && {
+                key: 'price',
+                label: 'Selling Price per piece',
+                message:
+                    'Enter the Selling Price per piece (set by Head Office).',
+                section: 'product-packs',
+            },
         !data.sold_by_piece &&
-            !data.packs.some((pack) => pack.sold_to_students) &&
-            'How students buy it (by the piece or a pack)',
+            !data.packs.some((pack) => pack.sold_to_students) && {
+                key: 'sold_by_piece',
+                label: 'How students buy it',
+                message:
+                    'Choose how students buy it: by the piece, by a pack, or both.',
+                section: 'product-packs',
+            },
         data.packs.some(
             (pack) =>
                 pack.name.trim() === '' ||
                 pack.pieces.trim() === '' ||
                 (pack.sold_to_students && pack.price.trim() === ''),
-        ) && 'Pack name, pieces and price',
-        data.low_stock_alert_at.trim() === '' &&
-            'Notify me when stock falls to',
+        ) && {
+            key: 'packs',
+            label: 'Pack name, pieces and price',
+            message:
+                'Give every pack a name and its pieces, and a price when students can buy it.',
+            section: 'product-packs',
+        },
+        data.low_stock_alert_at.trim() === '' && {
+            key: 'low_stock_alert_at',
+            label: 'Notify me when stock falls to',
+            message: 'Enter the number of pieces to be warned at, e.g. 5.',
+            section: 'product-packs',
+        },
         data.options.some(
             (option) => option.choices.length > 0 && option.name.trim() === '',
-        ) && 'Option name',
+        ) && {
+            key: 'options',
+            label: 'Option name',
+            message: 'Give every option a name, e.g. Size or Color.',
+            section: 'product-options',
+        },
         withoutOptions !== null &&
             withoutOptions.stock_on_hand > 0 &&
             combinations[0]?.key !== '' &&
-            data.existing_stock_combination === '' &&
-            'Which variant the stock on hand is',
+            data.existing_stock_combination === '' && {
+                key: 'existing_stock_combination',
+                label: 'Which variant the stock on hand is',
+                message:
+                    'Choose which variant the pieces already in stock are.',
+                section: 'product-variants',
+            },
         status === 'preorder' &&
-            data.preorders_close_on === '' &&
-            'Preorders close on',
+            data.preorders_close_on === '' && {
+                key: 'preorders_close_on',
+                label: 'Preorders close on',
+                message: 'Choose the last day students can preorder.',
+                section: 'product-status',
+            },
         status === 'preorder' &&
             (data.expected_arrival_from === '' ||
-                data.expected_arrival_to === '') &&
-            'Expected arrival',
+                data.expected_arrival_to === '') && {
+                key: 'expected_arrival',
+                label: 'Expected arrival',
+                message:
+                    'Choose the first and last day it is expected to arrive.',
+                section: 'product-status',
+            },
         status === 'preorder' &&
             (data.early_bird_price.trim() === '') !==
-                (data.early_bird_pieces.trim() === '') &&
-            'Early-bird price and pieces (both or neither)',
+                (data.early_bird_pieces.trim() === '') && {
+                key: 'early_bird',
+                label: 'Early-bird price and pieces',
+                message:
+                    'Enter both the early-bird price and its pieces, or leave both empty.',
+                section: 'product-status',
+            },
         (closeDateInPast ||
             arrivalProblem !== undefined ||
-            arrivalEndProblem !== undefined) &&
-            'Preorder dates (see the message in red)',
-    ].filter((item): item is string => typeof item === 'string');
+            arrivalEndProblem !== undefined) && {
+            key: 'preorder_dates',
+            label: 'Preorder dates',
+            message: 'Correct the preorder dates shown in red.',
+            section: 'product-status',
+        },
+    ].filter(
+        (
+            item,
+        ): item is {
+            key: string;
+            label: string;
+            message: string;
+            section: Section;
+        } => typeof item === 'object' && item !== null,
+    );
 
+    // A required box shows its message once it was left empty, or for every
+    // box once the Specialist reaches for the greyed-out Save Product.
+    const [touched, setTouched] = useState<string[]>([]);
+    const [showAllMissing, setShowAllMissing] = useState(false);
+    const touch = (key: string) =>
+        setTouched((current) =>
+            current.includes(key) ? current : [...current, key],
+        );
+    const requiredMessage = (key: string): string | undefined =>
+        showAllMissing || touched.includes(key)
+            ? missing.find((item) => item.key === key)?.message
+            : undefined;
     // Save Product first asks "Save this product?".
     const [confirming, setConfirming] = useState(false);
     const askToSave = () => {
-        if (missing.length === 0 && !processing) {
+        if (missing.length > 0) {
+            setShowAllMissing(true);
+
+            return;
+        }
+
+        if (!processing) {
             setConfirming(true);
         }
     };
@@ -1009,7 +1095,12 @@ export default function ProductForm({
                 <Panel
                     id="product-photos"
                     className="scroll-mt-24"
-                    title="Photos"
+                    title={
+                        <>
+                            Photos
+                            {status !== 'draft' && <RequiredMark />}
+                        </>
+                    }
                     description={`Up to ${MAX_PHOTOS} photos, e.g. the front, back and side of a shirt. The first photo is the main one shown on the storefront. JPG, PNG or WEBP, up to 10 MB each.`}
                 >
                     <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -1136,7 +1227,11 @@ export default function ProductForm({
                     </datalist>
                     <div className="px-6 pb-6">
                         <InputError
-                            message={errors.photos ?? firstPhotoError}
+                            message={
+                                errors.photos ??
+                                firstPhotoError ??
+                                requiredMessage('photos')
+                            }
                         />
                     </div>
                 </Panel>
@@ -1147,15 +1242,22 @@ export default function ProductForm({
                     title="Details"
                 >
                     <div className="grid gap-5 p-6 md:grid-cols-2">
-                        <Field label="Product name" error={errors.name}>
+                        <Field
+                            label="Product name"
+                            required
+                            error={errors.name ?? requiredMessage('name')}
+                        >
                             <input
                                 value={data.name}
                                 onChange={(event) =>
                                     setData('name', event.target.value)
                                 }
+                                onBlur={() => touch('name')}
                                 maxLength={120}
                                 placeholder="e.g. 42nd Anniversary Shirt"
-                                aria-invalid={Boolean(errors.name)}
+                                aria-invalid={Boolean(
+                                    errors.name ?? requiredMessage('name'),
+                                )}
                                 className={inputClasses}
                             />
                             {data.name.trim() !== '' &&
@@ -1235,6 +1337,7 @@ export default function ProductForm({
                                     </TableHeading>
                                     <TableHeading>
                                         Selling Price (set by Head Office)
+                                        {data.sold_by_piece && <RequiredMark />}
                                     </TableHeading>
                                     <TableHeading align="right">
                                         <span className="sr-only">Actions</span>
@@ -1277,7 +1380,11 @@ export default function ProductForm({
                                                     : 'Not sold by the piece'
                                             }
                                             disabled={!data.sold_by_piece}
-                                            invalid={Boolean(errors.price)}
+                                            onBlur={() => touch('price')}
+                                            invalid={Boolean(
+                                                errors.price ??
+                                                requiredMessage('price'),
+                                            )}
                                             label={
                                                 hasVariants
                                                     ? 'Default Selling Price per piece'
@@ -1306,7 +1413,10 @@ export default function ProductForm({
                                         )}
                                         <InputError
                                             className="mt-1"
-                                            message={errors.price}
+                                            message={
+                                                errors.price ??
+                                                requiredMessage('price')
+                                            }
                                         />
                                     </td>
                                     <td className="px-5 py-4" />
@@ -1508,15 +1618,24 @@ export default function ProductForm({
                             Add a pack
                         </button>
                         <InputError
-                            message={errors.sold_by_piece ?? errors.packs}
+                            message={
+                                errors.sold_by_piece ??
+                                errors.packs ??
+                                requiredMessage('sold_by_piece') ??
+                                requiredMessage('packs')
+                            }
                         />
                     </div>
                     <div className="border-t border-slate-100 bg-amber-50/40 px-6 py-5">
                         <label className="grid gap-1.5">
                             <span className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
-                                Notify me when stock falls to
+                                <span>
+                                    Notify me when stock falls to
+                                    <RequiredMark />
+                                </span>
                                 <input
                                     value={data.low_stock_alert_at}
+                                    onBlur={() => touch('low_stock_alert_at')}
                                     onChange={(event) =>
                                         setData(
                                             'low_stock_alert_at',
@@ -1526,7 +1645,8 @@ export default function ProductForm({
                                     inputMode="numeric"
                                     placeholder="5"
                                     aria-invalid={Boolean(
-                                        errors.low_stock_alert_at,
+                                        errors.low_stock_alert_at ??
+                                        requiredMessage('low_stock_alert_at'),
                                     )}
                                     className={cn(
                                         inputClasses,
@@ -1544,7 +1664,12 @@ export default function ProductForm({
                                 out. Only Available and On Sale products are
                                 watched.
                             </span>
-                            <InputError message={errors.low_stock_alert_at} />
+                            <InputError
+                                message={
+                                    errors.low_stock_alert_at ??
+                                    requiredMessage('low_stock_alert_at')
+                                }
+                            />
                         </label>
                     </div>
                 </Panel>
@@ -1669,7 +1794,11 @@ export default function ProductForm({
                             />
                         )}
 
-                        <InputError message={errors.options} />
+                        <InputError
+                            message={
+                                errors.options ?? requiredMessage('options')
+                            }
+                        />
                     </div>
                     <datalist id="option-names">
                         <option value="Size" />
@@ -1781,7 +1910,10 @@ export default function ProductForm({
                                     </p>
                                     <InputError
                                         message={
-                                            errors.existing_stock_combination
+                                            errors.existing_stock_combination ??
+                                            requiredMessage(
+                                                'existing_stock_combination',
+                                            )
                                         }
                                     />
                                 </div>
@@ -2087,11 +2219,15 @@ export default function ProductForm({
                             <div className="max-w-md space-y-4">
                                 <Field
                                     label="Preorders close on"
+                                    required
                                     hint="The last day students can preorder. You can move it later on the Preorders page to collect more."
                                     error={
                                         closeDateInPast
                                             ? 'The close date cannot be in the past.'
-                                            : errors.preorders_close_on
+                                            : (errors.preorders_close_on ??
+                                              requiredMessage(
+                                                  'preorders_close_on',
+                                              ))
                                     }
                                 >
                                     <input
@@ -2101,21 +2237,31 @@ export default function ProductForm({
                                         onChange={(event) =>
                                             changeCloseDate(event.target.value)
                                         }
+                                        onBlur={() =>
+                                            touch('preorders_close_on')
+                                        }
                                         aria-invalid={
                                             closeDateInPast ||
-                                            Boolean(errors.preorders_close_on)
+                                            Boolean(
+                                                errors.preorders_close_on ??
+                                                requiredMessage(
+                                                    'preorders_close_on',
+                                                ),
+                                            )
                                         }
                                         className={inputClasses}
                                     />
                                 </Field>
                                 <Field
                                     label="Expected arrival"
+                                    required
                                     hint="Filled in as 2 to 3 weeks after the close date. Change it when Head Office says otherwise; students who preordered are notified."
                                     error={
                                         arrivalProblem ??
                                         arrivalEndProblem ??
                                         errors.expected_arrival_from ??
-                                        errors.expected_arrival_to
+                                        errors.expected_arrival_to ??
+                                        requiredMessage('expected_arrival')
                                     }
                                 >
                                     <div className="flex items-center gap-2">
@@ -2132,6 +2278,9 @@ export default function ProductForm({
                                                     event.target.value,
                                                 );
                                             }}
+                                            onBlur={() =>
+                                                touch('expected_arrival')
+                                            }
                                             aria-label="Expected arrival, first day"
                                             aria-invalid={
                                                 Boolean(arrivalProblem) ||
@@ -2158,6 +2307,9 @@ export default function ProductForm({
                                                     event.target.value,
                                                 );
                                             }}
+                                            onBlur={() =>
+                                                touch('expected_arrival')
+                                            }
                                             aria-label="Expected arrival, last day"
                                             aria-invalid={
                                                 Boolean(arrivalEndProblem) ||
@@ -2174,7 +2326,8 @@ export default function ProductForm({
                                     hint="A lower price per piece for the first pieces preordered, first come, first served. Leave both empty for no early-bird price."
                                     error={
                                         errors.early_bird_price ??
-                                        errors.early_bird_pieces
+                                        errors.early_bird_pieces ??
+                                        requiredMessage('early_bird')
                                     }
                                 >
                                     <div className="flex flex-wrap items-center gap-2">
@@ -2268,6 +2421,45 @@ export default function ProductForm({
                     {summary}
                 </p>
 
+                {missing.length > 0 && (
+                    <section
+                        className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900"
+                        data-test="save-product-missing"
+                    >
+                        <p className="font-black">
+                            Save Product works once{' '}
+                            {missing.length === 1
+                                ? 'this is filled in:'
+                                : `these ${missing.length} are filled in:`}
+                        </p>
+                        <ul className="mt-3 space-y-2">
+                            {missing.map((item) => (
+                                <li
+                                    key={item.key}
+                                    className="flex flex-col gap-2 rounded-2xl border border-amber-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <span>
+                                        <span className="font-black">
+                                            {item.label}:
+                                        </span>{' '}
+                                        {item.message}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowAllMissing(true);
+                                            jumpTo(item.section);
+                                        }}
+                                        className="shrink-0 self-start rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-sm font-black text-amber-800 transition hover:bg-amber-50 sm:self-auto"
+                                    >
+                                        Go to field
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <Link
                         href={ProductController.index()}
@@ -2275,38 +2467,39 @@ export default function ProductForm({
                     >
                         Cancel
                     </Link>
-                    <button
-                        type="submit"
-                        disabled={processing || missing.length > 0}
-                        title={
-                            missing.length > 0
-                                ? `Fill in first: ${missing.join(', ')}`
-                                : undefined
-                        }
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        data-test="save-product-button"
-                    >
-                        {processing ? (
-                            <LoaderCircle size={18} className="animate-spin" />
-                        ) : (
-                            <Save size={18} />
+                    {/* Reaching for the greyed-out button shows every
+                        message under the boxes still to fill in. */}
+                    <span
+                        className={cn(
+                            'inline-flex',
+                            missing.length > 0 && 'cursor-not-allowed',
                         )}
-                        {processing ? 'Saving...' : 'Save Product'}
-                    </button>
-                </div>
-                {missing.length > 0 && (
-                    <p
-                        className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900"
-                        data-test="save-product-missing"
+                        onMouseEnter={() =>
+                            missing.length > 0 && setShowAllMissing(true)
+                        }
+                        onClick={() =>
+                            missing.length > 0 && setShowAllMissing(true)
+                        }
                     >
-                        <span className="font-black">
-                            Save Product works once these are filled in:
-                        </span>{' '}
-                        {missing.join(', ')}.
-                    </p>
-                )}
+                        <button
+                            type="submit"
+                            disabled={processing || missing.length > 0}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-60"
+                            data-test="save-product-button"
+                        >
+                            {processing ? (
+                                <LoaderCircle
+                                    size={18}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <Save size={18} />
+                            )}
+                            {processing ? 'Saving...' : 'Save Product'}
+                        </button>
+                    </span>
+                </div>
             </form>
-
             <ConfirmDialog
                 open={confirming}
                 title="Save this product?"
@@ -2337,20 +2530,38 @@ export default function ProductForm({
     );
 }
 
+/** The red star of a box that must be filled in. */
+function RequiredMark() {
+    return (
+        <>
+            <span aria-hidden="true" className="ml-0.5 text-red-600">
+                *
+            </span>
+            <span className="sr-only"> (required)</span>
+        </>
+    );
+}
+
 function Field({
     label,
     hint,
     error,
+    required = false,
     children,
 }: {
     label: string;
     hint?: string;
     error?: string;
+    /** Shows a red star: the box must be filled in. */
+    required?: boolean;
     children: ReactNode;
 }) {
     return (
         <label className="grid gap-1.5">
-            <span className="text-sm font-black text-slate-700">{label}</span>
+            <span className="text-sm font-black text-slate-700">
+                {label}
+                {required && <RequiredMark />}
+            </span>
             {children}
             {hint && <span className="text-xs text-slate-500">{hint}</span>}
             <InputError message={error} />
@@ -2389,6 +2600,7 @@ function CostLine({
 function PesoInput({
     value,
     onChange,
+    onBlur,
     placeholder,
     label,
     disabled,
@@ -2396,6 +2608,7 @@ function PesoInput({
 }: {
     value: string;
     onChange: (value: string) => void;
+    onBlur?: () => void;
     placeholder?: string;
     label?: string;
     disabled?: boolean;
@@ -2411,6 +2624,7 @@ function PesoInput({
                 value={disabled ? '' : value}
                 // Up to ₱100,000.00; endless numbers cannot be typed.
                 onChange={(event) => onChange(priceInput(event.target.value))}
+                onBlur={onBlur}
                 inputMode="decimal"
                 placeholder={placeholder}
                 aria-label={label}

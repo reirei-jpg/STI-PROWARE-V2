@@ -13,7 +13,7 @@ export default function Panel({
     children,
 }: {
     id?: string;
-    title?: string;
+    title?: ReactNode;
     description?: ReactNode;
     actions?: ReactNode;
     className?: string;
