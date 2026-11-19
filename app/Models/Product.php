@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
+use Carbon\CarbonInterface;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -222,8 +223,19 @@ class Product extends Model
     #[Scope]
     protected function slowMoving(Builder $query, int $days): void
     {
-        $since = now()->subDays($days);
+        $this->slowMovingSince($query, now()->subDays($days));
+    }
 
+    /**
+     * Available products with stock that arrived before $since and sold
+     * nothing since then (the Products list's 1 week, 1 month, 1 year or a
+     * day picked on the calendar).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function slowMovingSince(Builder $query, CarbonInterface $since): void
+    {
         $query->where('status', ProductStatus::Available)
             ->whereHas('variants', fn (Builder $variants) => $variants->where('stock_on_hand', '>', 0))
             ->whereHas('variants.stockMovements', fn (Builder $movements) => $movements->where('created_at', '<=', $since))

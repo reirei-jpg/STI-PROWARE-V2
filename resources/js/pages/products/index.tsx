@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    CalendarDays,
     Eye,
     Hourglass,
     PackageX,
@@ -21,7 +22,6 @@ import ProductDetailsDialog from '@/components/product-details-dialog';
 import ProductStatusBadge from '@/components/product-status-badge';
 import { isOutOfStock } from '@/lib/product-stock';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
-import { wholeNumberInput } from '@/lib/number-input';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { isSameSearch } from '@/lib/utils';
 import type {
@@ -59,8 +59,17 @@ function filterQuery(filters: ProductFilters): Record<string, string> {
         query.stock = filters.stock;
     }
 
-    if (filters.stock === 'slow' && filters.slow_days !== 18) {
-        query.slow_days = String(filters.slow_days);
+    // Slow-moving starts at 1 month; another choice is kept in the address.
+    if (filters.stock === 'slow' && filters.slow && filters.slow !== 'month') {
+        if (filters.slow === 'days') {
+            query.slow_days = String(filters.slow_days);
+        } else {
+            query.slow = filters.slow;
+        }
+
+        if (filters.slow === 'date' && filters.slow_since) {
+            query.slow_since = filters.slow_since;
+        }
     }
 
     return query;
@@ -86,7 +95,7 @@ export default function ProductsIndex({
     details?: ProductDetails | null;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
-    const [slowDays, setSlowDays] = useState(String(filters.slow_days));
+
     // The Draft list shows only the Draft part of a product whose other
     // sizes or colors are in the store.
     const showsDraftPart = (product: ProductListItem): boolean =>
@@ -205,7 +214,9 @@ export default function ProductsIndex({
                                     All Products
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Most recently changed first.
+                                    {filters.stock === 'slow'
+                                        ? 'The longest without a sale first.'
+                                        : 'Most recently changed first.'}
                                 </p>
                             </div>
                             <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-xs">
@@ -228,14 +239,18 @@ export default function ProductsIndex({
                                 <button
                                     key={chip.label}
                                     type="button"
+                                    // One button at a time: a status turns off
+                                    // Low stock, Out of stock and Slow-moving.
                                     onClick={() =>
                                         showList({
                                             ...filters,
                                             status: chip.value,
+                                            stock: null,
                                         })
                                     }
                                     className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                                        filters.status === chip.value
+                                        filters.status === chip.value &&
+                                        filters.stock === null
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
@@ -249,6 +264,7 @@ export default function ProductsIndex({
                                 onClick={() =>
                                     showList({
                                         ...filters,
+                                        status: null,
                                         stock:
                                             filters.stock === 'low'
                                                 ? null
@@ -279,6 +295,7 @@ export default function ProductsIndex({
                                 onClick={() =>
                                     showList({
                                         ...filters,
+                                        status: null,
                                         stock:
                                             filters.stock === 'out'
                                                 ? null
@@ -309,6 +326,7 @@ export default function ProductsIndex({
                                 onClick={() =>
                                     showList({
                                         ...filters,
+                                        status: null,
                                         stock:
                                             filters.stock === 'slow'
                                                 ? null
@@ -336,58 +354,79 @@ export default function ProductsIndex({
                             </button>
                         </div>
                         {filters.stock === 'slow' && (
-                            <section className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm text-red-900 md:flex-row md:items-center md:justify-between">
+                            <section className="space-y-3 rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm text-red-900">
                                 <p className="leading-6">
-                                    <b>Slow-moving:</b> Available products in
-                                    stock that first arrived at least this many
-                                    days ago and sold nothing since. Put them on
-                                    sale to clear them. Until students can buy
-                                    through PROWARE, nothing has sales yet, so
-                                    this lists items in stock that long.
+                                    <b>Slow-moving:</b> products in the store
+                                    with stock that sold nothing in the time you
+                                    choose, the longest without a sale first. A
+                                    product never sold counts from the day its
+                                    stock arrived. Put them on sale to clear
+                                    them.
                                 </p>
-                                <form
-                                    className="flex shrink-0 items-center gap-2"
-                                    onSubmit={(event) => {
-                                        event.preventDefault();
-                                        const days = Number(slowDays);
-
-                                        if (
-                                            Number.isInteger(days) &&
-                                            days >= 1 &&
-                                            days <= 365
-                                        ) {
-                                            showList({
-                                                ...filters,
-                                                slow_days: days,
-                                            });
-                                        }
-                                    }}
-                                >
+                                <div className="flex flex-wrap items-center gap-2">
                                     <span className="font-bold">
-                                        No sales for
+                                        No sale in:
                                     </span>
-                                    <input
-                                        value={slowDays}
-                                        onChange={(event) =>
-                                            setSlowDays(
-                                                wholeNumberInput(
-                                                    event.target.value,
-                                                    365,
-                                                ),
-                                            )
-                                        }
-                                        inputMode="numeric"
-                                        className="h-9 w-16 rounded-lg border border-red-200 bg-white px-2 text-right text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-red-100"
-                                        aria-label="Days without sales"
-                                    />
-                                    <span className="font-bold">days</span>
-                                    <button
-                                        type="submit"
-                                        className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white hover:bg-red-700"
+                                    {(
+                                        [
+                                            ['week', '1 week'],
+                                            ['month', '1 month'],
+                                            ['year', '1 year'],
+                                        ] as const
+                                    ).map(([value, label]) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() =>
+                                                showList({
+                                                    ...filters,
+                                                    slow: value,
+                                                    slow_since: null,
+                                                })
+                                            }
+                                            aria-pressed={
+                                                (filters.slow ?? 'month') ===
+                                                value
+                                            }
+                                            className={`rounded-lg px-3 py-2 text-xs font-black transition ${
+                                                (filters.slow ?? 'month') ===
+                                                value
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'border border-red-200 bg-white text-red-700 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                    <label
+                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-black ${
+                                            filters.slow === 'date'
+                                                ? 'bg-red-600 text-white'
+                                                : 'border border-red-200 bg-white text-red-700'
+                                        }`}
                                     >
-                                        Show
-                                    </button>
-                                </form>
+                                        <CalendarDays size={14} />
+                                        Since
+                                        <input
+                                            type="date"
+                                            value={filters.slow_since ?? ''}
+                                            max={new Date().toLocaleDateString(
+                                                'en-CA',
+                                            )}
+                                            onChange={(event) =>
+                                                event.target.value !== '' &&
+                                                showList({
+                                                    ...filters,
+                                                    slow: 'date',
+                                                    slow_since:
+                                                        event.target.value,
+                                                })
+                                            }
+                                            aria-label="No sale since this day"
+                                            className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none"
+                                        />
+                                    </label>
+                                </div>{' '}
                             </section>
                         )}
                     </div>
@@ -417,6 +456,8 @@ export default function ProductsIndex({
                                             status: null,
                                             stock: null,
                                             slow_days: filters.slow_days,
+                                            slow: 'month',
+                                            slow_since: null,
                                         });
                                     }}
                                     className={`mt-6 ${primaryButtonClasses}`}
@@ -483,6 +524,20 @@ export default function ProductsIndex({
                                                     {filters.stock ===
                                                         'slow' && (
                                                         <p className="mt-0.5 text-xs text-slate-500">
+                                                            {product.days_without_sale !==
+                                                                null && (
+                                                                <b className="text-red-700">
+                                                                    {product.days_without_sale.toLocaleString(
+                                                                        'en-PH',
+                                                                    )}{' '}
+                                                                    {product.days_without_sale ===
+                                                                    1
+                                                                        ? 'day'
+                                                                        : 'days'}{' '}
+                                                                    without a
+                                                                    sale ·{' '}
+                                                                </b>
+                                                            )}
                                                             In stock since{' '}
                                                             {formatDateOrdered(
                                                                 product.first_received_at,

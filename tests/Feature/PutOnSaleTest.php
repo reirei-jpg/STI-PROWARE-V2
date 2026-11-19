@@ -261,23 +261,33 @@ test('the storefront lists the soonest-ending sale first and says when it ends',
         );
 });
 
-test('slow-moving lists available products in stock that sold nothing for the chosen days', function () {
-    saleProduct(['name' => 'Old Lanyard'], daysAgo: 20, itemCode: null);
-    saleProduct(['name' => 'New Lanyard'], daysAgo: 5, itemCode: null);
-    saleProduct(['name' => 'Empty Lanyard'], stock: 0, daysAgo: 30, itemCode: null);
-    saleProduct(['name' => 'Draft Lanyard', 'status' => ProductStatus::Draft], daysAgo: 30, itemCode: null);
-    $corrected = saleProduct(['name' => 'Corrected Lanyard'], daysAgo: 30, itemCode: null);
+test('slow-moving lists available products in stock that sold nothing in the chosen time, the longest first', function () {
+    saleProduct(['name' => 'Old Lanyard'], daysAgo: 40, itemCode: null);
+    saleProduct(['name' => 'New Lanyard'], daysAgo: 10, itemCode: null);
+    saleProduct(['name' => 'Empty Lanyard'], stock: 0, daysAgo: 60, itemCode: null);
+    saleProduct(['name' => 'Draft Lanyard', 'status' => ProductStatus::Draft], daysAgo: 60, itemCode: null);
+    $corrected = saleProduct(['name' => 'Corrected Lanyard'], daysAgo: 50, itemCode: null);
     StockMovement::factory()->for($corrected->variants()->sole(), 'variant')->create(['type' => StockMovementType::Correction, 'quantity' => -2]);
 
+    // It starts at 1 month.
     $this->actingAs($this->specialist)
         ->get(route('products.index', ['stock' => 'slow']))
         ->assertInertia(fn (Assert $page) => $page
             ->where('slowMovingCount', 2)
-            ->where('filters.slow_days', 18)
-            ->where('products.data', fn ($rows) => collect($rows)->pluck('name')->sort()->values()->all() === ['Corrected Lanyard', 'Old Lanyard'])
-            ->where('products.data.0.last_sale_at', null)
+            ->where('filters.slow', 'month')
+            ->where('products.data.0.name', 'Corrected Lanyard')
+            ->where('products.data.0.days_without_sale', 50)
+            ->where('products.data.1.name', 'Old Lanyard')
+            ->where('products.data.1.last_sale_at', null)
         );
 
+    $this->get(route('products.index', ['stock' => 'slow', 'slow' => 'week']))
+        ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 3)->has('products.data', 3));
+    $this->get(route('products.index', ['stock' => 'slow', 'slow' => 'date', 'slow_since' => now()->subDays(45)->toDateString()]))
+        ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 1)->where('products.data.0.name', 'Corrected Lanyard'));
+    $this->get(route('products.index', ['stock' => 'slow', 'slow' => 'year']))
+        ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 0));
+    // A link from the Dashboard with a number of days still works.
     $this->get(route('products.index', ['stock' => 'slow', 'slow_days' => 3]))
         ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 3));
 });

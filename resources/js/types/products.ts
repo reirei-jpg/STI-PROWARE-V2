@@ -44,6 +44,8 @@ export type ProductListItem = {
     variant_statuses: Record<VariantStatus | 'out_of_stock', number>;
     /** Pieces of its Draft sizes or colors (shown in the Draft list). */
     draft_stock_on_hand: number;
+    /** Days since its last sale, or since it arrived when never sold; null before any stock. */
+    days_without_sale: number | null;
     /** In the Low stock or Out of stock list: those sizes or colors (label null without options). */
     stock_sizes: { label: string | null; free_to_sell: number }[] | null;
     updated_at: string | null;
@@ -84,8 +86,12 @@ export type ProductFilters = {
     search: string | null;
     status: ProductStatus | null;
     stock: 'low' | 'out' | 'slow' | null;
-    /** Slow-moving means no sales for this many days. */
+    /** Slow-moving means no sales for this many days (a link from the Dashboard). */
     slow_days: number;
+    /** No sale in the last week, month or year, or since a day picked on the calendar. */
+    slow?: 'week' | 'month' | 'year' | 'date' | 'days';
+    /** The day picked on the calendar ("YYYY-MM-DD"). */
+    slow_since?: string | null;
 };
 
 /** What the Put on Sale pop-up loads. */
