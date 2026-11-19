@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DraftRestoredNotice from '@/components/DraftRestoredNotice';
+import RequiredLabel, { RequiredNote } from '@/components/RequiredLabel';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatConversion, formatUnits, unitWord } from '@/lib/format';
@@ -317,6 +318,7 @@ export default function RecordDeliveryScreen() {
                     </View>
                 ) : (
                     <>
+                        <RequiredNote saveLabel="Stock In" />
                         <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
                             <View className="flex-row gap-2">
                                 <View className="flex-1 gap-1">
@@ -384,6 +386,11 @@ export default function RecordDeliveryScreen() {
                     className="gap-2 border-t border-slate-200 bg-white px-4 pt-3"
                 >
                     {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
+                    {receiving.length === 0 && (
+                        <Text className="font-sans-bold text-xs text-amber-800">
+                            Stock In works once you type how many arrived for at least one item.
+                        </Text>
+                    )}
                     {/* What saving adds shows only once the numbers can be saved. */}
                     {receiving.length > 0 && problems.length === 0 && (
                         <Text className="font-sans text-xs text-slate-600">
@@ -505,7 +512,7 @@ function GroupCard({
                 </View>
             ) : (
                 <View className="gap-1">
-                    <Text className="font-sans-bold text-sm text-slate-700">How many arrived</Text>
+                    <RequiredLabel>How many arrived</RequiredLabel>
                     <View className="flex-row items-center gap-3">
                         <TextInput
                             value={total}

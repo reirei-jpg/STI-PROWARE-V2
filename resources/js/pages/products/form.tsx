@@ -18,6 +18,7 @@ import ProductController from '@/actions/App/Http/Controllers/ProductController'
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import DraftRestoredNotice from '@/components/draft-restored-notice';
+import RequiredLabel, { RequiredNote } from '@/components/required-label';
 import EndSaleButton from '@/components/end-sale-button';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
@@ -1061,14 +1062,7 @@ export default function ProductForm({
                     }
                 />
 
-                <p className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-700 shadow-sm">
-                    Fields marked{' '}
-                    <span className="font-black text-red-600">*</span>{' '}
-                    <span className="text-xs font-bold text-red-600">
-                        required
-                    </span>{' '}
-                    must be filled in before Save Product can be clicked.
-                </p>
+                <RequiredNote saveLabel="Save Product" />
 
                 {unsaved.prompt}
                 {draft.restored && (
@@ -2539,34 +2533,6 @@ export default function ProductForm({
                 onClose={() => setConfirming(false)}
             />
         </>
-    );
-}
-
-/**
- * The name of a box that must be filled in, as "*Product name required":
- * a red star before it and "required" after it, both in red.
- */
-function RequiredLabel({
-    required = true,
-    children,
-}: {
-    required?: boolean;
-    children: ReactNode;
-}) {
-    if (!required) {
-        return <span>{children}</span>;
-    }
-
-    return (
-        <span>
-            <span aria-hidden="true" className="mr-0.5 text-red-600">
-                *
-            </span>
-            {children}
-            <span className="ml-1.5 text-xs font-bold text-red-600 normal-case">
-                required
-            </span>
-        </span>
     );
 }
 

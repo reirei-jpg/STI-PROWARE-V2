@@ -14,6 +14,7 @@ import PurchaseOrderDeliveryController from '@/actions/App/Http/Controllers/Purc
 import ConfirmDialog from '@/components/confirm-dialog';
 import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
+import RequiredLabel, { RequiredNote } from '@/components/required-label';
 import {
     Quantity,
     SplitCounts,
@@ -253,6 +254,9 @@ function DeliveryForm({
                         />
                     </div>
                 )}
+                <div className="px-6 pt-4">
+                    <RequiredNote saveLabel="Save delivery" />
+                </div>
                 <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 sm:grid-cols-3">
                     <Field
                         label="SI # (optional)"
@@ -309,7 +313,11 @@ function DeliveryForm({
                                     <Heading right>Ordered</Heading>
                                     <Heading right>Received so far</Heading>
                                     <Heading right>Left</Heading>
-                                    <Heading right>Received now</Heading>
+                                    <Heading right>
+                                        <RequiredLabel>
+                                            Received now
+                                        </RequiredLabel>
+                                    </Heading>
                                 </tr>
                             </thead>
                             {groups.map((group) => {
@@ -496,8 +504,9 @@ function DeliveryForm({
                 <div className="min-w-0 space-y-1 text-sm">
                     {/* What saving adds shows only once the numbers can be saved. */}
                     {totalReceived === 0 ? (
-                        <p className="text-slate-500">
-                            Type how many arrived in Received now.
+                        <p className="font-bold text-amber-800">
+                            Save delivery works once you type how many arrived
+                            in Received now for at least one item.
                         </p>
                     ) : hasProblems ? null : (
                         <>
