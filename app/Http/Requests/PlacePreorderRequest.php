@@ -32,7 +32,8 @@ class PlacePreorderRequest extends FormRequest
      */
     public function rules(): array
     {
-        $variantExists = Rule::exists('product_variants', 'id')->where('product_id', $this->product()->id);
+        // A Draft size or color is not sold yet.
+        $variantExists = Rule::exists('product_variants', 'id')->where('product_id', $this->product()->id)->whereNot('status', ProductStatus::Draft->value);
 
         if (! $this->hasList()) {
             return [

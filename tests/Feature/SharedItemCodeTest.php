@@ -200,7 +200,7 @@ test('a code one product\'s colors share still cannot go on another product', fu
             'low_stock_alert_at' => '5', 'photos' => [], 'packs' => [], 'options' => [],
             'variants' => [['combination' => '', 'estore_item_code' => 'PRUM01-01', 'estore_pack_key' => '', 'price' => '']],
         ])
-        ->assertSessionHasErrors(['variants.0.estore_item_code' => 'The eStore Item Code PRUM01-01 already belongs to "STI Umbrella".']);
+        ->assertSessionHasErrors(['variants.0.estore_item_code' => 'The Item Code PRUM01-01 already belongs to "STI Umbrella".']);
 
     expect($order->exists)->toBeTrue();
 });

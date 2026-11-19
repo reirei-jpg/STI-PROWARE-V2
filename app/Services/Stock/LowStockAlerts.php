@@ -40,7 +40,8 @@ final class LowStockAlerts
             return;
         }
 
-        if ($variant->low_stock_notified_at !== null || ! self::isSold($product)) {
+        // A Draft size is not sold yet, so it is never low.
+        if ($variant->low_stock_notified_at !== null || ! self::isSold($product) || $variant->isDraft()) {
             return;
         }
 

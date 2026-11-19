@@ -628,6 +628,8 @@ export type ProductStockView = {
     variants: {
         id: number;
         label: string;
+        /** Hidden from buyers (not sold yet). */
+        is_draft: boolean;
         stock_on_hand: number;
         estore_item_code: string | null;
         sent_by: string | null;

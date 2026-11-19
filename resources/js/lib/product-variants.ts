@@ -5,6 +5,8 @@ export type VariantCombination = {
     key: string;
     /** "Blue / 22 oz"; "Default" for a product without options. */
     label: string;
+    /** Its choice for each option, in the options' order. */
+    choices: { option: string; choice: string }[];
 };
 
 /**
@@ -37,5 +39,6 @@ export function variantCombinations(
             row.length === 0
                 ? 'Default'
                 : row.map(({ choice }) => choice).join(' / '),
+        choices: row,
     }));
 }

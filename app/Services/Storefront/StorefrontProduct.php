@@ -34,6 +34,8 @@ final class StorefrontProduct
      */
     public static function tile(Product $product): array
     {
+        self::hideDraftVariants($product);
+
         // What students can still buy: on the shelf, less what is held for orders.
         $stock = (int) $product->variants->sum(fn (ProductVariant $variant): int => $variant->freeToSell());
         $isPreorder = $product->status === ProductStatus::Preorder;
@@ -91,6 +93,7 @@ final class StorefrontProduct
      */
     public static function details(Product $product): array
     {
+        self::hideDraftVariants($product);
         $isPreorder = $product->status === ProductStatus::Preorder;
         $canBuy = ShopPrice::canBuy($product);
         $coming = $isPreorder ? [] : AvailableSoon::coming(
@@ -116,9 +119,15 @@ final class StorefrontProduct
                 'url' => $photo->url(),
                 'label' => $photo->label,
             ])->all(),
+            // Only the choices of variants students can see (not Drafts).
             'options' => $product->options->map(fn (ProductOption $option): array => [
                 'name' => $option->name,
-                'choices' => $option->choices,
+                'choices' => array_values(array_filter(
+                    $option->choices,
+                    fn (string $choice): bool => $product->variants->contains(
+                        fn (ProductVariant $variant): bool => in_array(['option' => $option->name, 'choice' => $choice], $variant->choices, true),
+                    ),
+                )),
             ])->all(),
             'variants' => $product->variants->map(function (ProductVariant $variant) use ($product, $isPreorder, $canBuy, $coming): array {
                 $stock = $variant->freeToSell();
@@ -149,6 +158,15 @@ final class StorefrontProduct
                 ];
             })->all(),
         ];
+    }
+
+    /**
+     * Draft variants (e.g. a color not sold yet) do not exist for students:
+     * the loaded variants become only the others.
+     */
+    private static function hideDraftVariants(Product $product): void
+    {
+        $product->setRelation('variants', $product->variants->reject(fn (ProductVariant $variant): bool => $variant->isDraft())->values());
     }
 
     /**

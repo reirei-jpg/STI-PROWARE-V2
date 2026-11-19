@@ -151,7 +151,7 @@ class PlaceOrder
                 throw ValidationException::withMessages(['cart' => ($line->uniformSet?->displayName() ?? 'A uniform set').' is no longer for sale as it is. Remove it from your cart.']);
             }
 
-            if (! ShopPrice::canBuy($variant->product) || ShopPrice::perUnit($variant, $line->pack) === null) {
+            if (! ShopPrice::canBuy($variant->product) || $variant->isDraft() || ShopPrice::perUnit($variant, $line->pack) === null) {
                 throw ValidationException::withMessages(['cart' => "{$name} is no longer for sale. Remove it from your cart."]);
             }
 

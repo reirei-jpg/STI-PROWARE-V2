@@ -127,9 +127,14 @@ export type ProductPackInput = {
     price: string;
 };
 
+/** What one variant can be set to on the product form. */
+export type VariantStatus = 'draft' | 'preorder' | 'available';
+
 export type EditableProduct = {
     id: number;
     name: string;
+    /** The product's own Item Code, e.g. BP-01; empty for one saved before codes. */
+    item_code: string;
     sold_by_piece: boolean;
     price: string;
     status: ProductStatus;
@@ -149,6 +154,8 @@ export type EditableProduct = {
     options: ProductOptionInput[];
     variants: {
         combination: string;
+        /** Draft: hidden from buyers while the other variants are in the store. */
+        status: VariantStatus;
         estore_item_code: string;
         /** The pack Head Office sends the item in; empty for by the piece. */
         estore_pack_key: string;
@@ -213,6 +220,8 @@ export type StockProduct = {
 export type StockVariant = {
     id: number;
     label: string;
+    /** Hidden from buyers (not sold yet), so never low or out of stock. */
+    is_draft: boolean;
     stock_on_hand: number;
     held_pieces: number;
     free_to_sell: number;

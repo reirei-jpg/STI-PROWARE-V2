@@ -38,7 +38,7 @@ final class StorefrontFeed
     public const NEW_DAYS = 3;
 
     /** It has a size or color students can buy now. */
-    private const IN_STOCK_SQL = 'exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > product_variants.held_pieces)';
+    private const IN_STOCK_SQL = 'exists (select 1 from product_variants where product_variants.product_id = products.id and product_variants.stock_on_hand > product_variants.held_pieces and product_variants.status <> \'draft\')';
 
     /**
      * @return list<array<string, mixed>>
@@ -65,7 +65,7 @@ final class StorefrontFeed
         return array_values(Product::query()
             ->where('status', ProductStatus::OnSale)
             ->where(fn (Builder $sales) => $sales->whereNull('sale_ends_at')->orWhere('sale_ends_at', '>', now()))
-            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0'))
+            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')->where('product_variants.status', '!=', ProductStatus::Draft))
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->with(self::RELATIONS)
             ->orderBy('sale_ends_at')
@@ -153,8 +153,8 @@ final class StorefrontFeed
             ->with(self::RELATIONS)
             ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
             ->when($find, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
-            ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
-            ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')))
+            ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')->where('product_variants.status', '!=', ProductStatus::Draft)))
+            ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')->where('product_variants.status', '!=', ProductStatus::Draft)))
             // NEW, then on sale, then the rest; sold out last.
             ->orderByRaw('case when not '.self::IN_STOCK_SQL.' then 3 when new_until > ? then 0 when status = ? and (sale_ends_at is null or sale_ends_at > ?) then 1 else 2 end', [$now, ProductStatus::OnSale->value, $now])
             ->orderByRaw('case when new_until > ? then new_until end desc', [$now])

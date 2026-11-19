@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property string $name
+ * @property string|null $item_code the product's own code, e.g. BP-01; its variants' codes start with it (BP-01-S-RED)
  * @property bool $sold_by_piece
  * @property int|null $price_centavos
  * @property int|null $sale_price_centavos
@@ -44,7 +45,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'preorders_close_on', 'expected_arrival_from', 'expected_arrival_to', 'early_bird_price_centavos', 'early_bird_pieces'])]
+#[Fillable(['name', 'item_code', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'preorders_close_on', 'expected_arrival_from', 'expected_arrival_to', 'early_bird_price_centavos', 'early_bird_pieces'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -181,7 +182,7 @@ class Product extends Model
     protected function lowOnStock(Builder $query): void
     {
         $query->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at'));
+            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft));
     }
 
     /**

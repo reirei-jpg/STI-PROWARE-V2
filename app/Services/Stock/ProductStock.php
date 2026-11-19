@@ -42,6 +42,8 @@ final class ProductStock
             'variants' => array_values($product->variants->map(fn (ProductVariant $variant): array => [
                 'id' => $variant->id,
                 'label' => $variant->label(),
+                // A Draft size is hidden from buyers, so it is never low.
+                'is_draft' => $variant->isDraft(),
                 'stock_on_hand' => $variant->stock_on_hand,
                 'held_pieces' => $variant->held_pieces,
                 'free_to_sell' => $variant->freeToSell(),

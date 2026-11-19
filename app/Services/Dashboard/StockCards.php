@@ -49,8 +49,9 @@ final class StockCards
     {
         $products = Product::query()
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at'))
-            ->with('variants')
+            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft))
+            // Draft sizes are not sold yet, so they are never low.
+            ->with(['variants' => fn ($variants) => $variants->where('status', '!=', ProductStatus::Draft)])
             ->get()
             ->map(fn (Product $product): array => [
                 'product_id' => $product->id,

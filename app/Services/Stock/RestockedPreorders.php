@@ -50,7 +50,13 @@ use Illuminate\Support\Facades\DB;
         $product = $variant->product;
         $wasComingSoon = $product->status === ProductStatus::Preorder;
 
-        if ($variant->stock_on_hand > 0) {
+        // A Preorder size that gets stock is Available by itself; a Draft
+        // size stays hidden until the Specialist makes it Available.
+        if ($variant->stock_on_hand > 0 && $variant->status === ProductStatus::Preorder) {
+            $variant->forceFill(['status' => ProductStatus::Available])->save();
+        }
+
+        if ($variant->stock_on_hand > 0 && ! $variant->isDraft()) {
             $this->arrived($product);
         }
 

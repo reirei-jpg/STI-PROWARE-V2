@@ -123,7 +123,11 @@ export default function ProductStock({
                                 key={variant.id}
                                 active={filters.variant === variant.id}
                                 onClick={() => showVariant(variant.id)}
-                                label={variant.label}
+                                label={
+                                    variant.is_draft
+                                        ? ` (Draft)`
+                                        : variant.label
+                                }
                                 pieces={variant.stock_on_hand}
                                 held={variant.held_pieces}
                                 level={stockLevel(product, variant)}
@@ -381,7 +385,11 @@ type StockLevel = 'ok' | 'low' | 'out';
 
 /** Low or out of stock, for a product that is watched for low stock. */
 function stockLevel(product: StockProduct, variant: StockVariant): StockLevel {
-    if (!product.is_sold || variant.free_to_sell > product.low_stock_alert_at) {
+    if (
+        !product.is_sold ||
+        variant.is_draft ||
+        variant.free_to_sell > product.low_stock_alert_at
+    ) {
         return 'ok';
     }
 
