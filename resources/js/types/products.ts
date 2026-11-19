@@ -59,6 +59,8 @@ export type ProductDetails = {
         id: number;
         /** Null for a product without sizes or colors. */
         label: string | null;
+        /** Hidden from buyers (not sold yet), so never out of stock or low. */
+        is_draft: boolean;
         stock_on_hand: number;
         held_pieces: number;
         free_to_sell: number;

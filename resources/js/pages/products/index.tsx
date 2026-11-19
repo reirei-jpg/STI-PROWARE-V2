@@ -19,6 +19,7 @@ import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import ProductDetailsDialog from '@/components/product-details-dialog';
 import ProductStatusBadge from '@/components/product-status-badge';
+import { isOutOfStock } from '@/lib/product-stock';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { wholeNumberInput } from '@/lib/number-input';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
@@ -504,31 +505,40 @@ export default function ProductsIndex({
                                                     )}
                                                 </td>
                                                 <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                                                    <span
-                                                        className={`text-base font-black ${
-                                                            product.low_stock
-                                                                ? 'text-amber-700'
-                                                                : product.stock_on_hand >
-                                                                    0
-                                                                  ? 'text-slate-900'
-                                                                  : 'text-slate-400'
-                                                        }`}
-                                                    >
-                                                        {product.stock_on_hand.toLocaleString(
-                                                            'en-PH',
-                                                        )}
-                                                    </span>{' '}
-                                                    <span className="text-xs text-slate-500">
-                                                        pcs
-                                                    </span>
-                                                    {product.low_stock && (
-                                                        <p
-                                                            className="mt-0.5 flex items-center justify-end gap-1 text-xs font-black text-amber-700"
-                                                            title={`A size or color is at or below ${product.low_stock_alert_at} pcs`}
-                                                        >
-                                                            <span className="h-2 w-2 rounded-full bg-amber-500" />
-                                                            Low
-                                                        </p>
+                                                    {/* In the store with nothing left: Out of stock, not "0 pcs Low". */}
+                                                    {isOutOfStock(product) ? (
+                                                        <span className="text-sm font-black text-red-600">
+                                                            Out of stock
+                                                        </span>
+                                                    ) : (
+                                                        <>
+                                                            <span
+                                                                className={`text-base font-black ${
+                                                                    product.low_stock
+                                                                        ? 'text-amber-700'
+                                                                        : product.stock_on_hand >
+                                                                            0
+                                                                          ? 'text-slate-900'
+                                                                          : 'text-slate-400'
+                                                                }`}
+                                                            >
+                                                                {product.stock_on_hand.toLocaleString(
+                                                                    'en-PH',
+                                                                )}
+                                                            </span>{' '}
+                                                            <span className="text-xs text-slate-500">
+                                                                pcs
+                                                            </span>
+                                                            {product.low_stock && (
+                                                                <p
+                                                                    className="mt-0.5 flex items-center justify-end gap-1 text-xs font-black text-amber-700"
+                                                                    title={`A size or color is at or below ${product.low_stock_alert_at} pcs`}
+                                                                >
+                                                                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                                                    Low
+                                                                </p>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </td>
                                                 <td className="px-5 py-3.5 text-right">

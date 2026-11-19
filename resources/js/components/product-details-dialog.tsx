@@ -13,6 +13,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
+import { isOutOfStock } from '@/lib/product-stock';
 import { cn } from '@/lib/utils';
 import type { ProductDetails, ProductListItem } from '@/types';
 
@@ -124,18 +125,26 @@ export default function ProductDetailsDialog({
                                     <Price product={product} />
                                 </Fact>
                                 <Fact label="Stock">
-                                    <span
-                                        className={cn(
-                                            product.low_stock &&
-                                                'text-amber-700',
-                                        )}
-                                    >
-                                        {product.stock_on_hand.toLocaleString(
-                                            'en-PH',
-                                        )}{' '}
-                                        pcs
-                                    </span>
-                                    {product.low_stock && <LowDot />}
+                                    {isOutOfStock(product) ? (
+                                        <span className="text-red-600">
+                                            Out of stock
+                                        </span>
+                                    ) : (
+                                        <>
+                                            <span
+                                                className={cn(
+                                                    product.low_stock &&
+                                                        'text-amber-700',
+                                                )}
+                                            >
+                                                {product.stock_on_hand.toLocaleString(
+                                                    'en-PH',
+                                                )}{' '}
+                                                pcs
+                                            </span>
+                                            {product.low_stock && <LowDot />}
+                                        </>
+                                    )}
                                 </Fact>
                                 <Fact label="Low-stock warning">
                                     {details?.watched_for_low_stock === false
@@ -222,8 +231,16 @@ export default function ProductDetailsDialog({
                                             <tbody className="divide-y divide-slate-100">
                                                 {details.variants.map(
                                                     (variant) => {
+                                                        // A Draft is not sold yet, so it is never out of stock or low.
+                                                        const isOut =
+                                                            details.watched_for_low_stock &&
+                                                            !variant.is_draft &&
+                                                            variant.free_to_sell ===
+                                                                0;
                                                         const isLow =
                                                             details.watched_for_low_stock &&
+                                                            !variant.is_draft &&
+                                                            !isOut &&
                                                             variant.free_to_sell <=
                                                                 details.low_stock_alert_at;
 
@@ -234,6 +251,11 @@ export default function ProductDetailsDialog({
                                                                 <td className="px-4 py-2.5 font-semibold text-slate-900">
                                                                     {variant.label ??
                                                                         product.name}
+                                                                    {variant.is_draft && (
+                                                                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-600">
+                                                                            Draft
+                                                                        </span>
+                                                                    )}
                                                                 </td>
                                                                 <NumberCell>
                                                                     {variant.stock_on_hand.toLocaleString(
@@ -249,17 +271,25 @@ export default function ProductDetailsDialog({
                                                                 <NumberCell
                                                                     className={cn(
                                                                         'font-black',
-                                                                        isLow
-                                                                            ? 'text-amber-700'
-                                                                            : 'text-slate-900',
+                                                                        isOut
+                                                                            ? 'text-red-600'
+                                                                            : isLow
+                                                                              ? 'text-amber-700'
+                                                                              : 'text-slate-900',
                                                                     )}
                                                                 >
-                                                                    {variant.free_to_sell.toLocaleString(
-                                                                        'en-PH',
-                                                                    )}{' '}
-                                                                    pcs
-                                                                    {isLow && (
-                                                                        <LowDot />
+                                                                    {isOut ? (
+                                                                        'Out of stock'
+                                                                    ) : (
+                                                                        <>
+                                                                            {variant.free_to_sell.toLocaleString(
+                                                                                'en-PH',
+                                                                            )}{' '}
+                                                                            pcs
+                                                                            {isLow && (
+                                                                                <LowDot />
+                                                                            )}
+                                                                        </>
                                                                     )}
                                                                 </NumberCell>
                                                                 <NumberCell>

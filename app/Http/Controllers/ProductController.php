@@ -157,6 +157,8 @@ class ProductController extends Controller
             'variants' => $product->variants->map(fn (ProductVariant $variant): array => [
                 'id' => $variant->id,
                 'label' => $variant->choices === [] ? null : $variant->label(),
+                // Hidden from buyers, so never out of stock or low.
+                'is_draft' => $variant->isDraft(),
                 'stock_on_hand' => $variant->stock_on_hand,
                 'held_pieces' => $variant->held_pieces,
                 'free_to_sell' => $variant->freeToSell(),

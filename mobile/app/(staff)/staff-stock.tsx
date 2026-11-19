@@ -178,7 +178,7 @@ function ProductRow({ product }: { product: StockListProduct }) {
         <Pressable
             onPress={() => router.push(`/stock/${product.id}`)}
             accessibilityRole="button"
-            accessibilityLabel={`${product.name}, ${formatUnits(product.stock_on_hand, 'Piece')}`}
+            accessibilityLabel={`${product.name}, ${out ? 'Out of stock' : formatUnits(product.stock_on_hand, 'Piece')}`}
             style={{
                 borderLeftWidth: 5,
                 borderLeftColor: out ? '#f87171' : product.is_low ? '#f59e0b' : '#e2e8f0',
@@ -200,8 +200,8 @@ function ProductRow({ product }: { product: StockListProduct }) {
                 <Text
                     className={`font-sans-bold text-sm ${out ? 'text-red-600' : product.is_low ? 'text-amber-600' : 'text-slate-800'}`}
                 >
-                    {formatUnits(product.stock_on_hand, 'Piece')}
-                    {product.is_low ? ' · low' : ''}
+                    {/* In the store with nothing left: Out of stock, not "0 pcs · low". */}
+                    {out ? 'Out of stock' : `${formatUnits(product.stock_on_hand, 'Piece')}${product.is_low ? ' · low' : ''}`}
                 </Text>
             </View>
             <ChevronRight size={18} color="#94a3b8" />
