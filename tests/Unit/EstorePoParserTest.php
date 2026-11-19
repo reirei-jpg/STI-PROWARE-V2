@@ -317,3 +317,42 @@ test('it refuses a zip file that is not a Word document', function () {
     expect(fn () => (new EstorePoParser)->parseFile($path))
         ->toThrow(UnreadablePurchaseOrderException::class, 'PROWARE cannot read this file type.');
 });
+
+test('it reads a row cut in two by an Enter inside a cell', function () {
+    // Copied from a Word table whose Description cell had an extra Enter.
+    $scan = (new EstorePoParser)->parseText(estorePoText([
+        "1\tPRCU01-01\tChibi Keychain Culinary   ",
+        " \t0\t20\t₱ 21.00\t₱ 420.00",
+    ]));
+
+    expect($scan->warnings)->toBe([])
+        ->and(array_map(fn ($item): array => $item->toArray(), $scan->items))->toBe([[
+            'row_number' => 1,
+            'item_code' => 'PRCU01-01',
+            'description' => 'Chibi Keychain Culinary',
+            'stock_on_hand' => 0,
+            'quantity_ordered' => 20,
+            'unit_price_centavos' => 2100,
+            'amount_centavos' => 42000,
+        ]]);
+});
+
+test('it reads rows typed with spaces instead of tabs', function () {
+    // The paste box cannot type a tab: the description is what lies between
+    // the Item Code and the last four values.
+    $scan = (new EstorePoParser)->parseText(estorePoText([
+        '1 PRCU01-01 Chibi Keychain - Culinary 0 10 ₱ 21.00 ₱ 210.00',
+        '2 PRCU01-02 Chibi Keychain – Nursing 0 10 21 210',
+    ]));
+
+    expect($scan->warnings)->toBe([])
+        ->and(array_map(fn ($item): array => [$item->itemCode, $item->description, $item->quantityOrdered, $item->amountCentavos], $scan->items))->toBe([
+            ['PRCU01-01', 'Chibi Keychain - Culinary', 10, 21000],
+            ['PRCU01-02', 'Chibi Keychain – Nursing', 10, 21000],
+        ]);
+});
+
+test('it says the rows could not be read when none of them fit the table', function () {
+    expect(fn () => (new EstorePoParser)->parseText(estorePoText(["1\tPRCU01-01\tChibi Keychain\t20"])))
+        ->toThrow(UnreadablePurchaseOrderException::class, 'PROWARE found the item table but could not read its rows. Each row needs: #, Item Code, Description, Stock on Hand, Qty Ordered, Unit Price, Amount.');
+});

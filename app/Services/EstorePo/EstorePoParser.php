@@ -255,7 +255,11 @@ class EstorePoParser
         $items = $this->readItems(array_slice($lines, $tableStart), $layout, $warnings);
 
         if ($items === []) {
-            throw new UnreadablePurchaseOrderException('The item table in this file has no items.');
+            $rowsSeen = array_filter($warnings, fn (array $warning): bool => $warning['row'] !== null) !== [];
+
+            throw new UnreadablePurchaseOrderException($rowsSeen
+                ? 'PROWARE found the item table but could not read its rows. Each row needs: #, Item Code, Description, Stock on Hand, Qty Ordered, Unit Price, Amount.'
+                : 'The item table in this file has no items.');
         }
 
         $orderNumber = $this->filledOrNull($headerFields['order']);
@@ -395,6 +399,11 @@ class EstorePoParser
     }
 
     /**
+     * The item rows under the table's header. Besides tab-separated rows, it
+     * reads a row cut in two by a line break inside a cell (an extra Enter in
+     * a Word table cell) by joining it with the next line, and a row typed
+     * with spaces instead of tabs (the paste box cannot type a tab).
+     *
      * @param  list<string>  $lines
      * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}}  $layout
      * @param  list<array{row: ?int, message: string, blocking: bool}>  $warnings
@@ -404,8 +413,11 @@ class EstorePoParser
     {
         $items = [];
         $rowNumber = 0;
+        $count = count($lines);
 
-        foreach ($lines as $line) {
+        for ($index = 0; $index < $count; $index++) {
+            $line = $lines[$index];
+
             if (trim($line) === '') {
                 if ($rowNumber > 0) {
                     break;
@@ -414,14 +426,25 @@ class EstorePoParser
                 continue;
             }
 
-            $cells = $this->splitCells($line, dropEmpty: false);
-            $matchesLayout = count($cells) === $layout['exact']['width'];
-            $columns = $layout['exact']['columns'];
+            [$cells, $columns, $matchesLayout] = $this->rowCells($line, $layout);
 
-            if (! $matchesLayout) {
-                $cells = $this->splitCells($line, dropEmpty: true);
-                $matchesLayout = count($cells) === $layout['compact']['width'];
-                $columns = $layout['compact']['columns'];
+            // A cell with a line break in it: the rest of the row is on the next line.
+            if (! $matchesLayout && str_contains($line, "\t") && isset($lines[$index + 1]) && trim($lines[$index + 1]) !== '') {
+                $joined = $this->rowCells($line.' '.$lines[$index + 1], $layout);
+
+                if ($joined[2]) {
+                    [$cells, $columns, $matchesLayout] = $joined;
+                    $index++;
+                }
+            }
+
+            // Typed with spaces: the columns are found by their place in the row.
+            if (! $matchesLayout && ! str_contains($line, "\t")) {
+                $spaced = $this->spacedCells($line, $layout['compact']);
+
+                if ($spaced !== null) {
+                    [$cells, $columns, $matchesLayout] = [$spaced, $layout['compact']['columns'], true];
+                }
             }
 
             if (count($cells) < 3) {
@@ -647,6 +670,82 @@ class EstorePoParser
     /**
      * @return list<string>
      */
+    /**
+     * A tab-separated row's cells, the columns they are under, and whether
+     * they fit the header: every cell (a Word table, where blank cells
+     * matter), or without blank cells (typed text, where extra tabs only
+     * line the columns up).
+     *
+     * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}}  $layout
+     * @return array{0: list<string>, 1: array<int, string>, 2: bool}
+     */
+    private function rowCells(string $line, array $layout): array
+    {
+        $cells = $this->splitCells($line, dropEmpty: false);
+
+        if (count($cells) === $layout['exact']['width']) {
+            return [$cells, $layout['exact']['columns'], true];
+        }
+
+        $cells = $this->splitCells($line, dropEmpty: true);
+
+        return [$cells, $layout['compact']['columns'], count($cells) === $layout['compact']['width']];
+    }
+
+    /**
+     * A row typed with spaces, e.g. "1 BP-01 Bagong Product - Red 0 10
+     * ₱ 115.11 ₱ 1151.10": one word for each column before the Item
+     * Description (# and Item Code), one value for each column after it,
+     * counted from the end (Stock, Qty, Unit Price, Amount; "₱ 115.11" is one
+     * value), and the description is everything in between. Null when the
+     * row does not fit, e.g. a value after the description is not a number.
+     *
+     * @param  array{width: int, columns: array<int, string>}  $compact
+     * @return list<string>|null
+     */
+    private function spacedCells(string $line, array $compact): ?array
+    {
+        $descriptionAt = array_search('description', $compact['columns'], true);
+
+        if (! is_int($descriptionAt)) {
+            return null;
+        }
+
+        $values = [];
+
+        foreach (preg_split('/\s+/u', trim($line), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $word) {
+            $last = array_key_last($values);
+
+            if ($last !== null && preg_match('/^(₱|PHP)$/iu', $values[$last]) && preg_match('/^[\d,.]+$/u', $word)) {
+                $values[$last] .= ' '.$word;
+
+                continue;
+            }
+
+            $values[] = $word;
+        }
+
+        $after = $compact['width'] - $descriptionAt - 1;
+
+        if (count($values) < $descriptionAt + $after + 1) {
+            return null;
+        }
+
+        $tail = array_slice($values, count($values) - $after);
+
+        foreach ($tail as $value) {
+            if (! preg_match('/^(₱|PHP)?\s*[\d,]+(\.\d+)?$/iu', $value)) {
+                return null;
+            }
+        }
+
+        return [
+            ...array_slice($values, 0, $descriptionAt),
+            implode(' ', array_slice($values, $descriptionAt, count($values) - $descriptionAt - $after)),
+            ...$tail,
+        ];
+    }
+
     private function splitCells(string $line, bool $dropEmpty): array
     {
         $cells = array_map('trim', explode("\t", $line));
