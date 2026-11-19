@@ -1059,6 +1059,15 @@ export default function ProductForm({
                     }
                 />
 
+                <p className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-700 shadow-sm">
+                    Fields marked{' '}
+                    <span className="font-black text-red-600">*</span>{' '}
+                    <span className="text-xs font-bold text-red-600">
+                        required
+                    </span>{' '}
+                    must be filled in before Save Product can be clicked.
+                </p>
+
                 {unsaved.prompt}
                 {draft.restored && (
                     <DraftRestoredNotice
@@ -1096,10 +1105,9 @@ export default function ProductForm({
                     id="product-photos"
                     className="scroll-mt-24"
                     title={
-                        <>
+                        <RequiredLabel required={status !== 'draft'}>
                             Photos
-                            {status !== 'draft' && <RequiredMark />}
-                        </>
+                        </RequiredLabel>
                     }
                     description={`Up to ${MAX_PHOTOS} photos, e.g. the front, back and side of a shirt. The first photo is the main one shown on the storefront. JPG, PNG or WEBP, up to 10 MB each.`}
                 >
@@ -1296,7 +1304,7 @@ export default function ProductForm({
                                     aria-invalid={Boolean(errors.item_code)}
                                     className={cn(
                                         inputClasses,
-                                        'font-mono uppercase',
+                                        'font-mono uppercase placeholder:font-sans placeholder:normal-case',
                                     )}
                                 />
                                 {data.item_code_typed &&
@@ -1336,8 +1344,11 @@ export default function ProductForm({
                                         Students can buy it
                                     </TableHeading>
                                     <TableHeading>
-                                        Selling Price (set by Head Office)
-                                        {data.sold_by_piece && <RequiredMark />}
+                                        <RequiredLabel
+                                            required={data.sold_by_piece}
+                                        >
+                                            Selling Price (set by Head Office)
+                                        </RequiredLabel>
                                     </TableHeading>
                                     <TableHeading align="right">
                                         <span className="sr-only">Actions</span>
@@ -1629,10 +1640,9 @@ export default function ProductForm({
                     <div className="border-t border-slate-100 bg-amber-50/40 px-6 py-5">
                         <label className="grid gap-1.5">
                             <span className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
-                                <span>
+                                <RequiredLabel>
                                     Notify me when stock falls to
-                                    <RequiredMark />
-                                </span>
+                                </RequiredLabel>
                                 <input
                                     value={data.low_stock_alert_at}
                                     onBlur={() => touch('low_stock_alert_at')}
@@ -2530,15 +2540,31 @@ export default function ProductForm({
     );
 }
 
-/** The red star of a box that must be filled in. */
-function RequiredMark() {
+/**
+ * The name of a box that must be filled in, as "*Product name required":
+ * a red star before it and "required" after it, both in red.
+ */
+function RequiredLabel({
+    required = true,
+    children,
+}: {
+    required?: boolean;
+    children: ReactNode;
+}) {
+    if (!required) {
+        return <span>{children}</span>;
+    }
+
     return (
-        <>
-            <span aria-hidden="true" className="ml-0.5 text-red-600">
+        <span>
+            <span aria-hidden="true" className="mr-0.5 text-red-600">
                 *
             </span>
-            <span className="sr-only"> (required)</span>
-        </>
+            {children}
+            <span className="ml-1.5 text-xs font-bold text-red-600 normal-case">
+                required
+            </span>
+        </span>
     );
 }
 
@@ -2552,15 +2578,14 @@ function Field({
     label: string;
     hint?: string;
     error?: string;
-    /** Shows a red star: the box must be filled in. */
+    /** Shows "*label required" in red: the box must be filled in. */
     required?: boolean;
     children: ReactNode;
 }) {
     return (
         <label className="grid gap-1.5">
             <span className="text-sm font-black text-slate-700">
-                {label}
-                {required && <RequiredMark />}
+                <RequiredLabel required={required}>{label}</RequiredLabel>
             </span>
             {children}
             {hint && <span className="text-xs text-slate-500">{hint}</span>}
