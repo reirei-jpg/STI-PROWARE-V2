@@ -454,30 +454,31 @@ export default function ProductsIndex({
                                                     undefined
                                                 }
                                                 max={today}
-                                                disabled={!filters.slow_from}
                                                 onChange={(event) =>
+                                                    event.target.value !== '' &&
                                                     showList({
                                                         ...filters,
                                                         slow: 'range',
+                                                        // Picked first: From is one month before, to change if needed.
+                                                        slow_from:
+                                                            filters.slow_from &&
+                                                            filters.slow_from <=
+                                                                event.target
+                                                                    .value
+                                                                ? filters.slow_from
+                                                                : monthBefore(
+                                                                      event
+                                                                          .target
+                                                                          .value,
+                                                                  ),
                                                         slow_to:
-                                                            event.target
-                                                                .value || null,
+                                                            event.target.value,
                                                     })
                                                 }
-                                                aria-label="To this day (empty: today)"
-                                                title={
-                                                    filters.slow_from
-                                                        ? 'Empty means today.'
-                                                        : 'Pick the From day first.'
-                                                }
-                                                className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                                aria-label="To this day"
+                                                className="cursor-pointer rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-bold text-slate-800 outline-none"
                                             />
                                         </label>
-                                        {!filters.slow_from && (
-                                            <span className="font-semibold">
-                                                (pick From first)
-                                            </span>
-                                        )}
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
@@ -995,4 +996,12 @@ function chipClasses(chosen: boolean): string {
             ? 'bg-red-600 text-white'
             : 'border border-red-200 bg-white text-red-700 hover:bg-red-50'
     }`;
+}
+
+/** "2026-02-28" → "2026-01-28": one month before a day picked as To. */
+function monthBefore(day: string): string {
+    const date = new Date(`${day}T00:00:00`);
+    date.setMonth(date.getMonth() - 1);
+
+    return date.toLocaleDateString('en-CA');
 }
