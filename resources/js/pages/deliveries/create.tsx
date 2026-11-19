@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
-    ExternalLink,
+    Eye,
     PackageCheck,
     Search,
     SearchX,
@@ -9,11 +9,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
-import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import DeliveryProgress from '@/components/delivery-progress';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import { formatDateOrdered } from '@/lib/format';
 import { cn, isSameSearch } from '@/lib/utils';
@@ -37,6 +37,7 @@ export default function RecordDelivery({
 }) {
     const [search, setSearch] = useState(initialSearch ?? '');
     const [recordingId, setRecordingId] = useState<number | null>(null);
+    const [viewingOrderId, setViewingOrderId] = useState<number | null>(null);
     const firstRender = useRef(true);
 
     // Search by Order # as the Specialist types, after a short pause.
@@ -256,21 +257,18 @@ export default function RecordDelivery({
                                                             <Truck size={16} />
                                                             Record
                                                         </button>
-                                                        <Link
-                                                            href={PurchaseOrderController.index(
-                                                                {
-                                                                    query: {
-                                                                        view: order.id,
-                                                                    },
-                                                                },
-                                                            )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setViewingOrderId(
+                                                                    order.id,
+                                                                )
+                                                            }
                                                             className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition hover:bg-blue-100"
                                                         >
-                                                            <ExternalLink
-                                                                size={15}
-                                                            />
-                                                            Open order
-                                                        </Link>
+                                                            <Eye size={15} />
+                                                            View order
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -285,6 +283,11 @@ export default function RecordDelivery({
                 </Panel>
             </div>
 
+            {/* The order opened with View order, shown here (not on Purchase Orders). */}
+            <PurchaseOrderDetailsDialog
+                purchaseOrderId={viewingOrderId}
+                onClose={() => setViewingOrderId(null)}
+            />
             <RecordDeliveryDialog
                 purchaseOrderId={recordingId}
                 onClose={() => setRecordingId(null)}

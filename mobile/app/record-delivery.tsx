@@ -251,9 +251,6 @@ export default function RecordDeliveryScreen() {
                 ) : (
                     <>
                         <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
-                            <Text className="font-sans-bold text-sm text-slate-900">
-                                DELIVERY PAPERS <Text className="font-sans text-slate-500">(optional)</Text>
-                            </Text>
                             <View className="flex-row gap-2">
                                 <View className="flex-1 gap-1">
                                     <Text className="font-sans-bold text-xs text-slate-600">SI # (Sales Invoice)</Text>

@@ -181,7 +181,7 @@ export default function RecordDeliveryDialog({
 }
 
 /**
- * Delivery papers: SI #, DR # and a note, all optional.
+ * On top: SI #, DR # and a note, all optional.
  * What arrived: this order's items with a Received now box each.
  * Then the live summary with Save.
  */
@@ -286,13 +286,7 @@ function DeliveryForm({
                 )}
 
                 <section className="border-b border-slate-200 bg-slate-50/60 px-6 py-5">
-                    <h3 className="text-sm font-black tracking-wide text-slate-900 uppercase">
-                        Delivery papers{' '}
-                        <span className="font-semibold text-slate-500 normal-case">
-                            (optional)
-                        </span>
-                    </h3>
-                    <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                    <div className="grid gap-4 sm:grid-cols-3">
                         <Field
                             label="SI # (Sales Invoice)"
                             error={errors.sales_invoice_number}
