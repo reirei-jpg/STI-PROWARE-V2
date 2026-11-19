@@ -668,9 +668,6 @@ class EstorePoParser
     }
 
     /**
-     * @return list<string>
-     */
-    /**
      * A tab-separated row's cells, the columns they are under, and whether
      * they fit the header: every cell (a Word table, where blank cells
      * matter), or without blank cells (typed text, where extra tabs only
@@ -746,6 +743,9 @@ class EstorePoParser
         ];
     }
 
+    /**
+     * @return list<string>
+     */
     private function splitCells(string $line, bool $dropEmpty): array
     {
         $cells = array_map('trim', explode("\t", $line));
