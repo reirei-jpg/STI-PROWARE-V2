@@ -418,6 +418,8 @@ function GroupForm({
     }
 
     const problems = problemsIn(shownErrors);
+    // The boxes still empty or wrong: their "*… required" stays on.
+    const openChecks = new Set(checks.map((check) => check.key));
     const canSave = !tooFew && checks.length === 0;
     // Recording gives the pieces at once and a group cannot be taken back,
     // so the Specialist answers first.
@@ -540,7 +542,12 @@ function GroupForm({
                 >
                     <label className="grid gap-1.5">
                         <span className="text-sm font-black text-slate-700">
-                            <RequiredLabel>Date enrolled</RequiredLabel>
+                            {/* "required" goes once the box is right. */}
+                            <RequiredLabel
+                                required={openChecks.has('enrolled_on')}
+                            >
+                                Date enrolled
+                            </RequiredLabel>
                         </span>
                         <input
                             type="date"
@@ -582,6 +589,7 @@ function GroupForm({
                         sets={sets}
                         takenBefore={takenBefore[index]}
                         errors={shownErrors}
+                        openChecks={openChecks}
                         index={index}
                         canRemove={data.students.length > 1}
                         onChange={(changes) =>
@@ -704,6 +712,7 @@ function StudentCard({
     sets,
     takenBefore,
     errors,
+    openChecks,
     index,
     canRemove,
     onChange,
@@ -714,11 +723,16 @@ function StudentCard({
     sets: UniformSetOption[];
     takenBefore: Record<number, number>;
     errors: Record<string, string | undefined>;
+    /** The boxes of the form still empty or wrong. */
+    openChecks: Set<string>;
     index: number;
     canRemove: boolean;
     onChange: (changes: Partial<StudentInput>) => void;
     onRemove: () => void;
 }) {
+    /** "*… required" shows while the box is empty or wrong, and goes once it is right. */
+    const needs = (field: keyof StudentInput) =>
+        student[field] === '' || openChecks.has(`students.${index}.${field}`);
     const set = sets.find(
         (option) => String(option.id) === student.uniform_set_id,
     );
@@ -765,7 +779,11 @@ function StudentCard({
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-                <Field label="Name" error={error('name')} required>
+                <Field
+                    label="Name"
+                    error={error('name')}
+                    required={needs('name')}
+                >
                     <input
                         value={student.name}
                         onChange={(event) =>
@@ -780,7 +798,7 @@ function StudentCard({
                 <Field
                     label="Enrollment Form #"
                     error={error('enrollment_form_number')}
-                    required
+                    required={needs('enrollment_form_number')}
                 >
                     <input
                         value={student.enrollment_form_number}
@@ -813,7 +831,11 @@ function StudentCard({
             </div>
 
             <div className="mt-3 grid gap-3 md:grid-cols-[10rem_12rem_1fr_1fr]">
-                <Field label="Set" error={error('uniform_set_id')} required>
+                <Field
+                    label="Set"
+                    error={error('uniform_set_id')}
+                    required={needs('uniform_set_id')}
+                >
                     <select
                         value={student.uniform_set_id}
                         onChange={(event) =>
@@ -836,7 +858,12 @@ function StudentCard({
                         ))}
                     </select>
                 </Field>
-                <Field label="Top" error={error('top_kind')} isGroup required>
+                <Field
+                    label="Top"
+                    error={error('top_kind')}
+                    isGroup
+                    required={needs('top_kind')}
+                >
                     <div className="grid grid-cols-2 gap-1.5">
                         {(['blouse', 'polo'] as const).map((kind) => (
                             <button
@@ -872,6 +899,7 @@ function StudentCard({
                             : 'Choose the set first'
                     }
                     error={error('top_variant_id')}
+                    required={needs('top_variant_id')}
                     onChange={(id) => onChange({ top_variant_id: id })}
                 />
                 <div className="grid content-start gap-3">
@@ -880,7 +908,7 @@ function StudentCard({
                             label="Bottom"
                             error={error('bottom_kind')}
                             isGroup
-                            required
+                            required={needs('bottom_kind')}
                         >
                             <div className="grid grid-cols-2 gap-1.5">
                                 {bottoms.map((kind) => (
@@ -933,6 +961,7 @@ function StudentCard({
                                 ? undefined
                                 : error('bottom_kind'))
                         }
+                        required={needs('pants_variant_id')}
                         onChange={(id) => onChange({ pants_variant_id: id })}
                     />
                 </div>
@@ -952,6 +981,7 @@ function SizeField({
     takenBefore,
     placeholder,
     error,
+    required,
     onChange,
 }: {
     label: string;
@@ -960,6 +990,8 @@ function SizeField({
     takenBefore: Record<number, number>;
     placeholder: string;
     error?: string;
+    /** While no size is chosen. */
+    required: boolean;
     onChange: (id: string) => void;
 }) {
     const left = (size: UniformSizeOption) =>
@@ -967,7 +999,7 @@ function SizeField({
     const chosen = piece?.sizes.find((size) => String(size.id) === value);
 
     return (
-        <Field label={label} error={error} required>
+        <Field label={label} error={error} required={required}>
             <select
                 value={value}
                 disabled={piece === null}
