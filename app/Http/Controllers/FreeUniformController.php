@@ -65,7 +65,7 @@ class FreeUniformController extends Controller
      */
     public function giveRest(GiveRestOfFreeUniformRequest $request, FreeUniformStudent $student, GiveRestOfFreeUniform $giveRest): RedirectResponse
     {
-        $result = $giveRest->handle($student, $request->user(), $request->topVariantId(), $request->pantsVariantId());
+        $result = $giveRest->handle($student, $request->user());
 
         $message = self::givenWords($result['given'])." to {$student->name}.";
 

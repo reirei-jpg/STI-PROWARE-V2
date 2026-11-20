@@ -250,40 +250,31 @@ function PieceStatus({ piece }: { piece: FreeUniformPiece }) {
 }
 
 /**
- * Give the pieces still to give: each in the size recorded, or another
- * size of the same top or bottom that is in stock.
+ * Give the pieces still to give, only in the size recorded for the student
+ * (no other size). Give now works only when that size has stock.
  */
 function GiveRest({ student }: { student: Student }) {
-    const form = useForm({
-        top_variant_id: student.top.given ? '' : String(student.top.variant_id),
-        pants_variant_id: student.pants.given
-            ? ''
-            : String(student.pants.variant_id),
-    });
+    const form = useForm({});
     const errors = form.errors as Record<string, string | undefined>;
 
     // Giving takes the pieces out of stock at once, so the Specialist
     // answers first. A size that is out of stock stays still to give.
     const [confirming, setConfirming] = useState(false);
-    const chosen = (
-        [
-            [student.top, form.data.top_variant_id],
-            [student.pants, form.data.pants_variant_id],
-        ] as const
-    )
-        .filter(([piece]) => !piece.given)
-        .map(([piece, variantId]) => {
-            const size = piece.sizes.find(
-                (option) => String(option.id) === variantId,
-            );
+    const owed = [student.top, student.pants]
+        .filter((piece) => !piece.given)
+        .map((piece) => {
+            const left =
+                piece.sizes.find((option) => option.id === piece.variant_id)
+                    ?.free_to_sell ?? 0;
 
             return {
-                label: `${piece.name} (${size?.label ?? piece.size})`,
-                inStock: (size?.free_to_sell ?? 0) > 0,
+                label: `${piece.name} ${piece.size}`,
+                left,
+                inStock: left > 0,
             };
         });
-    const leaving = chosen.filter((piece) => piece.inStock);
-    const stayingOwed = chosen.filter((piece) => !piece.inStock);
+    const leaving = owed.filter((piece) => piece.inStock);
+    const stayingOwed = owed.filter((piece) => !piece.inStock);
     // The group's details only come when asked for, so the answer asks for
     // them again: without that, a refusal ("Still out of stock: …") left the
     // pop-up loading forever and the message was never seen.
@@ -294,48 +285,30 @@ function GiveRest({ student }: { student: Student }) {
             onFinish: () => setConfirming(false),
         });
 
-    const sizeSelect = (
-        piece: FreeUniformPiece,
-        field: 'top_variant_id' | 'pants_variant_id',
-    ) =>
-        !piece.given && (
-            <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                {piece.name}
-                <select
-                    value={form.data[field]}
-                    onChange={(event) =>
-                        form.setData(field, event.target.value)
-                    }
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                >
-                    {/* Out-of-stock sizes show, greyed out, so they cannot be picked. */}
-                    {piece.sizes.map((size) => (
-                        <option
-                            key={size.id}
-                            value={size.id}
-                            disabled={size.free_to_sell <= 0}
-                        >
-                            {size.label} —{' '}
-                            {size.free_to_sell > 0
-                                ? `${size.free_to_sell} left`
-                                : 'out of stock'}
-                        </option>
-                    ))}
-                </select>
-            </label>
-        );
-
     return (
         <div className="space-y-2 rounded-xl border border-amber-200 bg-white px-4 py-3">
             <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-black text-amber-800">
                     Arrived? Give it now:
                 </span>
-                {sizeSelect(student.top, 'top_variant_id')}
-                {sizeSelect(student.pants, 'pants_variant_id')}
+                {/* Only the recorded size, with what is left of it. */}
+                {owed.map((piece) => (
+                    <span
+                        key={piece.label}
+                        className={cn(
+                            'rounded-xl border px-3 py-2 text-sm font-bold',
+                            piece.inStock
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                : 'border-red-200 bg-red-50 text-red-700',
+                        )}
+                    >
+                        {piece.label} —{' '}
+                        {piece.inStock ? `${piece.left} left` : 'out of stock'}
+                    </span>
+                ))}
                 <button
                     type="button"
-                    // Only a size with stock can be given.
+                    // Only the recorded size, and only when it has stock.
                     disabled={form.processing || leaving.length === 0}
                     onClick={() => setConfirming(true)}
                     className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -348,10 +321,11 @@ function GiveRest({ student }: { student: Student }) {
                     Give now
                 </button>
             </div>
-            {leaving.length === 0 && (
-                <p className="text-xs font-bold text-amber-800">
-                    Out of stock. Choose a size that has stock, or wait for
-                    Stock In.
+            {stayingOwed.length > 0 && (
+                <p className="text-xs font-bold text-red-600">
+                    {stayingOwed.map((piece) => piece.label).join(' and ')}{' '}
+                    {stayingOwed.length === 1 ? 'is' : 'are'} out of stock. Give{' '}
+                    {stayingOwed.length === 1 ? 'it' : 'them'} after Stock In.
                 </p>
             )}
             <InputError

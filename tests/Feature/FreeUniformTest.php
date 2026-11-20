@@ -156,7 +156,7 @@ test('the polo comes with the pants, the blouse with the ladies\' pants or the s
     expect($this->get(route('free-uniforms.export'))->streamedContent())->toContain('"Skirt S",Given');
 });
 
-test('a piece out of stock is still to give, and is given when it arrives, in another size if needed', function () {
+test('a piece out of stock is still to give, and is given in its recorded size when it arrives (no other size)', function () {
     $set = bsitSet(tops: ['S' => 0, 'M' => 4], pants: ['28' => 10, '30' => 10]);
     $this->actingAs($this->specialist);
 
@@ -169,21 +169,27 @@ test('a piece out of stock is still to give, and is given when it arrives, in an
         ->and($owed->pants_movement_id)->not->toBeNull();
 
     $this->post(route('free-uniforms.give', $owed))
-        ->assertSessionHasErrors(['pieces' => 'Still out of stock: Polo M. Choose another size, or give it when it arrives.']);
-    // Not one of the sizes (sent by hand): the same plain words.
-    foreach (['abc', '0.5', '-1'] as $wrong) {
-        $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => $wrong])
-            ->assertSessionHasErrors(['top_variant_id' => 'Choose one of the sizes shown.']);
-    }
+        ->assertSessionHasErrors(['pieces' => 'Still out of stock: Polo M. Give it after Stock In.']);
 
+    // Another size is refused, even one in stock; so is anything not a size.
     uniformSize($set->polo_product_id, 'S')->forceFill(['stock_on_hand' => 3])->save();
     $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => uniformSize($set->polo_product_id, 'S')->id])
+        ->assertSessionHasErrors(['top_variant_id' => 'Only the size recorded for Student 5 can be given.']);
+    foreach (['abc', '0.5', '-1'] as $wrong) {
+        $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => $wrong])
+            ->assertSessionHasErrors(['top_variant_id' => 'Only the size recorded for Student 5 can be given.']);
+    }
+    expect($owed->refresh()->isStillOwed())->toBeTrue();
+
+    uniformSize($set->polo_product_id, 'M')->forceFill(['stock_on_hand' => 3])->save();
+    $this->post(route('free-uniforms.give', $owed))
         ->assertSessionHasNoErrors()
         ->assertInertiaFlash('toast', ['type' => 'success', 'message' => '1 piece has been given to Student 5.']);
 
     expect($owed->refresh()->isStillOwed())->toBeFalse()
-        ->and($owed->topVariant->label())->toBe('S')
-        ->and(uniformSize($set->polo_product_id, 'S')->stock_on_hand)->toBe(2);
+        ->and($owed->topVariant->label())->toBe('M')
+        ->and(uniformSize($set->polo_product_id, 'M')->stock_on_hand)->toBe(2)
+        ->and(uniformSize($set->polo_product_id, 'S')->stock_on_hand)->toBe(3);
 
     $this->post(route('free-uniforms.give', $owed))
         ->assertSessionHasErrors(['pieces' => 'Student 5 already got the whole set.']);
@@ -208,10 +214,10 @@ test('Give now answers with the group details, so a refusal shows in the open po
     $this->from($groupPopup)->followingRedirects()->post(route('free-uniforms.give', $owed))
         ->assertOk()
         ->assertJsonPath('props.details.id', $owed->free_uniform_group_id)
-        ->assertJsonPath('props.errors.pieces', 'Still out of stock: Polo M. Choose another size, or give it when it arrives.');
+        ->assertJsonPath('props.errors.pieces', 'Still out of stock: Polo M. Give it after Stock In.');
 
-    uniformSize($set->polo_product_id, 'S')->forceFill(['stock_on_hand' => 3])->save();
-    $this->from($groupPopup)->followingRedirects()->post(route('free-uniforms.give', $owed), ['top_variant_id' => uniformSize($set->polo_product_id, 'S')->id])
+    uniformSize($set->polo_product_id, 'M')->forceFill(['stock_on_hand' => 3])->save();
+    $this->from($groupPopup)->followingRedirects()->post(route('free-uniforms.give', $owed))
         ->assertOk()
         ->assertJsonPath('props.details.id', $owed->free_uniform_group_id)
         ->assertJsonPath('props.summary.still_to_give', 0)

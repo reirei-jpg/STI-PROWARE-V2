@@ -3,14 +3,13 @@
 namespace App\Http\Requests;
 
 use App\Models\FreeUniformStudent;
-use App\Models\ProductVariant;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
  * Give the rest of a student's free set: the pieces still to give, each in
- * the size chosen (the one recorded, or another size of the same product).
+ * the size recorded for the student. No other size can be given.
  */
 class GiveRestOfFreeUniformRequest extends FormRequest
 {
@@ -30,15 +29,17 @@ class GiveRestOfFreeUniformRequest extends FormRequest
      */
     public function messages(): array
     {
+        $only = "Only the size recorded for {$this->student()->name} can be given.";
+
         return [
-            'top_variant_id.integer' => 'Choose one of the sizes shown.',
-            'pants_variant_id.integer' => 'Choose one of the sizes shown.',
+            'top_variant_id.integer' => $only,
+            'pants_variant_id.integer' => $only,
         ];
     }
 
     /**
-     * Something must still be to give, and a size must be one of the same
-     * top's or pants' sizes.
+     * Something must still be to give, and a size sent must be the one
+     * recorded for the student.
      *
      * @return array<int, callable(Validator): void>
      */
@@ -54,11 +55,11 @@ class GiveRestOfFreeUniformRequest extends FormRequest
                     return;
                 }
 
-                foreach (['top' => $student->topVariant->product_id, 'pants' => $student->pantsVariant->product_id] as $piece => $productId) {
-                    $chosen = $this->input("{$piece}_variant_id");
+                foreach (['top' => $student->top_variant_id, 'pants' => $student->pants_variant_id] as $piece => $recorded) {
+                    $sent = $this->input("{$piece}_variant_id");
 
-                    if ($chosen !== null && ! ProductVariant::query()->whereKey((int) $chosen)->where('product_id', $productId)->exists()) {
-                        $validator->errors()->add("{$piece}_variant_id", 'Choose one of the sizes shown.');
+                    if ($sent !== null && $sent !== '' && (int) $sent !== $recorded) {
+                        $validator->errors()->add("{$piece}_variant_id", "Only the size recorded for {$student->name} can be given.");
                     }
                 }
             },
@@ -71,15 +72,5 @@ class GiveRestOfFreeUniformRequest extends FormRequest
         $student = $this->route('student');
 
         return $student;
-    }
-
-    public function topVariantId(): ?int
-    {
-        return $this->filled('top_variant_id') ? $this->integer('top_variant_id') : null;
-    }
-
-    public function pantsVariantId(): ?int
-    {
-        return $this->filled('pants_variant_id') ? $this->integer('pants_variant_id') : null;
     }
 }
