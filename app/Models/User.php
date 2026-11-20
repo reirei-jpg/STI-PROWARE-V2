@@ -141,6 +141,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * What a buyer wants to buy later (no stock held).
+     *
+     * @return HasMany<WishlistItem, $this>
+     */
+    public function wishlistItems(): HasMany
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
+
+    /**
      * The student's orders.
      *
      * @return HasMany<Order, $this>

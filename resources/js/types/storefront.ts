@@ -300,3 +300,27 @@ export type PreorderSlipData = {
     received_by: string | null;
     qr_svg: string;
 };
+
+/** One item in a buyer's wishlist (Wishlist::view on the server). */
+export type WishlistRow = {
+    id: number;
+    product_id: number;
+    /** Null: no size or color chosen yet. */
+    product_variant_id: number | null;
+    product_name: string;
+    variant_label: string | null;
+    photo_url: string | null;
+    /** Today's price (the chosen size's, when one was chosen). */
+    price: StorefrontPrice;
+    on_sale: boolean;
+    /** In stock now: Add to Cart. */
+    can_buy: boolean;
+    /** Sold out or Coming Soon, and it can be preordered. */
+    can_preorder: boolean;
+    /** "6 pcs left", "Only 2 pcs left", "Out of stock · preorder it"… */
+    status_text: string;
+    status_tone: 'green' | 'amber' | 'red' | 'blue' | 'slate';
+    added_on: string | null;
+    /** The store tile, to open Add to Cart or Preorder. */
+    product: StorefrontTileProduct;
+};

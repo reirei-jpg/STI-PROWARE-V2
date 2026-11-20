@@ -15,6 +15,8 @@ declare module '@inertiajs/core' {
             notifications: StaffNotifications | null;
             /** How many lines are in a signed-in student's cart; null for others. */
             cart_count: number | null;
+            /** How many items are in a signed-in buyer's wishlist; null for others. */
+            wishlist_count: number | null;
             [key: string]: unknown;
         };
     }

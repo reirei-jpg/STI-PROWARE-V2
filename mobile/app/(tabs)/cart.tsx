@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import {
     Check,
     CircleCheck,
+    Heart,
     ImageIcon,
     QrCode,
     ShoppingCart,
@@ -469,6 +470,23 @@ function CartLineRow({
         ]);
     };
 
+    // Buy it later: it goes to the wishlist and leaves the cart (not for sets).
+    const moveToWishlist = async (): Promise<void> => {
+        setBusy(true);
+
+        try {
+            const result = await request<{ message: string; cart: CartView }>(`/cart/${line.id}/wishlist`, {
+                method: 'POST',
+            });
+
+            onChanged(result.cart);
+            onRemoved({ type: 'success', message: result.message });
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'It could not be moved. Try again.');
+            setBusy(false);
+        }
+    };
+
     const remove = async (): Promise<void> => {
         setBusy(true);
 
@@ -559,6 +577,17 @@ function CartLineRow({
                     )}
                 </View>
 
+                {!set && (
+                    <Pressable
+                        onPress={() => void moveToWishlist()}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Move ${name} to your wishlist`}
+                        className="h-10 w-10 items-center justify-center rounded-xl border border-pink-200 bg-pink-50"
+                    >
+                        <Heart size={17} color="#db2777" />
+                    </Pressable>
+                )}
                 <Pressable
                     onPress={confirmRemove}
                     disabled={busy}

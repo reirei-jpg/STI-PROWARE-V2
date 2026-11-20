@@ -673,3 +673,26 @@ export type StorefrontHome = {
     /** The store pop-up, never narrowed by the search. */
     spotlight: StorefrontSpotlightItem[];
 };
+
+/** One item in a buyer's wishlist (the website's Wishlist::view). */
+export type WishlistRow = {
+    id: number;
+    product_id: number;
+    /** Null: no size or color chosen yet. */
+    product_variant_id: number | null;
+    product_name: string;
+    variant_label: string | null;
+    photo_url: string | null;
+    /** Today's price (the chosen size's, when one was chosen). */
+    price: StorefrontPrice;
+    on_sale: boolean;
+    /** In stock now: Add to Cart. */
+    can_buy: boolean;
+    /** Sold out or Coming Soon, and it can be preordered. */
+    can_preorder: boolean;
+    /** "6 pcs left", "Only 2 pcs left", "Out of stock · preorder it"… */
+    status_text: string;
+    status_tone: 'green' | 'amber' | 'red' | 'blue' | 'slate';
+    added_on: string | null;
+    product: StorefrontTileProduct;
+};

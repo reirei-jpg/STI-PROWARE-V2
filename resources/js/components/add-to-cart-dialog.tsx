@@ -1,6 +1,7 @@
 import { useForm, useHttp, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
+    Heart,
     LoaderCircle,
     Plus,
     ShoppingCart,
@@ -11,6 +12,7 @@ import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
+import WishlistController from '@/actions/App/Http/Controllers/WishlistController';
 import InputError from '@/components/input-error';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
 import {
@@ -43,7 +45,7 @@ import type {
 import { isBuyer, NOT_A_BUYER } from '@/lib/roles';
 
 const AddToCartContext = createContext<
-    (product: StorefrontTileProduct) => void
+    (product: StorefrontTileProduct, variantId?: number | null) => void
 >(() => {});
 
 /**
@@ -56,14 +58,20 @@ export function AddToCartProvider({ children }: { children: ReactNode }) {
     const { auth } = usePage<{ auth: { user: User | null } }>().props;
     const openSignIn = useSignInPrompt();
     const [product, setProduct] = useState<StorefrontTileProduct | null>(null);
+    // A size or color to start with (e.g. the one saved in the wishlist).
+    const [startVariantId, setStartVariantId] = useState<number | null>(null);
 
-    const start = (chosen: StorefrontTileProduct) => {
+    const start = (
+        chosen: StorefrontTileProduct,
+        variantId: number | null = null,
+    ) => {
         if (auth.user === null) {
             openSignIn();
 
             return;
         }
 
+        setStartVariantId(variantId);
         setProduct(chosen);
     };
 
@@ -72,6 +80,7 @@ export function AddToCartProvider({ children }: { children: ReactNode }) {
             {children}
             <AddToCartDialog
                 product={product}
+                startVariantId={startVariantId}
                 isStudent={isBuyer(auth.user)}
                 onClose={() => setProduct(null)}
             />
@@ -79,7 +88,10 @@ export function AddToCartProvider({ children }: { children: ReactNode }) {
     );
 }
 
-export function useAddToCart(): (product: StorefrontTileProduct) => void {
+export function useAddToCart(): (
+    product: StorefrontTileProduct,
+    variantId?: number | null,
+) => void {
     return useContext(AddToCartContext);
 }
 
@@ -92,10 +104,12 @@ export function useAddToCart(): (product: StorefrontTileProduct) => void {
  */
 function AddToCartDialog({
     product,
+    startVariantId,
     isStudent,
     onClose,
 }: {
     product: StorefrontTileProduct | null;
+    startVariantId: number | null;
     isStudent: boolean;
     onClose: () => void;
 }) {
@@ -178,7 +192,11 @@ function AddToCartDialog({
                                 Loading...
                             </p>
                         ) : (
-                            <PickerForm details={details} onClose={onClose} />
+                            <PickerForm
+                                details={details}
+                                startVariantId={startVariantId}
+                                onClose={onClose}
+                            />
                         )}
                     </>
                 )}
@@ -201,18 +219,26 @@ type PickerVariant = StorefrontProductDetails['variants'][number];
 
 function PickerForm({
     details,
+    startVariantId = null,
     onClose,
 }: {
     details: StorefrontProductDetails;
+    startVariantId?: number | null;
     onClose: () => void;
 }) {
     // Every size can be picked; sold-out ones are crossed out and preordered.
     const anyVariant = () => true;
     const soldOut = (variant: { stock_pieces: number }) =>
         variant.stock_pieces === 0;
-    const [picked, setPicked] = useState<Picked>(() =>
-        startingPicks(details.variants, anyVariant),
-    );
+    const [picked, setPicked] = useState<Picked>(() => {
+        const startWith = details.variants.find(
+            (variant) => variant.id === startVariantId,
+        );
+
+        return startWith
+            ? { ...startWith.choices }
+            : startingPicks(details.variants, anyVariant);
+    });
     const soldByPiece = details.variants.some(
         (variant) => variant.buy_price_centavos !== null,
     );
@@ -225,6 +251,7 @@ function PickerForm({
     const form = useForm<{ items: CartLine[] }>({ items: [] });
     // A sold-out size is preordered instead (by the piece).
     const preorderForm = useForm({ product_variant_id: '', quantity: '' });
+    const wishlistForm = useForm({ product_variant_id: '' });
     const { data, setData, processing, errors } = form;
 
     const variantOf = (id: string) =>
@@ -432,6 +459,18 @@ function PickerForm({
         );
         form.clearErrors();
         resetPick();
+    };
+
+    // Add to Wishlist: the size or color chosen now (or the item without one),
+    // to buy later. The window closes unless the list still has lines.
+    const addToWishlist = () => {
+        wishlistForm.transform(() => ({
+            product_variant_id: variant ? String(variant.id) : '',
+        }));
+        wishlistForm.post(WishlistController.store(details.id).url, {
+            preserveScroll: true,
+            onSuccess: () => (data.items.length > 0 ? resetPick() : onClose()),
+        });
     };
 
     const preorderChosen = () => {
@@ -697,7 +736,8 @@ function PickerForm({
                         <InputError
                             message={
                                 preorderForm.errors.product_variant_id ??
-                                preorderForm.errors.quantity
+                                preorderForm.errors.quantity ??
+                                wishlistForm.errors.product_variant_id
                             }
                         />
                         {canList && data.items.length === 0 && !preordering && (
@@ -855,6 +895,25 @@ function PickerForm({
                         ? 'Close'
                         : 'Cancel'}
                 </DialogClose>
+                <button
+                    type="button"
+                    onClick={addToWishlist}
+                    disabled={wishlistForm.processing}
+                    data-test="add-to-wishlist"
+                    title={
+                        variant && hasChoices
+                            ? `Save ${variant.label} to buy later`
+                            : 'Save it to buy later'
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-black text-pink-700 transition hover:bg-pink-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    {wishlistForm.processing ? (
+                        <LoaderCircle size={17} className="animate-spin" />
+                    ) : (
+                        <Heart size={17} />
+                    )}
+                    Add to Wishlist
+                </button>
                 {preordering && variant.can_preorder && (
                     <button
                         type="button"

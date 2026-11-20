@@ -1,4 +1,4 @@
-import { CalendarClock, Plus, ShoppingCart } from 'lucide-react-native';
+import { CalendarClock, Heart, Plus, ShoppingCart } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
@@ -35,13 +35,16 @@ type CartLine = { variantId: number; packId: number | null; quantity: string };
 export default function AddToCartSheet({
     product,
     open,
+    startVariantId = null,
     onClose,
     onAdded,
 }: {
     product: StorefrontProductDetails;
     open: boolean;
+    /** A size or color to start with (e.g. the one saved in the wishlist). */
+    startVariantId?: number | null;
     onClose: () => void;
-    onAdded: (message: string, wasPreorder: boolean) => void;
+    onAdded: (message: string, kind: 'cart' | 'preorder' | 'wishlist') => void;
 }) {
     const { request } = useAuth();
     const { replace: replaceCart } = useCart();
@@ -70,10 +73,16 @@ export default function AddToCartSheet({
         setQuantityText('1');
     };
 
-    // Start fresh every time it opens.
+    // Start fresh every time it opens (with the size to start with, if any).
     useEffect(() => {
         if (open) {
             resetPick();
+            const startWith = product.variants.find((item) => item.id === startVariantId);
+
+            if (startWith) {
+                setPicked({ ...startWith.choices });
+            }
+
             setAdded([]);
             setError(null);
             setNotice(null);
@@ -228,7 +237,7 @@ export default function AddToCartSheet({
             });
 
             replaceCart(result.cart);
-            onAdded(result.message, false);
+            onAdded(result.message, 'cart');
         } catch (caught) {
             setError(caught instanceof ApiError ? caught.message : 'It could not be added. Try again.');
         } finally {
@@ -255,12 +264,38 @@ export default function AddToCartSheet({
                 setNotice(result.message);
                 resetPick();
             } else {
-                onAdded(result.message, true);
+                onAdded(result.message, 'preorder');
             }
         } catch (caught) {
             setError(caught instanceof ApiError ? caught.message : 'The preorder could not be placed. Try again.');
         } finally {
             setSaving(false);
+        }
+    };
+
+    // Add to Wishlist: the size or color chosen now (or the item without one),
+    // to buy later. The sheet closes unless the list still has lines.
+    const [savingWish, setSavingWish] = useState(false);
+    const addToWishlist = async (): Promise<void> => {
+        setSavingWish(true);
+        setError(null);
+
+        try {
+            const result = await request<{ message: string }>(`/products/${product.id}/wishlist`, {
+                method: 'POST',
+                body: { product_variant_id: variant?.id ?? null },
+            });
+
+            if (added.length > 0) {
+                setNotice(result.message);
+                resetPick();
+            } else {
+                onAdded(result.message, 'wishlist');
+            }
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'It could not be added to your wishlist. Try again.');
+        } finally {
+            setSavingWish(false);
         }
     };
 
@@ -328,6 +363,15 @@ export default function AddToCartSheet({
                             {(!preordering || added.length > 0) && cartButton}
                         </View>
                     )}
+                    <Pressable
+                        onPress={() => void addToWishlist()}
+                        disabled={savingWish}
+                        accessibilityRole="button"
+                        className={`flex-row items-center justify-center gap-2 rounded-2xl border border-pink-200 bg-pink-50 py-3 ${savingWish ? 'opacity-50' : ''}`}
+                    >
+                        {savingWish ? <ActivityIndicator color="#be185d" /> : <Heart size={17} color="#be185d" />}
+                        <Text className="font-sans-bold text-sm text-pink-700">Add to Wishlist</Text>
+                    </Pressable>
                 </View>
             }
         >

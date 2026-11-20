@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\Specialist\ProductAnnouncementController;
 use App\Http\Controllers\Api\V1\Specialist\StockController;
 use App\Http\Controllers\Api\V1\Specialist\TaskController;
 use App\Http\Controllers\Api\V1\StorefrontController;
+use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Middleware\UseRequestHostForPhotos;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,11 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::patch('cart-selection', [CartController::class, 'select'])->name('cart.select');
         Route::patch('cart/{cartItem}', [CartController::class, 'update'])->name('cart.update');
         Route::delete('cart/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
+
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
+        Route::post('products/{product}/wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
+        Route::delete('wishlist/{wishlistItem}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+        Route::post('cart/{cartItem}/wishlist', [WishlistController::class, 'moveFromCart'])->name('wishlist.move-from-cart');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
