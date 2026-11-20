@@ -66,7 +66,7 @@ type MyPreorder = {
     /** The order the held pieces went into. */
     order_id: number | null;
     order_number: string | null;
-    order_status: 'placed' | 'picked_up' | 'cancelled' | null;
+    order_status: 'placed' | 'paid' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
     /** The payment dates (null until the Specialist sets them). */
     pay_from: string | null;

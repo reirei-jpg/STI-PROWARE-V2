@@ -275,6 +275,22 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'order_paid') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Paid: {data.items}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {formatPeso(data.total_centavos)} paid. Get your items at
+                    the PROWARE office with your issuance slip.
+                    {data.short &&
+                        ` Sold out before you paid, so you were not charged for: ${data.short}.`}
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'order_released') {
         return (
             <>

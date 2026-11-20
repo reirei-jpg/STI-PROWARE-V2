@@ -34,7 +34,7 @@ class ReleasePaidPreorder
     public static function refusal(PreorderSlip $slip): ?string
     {
         if (! $slip->isPaid()) {
-            return "Preorder slip {$slip->number} is not paid yet, so nothing can be released. Mark it as paid once the buyer has paid at the cashier.";
+            return "Preorder slip {$slip->number} is not paid yet, so nothing can be released. The buyer pays at the cashier first.";
         }
 
         if ($slip->preorders()->where('status', PreorderStatus::Held)->exists()) {
@@ -67,12 +67,13 @@ class ReleasePaidPreorder
 
             $held = $locked->preorders()->where('status', PreorderStatus::Held)->lockForUpdate()->get();
             $student = $locked->student;
+            // Already paid at the cashier with the preorder slip.
             $order = $student->orders()->create([
                 'student_section' => $student->section,
-                'status' => OrderStatus::Placed,
+                'status' => OrderStatus::Paid,
                 'total_centavos' => 0,
             ]);
-            $order->forceFill(['number' => Order::numberFor($order->id)])->save();
+            $order->forceFill(['number' => Order::numberFor($order->id), 'paid_at' => $locked->paid_at, 'paid_to' => $locked->paid_by])->save();
             $total = 0;
 
             foreach ($held as $preorder) {

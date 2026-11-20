@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\CashierController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\FreeUniformController;
@@ -70,6 +71,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
     });
 
+    // The cashier marks buyers' slips Paid (panel revision, 20 Nov 2026).
+    Route::middleware('role:cashier')->prefix('cashier')->name('cashier.')->group(function () {
+        Route::get('/', [CashierController::class, 'index'])->name('index');
+        Route::post('orders/{order}/paid', [CashierController::class, 'payOrder'])->name('orders.paid');
+        Route::post('preorder-slips/{preorderSlip}/paid', [CashierController::class, 'payPreorderSlip'])->name('preorder-slips.paid');
+    });
+
     Route::middleware('role:school_admin')->group(function () {
         Route::post('purchase-orders/{purchaseOrder}/remind-specialist', [PurchaseOrderReminderController::class, 'store'])->name('purchase-orders.remind-specialist');
     });
@@ -109,7 +117,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('preorders/{product}/close-date', [PreorderController::class, 'updateCloseDate'])->name('preorders.close-date');
         Route::patch('preorders/{product}/payment-dates', [PreorderController::class, 'updatePaymentDates'])->name('preorders.payment-dates');
         Route::get('preorder-slips', [PreorderSlipController::class, 'index'])->name('preorder-slips.index');
-        Route::post('preorder-slips/{preorderSlip}/paid', [PreorderSlipController::class, 'paid'])->name('preorder-slips.paid');
         Route::post('preorder-slips/{preorderSlip}/release', [PreorderSlipController::class, 'release'])->name('preorder-slips.release');
         Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');
         Route::post('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'store'])->name('preorders.not-restocked');

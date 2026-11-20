@@ -3,28 +3,37 @@
 namespace App\Enums;
 
 /**
- * Where a buyer's order is. The buyer pays at the cashier, then shows the
- * receipt and the issuance slip at the PROWARE office, where it is released.
- * An order does not hold stock: whoever pays first gets it.
+ * Where a buyer's order is. The buyer pays at the cashier, who scans the
+ * issuance slip and marks it Paid: what is left of its items is set aside
+ * for them then (first to pay, first served). The Specialist then releases
+ * it at the PROWARE office (panel revision, 20 Nov 2026).
  */
 enum OrderStatus: string
 {
-    /** Placed by the buyer; waiting for them to pay and pick it up. */
+    /** Placed by the buyer; waiting for them to pay at the cashier. */
     case Placed = 'placed';
 
     /**
-     * Released: the Specialist checked the receipt and the issuance slip,
-     * and the items left the shelf.
+     * Paid at the cashier: its items (what was left of them) are set aside
+     * for the buyer until the Specialist releases them. It can no longer be
+     * cancelled.
+     */
+    case Paid = 'paid';
+
+    /**
+     * Released: the Specialist handed the paid items over, and they left the
+     * shelf.
      */
     case PickedUp = 'picked_up';
 
-    /** Cancelled by the buyer or the Specialist. */
+    /** Cancelled by the buyer before paying. */
     case Cancelled = 'cancelled';
 
     public function label(): string
     {
         return match ($this) {
             self::Placed => 'Waiting for payment',
+            self::Paid => 'Paid · ready to release',
             self::PickedUp => 'Released',
             self::Cancelled => 'Cancelled',
         };
@@ -39,10 +48,11 @@ enum OrderStatus: string
     }
 
     /**
-     * Still waiting to be paid for and released.
+     * Not released or cancelled yet (waiting for payment, or paid and
+     * waiting for release).
      */
     public function isOpen(): bool
     {
-        return $this === self::Placed;
+        return $this === self::Placed || $this === self::Paid;
     }
 }

@@ -20,6 +20,7 @@ const workspaceDescriptions: Record<UserRole, string> = {
     school_admin: 'Monitoring of eStore orders and deliveries',
     student: 'Official STI merchandise',
     employee: 'Official STI merchandise',
+    cashier: 'Payments for PROWARE orders and preorders',
 };
 
 /**

@@ -292,7 +292,8 @@ test('sales reports show a released set\'s pieces at their own price, not as a s
     $this->post(route('my-orders.store'));
     $order = Order::sole();
 
-    $this->actingAs($specialist)->post(route('orders.release', $order), ['paid' => '1'])->assertSessionHasNoErrors();
+    payAtCashier($order);
+    $this->actingAs($specialist)->post(route('orders.release', $order))->assertSessionHasNoErrors();
 
     $this->get(route('sales-reports.index', ['tab' => 'sold']))->assertInertia(fn (Assert $page) => $page
         ->has('sold.data', 2)

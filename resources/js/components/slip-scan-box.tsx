@@ -15,16 +15,21 @@ import { cn } from '@/lib/utils';
 export default function SlipScanBox({
     initialCode = '',
     className,
+    openUrl = OrderController.slip().url,
+    placeholder = 'Type the order number, e.g. PW-0042',
 }: {
     initialCode?: string;
     className?: string;
+    /** The page that opens the slip (?code=): the Specialist's, or the cashier's. */
+    openUrl?: string;
+    placeholder?: string;
 }) {
     const [code, setCode] = useState(initialCode);
     const [scanning, setScanning] = useState(false);
 
     const open = (value: string) => {
         if (value.trim() !== '') {
-            router.get(OrderController.slip().url, { code: value.trim() });
+            router.get(openUrl, { code: value.trim() });
         }
     };
 
@@ -58,7 +63,7 @@ export default function SlipScanBox({
                         // Ready for the scanner without a click.
                         autoFocus
                         maxLength={120}
-                        placeholder="Type the order number, e.g. PW-0042"
+                        placeholder={placeholder}
                         className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
                         aria-label="Slip code or order number"
                     />

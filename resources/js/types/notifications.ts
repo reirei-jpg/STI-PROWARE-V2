@@ -53,6 +53,17 @@ export type OrderReadyData = {
     pick_up_by: string | null;
 };
 
+/** The cashier recorded the buyer's payment; the items are set aside. */
+export type OrderPaidData = {
+    kind: 'order_paid';
+    order_id: number;
+    order_number: string | null;
+    items: string;
+    total_centavos: number;
+    /** What was sold out before they paid (not charged). */
+    short?: string | null;
+};
+
 /** The order was released to the student at the PROWARE office. */
 export type OrderReleasedData = {
     kind: 'order_released';
@@ -323,6 +334,7 @@ export type StaffNotification = {
         | SaleEndedData
         | OrderPlacedData
         | OrderReadyData
+        | OrderPaidData
         | OrderReleasedData
         | OrderLastDayData
         | OrderCancelledData

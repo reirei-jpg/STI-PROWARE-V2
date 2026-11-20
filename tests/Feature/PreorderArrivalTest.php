@@ -16,6 +16,7 @@ use App\Notifications\PreorderReady;
 use App\Services\Stock\RestockedPreorders;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
 
@@ -99,13 +100,12 @@ test('an order from an old 24-hour hold is a normal order: it cannot take pieces
 
     expect($oldHold->holdsItems())->toBeFalse()->and($this->variant->refresh()->freeToSell())->toBe(0);
 
-    $this->actingAs($this->specialist)
-        ->post(route('orders.release', $oldHold), ['paid' => true])
-        ->assertInertiaFlash('toast.message', "Nothing of order {$oldHold->number} is left in stock, so it cannot be released. Wait for a restock, or the buyer can cancel it.");
+    expect(fn () => payAtCashier($oldHold))->toThrow(ValidationException::class, "Nothing of order {$oldHold->number} is left in stock, so it cannot be paid. The buyer can cancel it and order again when it is back.");
 
     // One more piece comes in: whoever pays first gets it.
     hoodiesComeIn($this->variant, 1);
-    $this->post(route('orders.release', $oldHold), ['paid' => true])->assertInertiaFlash('toast.type', 'success');
+    payAtCashier($oldHold);
+    $this->actingAs($this->specialist)->post(route('orders.release', $oldHold))->assertInertiaFlash('toast.type', 'success');
     expect($this->variant->refresh())->stock_on_hand->toBe(7)->preorder_held_pieces->toBe(7)->held_pieces->toBe(0);
 });
 
@@ -153,7 +153,7 @@ test('release is refused while unpaid, before anything arrived, and once all is 
     $this->actingAs($this->specialist);
 
     $this->post(route('preorder-slips.release', slipOf($this->third)))
-        ->assertInertiaFlash('toast.message', 'Preorder slip '.slipOf($this->third)->number.' is not paid yet, so nothing can be released. Mark it as paid once the buyer has paid at the cashier.');
+        ->assertInertiaFlash('toast.message', 'Preorder slip '.slipOf($this->third)->number.' is not paid yet, so nothing can be released. The buyer pays at the cashier first.');
     $this->post(route('preorder-slips.release', slipOf($this->first)))
         ->assertInertiaFlash('toast.message', 'Nothing of preorder '.slipOf($this->first)->number.' has arrived yet. The buyer is told when it arrives.');
 
@@ -222,7 +222,7 @@ test('an unpaid slip whose item is back in stock says so, and cannot be paid any
     hoodiesComeIn($this->variant, 12);
     $slip = slipOf($this->third);
 
-    $this->actingAs($this->specialist)->post(route('preorder-slips.paid', $slip))
+    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $slip))
         ->assertInertiaFlash('toast.message', "STI Hoodie is back in stock, so preorder slip {$slip->number} is closed. The buyer can buy it in the store.");
 });
 

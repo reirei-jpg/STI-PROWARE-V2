@@ -42,7 +42,7 @@ test('an STI teacher buys on the website, and the Specialist sees a Staff order 
         ->and($variant->refresh()->held_pieces)->toBe(0);
 
     $this->actingAs(User::factory()->specialist()->create())
-        ->get(route('orders.index'))
+        ->get(route('orders.index', ['show' => 'placed']))
         ->assertInertia(fn (Assert $page) => $page
             ->where('orders.data.0.student_name', 'Ana Lopez')
             ->where('orders.data.0.is_staff', true)
@@ -64,7 +64,7 @@ test('a student\'s order is not marked as a Staff order', function () {
     $this->post(route('my-orders.store'))->assertSessionHasNoErrors();
 
     $this->actingAs(User::factory()->specialist()->create())
-        ->get(route('orders.index'))
+        ->get(route('orders.index', ['show' => 'placed']))
         ->assertInertia(fn (Assert $page) => $page
             ->where('orders.data.0.is_staff', false)
             ->where('orders.data.0.student_id', '02000345671'));

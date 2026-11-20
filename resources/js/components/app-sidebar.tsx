@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Banknote,
     CalendarClock,
     ClipboardList,
     FileScan,
@@ -11,6 +12,7 @@ import {
     TrendingUp,
     Truck,
 } from 'lucide-react';
+import CashierController from '@/actions/App/Http/Controllers/CashierController';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
@@ -31,6 +33,7 @@ const workspaceNames: Record<UserRole, string> = {
     school_admin: 'School Admin Workspace',
     student: 'Student',
     employee: 'STI Staff',
+    cashier: 'Cashier Workspace',
 };
 
 /**
@@ -44,6 +47,17 @@ export function useWorkspaceName(): string {
 
 function useStaffMenuItems(): NavItem[] {
     const { auth } = usePage<{ auth: Auth }>().props;
+
+    // The cashier only takes payments (panel revision, 20 Nov 2026).
+    if (auth.user.role === 'cashier') {
+        return [
+            {
+                title: 'Payments',
+                href: CashierController.index(),
+                icon: Banknote,
+            },
+        ];
+    }
 
     const items: NavItem[] = [
         { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },

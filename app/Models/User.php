@@ -95,6 +95,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * The cashier: marks buyers' slips Paid when they pay.
+     */
+    public function isCashier(): bool
+    {
+        return $this->role === UserRole::Cashier;
+    }
+
+    /**
      * An STI teacher or employee who buys from the store ("STI Staff").
      */
     public function isEmployee(): bool

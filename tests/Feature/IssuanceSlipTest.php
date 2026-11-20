@@ -81,7 +81,8 @@ test('a student cannot see another student\'s slip', function () {
 test('a released slip shows when it was released and who issued it', function () {
     $order = juansHoodieOrder();
     $order->items()->update(['product_variant_id' => ProductVariant::factory()->create(['stock_on_hand' => 5])->id]);
-    $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
+    payAtCashier($order);
+    $this->actingAs($this->specialist)->post(route('orders.release', $order));
 
     $this->actingAs($this->student)->get(route('my-orders.slip', $order))->assertInertia(fn (Assert $page) => $page
         ->where('slip.status_label', 'Released')

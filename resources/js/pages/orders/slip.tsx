@@ -56,9 +56,9 @@ type SlipResult = {
 /**
  * A scanned issuance slip: first a large banner that answers "can I
  * release this?" (green OK, red stop), then the order beside its slip with
- * the student, the checks, and the release as numbered steps: check the
- * cashier's receipt, tick that it was checked, release the items (they leave
- * the shelf only then, as many as are left; a release is final). Print sits
+ * the student, what was paid at the cashier, and Release (only once the
+ * cashier marked it paid; the paid items leave the shelf; a release is
+ * final). Print sits
  * below, smaller. Only the buyer can cancel an order. Not a PROWARE slip: says so.
  */
 export default function OrderSlip({
@@ -74,7 +74,9 @@ export default function OrderSlip({
     // While the order is open the page checks it every 10 seconds, so when
     // it is released, cancelled or expires elsewhere (the phone, another
     // computer, the buyer) its Release and Cancel buttons are gone by itself.
-    const isOpen = result?.order.status === 'placed';
+    // Waiting for payment or paid: it may be paid or released elsewhere.
+    const isOpen =
+        result?.order.status === 'placed' || result?.order.status === 'paid';
     const { start, stop } = usePoll(
         10000,
         { only: ['result'] },
@@ -106,7 +108,7 @@ export default function OrderSlip({
             <div className="space-y-6">
                 <PageHeader
                     title="Issuance Slip"
-                    description="Check the slip and the cashier receipt, then release the items."
+                    description="The cashier marks the slip paid; then hand the items over and release them."
                     actions={
                         <Link
                             href={OrderController.index()}
@@ -142,17 +144,14 @@ export default function OrderSlip({
 }
 
 /**
- * A scanned preorder slip (PR-0001): the answer first (pay now, or
- * already paid), then the slip beside the payment: check the cashier's
- * receipt for the amount, then Mark as paid. A payment is final: the
- * preorder can no longer be changed or cancelled, and there is no refund.
+ * A scanned preorder slip (PR-0001): the answer first (not paid yet, or
+ * paid), then the slip, and Release for its paid pieces that arrived. The
+ * cashier marks slips Paid (panel revision, 20 Nov 2026).
  */
 function PreorderPayment({ result }: { result: PreorderSlipResult }) {
     const { slip } = result;
     const released = slip.status === 'released';
     const paid = slip.status === 'paid' || released;
-    const [checked, setChecked] = useState(false);
-    const [confirming, setConfirming] = useState(false);
     const [busy, setBusy] = useState(false);
     const [releasing, setReleasing] = useState(false);
     const readyPieces = result.ready.reduce(
@@ -178,21 +177,6 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                 onFinish: () => {
                     setBusy(false);
                     setReleasing(false);
-                },
-            },
-        );
-    };
-
-    const markPaid = () => {
-        setBusy(true);
-        router.post(
-            PreorderSlipController.paid(slip.slip_id).url,
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => {
-                    setBusy(false);
-                    setConfirming(false);
                 },
             },
         );
@@ -236,7 +220,7 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                                 : result.release_refusal
                             : !result.can_mark_paid
                               ? result.refusal
-                              : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name}. Check the cashier receipt, then mark it paid.`}
+                              : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name} at the cashier first. The cashier marks it paid.`}
                     </p>
                 </div>
             </section>
@@ -290,54 +274,6 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                         </button>
                     </section>
                 )}
-
-                {result.can_mark_paid && (
-                    <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div>
-                            <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
-                                Amount to pay
-                            </p>
-                            <p className="text-3xl font-black text-slate-900">
-                                {formatPeso(slip.total_centavos)}
-                            </p>
-                            <p className="text-sm text-slate-500">
-                                {slip.student_name} · {slip.product_name}
-                            </p>
-                        </div>
-                        <label className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-semibold text-slate-700">
-                            <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(event) =>
-                                    setChecked(event.target.checked)
-                                }
-                                className="mt-0.5 size-4 rounded border-slate-300"
-                            />
-                            I checked the cashier receipt for{' '}
-                            {formatPeso(slip.total_centavos)}.
-                        </label>
-                        <button
-                            type="button"
-                            disabled={!checked || busy}
-                            onClick={() => setConfirming(true)}
-                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            {busy ? (
-                                <LoaderCircle
-                                    size={16}
-                                    className="animate-spin"
-                                />
-                            ) : (
-                                <Banknote size={16} />
-                            )}
-                            Mark as paid
-                        </button>
-                        <p className="text-xs text-slate-500">
-                            After this the preorder can no longer be changed or
-                            cancelled, and there is no refund.
-                        </p>
-                    </section>
-                )}
             </div>
 
             <ConfirmDialog
@@ -349,17 +285,6 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                 busy={busy}
                 onConfirm={release}
                 onClose={() => setReleasing(false)}
-            />
-
-            <ConfirmDialog
-                open={confirming}
-                title={`Mark ${slip.number} as paid?`}
-                description={`${slip.student_name} paid ${formatPeso(slip.total_centavos)} for ${slip.product_name}. The slip will say PAID, and the preorder can no longer be changed or cancelled. This cannot be undone.`}
-                cancelLabel="Not yet"
-                confirmLabel="Mark as paid"
-                busy={busy}
-                onConfirm={markPaid}
-                onClose={() => setConfirming(false)}
             />
         </>
     );
@@ -383,19 +308,27 @@ function NotFound({ code }: { code: string }) {
 }
 
 /**
- * The answer first, in V1's colors: green while the items can still be
- * released, red when they were released already (so they are not handed
- * over twice) or the order was cancelled or expired.
+ * The answer first, in V1's colors: green once the cashier marked it paid
+ * (OK to release), amber while it waits for payment (send the buyer to the
+ * cashier), red when it was released already (so it is not handed over
+ * twice) or the order was cancelled or expired.
  */
 function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
     const verdict = (() => {
         switch (order.status) {
-            case 'placed':
+            case 'paid':
                 return {
                     tone: 'green' as const,
                     icon: <CheckCircle2 size={30} />,
                     title: 'OK to release',
-                    text: 'Not released yet. Check the cashier receipt, then release what is in stock.',
+                    text: `Paid at the cashier ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand the items over, then release.`,
+                };
+            case 'placed':
+                return {
+                    tone: 'amber' as const,
+                    icon: <Banknote size={30} />,
+                    title: 'Not paid yet',
+                    text: 'Send the buyer to the cashier first. Release it once the cashier marks it paid.',
                 };
             case 'picked_up':
                 return {
@@ -426,7 +359,9 @@ function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
                 'flex items-center gap-4 rounded-3xl px-6 py-5 shadow-sm',
                 verdict.tone === 'green'
                     ? 'bg-emerald-600 text-white shadow-emerald-600/20'
-                    : 'bg-red-600 text-white shadow-red-600/20',
+                    : verdict.tone === 'amber'
+                      ? 'bg-amber-500 text-white shadow-amber-500/20'
+                      : 'bg-red-600 text-white shadow-red-600/20',
             )}
         >
             <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/20">
@@ -444,21 +379,25 @@ function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
 
 function ReleaseCard({ result }: { result: SlipResult }) {
     const { order, other_open_orders: otherOpenOrders } = result;
-    const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
     const [confirmingRelease, setConfirmingRelease] = useState(false);
-    const isOpen = order.status === 'placed';
+    const waiting = order.status === 'placed';
+    const paid = order.status === 'paid';
+    const shortLines = order.items.filter((item) => item.quantity_short > 0);
 
-    const act = (url: string, data: Record<string, boolean> = {}) => {
+    const release = () => {
         setBusy(true);
-        router.post(url, data, {
-            preserveScroll: true,
-            onSuccess: () => setPaid(false),
-            onFinish: () => {
-                setBusy(false);
-                setConfirmingRelease(false);
+        router.post(
+            OrderController.release(order.id).url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setBusy(false);
+                    setConfirmingRelease(false);
+                },
             },
-        });
+        );
     };
 
     return (
@@ -483,88 +422,88 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                 <OrderStatusBadge order={order} />
             </div>
 
-            {(isOpen || otherOpenOrders.length > 0) && (
+            {otherOpenOrders.length > 0 && (
                 <ul className="space-y-2 text-sm">
-                    {isOpen && (
-                        <Check tone="amber">
-                            First to pay, first served. Items already sold are
-                            released short.
-                        </Check>
-                    )}
-                    {otherOpenOrders.length > 0 && (
-                        <Check tone="amber">
-                            {order.student_name} has{' '}
-                            {otherOpenOrders.length === 1
-                                ? 'another order'
-                                : `${otherOpenOrders.length} other orders`}{' '}
-                            waiting:{' '}
-                            {otherOpenOrders.map((other, index) => (
-                                <span key={other.id}>
-                                    {index > 0 && ', '}
-                                    <Link
-                                        href={OrderController.slip({
-                                            query: { code: other.number ?? '' },
-                                        })}
-                                        className="font-black underline"
-                                    >
-                                        {other.number}
-                                    </Link>{' '}
-                                    ({other.status_label})
-                                </span>
-                            ))}
-                        </Check>
-                    )}
+                    <Check tone="amber">
+                        {order.student_name} has{' '}
+                        {otherOpenOrders.length === 1
+                            ? 'another order'
+                            : `${otherOpenOrders.length} other orders`}{' '}
+                        open:{' '}
+                        {otherOpenOrders.map((other, index) => (
+                            <span key={other.id}>
+                                {index > 0 && ', '}
+                                <Link
+                                    href={OrderController.slip({
+                                        query: { code: other.number ?? '' },
+                                    })}
+                                    className="font-black underline"
+                                >
+                                    {other.number}
+                                </Link>{' '}
+                                ({other.status_label})
+                            </span>
+                        ))}
+                    </Check>
                 </ul>
             )}
 
-            {isOpen && (
-                <ol className="space-y-3">
-                    <ReleaseStep number={1} title="Check the cashier's receipt">
+            {waiting && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                    <p className="font-black">Not paid yet</p>
+                    <p>
+                        The buyer pays {formatPeso(order.total_centavos)} at the
+                        cashier first. Release it once the cashier marks it
+                        paid.
+                    </p>
+                </div>
+            )}
+
+            {paid && (
+                <div className="space-y-3">
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                        <p className="text-xs font-black tracking-wide text-emerald-800 uppercase">
+                            Paid at the cashier
+                        </p>
                         <p className="text-3xl font-black tracking-tight text-emerald-700">
                             {formatPeso(order.total_centavos)}
                         </p>
-                        <p className="text-xs font-semibold text-slate-500">
-                            The buyer pays this at the cashier and shows you the
-                            official receipt.
+                        <p className="text-xs font-semibold text-emerald-900">
+                            {formatDateTime(order.paid_at)}
+                            {order.paid_to && ` · ${order.paid_to}`}
                         </p>
-                    </ReleaseStep>
-                    <ReleaseStep number={2} title="Confirm it">
-                        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-800 transition has-checked:border-emerald-400 has-checked:bg-emerald-50">
-                            <input
-                                type="checkbox"
-                                checked={paid}
-                                onChange={(event) =>
-                                    setPaid(event.target.checked)
-                                }
-                                className="mt-0.5 size-5 accent-emerald-600"
-                            />
-                            I checked the cashier&apos;s receipt for{' '}
-                            {formatPeso(order.total_centavos)}.
-                        </label>
-                    </ReleaseStep>
-                    <ReleaseStep number={3} title="Hand over the items">
-                        <button
-                            type="button"
-                            disabled={!paid || busy}
-                            onClick={() => setConfirmingRelease(true)}
-                            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-                        >
-                            {busy ? (
-                                <LoaderCircle
-                                    size={18}
-                                    className="animate-spin"
-                                />
-                            ) : (
-                                <Banknote size={18} />
-                            )}
-                            Release the items
-                        </button>
-                        <p className="mt-2 text-center text-xs font-semibold text-slate-500">
-                            The items in stock leave it at once. This cannot be
-                            undone.
-                        </p>
-                    </ReleaseStep>
-                </ol>
+                    </div>
+                    {shortLines.length > 0 && (
+                        <Check tone="amber">
+                            Not paid for (sold before the buyer paid), do not
+                            hand over:{' '}
+                            {shortLines
+                                .map(
+                                    (item) =>
+                                        `${formatUnits(item.quantity_short, item.unit_name)} of ${item.product_name}${item.variant_label ? ` (${item.variant_label})` : ''}`,
+                                )
+                                .join(', ')}
+                        </Check>
+                    )}
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setConfirmingRelease(true)}
+                        data-test="release-button"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                    >
+                        {busy ? (
+                            <LoaderCircle size={18} className="animate-spin" />
+                        ) : (
+                            <CheckCircle2 size={18} />
+                        )}
+                        Release the items
+                    </button>
+                    <p className="text-center text-xs font-semibold text-slate-500">
+                        The paid items leave the shelf at once. This cannot be
+                        undone.
+                    </p>
+                </div>
             )}
 
             <div className="grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
@@ -584,44 +523,17 @@ function ReleaseCard({ result }: { result: SlipResult }) {
             <ConfirmReleaseDialog
                 order={confirmingRelease ? order : null}
                 busy={busy}
-                onConfirm={() =>
-                    act(OrderController.release(order.id).url, { paid: true })
-                }
+                onConfirm={release}
                 onClose={() => setConfirmingRelease(false)}
             />
         </aside>
     );
 }
-
 /** "Juan Dela Cruz" -> "JC". */
 function initials(name: string): string {
     const words = name.trim().split(/\s+/);
 
     return `${words[0]?.[0] ?? ''}${words.length > 1 ? (words[words.length - 1][0] ?? '') : ''}`.toUpperCase();
-}
-
-function ReleaseStep({
-    number,
-    title,
-    children,
-}: {
-    number: number;
-    title: string;
-    children: ReactNode;
-}) {
-    return (
-        <li className="flex gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-black text-emerald-700 ring-1 ring-emerald-200">
-                {number}
-            </span>
-            <div className="min-w-0 flex-1 space-y-1.5">
-                <p className="pt-0.5 text-xs font-black tracking-wide text-slate-500 uppercase">
-                    {title}
-                </p>
-                {children}
-            </div>
-        </li>
-    );
 }
 
 function Check({

@@ -16,6 +16,7 @@ const roleLabels: Record<UserRole, string> = {
     school_admin: 'School Admin',
     student: 'Student',
     employee: 'STI Staff',
+    cashier: 'Cashier',
 };
 
 /**

@@ -60,34 +60,46 @@ test('a preorder gets a slip to pay at the cashier, with the early-bird price', 
     $this->actingAs(User::factory()->student()->create())->get(route('my-preorders.slip', $slip))->assertNotFound();
 });
 
-test('the Specialist scans the slip and marks it paid; the buyer is told and the slip says PAID', function () {
+test('the cashier scans the slip and marks it paid; the buyer is told and the slip says PAID', function () {
     Notification::fake();
     $slip = preorderThreeHoodies();
-    $this->actingAs($this->specialist);
+    $cashier = User::factory()->cashier()->create(['name' => 'Cashier 1']);
+    $this->actingAs($cashier);
 
-    $this->get(route('orders.slip', ['code' => $slip->code]))->assertInertia(fn (Assert $page) => $page
-        ->where('result', null)
-        ->where('preorderResult.slip.number', $slip->number)
-        ->where('preorderResult.can_mark_paid', true));
+    $this->get(route('cashier.index', ['code' => $slip->code]))->assertInertia(fn (Assert $page) => $page
+        ->component('cashier/index')
+        ->where('result.kind', 'preorder')
+        ->where('result.slip.number', $slip->number)
+        ->where('result.to_collect_centavos', 205000)
+        ->where('result.can_mark_paid', true));
 
-    $this->post(route('preorder-slips.paid', $slip))
+    $this->post(route('cashier.preorder-slips.paid', $slip))
         ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number} has been marked as paid: ₱2,050.00 from Juan Dela Cruz.");
 
-    expect($slip->refresh())->paid_centavos->toBe(205000)->paid_by->toBe($this->specialist->id);
+    expect($slip->refresh())->paid_centavos->toBe(205000)->paid_by->toBe($cashier->id);
     Notification::assertSentTo($this->buyer, PreorderPaid::class, fn (PreorderPaid $notice): bool => $notice->toPush($this->buyer)['body']
         === '₱2,050.00 paid. Keep your preorder slip as proof of payment.');
 
-    // Not twice; the number typed in finds it too.
-    $this->post(route('preorder-slips.paid', $slip))
-        ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number} was already paid on Nov 14, 2026 10:00 AM (marked by Carlo Mendoza).");
-    $this->get(route('orders.slip', ['code' => strtolower((string) $slip->number)]))
-        ->assertInertia(fn (Assert $page) => $page->where('preorderResult.slip.status', 'paid')->where('preorderResult.can_mark_paid', false));
+    // Not twice; the number typed in finds it too; it is in today's payments.
+    $this->post(route('cashier.preorder-slips.paid', $slip))
+        ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number} was already paid on Nov 14, 2026 10:00 AM (marked by Cashier 1).");
+    $this->get(route('cashier.index', ['code' => strtolower((string) $slip->number)]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('result.slip.status', 'paid')
+            ->where('result.can_mark_paid', false)
+            ->where('paidToday.total_centavos', 205000)
+            ->where('paidToday.rows.0.number', $slip->number));
+
+    // The Specialist sees it paid, and can no longer mark slips paid.
+    $this->actingAs($this->specialist)->get(route('orders.slip', ['code' => $slip->code]))
+        ->assertInertia(fn (Assert $page) => $page->where('preorderResult.slip.status', 'paid'));
+    $this->post(route('cashier.preorder-slips.paid', $slip))->assertForbidden();
 });
 
 test('a paid preorder can no longer be changed or cancelled, and keeps the price it was paid at', function () {
     $slip = preorderThreeHoodies();
     $preorder = Preorder::sole();
-    $this->actingAs($this->specialist)->post(route('preorder-slips.paid', $slip));
+    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $slip));
 
     $this->actingAs($this->buyer)->delete(route('my-preorders.destroy', $preorder))
         ->assertInertiaFlash('toast.message', 'You already paid for your preorder of STI Batch 2027 Hoodie, so it can no longer be cancelled. There is no refund.');
@@ -106,21 +118,23 @@ test('a paid preorder can no longer be changed or cancelled, and keeps the price
         ->where('preorders.data.0.can_edit', false));
 });
 
-test('on the phone the buyer sees the slip and the Specialist marks it paid', function () {
+test('on the phone the buyer sees the slip and the cashier marks it paid', function () {
     $slip = preorderThreeHoodies();
 
     Sanctum::actingAs($this->buyer);
     $this->getJson(route('api.v1.preorders.slip', $slip))->assertOk()->assertJsonPath('number', $slip->number)->assertJsonPath('status', 'waiting_payment');
 
-    Sanctum::actingAs($this->specialist);
-    $this->getJson(route('api.v1.specialist.slips.show', $slip->code))->assertOk()->assertJsonPath('kind', 'preorder')->assertJsonPath('can_mark_paid', true);
-    $this->postJson(route('api.v1.specialist.preorder-slips.paid', $slip))->assertOk()->assertJsonPath('message', "Preorder slip {$slip->number} has been marked as paid: ₱2,050.00 from Juan Dela Cruz.");
-    $this->postJson(route('api.v1.specialist.preorder-slips.paid', $slip))->assertUnprocessable();
+    Sanctum::actingAs(User::factory()->cashier()->create());
+    $this->getJson(route('api.v1.cashier.slip', ['code' => $slip->code]))->assertOk()->assertJsonPath('kind', 'preorder')->assertJsonPath('can_mark_paid', true)->assertJsonPath('to_collect_centavos', 205000);
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertOk()->assertJsonPath('message', "Preorder slip {$slip->number} has been marked as paid: ₱2,050.00 from Juan Dela Cruz.");
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertUnprocessable();
 
-    // Only the Specialist marks slips paid.
+    // Only the cashier marks slips paid: not the buyer, not the Specialist.
     Sanctum::actingAs($this->buyer);
-    $this->postJson(route('api.v1.specialist.preorder-slips.paid', $slip))->assertForbidden();
-    $this->actingAs($this->buyer)->post(route('preorder-slips.paid', $slip))->assertForbidden();
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertForbidden();
+    Sanctum::actingAs($this->specialist);
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertForbidden();
+    $this->actingAs($this->buyer)->post(route('cashier.preorder-slips.paid', $slip))->assertForbidden();
 });
 
 test('a slip asks only for the preorders still waiting, not one already ordered and paid as an order', function () {

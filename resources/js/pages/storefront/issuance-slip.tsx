@@ -51,7 +51,7 @@ export default function StudentIssuanceSlip({
     // While the order is open the page checks it every 10 seconds, so once
     // the office releases it the Cancel button is gone by itself, without
     // reloading the page.
-    const isOpen = slip.status === 'placed';
+    const isOpen = slip.status === 'placed' || slip.status === 'paid';
     const { start, stop } = usePoll(
         10000,
         { only: ['slip', 'canCancel'] },
@@ -254,9 +254,17 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
             return (
                 <Notice tone="amber" icon={<Clock size={20} />}>
                     Pay <strong>{formatPeso(slip.total_centavos)}</strong> at
-                    the cashier, then show the receipt and this slip at the
-                    PROWARE office to get your items. First to pay, first
-                    served. You can show the slip on your phone or print it.
+                    the cashier with this slip, then get your items at the
+                    PROWARE office. First to pay, first served. You can show the
+                    slip on your phone or print it.
+                </Notice>
+            );
+        case 'paid':
+            return (
+                <Notice tone="green" icon={<CheckCircle2 size={20} />}>
+                    Paid <strong>{formatPeso(slip.total_centavos)}</strong> at
+                    the cashier. Your items are set aside: show this slip at the
+                    PROWARE office to get them.
                 </Notice>
             );
         case 'picked_up':

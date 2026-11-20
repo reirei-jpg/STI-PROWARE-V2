@@ -185,7 +185,7 @@ export type CartLine = {
 };
 
 /** Waiting for payment, released, or cancelled. Orders hold no stock: whoever pays first gets it. */
-export type OrderStatus = 'placed' | 'picked_up' | 'cancelled';
+export type OrderStatus = 'placed' | 'paid' | 'picked_up' | 'cancelled';
 
 export type OrderRow = {
     id: number;
@@ -214,6 +214,8 @@ export type OrderRow = {
         line_total_centavos: number;
     }[];
     placed_at: string | null;
+    /** When the cashier marked it Paid (null: not paid yet). */
+    paid_at: string | null;
     /** The old last day to pick it up; only on orders from before orders stopped holding stock. */
     pick_up_by: string | null;
     picked_up_at: string | null;
@@ -230,6 +232,8 @@ export type OrderRow = {
 /** An order on the Specialist's Orders page and slip screen. */
 export type SpecialistOrderRow = OrderRow & {
     handled_by: string | null;
+    /** The cashier who took the payment. */
+    paid_to: string | null;
 };
 
 /** An order's issuance slip, as on STI College-Ormoc's paper form. */

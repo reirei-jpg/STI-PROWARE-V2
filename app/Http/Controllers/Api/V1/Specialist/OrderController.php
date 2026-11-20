@@ -69,14 +69,6 @@ class OrderController extends Controller
     }
 
     /**
-     * Mark a preorder slip Paid, as on the website.
-     */
-    public function preorderPaid(Request $request, PreorderSlip $preorderSlip): JsonResponse
-    {
-        return response()->json(['message' => PreorderPayment::markPaid($preorderSlip, $request->user())]);
-    }
-
-    /**
      * Release a paid preorder's pieces that arrived, as on the website.
      */
     public function preorderRelease(Request $request, PreorderSlip $preorderSlip, ReleasePaidPreorder $releasePreorder): JsonResponse

@@ -1,6 +1,5 @@
 import { Link, router } from '@inertiajs/react';
 import {
-    Banknote,
     CheckCircle2,
     Circle,
     LoaderCircle,
@@ -10,7 +9,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import OrderItems, { OrderStatusBadge } from '@/components/order-items';
@@ -44,14 +43,8 @@ export default function OrderDetailsDialog({
     /** After a step worked, e.g. to keep showing the order once it moved tabs. */
     onActed?: (orderId: number) => void;
 }) {
-    const [paid, setPaid] = useState(false);
     const [busy, setBusy] = useState(false);
     const [confirmingRelease, setConfirmingRelease] = useState(false);
-
-    // A fresh tick for every order and every change of status.
-    useEffect(() => {
-        setPaid(false);
-    }, [order?.id, order?.status]);
 
     const act = (url: string, data: Record<string, boolean> = {}) => {
         const orderId = order?.id;
@@ -70,7 +63,8 @@ export default function OrderDetailsDialog({
         });
     };
 
-    const isOpen = order?.status === 'placed';
+    // Release only once the cashier marked it paid (panel revision, 20 Nov 2026).
+    const paid = order?.status === 'paid';
 
     return (
         <Dialog
@@ -136,6 +130,15 @@ export default function OrderDetailsDialog({
                                     <HistoryStep done>
                                         Placed {formatDateTime(order.placed_at)}
                                     </HistoryStep>
+                                    {order.status !== 'cancelled' && (
+                                        <HistoryStep
+                                            done={order.paid_at !== null}
+                                        >
+                                            {order.paid_at !== null
+                                                ? `Paid at the cashier ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}: ${formatPeso(order.total_centavos)}`
+                                                : `Paid: not yet. The buyer pays ${formatPeso(order.total_centavos)} at the cashier.`}
+                                        </HistoryStep>
+                                    )}
                                     {order.status === 'cancelled' ? (
                                         <HistoryStep done tone="red">
                                             {order.expired
@@ -164,26 +167,14 @@ export default function OrderDetailsDialog({
                                 </ol>
                             </section>
 
-                            {isOpen && (
+                            {paid && (
                                 <section className="space-y-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
                                     <h3 className="text-xs font-black tracking-wide text-emerald-800 uppercase">
                                         Release
                                     </h3>
-                                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition has-checked:border-emerald-400 has-checked:bg-emerald-50">
-                                        <input
-                                            type="checkbox"
-                                            checked={paid}
-                                            onChange={(event) =>
-                                                setPaid(event.target.checked)
-                                            }
-                                            className="mt-0.5 size-5 accent-emerald-600"
-                                        />
-                                        I checked the cashier&apos;s receipt for{' '}
-                                        {formatPeso(order.total_centavos)}.
-                                    </label>
                                     <button
                                         type="button"
-                                        disabled={!paid || busy}
+                                        disabled={busy}
                                         onClick={() =>
                                             setConfirmingRelease(true)
                                         }
@@ -195,19 +186,23 @@ export default function OrderDetailsDialog({
                                                 className="animate-spin"
                                             />
                                         ) : (
-                                            <Banknote size={17} />
+                                            <CheckCircle2 size={17} />
                                         )}
                                         Release the items
                                     </button>
                                     <p className="text-xs font-semibold text-emerald-900/70">
-                                        {!paid &&
-                                            'Tick the box above after checking the cashier receipt. '}
-                                        The items leave the stock at once. Items
-                                        already sold to buyers who paid first
-                                        are released short. This cannot be
+                                        Paid at the cashier. The paid items
+                                        leave the stock at once. This cannot be
                                         undone.
                                     </p>
                                 </section>
+                            )}
+                            {order.status === 'placed' && (
+                                <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                                    Not paid yet. The buyer pays at the cashier
+                                    first; release it once the cashier marks it
+                                    paid.
+                                </p>
                             )}
                         </div>
 
@@ -236,9 +231,7 @@ export default function OrderDetailsDialog({
                             order={confirmingRelease ? order : null}
                             busy={busy}
                             onConfirm={() =>
-                                act(OrderController.release(order.id).url, {
-                                    paid: true,
-                                })
+                                act(OrderController.release(order.id).url)
                             }
                             onClose={() => setConfirmingRelease(false)}
                         />
@@ -251,8 +244,7 @@ export default function OrderDetailsDialog({
 
 /**
  * "Release Order PW-0042 to Juan Dela Cruz?": the items leave the stock and
- * a release is final, so the Specialist answers first (after ticking that
- * the cashier's receipt was checked).
+ * a release is final, so the Specialist answers first.
  */
 export function ConfirmReleaseDialog({
     order,
@@ -266,8 +258,10 @@ export function ConfirmReleaseDialog({
     onClose: () => void;
 }) {
     const items = order?.items ?? [];
+    // What was paid for (a line short at payment is not handed over).
     const pieces = items.reduce(
-        (sum, item) => sum + item.quantity * item.pieces_per_unit,
+        (sum, item) =>
+            sum + (item.quantity - item.quantity_short) * item.pieces_per_unit,
         0,
     );
     const piecesText = `${pieces} ${pieces === 1 ? 'pc' : 'pcs'}`;

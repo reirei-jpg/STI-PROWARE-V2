@@ -92,9 +92,11 @@ test('the Specialist releases once paid on the app, and a release is final', fun
     $variant = $order->items()->sole()->variant;
 
     $this->postJson(route('api.v1.specialist.orders.release', $order))
-        ->assertJsonValidationErrors(['paid' => 'Check the cashier receipt and tick the box before releasing the items.']);
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} is not paid yet. The buyer pays at the cashier first; then release it."]);
 
-    $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
+    payAtCashier($order);
+    $this->postJson(route('api.v1.specialist.orders.release', $order))
         ->assertOk()
         ->assertJsonPath('message', "Order {$order->number} has been released to Juan Dela Cruz. Paid at the cashier: ₱700.00.")
         ->assertJsonPath('order.status_label', 'Released')
@@ -113,7 +115,7 @@ test('the app refuses a step that no longer fits the order, in words', function 
     $order->forceFill(['picked_up_at' => now()->subDay()])->save();
     Sanctum::actingAs(User::factory()->specialist()->create());
 
-    $this->postJson(route('api.v1.specialist.orders.release', $order), ['paid' => true])
+    $this->postJson(route('api.v1.specialist.orders.release', $order))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been released."]);
 

@@ -30,6 +30,11 @@ class DashboardController extends Controller
             return to_route('home');
         }
 
+        // The cashier's only page is Payments.
+        if ($user?->isCashier()) {
+            return to_route('cashier.index');
+        }
+
         return Inertia::render('dashboard', [
             'tasks' => $user?->role === UserRole::Specialist ? $tasks->all() : null,
             'orderCards' => $user?->role === UserRole::Specialist ? SpecialistOrders::dashboardCards() : null,

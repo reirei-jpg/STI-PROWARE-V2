@@ -42,6 +42,13 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
+        case 'order_paid':
+            return {
+                title: `Paid: ${data.items}`,
+                body: `${formatPeso(data.total_centavos)} paid. Get your items at the PROWARE office with your issuance slip.${data.short ? ` Sold out before you paid, so you were not charged for: ${data.short}.` : ''}`,
+                titleClass: 'text-emerald-700',
+                stripe: '#10b981',
+            };
         case 'order_released':
             return {
                 title: `Released to you: ${data.items}`,

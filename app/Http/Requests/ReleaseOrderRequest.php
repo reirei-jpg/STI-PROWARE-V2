@@ -6,9 +6,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Releasing an order (website and phone app): the student paid at the
- * cashier, and the Specialist must confirm she checked the cashier's
- * receipt before the items leave the shelf.
+ * Releasing an order (website and phone app). There is no "I checked the
+ * receipt" box any more: the cashier marks the order Paid, and only a paid
+ * order can be released (HandleOrderBySpecialist; panel revision, 20 Nov
+ * 2026).
  */
 class ReleaseOrderRequest extends FormRequest
 {
@@ -17,18 +18,6 @@ class ReleaseOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'paid' => ['accepted'],
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return [
-            'paid.accepted' => 'Check the cashier receipt and tick the box before releasing the items.',
-        ];
+        return [];
     }
 }

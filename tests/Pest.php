@@ -1,8 +1,11 @@
 <?php
 
+use App\Actions\Orders\MarkOrderPaid;
+use App\Models\Order;
 use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\PurchaseOrder;
+use App\Models\User;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -236,4 +239,14 @@ function preorderPayLine(): string
     $slip = PreorderSlip::query()->latest('id')->firstOrFail();
 
     return ' Pay ₱'.number_format($slip->amountDue() / 100, 2)." at the cashier with preorder slip {$slip->number}.";
+}
+
+/**
+ * The buyer pays the order at the cashier, who marks it Paid (panel
+ * revision, 20 Nov 2026): what is left of its items is set aside, and the
+ * Specialist can then release it.
+ */
+function payAtCashier(Order $order, ?User $cashier = null): string
+{
+    return app(MarkOrderPaid::class)->handle($order, $cashier ?? User::factory()->cashier()->create(['name' => 'Cashier 1']));
 }
