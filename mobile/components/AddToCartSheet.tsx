@@ -6,6 +6,7 @@ import BottomSheet from '@/components/BottomSheet';
 import ChoiceChip from '@/components/ChoiceChip';
 import OptionRow from '@/components/OptionRow';
 import QuantityStepper from '@/components/QuantityStepper';
+import { typedQuantity } from '@/lib/quantity';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
@@ -87,7 +88,7 @@ export default function AddToCartSheet({
     const priceOf = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined): number | null =>
         itemPack ? itemPack.price_centavos : (item?.buy_price_centavos ?? null);
     const piecesOf = (line: CartLine): number =>
-        (Number(line.quantity) || 0) * (packOf(line.packId)?.pieces ?? 1);
+        (typedQuantity(line.quantity) ?? 0) * (packOf(line.packId)?.pieces ?? 1);
     // "S", "S · Box of 12", "Piece", "Pack of 10".
     const labelOf = (line: CartLine): string => {
         const linePack = packOf(line.packId);
@@ -133,7 +134,7 @@ export default function AddToCartSheet({
     const most = preordering ? limit : mostFor(variant, pack);
     // The buyer's limit stops it before the stock does.
     const stoppedByLimit = !preordering && variant !== undefined && stockMostFor(variant, pack) > limit;
-    const quantity = Number(quantityText) || 0;
+    const quantity = typedQuantity(quantityText) ?? 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany = !preordering && variant !== undefined && most > 0 && quantity > most;
     const hasChoices = product.variants.length > 1;
@@ -150,12 +151,19 @@ export default function AddToCartSheet({
               ? [{ variantId: variant.id, packId, quantity: String(quantity) }]
               : [];
     const total = lines.reduce(
-        (sum, line) => sum + (priceOf(variantOf(line.variantId), packOf(line.packId)) ?? 0) * (Number(line.quantity) || 0),
+        (sum, line) => sum + (priceOf(variantOf(line.variantId), packOf(line.packId)) ?? 0) * (typedQuantity(line.quantity) ?? 0),
         0,
     );
     const chosenNotAdded = added.length > 0 && canAddChosen && existing === undefined;
+    // Every line a right amount, and no more than can be had.
     const canSend =
-        !saving && lines.length > 0 && lines.every((line) => (Number(line.quantity) || 0) >= 1);
+        !saving &&
+        lines.length > 0 &&
+        lines.every((line) => {
+            const typed = typedQuantity(line.quantity) ?? 0;
+
+            return typed >= 1 && typed <= mostFor(variantOf(line.variantId), packOf(line.packId), line);
+        });
     const canPreorder = preordering && !saving && variant.can_preorder && quantity >= 1 && quantity <= limit;
 
     const addChosen = (): void => {
@@ -167,7 +175,7 @@ export default function AddToCartSheet({
             existing
                 ? added.map((line) =>
                       line === existing
-                          ? { ...line, quantity: String((Number(line.quantity) || 0) + quantity) }
+                          ? { ...line, quantity: String((typedQuantity(line.quantity) ?? 0) + quantity) }
                           : line,
                   )
                 : [...added, { variantId: variant.id, packId, quantity: String(quantity) }],
@@ -192,7 +200,7 @@ export default function AddToCartSheet({
                     items: lines.map((line) => ({
                         product_variant_id: line.variantId,
                         product_pack_id: line.packId,
-                        quantity: Number(line.quantity) || 0,
+                        quantity: typedQuantity(line.quantity) ?? 0,
                     })),
                 },
             });
@@ -529,7 +537,7 @@ export default function AddToCartSheet({
                                             setAdded(added.map((other) => (other === line ? { ...other, quantity: value } : other)))
                                         }
                                         most={mostFor(lineVariant, linePack, line)}
-                                        unitText={unitWord(Number(line.quantity) || 0, linePack?.name ?? 'Piece')}
+                                        unitText={unitWord(typedQuantity(line.quantity) ?? 0, linePack?.name ?? 'Piece')}
                                     />
                                 </View>
                             );

@@ -27,6 +27,7 @@ import LoadingState from '@/components/LoadingState';
 import OrderItemsList from '@/components/OrderItemsList';
 import OrderSteps from '@/components/OrderSteps';
 import QuantityStepper from '@/components/QuantityStepper';
+import { quantityProblem, typedQuantity } from '@/lib/quantity';
 import SignInPrompt from '@/components/SignInPrompt';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -378,20 +379,22 @@ function CartLineRow({
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const shownQuantity = Number(quantityText) || line.quantity;
-    const tooMany = line.most_allowed > 0 && (Number(quantityText) || 0) > line.most_allowed;
+    // Kept as typed: ".5", "-1" or letters show in red (QuantityStepper) and are not saved.
+    const shownQuantity = typedQuantity(quantityText) ?? line.quantity;
+    const wrongNumber = quantityProblem(quantityText) !== null;
+    const tooMany = line.most_allowed > 0 && (typedQuantity(quantityText) ?? 0) > line.most_allowed;
 
     // Follow the server's number (after a save, or when the cart reloads).
     useEffect(() => {
         setQuantityText(String(line.quantity));
     }, [line.quantity]);
 
-    // Place Order waits until a too-high number is corrected.
+    // Place Order waits until a wrong or too-high number is corrected.
     useEffect(() => {
-        onTooMany(row.key, tooMany);
+        onTooMany(row.key, tooMany || wrongNumber);
 
         return () => onTooMany(row.key, false);
-    }, [row.key, tooMany]);
+    }, [row.key, tooMany, wrongNumber]);
 
     const save = async (value: number): Promise<void> => {
         setQuantityText(String(value));

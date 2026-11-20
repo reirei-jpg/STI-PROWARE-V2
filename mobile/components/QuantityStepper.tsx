@@ -1,15 +1,20 @@
 import { Minus, Plus } from 'lucide-react-native';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
+import { quantityProblem, typedQuantity } from '@/lib/quantity';
+
 /**
  * How many: − and + buttons around a number box, then the unit word
- * ("pcs", "Packs"). The number never goes below 1 or above `most`.
+ * ("pcs", "Packs").
  *
- * Typing changes `value`; a button tap or leaving the box gives the final
- * number to `onCommit` (or to `onChange` when there is no `onCommit`).
- * With `keepTyped`, a typed number above `most` stays as typed (the screen
- * says what is wrong and `invalid` outlines the box in red); − and + still
- * stop at `most`.
+ * The box keeps exactly what was typed (".5", "-1", letters): a wrong amount
+ * is outlined in red with the reason under it ("Enter a whole number, e.g.
+ * 2.", "Enter at least 1."), and the screen using it stays greyed out
+ * (typedQuantity). More than `most` says "Enter N or fewer." unless
+ * `keepTyped`, where the screen says what is wrong and `invalid` outlines
+ * the box. A button tap, or leaving the box with a right number, gives the
+ * number to `onCommit` (or to `onChange` when there is no `onCommit`); a
+ * wrong number is never committed.
  */
 export default function QuantityStepper({
     value,
@@ -34,8 +39,11 @@ export default function QuantityStepper({
     keepTyped?: boolean;
     invalid?: boolean;
 }) {
-    const quantity = Number(value) || 0;
-    const typedCap = keepTyped ? Number.MAX_SAFE_INTEGER : Math.max(most, 1);
+    const quantity = typedQuantity(value) ?? 0;
+    const cap = Math.max(most, 1);
+    const typedCap = keepTyped ? Number.MAX_SAFE_INTEGER : cap;
+    const problem = quantityProblem(value) ?? (!keepTyped && quantity > cap ? `Enter ${cap} or fewer.` : null);
+    const wrong = invalid || problem !== null;
     const commit = (next: number, cap = Math.max(most, 1)): void => {
         const kept = Math.max(1, Math.min(next, cap));
 
@@ -58,17 +66,18 @@ export default function QuantityStepper({
 
             <TextInput
                 value={value}
-                // Never more than `most` (what is left to buy), even while typing, unless `keepTyped`.
-                onChangeText={(text) => {
-                    const digits = text.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 7);
-
-                    onChange(digits !== '' && Number(digits) > typedCap ? String(typedCap) : digits);
+                // Kept as typed: a wrong amount shows in red instead of changing.
+                onChangeText={(text) => onChange(text.slice(0, 12))}
+                // Only a right number is committed (e.g. saved in the cart).
+                onEndEditing={() => {
+                    if (problem === null || (keepTyped && quantityProblem(value) === null)) {
+                        commit(quantity, typedCap);
+                    }
                 }}
-                onEndEditing={() => commit(quantity, typedCap)}
                 editable={!disabled}
-                keyboardType="number-pad"
+                keyboardType="numbers-and-punctuation"
                 accessibilityLabel="How many"
-                className={`h-12 w-20 rounded-xl border text-center font-sans-bold text-base ${invalid ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-900'}`}
+                className={`h-12 w-20 rounded-xl border text-center font-sans-bold text-base ${wrong ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-900'}`}
             />
 
             <StepButton
@@ -81,7 +90,8 @@ export default function QuantityStepper({
 
             <View className="flex-1">
                 <Text className="font-sans text-sm text-slate-500">{unitText}</Text>
-                {showLeft && !invalid && most > 0 && quantity >= most && (
+                {problem !== null && <Text className="font-sans-bold text-xs text-red-600">{problem}</Text>}
+                {showLeft && !wrong && most > 0 && quantity >= most && (
                     <Text className="font-sans-bold text-xs text-amber-700">Only {most} left</Text>
                 )}
             </View>

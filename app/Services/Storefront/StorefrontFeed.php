@@ -47,7 +47,7 @@ final class StorefrontFeed
     {
         return array_values(Product::query()
             ->where('status', ProductStatus::Preorder)
-            ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
+            ->when($search, fn (Builder $query, string $name) => self::whereNameHas($query, $name))
             ->with(self::RELATIONS)
             ->latest('created_at')
             ->latest('id')
@@ -66,7 +66,7 @@ final class StorefrontFeed
             ->where('status', ProductStatus::OnSale)
             ->where(fn (Builder $sales) => $sales->whereNull('sale_ends_at')->orWhere('sale_ends_at', '>', now()))
             ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')->where('product_variants.status', '!=', ProductStatus::Draft))
-            ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
+            ->when($search, fn (Builder $query, string $name) => self::whereNameHas($query, $name))
             ->with(self::RELATIONS)
             ->orderBy('sale_ends_at')
             ->latest('id')
@@ -151,8 +151,8 @@ final class StorefrontFeed
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
             ->whereHas('variants.stockMovements')
             ->with(self::RELATIONS)
-            ->when($search, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
-            ->when($find, fn (Builder $query, string $name) => $query->whereLike('name', "%{$name}%"))
+            ->when($search, fn (Builder $query, string $name) => self::whereNameHas($query, $name))
+            ->when($find, fn (Builder $query, string $name) => self::whereNameHas($query, $name))
             ->when($show === 'in_stock', fn (Builder $query) => $query->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')->where('product_variants.status', '!=', ProductStatus::Draft)))
             ->when($show === 'sold_out', fn (Builder $query) => $query->whereDoesntHave('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' > 0')->where('product_variants.status', '!=', ProductStatus::Draft)))
             // NEW, then on sale, then the rest; sold out last.
@@ -161,5 +161,19 @@ final class StorefrontFeed
             ->orderByRaw('case when status = ? then sale_ends_at end', [ProductStatus::OnSale->value])
             ->latest('created_at')
             ->latest('id');
+    }
+
+    /**
+     * Products whose name has the search in it, any case; "%" and "_" are
+     * searched as typed, not as "anything".
+     *
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    private static function whereNameHas(Builder $query, string $name): Builder
+    {
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($name)).'%';
+
+        return $query->whereRaw("lower(products.name) like ? escape '!'", [$pattern]);
     }
 }

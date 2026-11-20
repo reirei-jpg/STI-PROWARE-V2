@@ -63,6 +63,18 @@ test('each product shows in the right section, and drafts and items never receiv
         );
 });
 
+test('the store search reads "%" and "_" as typed, any case', function () {
+    shopProduct('Tote 50% Off', 5);
+    shopProduct('Tote 500', 5);
+
+    $this->get('/?search=50%25')->assertInertia(fn (Assert $page) => $page
+        ->where('merchandise.data', fn ($products) => collect($products)->pluck('name')->all() === ['Tote 50% Off']));
+    $this->get('/?search=%25')->assertInertia(fn (Assert $page) => $page
+        ->where('merchandise.data', fn ($products) => collect($products)->pluck('name')->all() === ['Tote 50% Off']));
+    $this->get('/?search=_')->assertInertia(fn (Assert $page) => $page->has('merchandise.data', 0));
+    $this->get('/?search=TOTE')->assertInertia(fn (Assert $page) => $page->has('merchandise.data', 2));
+});
+
 test('the feed shows the newest first and sold-out products last', function () {
     shopProduct('Sold Out Shirt', 0, ['created_at' => now()]);
     shopProduct('Older Keychain', 5, ['created_at' => now()->subDays(3)]);

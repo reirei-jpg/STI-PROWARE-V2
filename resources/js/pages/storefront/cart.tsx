@@ -20,7 +20,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cartRows } from '@/lib/cart-rows';
 import type { CartRow } from '@/lib/cart-rows';
 import { formatPeso } from '@/lib/format';
-import { buyerLimitMessage, wholeNumberInput } from '@/lib/number-input';
+import {
+    buyerLimitMessage,
+    quantityProblem,
+    typedQuantity,
+} from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
@@ -268,16 +272,25 @@ function CartLineRow({
     const [busy, setBusy] = useState(false);
     const [confirming, setConfirming] = useState(false);
 
-    const typed = Number(quantity) || 0;
+    // Kept as typed: ".5", "-1" or letters show in red and are not saved.
+    const typed = typedQuantity(quantity) ?? 0;
+    const wrongNumber = quantityProblem(quantity);
     const tooMany = line.most_allowed > 0 && typed > line.most_allowed;
 
-    // Place Order waits until a too-high number is corrected.
+    // Place Order waits until a wrong or too-high number is corrected.
     useEffect(() => {
-        onTooMany(row.key, tooMany);
+        onTooMany(row.key, tooMany || wrongNumber !== null);
 
         return () => onTooMany(row.key, false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [row.key, tooMany]);
+    }, [row.key, tooMany, wrongNumber]);
+
+    /** Leaving the box or pressing Enter: saves a right number only. */
+    const saveTyped = () => {
+        if (wrongNumber === null) {
+            save(typed);
+        }
+    };
 
     const save = (value: number) => {
         // A too-high number stays in the box, with the red message.
@@ -370,7 +383,7 @@ function CartLineRow({
         });
     };
 
-    const current = Number(quantity) || 0;
+    const current = typed;
 
     return (
         <li
@@ -487,26 +500,21 @@ function CartLineRow({
                         <input
                             value={quantity}
                             onChange={(event) =>
-                                // Kept as typed: too many shows a red message.
-                                setQuantity(
-                                    wholeNumberInput(
-                                        event.target.value,
-                                        Number.MAX_SAFE_INTEGER,
-                                    ),
-                                )
+                                // Kept as typed: a wrong or too-high number shows in red.
+                                setQuantity(event.target.value.slice(0, 12))
                             }
-                            onBlur={() => save(current)}
+                            onBlur={saveTyped}
                             onKeyDown={(event) =>
-                                event.key === 'Enter' && save(current)
+                                event.key === 'Enter' && saveTyped()
                             }
                             inputMode="numeric"
                             className={cn(
                                 'h-9 w-14 rounded-lg border text-center text-sm font-black outline-none focus:ring-2',
-                                tooMany
+                                tooMany || wrongNumber !== null
                                     ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-100'
                                     : 'border-slate-200 text-slate-800 focus:border-blue-400 focus:ring-blue-100',
                             )}
-                            aria-invalid={tooMany}
+                            aria-invalid={tooMany || wrongNumber !== null}
                             aria-label="How many"
                         />
                         <button
@@ -527,6 +535,11 @@ function CartLineRow({
                             line.pieces_per_unit > 1 &&
                             ` = ${formatUnits(current * line.pieces_per_unit, 'Piece')}`}
                     </p>
+                    {wrongNumber !== null && (
+                        <p className="max-w-44 text-center text-xs font-bold text-red-600">
+                            {wrongNumber}
+                        </p>
+                    )}
                     {tooMany && line.stopped_by_limit && (
                         <p className="max-w-44 text-center text-xs font-bold text-red-600">
                             {buyerLimitMessage(line.most_allowed)}

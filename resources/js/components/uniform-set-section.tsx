@@ -1,5 +1,5 @@
 import { useForm, usePage } from '@inertiajs/react';
-import { ImageIcon, LoaderCircle, Minus, Plus, Shirt, X } from 'lucide-react';
+import { ImageIcon, LoaderCircle, Shirt, X } from 'lucide-react';
 import { useState } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import InputError from '@/components/input-error';
@@ -12,7 +12,8 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatPeso } from '@/lib/format';
-import { MAX_PER_ITEM, wholeNumberInput } from '@/lib/number-input';
+import QuantityInput from '@/components/quantity-input';
+import { MAX_PER_ITEM, typedQuantity } from '@/lib/number-input';
 import { cn } from '@/lib/utils';
 import type { StorefrontUniformSet, StorefrontSetPiece, User } from '@/types';
 import { isBuyer, NOT_A_BUYER } from '@/lib/roles';
@@ -203,7 +204,7 @@ function SetPicker({
         topSize?.stock_pieces ?? limit,
         bottomSize?.stock_pieces ?? limit,
     );
-    const quantity = Number(data.quantity) || 0;
+    const quantity = typedQuantity(data.quantity) ?? 0;
     // A set costs what its top and bottom cost (less while one is on sale).
     const setPrice =
         topSize?.price_centavos != null && bottomSize?.price_centavos != null
@@ -215,9 +216,6 @@ function SetPicker({
         option && !bottom && 'the bottom',
         bottom && !bottomSize && `the ${bottom.kind.toLowerCase()} size`,
     ].filter(Boolean);
-
-    const setQuantity = (value: number) =>
-        setData('quantity', String(Math.max(1, Math.min(value, most || 1))));
 
     return (
         <form
@@ -305,42 +303,15 @@ function SetPicker({
                     <p className="text-sm font-black text-slate-700">
                         How many sets?
                     </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setQuantity(quantity - 1)}
-                            disabled={quantity <= 1}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                            aria-label="One less"
-                        >
-                            <Minus size={16} />
-                        </button>
-                        <input
+                    <div className="flex items-start gap-2">
+                        {/* Kept as typed; a wrong amount shows in red and Add stays off. */}
+                        <QuantityInput
                             value={data.quantity}
-                            onChange={(event) =>
-                                setData(
-                                    'quantity',
-                                    wholeNumberInput(
-                                        event.target.value,
-                                        Math.max(most, 1),
-                                    ),
-                                )
-                            }
-                            onBlur={() => setQuantity(quantity)}
-                            inputMode="numeric"
-                            className="h-11 w-20 rounded-xl border border-slate-200 text-center text-sm font-black text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                            aria-label="How many sets"
+                            onChange={(value) => setData('quantity', value)}
+                            label="How many sets"
+                            most={Math.max(most, 1)}
                         />
-                        <button
-                            type="button"
-                            onClick={() => setQuantity(quantity + 1)}
-                            disabled={quantity >= most}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                            aria-label="One more"
-                        >
-                            <Plus size={16} />
-                        </button>
-                        <span className="text-sm text-slate-500">
+                        <span className="pt-3 text-sm text-slate-500">
                             {quantity === 1 ? 'set' : 'sets'}
                         </span>
                     </div>
@@ -378,7 +349,12 @@ function SetPicker({
                 </DialogClose>
                 <button
                     type="submit"
-                    disabled={processing || missing.length > 0 || quantity < 1}
+                    disabled={
+                        processing ||
+                        missing.length > 0 ||
+                        quantity < 1 ||
+                        quantity > Math.max(most, 1)
+                    }
                     className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {processing ? (

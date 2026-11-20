@@ -6,6 +6,7 @@ import { chooseFirstText } from '@/components/AddToCartSheet';
 import BottomSheet from '@/components/BottomSheet';
 import OptionRow from '@/components/OptionRow';
 import QuantityStepper from '@/components/QuantityStepper';
+import { typedQuantity } from '@/lib/quantity';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { mostPerItem } from '@/lib/buyer-limit';
@@ -73,7 +74,7 @@ export default function EditPreorderSheet({
         !restock || variant.can_preorder || variant.id === preorder?.product_variant_id;
     const chosen = product ? pickedVariant(product.variants, product.options, picked) : undefined;
     const variantId = chosen !== undefined && canPick(chosen) ? chosen.id : null;
-    const quantity = Number(quantityText) || 0;
+    const quantity = typedQuantity(quantityText) ?? 0;
     const most = mostPerItem(product?.most_per_item);
     const changed =
         preorder !== null && variantId !== null && (variantId !== preorder.product_variant_id || quantity !== preorder.quantity);

@@ -23,7 +23,11 @@ import {
 import OptionRow from '@/components/option-row';
 import QuantityInput from '@/components/quantity-input';
 import { formatPeso } from '@/lib/format';
-import { buyerLimitMessage, MAX_PER_ITEM } from '@/lib/number-input';
+import {
+    buyerLimitMessage,
+    MAX_PER_ITEM,
+    typedQuantity,
+} from '@/lib/number-input';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
 import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
@@ -251,7 +255,7 @@ function PickerForm({
         );
     };
     const piecesOf = (line: CartLine) =>
-        (Number(line.quantity) || 0) *
+        (typedQuantity(line.quantity) ?? 0) *
         (packOf(line.product_pack_id)?.pieces ?? 1);
     // The most of one item this buyer can get (BuyerLimit on the server).
     const limit = details.most_per_item ?? MAX_PER_ITEM;
@@ -306,7 +310,7 @@ function PickerForm({
         !preordering &&
         variant !== undefined &&
         stockMostFor(variant, pack) > limit;
-    const quantity = Number(quantityText) || 0;
+    const quantity = typedQuantity(quantityText) ?? 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany =
         !preordering && variant !== undefined && most > 0 && quantity > most;
@@ -341,7 +345,7 @@ function PickerForm({
                 variantOf(line.product_variant_id),
                 packOf(line.product_pack_id),
             ) ?? 0) *
-                (Number(line.quantity) || 0),
+                (typedQuantity(line.quantity) ?? 0),
         0,
     );
     const chosenNotAdded =
@@ -373,7 +377,8 @@ function PickerForm({
                           ? {
                                 ...line,
                                 quantity: String(
-                                    (Number(line.quantity) || 0) + quantity,
+                                    (typedQuantity(line.quantity) ?? 0) +
+                                        quantity,
                                 ),
                             }
                           : line,
@@ -807,9 +812,20 @@ function PickerForm({
                         disabled={
                             processing ||
                             lines.length === 0 ||
-                            lines.some(
-                                (line) => (Number(line.quantity) || 0) < 1,
-                            )
+                            // A line with a wrong amount, or more than can be had.
+                            lines.some((line) => {
+                                const typed = typedQuantity(line.quantity) ?? 0;
+
+                                return (
+                                    typed < 1 ||
+                                    typed >
+                                        mostFor(
+                                            variantOf(line.product_variant_id),
+                                            packOf(line.product_pack_id),
+                                            line,
+                                        )
+                                );
+                            })
                         }
                         className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >

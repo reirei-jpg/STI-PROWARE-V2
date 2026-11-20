@@ -16,7 +16,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { MAX_PER_ITEM } from '@/lib/number-input';
+import { MAX_PER_ITEM, typedQuantity } from '@/lib/number-input';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
@@ -209,7 +209,7 @@ function PreorderForm({
     const form = useForm<{ items: PreorderLine[] }>({ items: [] });
     const { data, setData, processing, errors } = form;
     const hasChoices = details.variants.length > 1;
-    const quantity = Number(quantityText) || 0;
+    const quantity = typedQuantity(quantityText) ?? 0;
     const chosen = pickedVariant(details.variants, details.options, picked);
     const chosenId =
         chosen !== undefined && canPreorder(chosen) ? String(chosen.id) : '';
@@ -220,11 +220,11 @@ function PreorderForm({
     const lines: PreorderLine[] =
         data.items.length > 0
             ? data.items
-            : chosenId !== '' && quantity >= 1
+            : chosenId !== '' && quantity >= 1 && quantity <= limit
               ? [{ product_variant_id: chosenId, quantity: String(quantity) }]
               : [];
     const totalPieces = lines.reduce(
-        (sum, line) => sum + (Number(line.quantity) || 0),
+        (sum, line) => sum + (typedQuantity(line.quantity) ?? 0),
         0,
     );
     const chosenNotAdded =
@@ -239,7 +239,7 @@ function PreorderForm({
         .filter((message) => message !== undefined);
 
     const addChosen = () => {
-        if (chosenId === '' || quantity < 1) {
+        if (chosenId === '' || quantity < 1 || quantity > limit) {
             return;
         }
 
@@ -257,7 +257,8 @@ function PreorderForm({
                                 quantity: String(
                                     Math.min(
                                         limit,
-                                        (Number(line.quantity) || 0) + quantity,
+                                        (typedQuantity(line.quantity) ?? 0) +
+                                            quantity,
                                     ),
                                 ),
                             }
@@ -383,7 +384,11 @@ function PreorderForm({
                             <button
                                 type="button"
                                 onClick={addChosen}
-                                disabled={chosenId === '' || quantity < 1}
+                                disabled={
+                                    chosenId === '' ||
+                                    quantity < 1 ||
+                                    quantity > limit
+                                }
                                 className="inline-flex h-11 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-black text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <Plus size={16} />
@@ -488,7 +493,11 @@ function PreorderForm({
                     disabled={
                         processing ||
                         lines.length === 0 ||
-                        lines.some((line) => (Number(line.quantity) || 0) < 1)
+                        lines.some((line) => {
+                            const typed = typedQuantity(line.quantity) ?? 0;
+
+                            return typed < 1 || typed > limit;
+                        })
                     }
                     className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >

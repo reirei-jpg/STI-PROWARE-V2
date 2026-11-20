@@ -14,7 +14,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { MAX_PER_ITEM } from '@/lib/number-input';
+import { MAX_PER_ITEM, typedQuantity } from '@/lib/number-input';
 import { pickChoice, pickedVariant } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
 import { formatUnits } from '@/lib/units';
@@ -161,7 +161,7 @@ function EditForm({
     const chosen = pickedVariant(details.variants, details.options, picked);
     const variantId =
         chosen !== undefined && canPick(chosen) ? chosen.id : null;
-    const quantity = Number(quantityText) || 0;
+    const quantity = typedQuantity(quantityText) ?? 0;
     const changed =
         variantId !== null &&
         (variantId !== preorder.product_variant_id ||

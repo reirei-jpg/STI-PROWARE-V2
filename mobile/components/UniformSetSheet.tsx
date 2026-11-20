@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import BottomSheet from '@/components/BottomSheet';
 import ChoiceChip from '@/components/ChoiceChip';
 import QuantityStepper from '@/components/QuantityStepper';
+import { typedQuantity } from '@/lib/quantity';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { mostPerItem } from '@/lib/buyer-limit';
@@ -61,7 +62,7 @@ export default function UniformSetSheet({
     const bottomSize = bottom?.sizes.find((size) => size.variant_id === bottomId);
     const limit = mostPerItem(mostFromServer);
     const most = Math.min(limit, topSize?.stock_pieces ?? limit, bottomSize?.stock_pieces ?? limit);
-    const quantity = Number(quantityText) || 0;
+    const quantity = typedQuantity(quantityText) ?? 0;
     // A set costs what its top and bottom cost (less while one is on sale).
     const setPrice =
         topSize?.price_centavos != null && bottomSize?.price_centavos != null

@@ -7,6 +7,7 @@ import BottomSheet from '@/components/BottomSheet';
 import OptionRow from '@/components/OptionRow';
 import PriceLines from '@/components/PriceLines';
 import QuantityStepper from '@/components/QuantityStepper';
+import { typedQuantity } from '@/lib/quantity';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatPeso, unitWord } from '@/lib/format';
@@ -72,7 +73,7 @@ export default function PreorderSheet({
 
     const chosen = pickedVariant(product.variants, product.options, picked);
     const variantId = chosen !== undefined && anyVariant(chosen) ? chosen.id : null;
-    const quantity = Number(quantityText) || 0;
+    const quantity = typedQuantity(quantityText) ?? 0;
     const hasChoices = product.variants.length > 1;
     const labelOf = (id: number): string =>
         product.variants.find((variant) => variant.id === id)?.label ?? '';
@@ -80,18 +81,18 @@ export default function PreorderSheet({
     const lines: PreorderLine[] =
         added.length > 0
             ? added
-            : variantId !== null && quantity >= 1
+            : variantId !== null && quantity >= 1 && quantity <= most
               ? [{ variantId, quantity: String(quantity) }]
               : [];
-    const totalPieces = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
+    const totalPieces = lines.reduce((sum, line) => sum + (typedQuantity(line.quantity) ?? 0), 0);
     const chosenNotAdded =
         added.length > 0 && variantId !== null && !added.some((line) => line.variantId === variantId);
-    const canAdd = variantId !== null && quantity >= 1;
+    const canAdd = variantId !== null && quantity >= 1 && quantity <= most;
     const canPlace =
         !saving &&
         lines.length > 0 &&
         lines.every((line) => {
-            const pieces = Number(line.quantity) || 0;
+            const pieces = typedQuantity(line.quantity) ?? 0;
 
             return pieces >= 1 && pieces <= most;
         });
@@ -107,7 +108,7 @@ export default function PreorderSheet({
             existing
                 ? added.map((line) =>
                       line === existing
-                          ? { ...line, quantity: String(Math.min(most, (Number(line.quantity) || 0) + quantity)) }
+                          ? { ...line, quantity: String(Math.min(most, (typedQuantity(line.quantity) ?? 0) + quantity)) }
                           : line,
                   )
                 : [...added, { variantId, quantity: String(quantity) }],
@@ -136,7 +137,7 @@ export default function PreorderSheet({
                     body: {
                         items: lines.map((line) => ({
                             product_variant_id: line.variantId,
-                            quantity: Number(line.quantity) || 0,
+                            quantity: typedQuantity(line.quantity) ?? 0,
                         })),
                     },
                 },
@@ -299,7 +300,7 @@ export default function PreorderSheet({
                                     onChange={(value) => changeLine(line.variantId, value)}
                                     most={most}
                     showLeft={false}
-                                    unitText={unitWord(Number(line.quantity) || 0, 'Piece')}
+                                    unitText={unitWord(typedQuantity(line.quantity) ?? 0, 'Piece')}
                                 />
                             </View>
                         ))}
