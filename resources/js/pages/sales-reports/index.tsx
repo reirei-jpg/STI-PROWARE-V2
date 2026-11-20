@@ -1290,14 +1290,13 @@ function FreeTable({
                                         {row.students_count === 1
                                             ? 'student'
                                             : 'students'}
-                                        {row.sets && (
-                                            <span className="font-semibold text-slate-500">
-                                                {' '}
-                                                · {row.sets}
-                                            </span>
-                                        )}
                                     </p>
-                                    {/* The students' names are in View Details. */}
+                                    {/* The sets under the count; the students' names are in View Details. */}
+                                    {row.sets && (
+                                        <p className="text-xs font-semibold text-slate-500">
+                                            {row.sets}
+                                        </p>
+                                    )}
                                 </td>
                                 <td className="px-5 py-4 text-right whitespace-nowrap">
                                     <p className="font-black text-slate-800">
