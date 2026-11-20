@@ -291,6 +291,18 @@ test('Sales searches "%" and "_" as typed, and a page past the end shows the las
         ->has('sold.data', 2));
 });
 
+test('the From and To days cannot be after today', function () {
+    $this->actingAs($this->specialist);
+
+    $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-10']))
+        ->assertSessionHasErrors(['date_to' => 'The "To" date cannot be after today.']);
+    $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-10-10', 'date_to' => '2026-10-09']))
+        ->assertSessionHasErrors(['date_from' => 'The "From" date cannot be after today.']);
+    $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-09']))
+        ->assertSessionHasNoErrors()
+        ->assertInertia(fn (Assert $page) => $page->where('filters.date_to', '2026-10-09'));
+});
+
 test('a price set before a dearer eStore order arrived is flagged on Products and the dashboard', function () {
     $variant = costedJacket(); // ₱400 a piece, sent by the Pack of 5
     $order = receivedJacketOrder(packs: 1, pricePerPack: 250000); // ₱500 a piece

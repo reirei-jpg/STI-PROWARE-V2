@@ -1,6 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
+    CalendarDays,
     Download,
     Eye,
     Gift,
@@ -11,11 +12,11 @@ import {
     TrendingDown,
     TrendingUp,
     Trophy,
+    X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import SalesReportController from '@/actions/App/Http/Controllers/SalesReportController';
-import DateRangeFilter from '@/components/date-range-filter';
 import InputError from '@/components/input-error';
 import FreeUniformGroupDialog from '@/components/free-uniform-group-dialog';
 import PageHeader from '@/components/page-header';
@@ -29,7 +30,9 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { monthBefore, todayIso } from '@/lib/dates';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { openCalendar } from '@/lib/open-calendar';
 import { priceInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
@@ -54,7 +57,6 @@ const periods: { value: SalesPeriod; label: string }[] = [
     { value: 'today', label: 'Today' },
     { value: 'week', label: 'This Week' },
     { value: 'month', label: 'This Month' },
-    { value: 'custom', label: 'Custom Range' },
 ];
 
 const tabs: { value: SalesTab; label: string }[] = [
@@ -95,17 +97,8 @@ export default function SalesReportsIndex({
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [search, setSearch] = useState(filters.search ?? '');
-    const [pickingDates, setPickingDates] = useState(
-        filters.period === 'custom',
-    );
-    // The dates picked so far: the report loads once both are picked, so
-    // the first one must stay in its box while the second is chosen.
-    const [pickedFrom, setPickedFrom] = useState<string | null>(
-        filters.period === 'custom' ? filters.date_from : null,
-    );
-    const [pickedTo, setPickedTo] = useState<string | null>(
-        filters.period === 'custom' ? filters.date_to : null,
-    );
+    const pickedDates = filters.period === 'custom';
+    const today = todayIso();
     const firstRender = useRef(true);
     const periodText =
         filters.date_from === filters.date_to
@@ -250,74 +243,124 @@ export default function SalesReportsIndex({
                     {/* The period first, between the cards and the tabs. */}
                     <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
-                            {periods.map((period) => {
-                                const chosen =
-                                    period.value === 'custom'
-                                        ? pickingDates
-                                        : !pickingDates &&
-                                          filters.period === period.value;
-
-                                return (
+                            {periods.map((period) => (
+                                <button
+                                    key={period.value}
+                                    type="button"
+                                    onClick={() =>
+                                        show({ period: period.value })
+                                    }
+                                    aria-pressed={
+                                        filters.period === period.value
+                                    }
+                                    className={cn(
+                                        'rounded-xl px-4 py-2.5 text-sm font-black transition',
+                                        filters.period === period.value
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                                    )}
+                                >
+                                    {period.label}
+                                </button>
+                            ))}
+                            {/* From / To, as on Products > Slow-moving: either day can be picked first. */}
+                            <span
+                                className={cn(
+                                    'inline-flex flex-wrap items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-black',
+                                    pickedDates
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-slate-100 text-slate-600',
+                                )}
+                            >
+                                <CalendarDays size={16} />
+                                {/* Clicking the word or the box opens the calendar. */}
+                                <label className="inline-flex cursor-pointer items-center gap-2">
+                                    From
+                                    <input
+                                        type="date"
+                                        onClick={openCalendar}
+                                        value={
+                                            pickedDates ? filters.date_from : ''
+                                        }
+                                        max={
+                                            pickedDates
+                                                ? filters.date_to
+                                                : today
+                                        }
+                                        onChange={(event) =>
+                                            event.target.value !== '' &&
+                                            show({
+                                                period: 'custom',
+                                                date_from: event.target.value,
+                                                // Picked alone: up to today.
+                                                date_to:
+                                                    pickedDates &&
+                                                    filters.date_to >=
+                                                        event.target.value
+                                                        ? filters.date_to
+                                                        : today,
+                                            })
+                                        }
+                                        aria-label="From this day"
+                                        className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 outline-none"
+                                    />
+                                </label>
+                                <label className="inline-flex cursor-pointer items-center gap-2">
+                                    To
+                                    <input
+                                        type="date"
+                                        onClick={openCalendar}
+                                        value={
+                                            pickedDates ? filters.date_to : ''
+                                        }
+                                        min={
+                                            pickedDates
+                                                ? filters.date_from
+                                                : undefined
+                                        }
+                                        max={today}
+                                        onChange={(event) =>
+                                            event.target.value !== '' &&
+                                            show({
+                                                period: 'custom',
+                                                // Picked first: From is one month before, to change if needed.
+                                                date_from:
+                                                    pickedDates &&
+                                                    filters.date_from <=
+                                                        event.target.value
+                                                        ? filters.date_from
+                                                        : monthBefore(
+                                                              event.target
+                                                                  .value,
+                                                          ),
+                                                date_to: event.target.value,
+                                            })
+                                        }
+                                        aria-label="To this day"
+                                        className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 outline-none"
+                                    />
+                                </label>
+                                {pickedDates && (
                                     <button
-                                        key={period.value}
                                         type="button"
-                                        onClick={() => {
-                                            if (period.value === 'custom') {
-                                                setPickingDates(true);
-
-                                                return;
-                                            }
-
-                                            setPickingDates(false);
-                                            show({ period: period.value });
-                                        }}
-                                        className={cn(
-                                            'rounded-xl px-4 py-2.5 text-sm font-black transition',
-                                            chosen
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                        )}
+                                        onClick={() => show({ period: 'all' })}
+                                        className="inline-flex size-7 items-center justify-center rounded-lg bg-white/20 transition hover:bg-white/30"
+                                        aria-label="Clear the dates"
+                                        title="Clear the dates (All Time)"
                                     >
-                                        {period.label}
+                                        <X size={15} />
                                     </button>
-                                );
-                            })}
+                                )}
+                            </span>
                         </div>
                         <p className="text-base font-black text-slate-900">
                             {periodText}
                         </p>
                     </div>
-
-                    {pickingDates && (
-                        <div className="border-b border-slate-100 px-6 py-4">
-                            <DateRangeFilter
-                                label="From / To"
-                                dateFrom={pickedFrom}
-                                dateTo={pickedTo}
-                                serverError={errors.date_from ?? errors.date_to}
-                                onChange={(dateFrom, dateTo) => {
-                                    setPickedFrom(dateFrom);
-                                    setPickedTo(dateTo);
-
-                                    // Clear filters goes back to All time.
-                                    if (!dateFrom && !dateTo) {
-                                        setPickingDates(false);
-                                        show({ period: 'all' });
-
-                                        return;
-                                    }
-
-                                    if (dateFrom && dateTo) {
-                                        show({
-                                            period: 'custom',
-                                            date_from: dateFrom,
-                                            date_to: dateTo,
-                                        });
-                                    }
-                                }}
-                            />
-                        </div>
-                    )}
+                    <InputError
+                        className="border-b border-slate-100 px-6 py-2"
+                        message={errors.date_from ?? errors.date_to}
+                    />
 
                     <div className="flex justify-center border-b border-slate-100 px-6 py-5">
                         <div className="inline-flex flex-wrap justify-center rounded-2xl border border-slate-200 bg-slate-50 p-1">

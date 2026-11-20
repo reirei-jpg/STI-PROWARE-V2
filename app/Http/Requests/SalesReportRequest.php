@@ -10,8 +10,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * The Sales Reports filters, read from the page address: the period
- * (all time, today, this week, this month, or chosen dates; all time by
- * default, so every sale shows),
+ * (all time, today, this week, this month, or From / To days up to today;
+ * all time by default, so every sale shows),
  * which tab, and a product search.
  */
 class SalesReportRequest extends FormRequest
@@ -27,8 +27,8 @@ class SalesReportRequest extends FormRequest
     {
         return [
             'period' => ['nullable', Rule::in(self::PERIODS)],
-            'date_from' => ['nullable', 'date_format:Y-m-d', Rule::requiredIf($this->input('period') === 'custom')],
-            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from', Rule::requiredIf($this->input('period') === 'custom')],
+            'date_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', Rule::requiredIf($this->input('period') === 'custom')],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from', 'before_or_equal:today', Rule::requiredIf($this->input('period') === 'custom')],
             'search' => ['nullable', 'string', 'max:120'],
             'tab' => ['nullable', Rule::in(self::TABS)],
             'details' => ['nullable', 'integer'],
@@ -65,6 +65,8 @@ class SalesReportRequest extends FormRequest
             'date_from.date_format' => 'Choose a valid "From" date.',
             'date_to.date_format' => 'Choose a valid "To" date.',
             'date_to.after_or_equal' => 'The "To" date cannot be before the "From" date.',
+            'date_from.before_or_equal' => 'The "From" date cannot be after today.',
+            'date_to.before_or_equal' => 'The "To" date cannot be after today.',
             // e.g. an old link to the Prices tab, now part of Sales.
             'tab.in' => 'Choose Purchases, Sales, Top Sellers or Free Uniforms. Prices are on Sales.',
             'only.in' => 'That list does not exist. Sales is shown with all products.',

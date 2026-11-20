@@ -22,6 +22,7 @@ import ProductDetailsDialog from '@/components/product-details-dialog';
 import ProductStatusBadge from '@/components/product-status-badge';
 import { isOutOfStock } from '@/lib/product-stock';
 import { openCalendar } from '@/lib/open-calendar';
+import { monthBefore } from '@/lib/dates';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { isSameSearch } from '@/lib/utils';
@@ -996,12 +997,4 @@ function chipClasses(chosen: boolean): string {
             ? 'bg-red-600 text-white'
             : 'border border-red-200 bg-white text-red-700 hover:bg-red-50'
     }`;
-}
-
-/** "2026-02-28" → "2026-01-28": one month before a day picked as To. */
-function monthBefore(day: string): string {
-    const date = new Date(`${day}T00:00:00`);
-    date.setMonth(date.getMonth() - 1);
-
-    return date.toLocaleDateString('en-CA');
 }
