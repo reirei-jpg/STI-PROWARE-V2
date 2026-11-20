@@ -26,6 +26,17 @@ class GiveRestOfFreeUniformRequest extends FormRequest
     }
 
     /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'top_variant_id.integer' => 'Choose one of the sizes shown.',
+            'pants_variant_id.integer' => 'Choose one of the sizes shown.',
+        ];
+    }
+
+    /**
      * Something must still be to give, and a size must be one of the same
      * top's or pants' sizes.
      *

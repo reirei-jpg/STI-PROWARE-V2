@@ -170,6 +170,11 @@ test('a piece out of stock is still to give, and is given when it arrives, in an
 
     $this->post(route('free-uniforms.give', $owed))
         ->assertSessionHasErrors(['pieces' => 'Still out of stock: Polo M. Choose another size, or give it when it arrives.']);
+    // Not one of the sizes (sent by hand): the same plain words.
+    foreach (['abc', '0.5', '-1'] as $wrong) {
+        $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => $wrong])
+            ->assertSessionHasErrors(['top_variant_id' => 'Choose one of the sizes shown.']);
+    }
 
     uniformSize($set->polo_product_id, 'S')->forceFill(['stock_on_hand' => 3])->save();
     $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => uniformSize($set->polo_product_id, 'S')->id])

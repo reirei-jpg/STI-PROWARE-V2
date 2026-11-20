@@ -308,8 +308,13 @@ function GiveRest({ student }: { student: Student }) {
                     }
                     className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 >
+                    {/* Out-of-stock sizes show, greyed out, so they cannot be picked. */}
                     {piece.sizes.map((size) => (
-                        <option key={size.id} value={size.id}>
+                        <option
+                            key={size.id}
+                            value={size.id}
+                            disabled={size.free_to_sell <= 0}
+                        >
                             {size.label} —{' '}
                             {size.free_to_sell > 0
                                 ? `${size.free_to_sell} left`
@@ -330,12 +335,9 @@ function GiveRest({ student }: { student: Student }) {
                 {sizeSelect(student.pants, 'pants_variant_id')}
                 <button
                     type="button"
-                    disabled={form.processing}
-                    onClick={() =>
-                        // Nothing in stock: nothing leaves, and the server
-                        // says what is still out of stock.
-                        leaving.length === 0 ? give() : setConfirming(true)
-                    }
+                    // Only a size with stock can be given.
+                    disabled={form.processing || leaving.length === 0}
+                    onClick={() => setConfirming(true)}
                     className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0D6EFD] px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {form.processing ? (
@@ -346,6 +348,12 @@ function GiveRest({ student }: { student: Student }) {
                     Give now
                 </button>
             </div>
+            {leaving.length === 0 && (
+                <p className="text-xs font-bold text-amber-800">
+                    Out of stock. Choose a size that has stock, or wait for
+                    Stock In.
+                </p>
+            )}
             <InputError
                 message={
                     errors.pieces ??
