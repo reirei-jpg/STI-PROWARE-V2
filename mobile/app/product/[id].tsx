@@ -24,6 +24,7 @@ import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import PreorderSheet from '@/components/PreorderSheet';
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
+import StockLeftList from '@/components/StockLeft';
 import { takesPreorders } from '@/components/ProductTile';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -276,6 +277,8 @@ export default function ProductScreen() {
                                     </Text>
                                 </View>
                             )}
+
+                            {!comingSoon && <StockLeftList variants={product.variants} />}
                         </View>
                     </View>
                 )}

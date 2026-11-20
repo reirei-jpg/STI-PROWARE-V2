@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import OptionRow from '@/components/option-row';
 import QuantityInput from '@/components/quantity-input';
+import { stockLeft } from '@/components/stock-left';
 import { formatPeso } from '@/lib/format';
 import {
     buyerLimitMessage,
@@ -463,22 +464,21 @@ function PickerForm({
                         </p>
                         {variant && (
                             <p
+                                data-test="stock-left"
                                 className={cn(
-                                    'text-xs font-bold',
+                                    'text-sm font-bold',
                                     preordering
                                         ? variant.available_soon
                                             ? 'text-blue-700'
                                             : 'text-red-600'
-                                        : 'text-slate-500',
+                                        : stockLeft(variant).tone,
                                 )}
                             >
                                 {preordering
                                     ? variant.available_soon
                                         ? 'Available soon'
                                         : 'Out of stock'
-                                    : variant.pieces_left !== null
-                                      ? `Only ${formatUnits(variant.pieces_left, 'Piece')} left`
-                                      : 'In stock'}
+                                    : stockLeft(variant).text}
                             </p>
                         )}
                     </div>

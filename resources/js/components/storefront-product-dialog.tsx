@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import { useAddToCart } from '@/components/add-to-cart-dialog';
 import { usePreorder } from '@/components/preorder-dialog';
+import { StockLeftList } from '@/components/stock-left';
 import { PriceLines, saleEndsText } from '@/components/storefront-tile';
 import {
     Dialog,
@@ -247,6 +248,12 @@ export default function StorefrontProductDialog({
                                             </p>
                                         </div>
                                     )
+                                )}
+
+                                {details && !comingSoon && (
+                                    <StockLeftList
+                                        variants={details.variants}
+                                    />
                                 )}
 
                                 {comingSoon && shown.preorders_close_on && (

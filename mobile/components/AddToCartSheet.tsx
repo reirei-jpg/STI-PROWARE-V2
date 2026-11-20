@@ -10,6 +10,7 @@ import { typedQuantity } from '@/lib/quantity';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
+import { stockLeft } from '@/components/StockLeft';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
 import { buyerLimitMessage, mostPerItem } from '@/lib/buyer-limit';
 import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
@@ -337,15 +338,13 @@ export default function AddToCartSheet({
                     </View>
                     {variant && (
                         <Text
-                            className={`font-sans-bold text-xs ${preordering ? (variant.available_soon ? 'text-blue-700' : 'text-red-600') : 'text-slate-500'}`}
+                            className={`font-sans-bold text-sm ${preordering ? (variant.available_soon ? 'text-blue-700' : 'text-red-600') : stockLeft(variant).tone}`}
                         >
                             {preordering
                                 ? variant.available_soon
                                     ? 'Available soon'
                                     : 'Out of stock'
-                                : variant.pieces_left !== null
-                                  ? `Only ${formatUnits(variant.pieces_left, 'Piece')} left`
-                                  : 'In stock'}
+                                : stockLeft(variant).text}
                         </Text>
                     )}
                 </View>
