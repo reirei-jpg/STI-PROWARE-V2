@@ -22,17 +22,20 @@ type Student = FreeUniformGroupDetails['students'][number];
  * One group, opened with View Details: when they enrolled and who recorded
  * it, then each student with their Enrollment Form #, set and sizes, and
  * whether each piece was given. A piece still to give can be given here
- * once it arrives, in another size if the student agrees.
+ * once it arrives, in another size if the student agrees; readOnly (Sales
+ * Reports) shows the group only: giving stays on the Free Uniforms page.
  */
 export default function FreeUniformGroupDialog({
     open,
     details,
     onClose,
+    readOnly = false,
 }: {
     open: boolean;
     /** Undefined while it loads. */
     details: FreeUniformGroupDetails | null | undefined;
     onClose: () => void;
+    readOnly?: boolean;
 }) {
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -109,6 +112,7 @@ export default function FreeUniformGroupDialog({
                                                 showSet={mixedSets(
                                                     details.students,
                                                 )}
+                                                readOnly={readOnly}
                                             />
                                         ))}
                                     </tbody>
@@ -171,11 +175,13 @@ function GroupStatus({ students }: { students: Student[] }) {
 function StudentRow({
     student,
     showSet,
+    readOnly,
 }: {
     student: Student;
     showSet: boolean;
+    readOnly: boolean;
 }) {
-    const owed = !student.top.given || !student.pants.given;
+    const owed = !readOnly && (!student.top.given || !student.pants.given);
 
     return (
         <>

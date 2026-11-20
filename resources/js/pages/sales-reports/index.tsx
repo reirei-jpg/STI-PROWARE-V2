@@ -1230,23 +1230,32 @@ function FreeTable({
                         : undefined
                 }
                 onClose={() => setViewingGroupId(null)}
+                // A report shows the group only: giving is on the Free Uniforms page.
+                readOnly
             />
             <FreePiecesDialog
                 row={viewingDay}
                 onClose={() => setViewingDay(null)}
             />
+            <div className="border-b border-slate-100 px-6 py-3">
+                <p className="text-xs text-slate-500">
+                    Newest first. Value at Cost is what the pieces cost on their
+                    eStore orders; Value at Selling Price uses today&apos;s
+                    selling price.
+                </p>
+            </div>
             <TableScroll>
                 <table className="w-full min-w-240">
                     <thead className="bg-slate-50">
                         <tr>
                             <TableHeading>Group</TableHeading>
-                            <TableHeading>Given to</TableHeading>
-                            <TableHeading align="right">Pieces</TableHeading>
+                            <TableHeading>Recipients</TableHeading>
+                            <TableHeading align="right">Qty Given</TableHeading>
                             <TableHeading align="right">
-                                Worth at Cost
+                                Value at Cost
                             </TableHeading>
                             <TableHeading align="right">
-                                Worth at Price
+                                Value at Selling Price
                             </TableHeading>
                             <TableHeading align="right">
                                 <span className="sr-only">Actions</span>
@@ -1300,7 +1309,7 @@ function FreeTable({
                                     </p>
                                     {row.still_to_give > 0 && (
                                         <p className="text-xs font-bold text-amber-700">
-                                            {row.still_to_give} still to give
+                                            {row.still_to_give} pending
                                         </p>
                                     )}
                                 </td>
@@ -1372,16 +1381,16 @@ function FreePiecesDialog({
                         <table className="w-full min-w-180 text-sm">
                             <thead className="bg-slate-50">
                                 <tr>
-                                    <TableHeading>Given to</TableHeading>
-                                    <TableHeading>Item</TableHeading>
+                                    <TableHeading>Recipient</TableHeading>
+                                    <TableHeading>Product</TableHeading>
                                     <TableHeading align="right">
-                                        Qty
+                                        Qty Given
                                     </TableHeading>
                                     <TableHeading align="right">
-                                        Worth at Cost
+                                        Value at Cost
                                     </TableHeading>
                                     <TableHeading align="right">
-                                        Worth at Price
+                                        Value at Selling Price
                                     </TableHeading>
                                 </tr>
                             </thead>
