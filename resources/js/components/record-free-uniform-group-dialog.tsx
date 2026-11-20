@@ -417,7 +417,17 @@ function GroupForm({
         }
     }
 
-    const problems = problemsIn(shownErrors);
+    // The first box still to fill in, to scroll to when Save is reached for.
+    const firstOpen = problemsIn(
+        Object.fromEntries(checks.map((check) => [check.key, check.message])),
+    )[0];
+    const showWhatIsNeeded = () => {
+        setShowAllChecks(true);
+
+        if (firstOpen) {
+            jumpTo(firstOpen.anchor);
+        }
+    };
     // The boxes still empty or wrong: their "*… required" stays on.
     const openChecks = new Set(checks.map((check) => check.key));
     const canSave = !tooFew && checks.length === 0;
@@ -487,7 +497,7 @@ function GroupForm({
 
                 // Pressing Enter in a box: say what is still needed instead.
                 if (!canSave) {
-                    setShowAllChecks(true);
+                    showWhatIsNeeded();
 
                     return;
                 }
@@ -611,41 +621,6 @@ function GroupForm({
                 <InputError message={errors.students} />
             </div>
 
-            {problems.length > 0 && (
-                <div
-                    role="alert"
-                    className="max-h-44 overflow-y-auto border-t border-red-200 bg-red-50 px-6 py-3 text-sm text-red-900"
-                >
-                    <p className="font-black">
-                        {problems.length === 1
-                            ? 'Correct the following field before saving:'
-                            : `Correct the following ${problems.length} fields before saving:`}
-                    </p>
-                    <ul className="mt-2 space-y-1.5">
-                        {problems.map((problem) => (
-                            <li
-                                key={problem.key}
-                                className="flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-white px-3 py-2"
-                            >
-                                <span>
-                                    <span className="font-black">
-                                        {problem.place}:
-                                    </span>{' '}
-                                    {problem.message}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => jumpTo(problem.anchor)}
-                                    className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-black text-red-700 transition hover:bg-red-50"
-                                >
-                                    Go to field
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
             <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p
                     className={cn(
@@ -680,7 +655,8 @@ function GroupForm({
                             !canSave && 'cursor-not-allowed',
                         )}
                         onMouseEnter={() => !canSave && setShowAllChecks(true)}
-                        onClick={() => !canSave && setShowAllChecks(true)}
+                        // Clicking it goes to the first box still to fill in.
+                        onClick={() => !canSave && showWhatIsNeeded()}
                     >
                         <button
                             type="submit"
