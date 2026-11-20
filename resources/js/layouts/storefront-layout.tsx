@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     ChevronDown,
+    Heart,
     LayoutDashboard,
     LogOut,
     Package,
@@ -15,6 +16,7 @@ import CartController from '@/actions/App/Http/Controllers/CartController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
+import WishlistController from '@/actions/App/Http/Controllers/WishlistController';
 import { AddToCartProvider } from '@/components/add-to-cart-dialog';
 import NotificationBell from '@/components/notification-bell';
 import {
@@ -71,11 +73,16 @@ export default function StorefrontLayout({
 
 /**
  * The store's top bar, like an online shop's: the logo, a wide search, then
- * only icons: the cart with its count, the bell, and the buyer's name with
- * a menu (My Orders, My Preorders, My Account, Log out).
+ * only icons: the wishlist and the cart with their counts, the bell, and the
+ * buyer's name with a menu (My Orders, My Preorders, My Wishlist, My
+ * Account, Log out).
  */
 function StorefrontTopBar() {
-    const { auth, cart_count: cartCount } = usePage().props;
+    const {
+        auth,
+        cart_count: cartCount,
+        wishlist_count: wishlistCount,
+    } = usePage().props;
     const openSignIn = useSignInPrompt();
     const isStudent = isBuyer(auth.user);
     const iconButton =
@@ -99,6 +106,34 @@ function StorefrontTopBar() {
                 </Link>
 
                 <StorefrontSearch />
+
+                {isStudent ? (
+                    <Link
+                        href={WishlistController.index()}
+                        className={iconButton}
+                        aria-label="My Wishlist"
+                        title="My Wishlist"
+                    >
+                        <Heart size={19} />
+                        {wishlistCount !== null && wishlistCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-pink-500 px-1 text-[11px] font-black text-white ring-2 ring-white">
+                                {wishlistCount > 99 ? '99+' : wishlistCount}
+                            </span>
+                        )}
+                    </Link>
+                ) : (
+                    auth.user === null && (
+                        <button
+                            type="button"
+                            onClick={openSignIn}
+                            className={iconButton}
+                            aria-label="My Wishlist"
+                            title="My Wishlist"
+                        >
+                            <Heart size={19} />
+                        </button>
+                    )
+                )}
 
                 {isStudent ? (
                     <Link
@@ -217,6 +252,15 @@ function BuyerMenu() {
                         >
                             <CalendarClock size={17} />
                             My Preorders
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={WishlistController.index()}
+                            className={item}
+                        >
+                            <Heart size={17} />
+                            My Wishlist
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>

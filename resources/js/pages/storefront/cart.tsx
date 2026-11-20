@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Heart,
     ImageIcon,
     LoaderCircle,
     Minus,
@@ -13,6 +14,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
+import WishlistController from '@/actions/App/Http/Controllers/WishlistController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import { showToast } from '@/components/flash-popup';
 import InputError from '@/components/input-error';
@@ -458,7 +460,9 @@ function CartLineRow({
                         <p
                             className={cn(
                                 'text-sm font-bold',
-                                line.on_sale ? 'text-red-600' : 'text-blue-700',
+                                line.on_sale
+                                    ? 'text-slate-900'
+                                    : 'text-blue-700',
                             )}
                         >
                             {formatPeso(line.unit_price_centavos)}
@@ -468,8 +472,13 @@ function CartLineRow({
                                 {line.pieces_per_unit > 1
                                     ? line.unit_name
                                     : 'pc'}
-                                {line.on_sale && ' · On sale'}
                             </span>
+                            {line.on_sale && (
+                                <span className="font-bold text-red-600">
+                                    {' '}
+                                    · On sale
+                                </span>
+                            )}
                         </p>
                     )}
                     {line.problem && (
@@ -545,18 +554,27 @@ function CartLineRow({
                             {buyerLimitMessage(line.most_allowed)}
                         </p>
                     )}
-                    {tooMany && !line.stopped_by_limit && (
+                    {tooMany && line.stopped_by_product && (
                         <p className="max-w-44 text-center text-xs font-bold text-red-600">
-                            Only{' '}
-                            {set
-                                ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
-                                : formatUnits(
-                                      line.most_allowed,
-                                      line.unit_name,
-                                  )}{' '}
-                            left. Enter {line.most_allowed} or fewer.
+                            At most{' '}
+                            {formatUnits(line.most_per_buyer ?? 0, 'Piece')} per
+                            buyer. Enter {line.most_allowed} or fewer.
                         </p>
                     )}
+                    {tooMany &&
+                        !line.stopped_by_limit &&
+                        !line.stopped_by_product && (
+                            <p className="max-w-44 text-center text-xs font-bold text-red-600">
+                                Only{' '}
+                                {set
+                                    ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
+                                    : formatUnits(
+                                          line.most_allowed,
+                                          line.unit_name,
+                                      )}{' '}
+                                left. Enter {line.most_allowed} or fewer.
+                            </p>
+                        )}
                     {current === line.most_allowed &&
                         line.most_allowed > 0 &&
                         line.stopped_by_limit && (
@@ -568,7 +586,17 @@ function CartLineRow({
                         )}
                     {current === line.most_allowed &&
                         line.most_allowed > 0 &&
-                        !line.stopped_by_limit && (
+                        line.stopped_by_product && (
+                            <p className="max-w-44 text-center text-xs font-bold text-amber-700">
+                                At most{' '}
+                                {formatUnits(line.most_per_buyer ?? 0, 'Piece')}{' '}
+                                per buyer
+                            </p>
+                        )}
+                    {current === line.most_allowed &&
+                        line.most_allowed > 0 &&
+                        !line.stopped_by_limit &&
+                        !line.stopped_by_product && (
                             <p className="text-center text-xs font-bold text-amber-700">
                                 Only{' '}
                                 {set
@@ -592,6 +620,30 @@ function CartLineRow({
                           )
                         : '—'}
                 </p>
+
+                {!set && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setBusy(true);
+                            router.post(
+                                WishlistController.moveFromCart(line.id).url,
+                                {},
+                                {
+                                    preserveScroll: true,
+                                    onFinish: () => setBusy(false),
+                                },
+                            );
+                        }}
+                        disabled={busy}
+                        data-test="move-to-wishlist"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-pink-200 bg-pink-50 text-pink-600 transition hover:border-pink-300 hover:bg-pink-100 disabled:opacity-40"
+                        aria-label={`Move ${line.product_name} to your wishlist`}
+                        title="Move to wishlist (buy it later)"
+                    >
+                        <Heart size={17} />
+                    </button>
+                )}
 
                 <button
                     type="button"

@@ -27,6 +27,7 @@ import type {
     User,
 } from '@/types';
 import { isBuyer, NOT_A_BUYER } from '@/lib/roles';
+import { cn } from '@/lib/utils';
 
 const PreorderContext = createContext<(product: StorefrontTileProduct) => void>(
     () => {},
@@ -210,6 +211,33 @@ function PreorderForm({
     const { data, setData, processing, errors } = form;
     const hasChoices = details.variants.length > 1;
     const quantity = typedQuantity(quantityText) ?? 0;
+    // The product's Most per buyer: pieces this buyer can still get, all
+    // sizes together, less what this preorder already lists (null: none).
+    const perBuyerLeft = details.per_buyer_left ?? null;
+    const productMost = (except?: PreorderLine) =>
+        perBuyerLeft === null
+            ? limit
+            : Math.min(
+                  limit,
+                  Math.max(
+                      0,
+                      perBuyerLeft -
+                          data.items
+                              .filter((line) => line !== except)
+                              .reduce(
+                                  (sum, line) =>
+                                      sum + (typedQuantity(line.quantity) ?? 0),
+                                  0,
+                              ),
+                  ),
+              );
+    // Adding to a size already listed adds to it, so all listed pieces count.
+    const chosenMost = productMost();
+    const stoppedByProduct = perBuyerLeft !== null && chosenMost < limit;
+    const perBuyerText =
+        details.most_per_buyer === null
+            ? ''
+            : `Each buyer can get at most ${piecesText(details.most_per_buyer)} of this item`;
     const chosen = pickedVariant(details.variants, details.options, picked);
     const chosenId =
         chosen !== undefined && canPreorder(chosen) ? String(chosen.id) : '';
@@ -220,7 +248,7 @@ function PreorderForm({
     const lines: PreorderLine[] =
         data.items.length > 0
             ? data.items
-            : chosenId !== '' && quantity >= 1 && quantity <= limit
+            : chosenId !== '' && quantity >= 1 && quantity <= chosenMost
               ? [{ product_variant_id: chosenId, quantity: String(quantity) }]
               : [];
     const totalPieces = lines.reduce(
@@ -239,7 +267,7 @@ function PreorderForm({
         .filter((message) => message !== undefined);
 
     const addChosen = () => {
-        if (chosenId === '' || quantity < 1 || quantity > limit) {
+        if (chosenId === '' || quantity < 1 || quantity > chosenMost) {
             return;
         }
 
@@ -329,6 +357,20 @@ function PreorderForm({
                                 {formatDateOrdered(details.preorders_close_on)}
                             </p>
                         )}
+                        {details.most_per_buyer !== null && (
+                            <p
+                                data-test="per-buyer-limit"
+                                className="text-xs font-bold text-slate-600"
+                            >
+                                Limit: {piecesText(details.most_per_buyer)} per
+                                buyer
+                                {perBuyerLeft !== null &&
+                                    perBuyerLeft < details.most_per_buyer &&
+                                    (perBuyerLeft === 0
+                                        ? ' · you have reached it'
+                                        : ` · you can get ${piecesText(perBuyerLeft)} more`)}
+                            </p>
+                        )}
                         {!restock && details.expected_arrival && (
                             <p className="text-xs font-semibold text-slate-600">
                                 Expected to arrive {details.expected_arrival}
@@ -378,7 +420,7 @@ function PreorderForm({
                             onChange={setQuantityText}
                             label="How many"
                             tone="amber"
-                            most={limit}
+                            most={Math.max(1, chosenMost)}
                         />
                         {hasChoices && (
                             <button
@@ -387,7 +429,7 @@ function PreorderForm({
                                 disabled={
                                     chosenId === '' ||
                                     quantity < 1 ||
-                                    quantity > limit
+                                    quantity > chosenMost
                                 }
                                 className="inline-flex h-11 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-black text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -396,6 +438,21 @@ function PreorderForm({
                             </button>
                         )}
                     </div>
+                    {stoppedByProduct && (
+                        <p
+                            data-test="quantity-problem"
+                            className={cn(
+                                'text-sm font-bold',
+                                chosenMost === 0 || quantity > chosenMost
+                                    ? 'text-red-600'
+                                    : 'text-amber-700',
+                            )}
+                        >
+                            {chosenMost === 0
+                                ? `${perBuyerText}. You have reached it with ${data.items.length > 0 ? 'this preorder, your cart, orders or preorders' : 'your cart, orders or preorders'}.`
+                                : `${perBuyerText}. You can preorder ${piecesText(chosenMost)} more.`}
+                        </p>
+                    )}
                     {hasChoices && data.items.length === 0 && (
                         <p className="text-xs text-slate-500">
                             To preorder more than one size or color, choose one,
@@ -428,7 +485,10 @@ function PreorderForm({
                                                 )
                                             }
                                             label={`How many ${labelOf(line.product_variant_id)}`}
-                                            most={limit}
+                                            most={Math.max(
+                                                1,
+                                                productMost(line),
+                                            )}
                                             small
                                             tone="amber"
                                         />
@@ -496,7 +556,13 @@ function PreorderForm({
                         lines.some((line) => {
                             const typed = typedQuantity(line.quantity) ?? 0;
 
-                            return typed < 1 || typed > limit;
+                            return (
+                                typed < 1 ||
+                                typed >
+                                    (data.items.includes(line)
+                                        ? productMost(line)
+                                        : chosenMost)
+                            );
                         })
                     }
                     className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"

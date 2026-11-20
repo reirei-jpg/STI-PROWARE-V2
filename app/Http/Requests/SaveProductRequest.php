@@ -11,6 +11,7 @@ use App\Services\EstorePo\ItemCode;
 use App\Services\Products\ProductName;
 use App\Services\Products\ProductVariants;
 use App\Services\Sales\HeadOfficeCost;
+use App\Services\Shop\ProductBuyerLimit;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Carbon\CarbonImmutable;
@@ -89,6 +90,8 @@ class SaveProductRequest extends FormRequest
             ],
             'status' => ['required', Rule::in(array_map(fn (ProductStatus $status): string => $status->value, $statuses))],
             'low_stock_alert_at' => ['required', 'integer', 'min:0', 'max:100000'],
+            // Optional: the most pieces one buyer can get, so more buyers get one.
+            'most_per_buyer' => ['nullable', 'integer', 'min:1', 'max:'.ProductBuyerLimit::MAX],
             'preorders_close_on' => [
                 Rule::requiredIf($this->input('status') === ProductStatus::Preorder->value),
                 'nullable',
@@ -176,6 +179,9 @@ class SaveProductRequest extends FormRequest
             'low_stock_alert_at.required' => 'Enter the number of pieces to be warned at, e.g. 5.',
             'low_stock_alert_at.integer' => 'Enter the number of pieces as a whole number.',
             'low_stock_alert_at.min' => 'The number cannot be below 0.',
+            'most_per_buyer.integer' => 'Enter the most per buyer as a whole number, e.g. 2, or leave it empty for no limit.',
+            'most_per_buyer.min' => 'The most per buyer must be at least 1, or leave it empty for no limit.',
+            'most_per_buyer.max' => 'The most per buyer cannot be more than '.number_format(ProductBuyerLimit::MAX).'.',
             'status.in' => 'Choose Draft, Preorder or Available. To put a product on sale, use Put on Sale on the Products list.',
             'preorders_close_on.required' => 'Choose the last day students can preorder.',
             'preorders_close_on.date_format' => 'Choose a valid date.',

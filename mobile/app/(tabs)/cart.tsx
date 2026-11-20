@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import {
     Check,
     CircleCheck,
+    Heart,
     ImageIcon,
     QrCode,
     ShoppingCart,
@@ -469,6 +470,23 @@ function CartLineRow({
         ]);
     };
 
+    // Buy it later: it goes to the wishlist and leaves the cart (not for sets).
+    const moveToWishlist = async (): Promise<void> => {
+        setBusy(true);
+
+        try {
+            const result = await request<{ message: string; cart: CartView }>(`/cart/${line.id}/wishlist`, {
+                method: 'POST',
+            });
+
+            onChanged(result.cart);
+            onRemoved({ type: 'success', message: result.message });
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'It could not be moved. Try again.');
+            setBusy(false);
+        }
+    };
+
     const remove = async (): Promise<void> => {
         setBusy(true);
 
@@ -547,18 +565,29 @@ function CartLineRow({
                     )}
                     {!set && line.unit_price_centavos !== null && (
                         <Text
-                            className={`font-sans-bold text-sm ${line.on_sale ? 'text-red-600' : 'text-blue-700'}`}
+                            className={`font-sans-bold text-sm ${line.on_sale ? 'text-slate-900' : 'text-blue-700'}`}
                         >
                             {formatPeso(line.unit_price_centavos)}
                             <Text className="font-sans text-slate-500">
                                 {' '}
                                 / {line.pieces_per_unit > 1 ? line.unit_name : 'pc'}
-                                {line.on_sale ? ' · On sale' : ''}
                             </Text>
+                            {line.on_sale ? <Text className="font-sans-bold text-red-600"> · On sale</Text> : null}
                         </Text>
                     )}
                 </View>
 
+                {!set && (
+                    <Pressable
+                        onPress={() => void moveToWishlist()}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Move ${name} to your wishlist`}
+                        className="h-10 w-10 items-center justify-center rounded-xl border border-pink-200 bg-pink-50"
+                    >
+                        <Heart size={17} color="#db2777" />
+                    </Pressable>
+                )}
                 <Pressable
                     onPress={confirmRemove}
                     disabled={busy}
@@ -583,9 +612,11 @@ function CartLineRow({
             )}
             {tooMany && (
                 <Text className="font-sans-bold text-sm text-red-600">
-                    {line.stopped_by_limit
-                        ? buyerLimitMessage(line.most_allowed)
-                        : `Only ${set ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}` : formatUnits(line.most_allowed, line.unit_name)} left. Enter ${line.most_allowed} or fewer.`}
+                    {line.stopped_by_product
+                        ? `At most ${formatUnits(line.most_per_buyer ?? 0, 'Piece')} per buyer. Enter ${line.most_allowed} or fewer.`
+                        : line.stopped_by_limit
+                          ? buyerLimitMessage(line.most_allowed)
+                          : `Only ${set ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}` : formatUnits(line.most_allowed, line.unit_name)} left. Enter ${line.most_allowed} or fewer.`}
                 </Text>
             )}
 
@@ -604,7 +635,7 @@ function CartLineRow({
                             void save(quantity);
                         }}
                         most={Math.max(line.most_allowed, 1)}
-                        showLeft={!line.stopped_by_limit}
+                        showLeft={!line.stopped_by_limit && !line.stopped_by_product}
                         keepTyped
                         invalid={tooMany}
                         unitText={

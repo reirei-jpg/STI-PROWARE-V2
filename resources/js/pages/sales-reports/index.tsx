@@ -1105,7 +1105,7 @@ function SoldTableRow({ row }: { row: SoldRow }) {
             </td>
             <td className="px-5 py-4 text-right whitespace-nowrap">
                 {row.normal_each_centavos !== null && (
-                    <span className="mr-1.5 text-xs text-slate-400 line-through">
+                    <span className="mr-1.5 text-xs text-red-600 line-through">
                         {formatPeso(row.normal_each_centavos)}
                     </span>
                 )}
@@ -1114,7 +1114,7 @@ function SoldTableRow({ row }: { row: SoldRow }) {
                     unit={unit}
                     className={
                         row.normal_each_centavos !== null
-                            ? 'text-red-600'
+                            ? 'text-slate-900'
                             : undefined
                     }
                 />

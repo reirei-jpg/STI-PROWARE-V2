@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     CalendarClock,
     CircleCheck,
+    Heart,
     ImageIcon,
     ShoppingCart,
 } from 'lucide-react-native';
@@ -23,13 +24,18 @@ import AddToCartSheet from '@/components/AddToCartSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import PreorderSheet from '@/components/PreorderSheet';
+import OptionRow from '@/components/OptionRow';
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
 import { takesPreorders } from '@/components/ProductTile';
+import { stockLeft } from '@/components/StockLeft';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatPeso } from '@/lib/format';
-import { choiceIsOpen } from '@/lib/option-picker';
+import { formatDate, formatPeso, formatUnits } from '@/lib/format';
+import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
+
+const anyVariant = (): boolean => true;
+const isSoldOut = (variant: { availability: string }): boolean => variant.availability === 'sold_out';
 
 
 /**
@@ -40,7 +46,10 @@ import type { StorefrontProductDetails } from '@/lib/types';
  * Preorder while it can be preordered.
  */
 export default function ProductScreen() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+    // From My Wishlist: open the Add to Cart (or Preorder) sheet at once,
+    // with the saved size or color chosen.
+    const { id, add, variant: savedVariant } = useLocalSearchParams<{ id: string; add?: string; variant?: string }>();
+    const startVariantId = savedVariant ? Number(savedVariant) : null;
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const { user, request } = useAuth();
@@ -49,8 +58,9 @@ export default function ProductScreen() {
     const [photoIndex, setPhotoIndex] = useState(0);
     const [picking, setPicking] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
-    // The last thing done was a preorder (it shows "See My Preorders").
-    const [preordered, setPreordered] = useState(false);
+    // What the last step did, for the link under its message (View Cart,
+    // See My Preorders, See My Wishlist).
+    const [doneKind, setDoneKind] = useState<'cart' | 'preorder' | 'wishlist'>('cart');
 
     const load = useCallback(
         () =>
@@ -73,10 +83,20 @@ export default function ProductScreen() {
         void load();
     }, [load]);
 
-    const done = (message: string, wasPreorder: boolean): void => {
+    // Opened from My Wishlist's Add to Cart: once the item is loaded.
+    const [openedFromWishlist, setOpenedFromWishlist] = useState(false);
+
+    useEffect(() => {
+        if (add === '1' && product !== null && user !== null && !openedFromWishlist) {
+            setOpenedFromWishlist(true);
+            setPicking(true);
+        }
+    }, [add, product, user, openedFromWishlist]);
+
+    const done = (message: string, kind: 'cart' | 'preorder' | 'wishlist'): void => {
         setPicking(false);
         setNotice(message);
-        setPreordered(wasPreorder);
+        setDoneKind(kind);
         // The stock may have changed since the page opened.
         void load();
     };
@@ -94,6 +114,11 @@ export default function ProductScreen() {
                 : [];
     const hasOptions =
         product !== null && (product.variants.length > 1 || product.options.length > 0);
+    // The size or color tapped, to show how many of it are left (an option
+    // with one choice counts as tapped).
+    const [tapped, setTapped] = useState<Picked>({});
+    const picked: Picked = product === null ? {} : { ...startingPicks(product.variants, anyVariant), ...tapped };
+    const pickedOne = product === null ? undefined : pickedVariant(product.variants, product.options, picked);
 
     const onPhotoSwipe = (event: NativeSyntheticEvent<NativeScrollEvent>): void =>
         setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / width));
@@ -166,20 +191,28 @@ export default function ProductScreen() {
                                     </View>
                                     <Pressable
                                         onPress={() =>
-                                            router.navigate(
-                                                preordered ? '/orders?show=preorders' : '/cart',
-                                            )
+                                            doneKind === 'wishlist'
+                                                ? router.push('/wishlist')
+                                                : router.navigate(
+                                                      doneKind === 'preorder' ? '/orders?show=preorders' : '/cart',
+                                                  )
                                         }
                                         accessibilityRole="button"
                                         className="flex-row items-center justify-center gap-2 self-start rounded-xl border border-emerald-300 bg-white px-4 py-2.5"
                                     >
-                                        {preordered ? (
+                                        {doneKind === 'preorder' ? (
                                             <CalendarClock size={16} color="#047857" />
+                                        ) : doneKind === 'wishlist' ? (
+                                            <Heart size={16} color="#047857" />
                                         ) : (
                                             <ShoppingCart size={16} color="#047857" />
                                         )}
                                         <Text className="font-sans-bold text-sm text-emerald-800">
-                                            {preordered ? 'See My Preorders' : 'View Cart'}
+                                            {doneKind === 'preorder'
+                                                ? 'See My Preorders'
+                                                : doneKind === 'wishlist'
+                                                  ? 'See My Wishlist'
+                                                  : 'View Cart'}
                                         </Text>
                                     </Pressable>
                                 </View>
@@ -236,46 +269,59 @@ export default function ProductScreen() {
                                 </Text>
                             )}
 
-                            {hasOptions && (
-                                <View className="gap-3">
-                                    {product.options.map((option) => (
-                                        <View key={option.name} className="gap-1.5">
-                                            <Text className="font-sans-bold text-sm text-slate-700">
-                                                {option.name}
-                                            </Text>
-                                            <View className="flex-row flex-wrap gap-2">
-                                                {option.choices.map((choice) => {
-                                                    const inStock = choiceIsOpen(
+                            <View className="gap-3">
+                                {hasOptions &&
+                                    product.options.map((option) => (
+                                        <OptionRow
+                                            key={option.name}
+                                            option={option}
+                                            picked={picked}
+                                            variants={product.variants}
+                                            canPick={anyVariant}
+                                            isOut={comingSoon ? undefined : isSoldOut}
+                                            onPick={(choice) =>
+                                                setTapped(
+                                                    pickChoice(
                                                         product.variants,
-                                                        {},
+                                                        product.options,
+                                                        picked,
                                                         option.name,
                                                         choice,
-                                                        (variant) => variant.availability !== 'sold_out',
-                                                    );
-
-                                                    return (
-                                                        <View
-                                                            key={choice}
-                                                            className={`rounded-lg border px-3 py-1.5 ${inStock ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50'}`}
-                                                        >
-                                                            <Text
-                                                                className={`font-sans-semibold text-sm ${inStock ? 'text-slate-700' : 'text-slate-400 line-through'}`}
-                                                            >
-                                                                {choice}
-                                                            </Text>
-                                                        </View>
-                                                    );
-                                                })}
-                                            </View>
-                                        </View>
+                                                        anyVariant,
+                                                    ),
+                                                )
+                                            }
+                                        />
                                     ))}
+                                {!comingSoon &&
+                                    (pickedOne ? (
+                                        <Text className={`font-sans-bold text-sm ${stockLeft(pickedOne).tone}`}>
+                                            {hasOptions ? `${pickedOne.label}: ` : ''}
+                                            {stockLeft(pickedOne).text}
+                                        </Text>
+                                    ) : (
+                                        <Text className="font-sans text-sm text-slate-500">
+                                            Tap a{' '}
+                                            {product.options.map((option) => option.name.toLowerCase()).join(' and ')}{' '}
+                                            to see how many are left.
+                                        </Text>
+                                    ))}
+                                {product.most_per_buyer != null && (
+                                    <View className="self-start rounded-lg bg-slate-100 px-3 py-1.5">
+                                        <Text className="font-sans-bold text-sm text-slate-700">
+                                            Limit: {formatUnits(product.most_per_buyer, 'Piece')} per buyer, so more
+                                            buyers get one
+                                        </Text>
+                                    </View>
+                                )}
+                                {hasOptions && (
                                     <Text className="font-sans text-xs text-slate-500">
                                         {preorderOnly
                                             ? 'Choose yours when you tap Preorder.'
-                                            : 'Choose yours when you tap Add to Cart. Crossed out means none are left; you can preorder those there.'}
+                                            : 'Crossed out means none are left; you can preorder those when you tap Add to Cart.'}
                                     </Text>
-                                </View>
-                            )}
+                                )}
+                            </View>
                         </View>
                     </View>
                 )}
@@ -319,12 +365,13 @@ export default function ProductScreen() {
                         product={product}
                         open={picking}
                         onClose={() => setPicking(false)}
-                        onPlaced={(message) => done(message, true)}
+                        onPlaced={(message) => done(message, 'preorder')}
                     />
                 ) : (
                     <AddToCartSheet
                         product={product}
                         open={picking}
+                        startVariantId={startVariantId}
                         onClose={() => setPicking(false)}
                         onAdded={done}
                     />

@@ -1,6 +1,7 @@
 import { useForm, useHttp, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
+    Heart,
     LoaderCircle,
     Plus,
     ShoppingCart,
@@ -11,6 +12,7 @@ import type { ReactNode } from 'react';
 import CartController from '@/actions/App/Http/Controllers/CartController';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
+import WishlistController from '@/actions/App/Http/Controllers/WishlistController';
 import InputError from '@/components/input-error';
 import { useSignInPrompt } from '@/components/sign-in-prompt';
 import {
@@ -22,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import OptionRow from '@/components/option-row';
 import QuantityInput from '@/components/quantity-input';
+import { stockLeft } from '@/components/stock-left';
 import { formatPeso } from '@/lib/format';
 import {
     buyerLimitMessage,
@@ -42,7 +45,7 @@ import type {
 import { isBuyer, NOT_A_BUYER } from '@/lib/roles';
 
 const AddToCartContext = createContext<
-    (product: StorefrontTileProduct) => void
+    (product: StorefrontTileProduct, variantId?: number | null) => void
 >(() => {});
 
 /**
@@ -55,14 +58,20 @@ export function AddToCartProvider({ children }: { children: ReactNode }) {
     const { auth } = usePage<{ auth: { user: User | null } }>().props;
     const openSignIn = useSignInPrompt();
     const [product, setProduct] = useState<StorefrontTileProduct | null>(null);
+    // A size or color to start with (e.g. the one saved in the wishlist).
+    const [startVariantId, setStartVariantId] = useState<number | null>(null);
 
-    const start = (chosen: StorefrontTileProduct) => {
+    const start = (
+        chosen: StorefrontTileProduct,
+        variantId: number | null = null,
+    ) => {
         if (auth.user === null) {
             openSignIn();
 
             return;
         }
 
+        setStartVariantId(variantId);
         setProduct(chosen);
     };
 
@@ -71,6 +80,7 @@ export function AddToCartProvider({ children }: { children: ReactNode }) {
             {children}
             <AddToCartDialog
                 product={product}
+                startVariantId={startVariantId}
                 isStudent={isBuyer(auth.user)}
                 onClose={() => setProduct(null)}
             />
@@ -78,7 +88,10 @@ export function AddToCartProvider({ children }: { children: ReactNode }) {
     );
 }
 
-export function useAddToCart(): (product: StorefrontTileProduct) => void {
+export function useAddToCart(): (
+    product: StorefrontTileProduct,
+    variantId?: number | null,
+) => void {
     return useContext(AddToCartContext);
 }
 
@@ -91,10 +104,12 @@ export function useAddToCart(): (product: StorefrontTileProduct) => void {
  */
 function AddToCartDialog({
     product,
+    startVariantId,
     isStudent,
     onClose,
 }: {
     product: StorefrontTileProduct | null;
+    startVariantId: number | null;
     isStudent: boolean;
     onClose: () => void;
 }) {
@@ -177,7 +192,11 @@ function AddToCartDialog({
                                 Loading...
                             </p>
                         ) : (
-                            <PickerForm details={details} onClose={onClose} />
+                            <PickerForm
+                                details={details}
+                                startVariantId={startVariantId}
+                                onClose={onClose}
+                            />
                         )}
                     </>
                 )}
@@ -200,18 +219,26 @@ type PickerVariant = StorefrontProductDetails['variants'][number];
 
 function PickerForm({
     details,
+    startVariantId = null,
     onClose,
 }: {
     details: StorefrontProductDetails;
+    startVariantId?: number | null;
     onClose: () => void;
 }) {
     // Every size can be picked; sold-out ones are crossed out and preordered.
     const anyVariant = () => true;
     const soldOut = (variant: { stock_pieces: number }) =>
         variant.stock_pieces === 0;
-    const [picked, setPicked] = useState<Picked>(() =>
-        startingPicks(details.variants, anyVariant),
-    );
+    const [picked, setPicked] = useState<Picked>(() => {
+        const startWith = details.variants.find(
+            (variant) => variant.id === startVariantId,
+        );
+
+        return startWith
+            ? { ...startWith.choices }
+            : startingPicks(details.variants, anyVariant);
+    });
     const soldByPiece = details.variants.some(
         (variant) => variant.buy_price_centavos !== null,
     );
@@ -224,6 +251,7 @@ function PickerForm({
     const form = useForm<{ items: CartLine[] }>({ items: [] });
     // A sold-out size is preordered instead (by the piece).
     const preorderForm = useForm({ product_variant_id: '', quantity: '' });
+    const wishlistForm = useForm({ product_variant_id: '' });
     const { data, setData, processing, errors } = form;
 
     const variantOf = (id: string) =>
@@ -259,13 +287,38 @@ function PickerForm({
         (packOf(line.product_pack_id)?.pieces ?? 1);
     // The most of one item this buyer can get (BuyerLimit on the server).
     const limit = details.most_per_item ?? MAX_PER_ITEM;
+    // The product's Most per buyer: pieces this buyer can still get, all
+    // sizes together, less what this list already has (null: no limit).
+    const perBuyerLeft = details.per_buyer_left ?? null;
+    const productMostFor = (
+        itemPack: StorefrontBuyPack | undefined,
+        except?: CartLine,
+    ) => {
+        if (perBuyerLeft === null) {
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const listed = data.items
+            .filter((line) => line !== except)
+            .reduce((sum, line) => sum + piecesOf(line), 0);
+
+        return Math.floor(
+            Math.max(0, perBuyerLeft - listed) / (itemPack?.pieces ?? 1),
+        );
+    };
     // The most of this size and unit: what still fits in its stock after
-    // the other lines of the same size, and at most the buyer's limit.
+    // the other lines of the same size, at most the buyer's limit and the
+    // product's Most per buyer.
     const mostFor = (
         item: PickerVariant | undefined,
         itemPack: StorefrontBuyPack | undefined,
         except?: CartLine,
-    ) => Math.min(limit, stockMostFor(item, itemPack, except));
+    ) =>
+        Math.min(
+            limit,
+            stockMostFor(item, itemPack, except),
+            productMostFor(itemPack, except),
+        );
     const stockMostFor = (
         item: PickerVariant | undefined,
         itemPack: StorefrontBuyPack | undefined,
@@ -304,12 +357,24 @@ function PickerForm({
             line.product_variant_id === String(variant.id) &&
             line.product_pack_id === unit,
     );
-    const most = preordering ? limit : mostFor(variant, pack);
+    const most = preordering
+        ? Math.min(limit, productMostFor(undefined))
+        : mostFor(variant, pack);
+    // The product's Most per buyer stops it before the stock and the limit.
+    const stoppedByProduct =
+        variant !== undefined &&
+        productMostFor(preordering ? undefined : pack) <
+            Math.min(limit, preordering ? limit : stockMostFor(variant, pack));
     // The buyer's limit stops it before the stock does.
     const stoppedByLimit =
         !preordering &&
+        !stoppedByProduct &&
         variant !== undefined &&
         stockMostFor(variant, pack) > limit;
+    const perBuyerText =
+        details.most_per_buyer === null
+            ? ''
+            : `Each buyer can get at most ${formatUnits(details.most_per_buyer, 'Piece')} of this item`;
     const quantity = typedQuantity(quantityText) ?? 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany =
@@ -396,6 +461,18 @@ function PickerForm({
         resetPick();
     };
 
+    // Add to Wishlist: the size or color chosen now (or the item without one),
+    // to buy later. The window closes unless the list still has lines.
+    const addToWishlist = () => {
+        wishlistForm.transform(() => ({
+            product_variant_id: variant ? String(variant.id) : '',
+        }));
+        wishlistForm.post(WishlistController.store(details.id).url, {
+            preserveScroll: true,
+            onSuccess: () => (data.items.length > 0 ? resetPick() : onClose()),
+        });
+    };
+
     const preorderChosen = () => {
         if (variant === undefined) {
             return;
@@ -440,12 +517,12 @@ function PickerForm({
                                 pieceOnSale ||
                                     (pack !== undefined &&
                                         details.status === 'on_sale')
-                                    ? 'text-red-600'
+                                    ? 'text-slate-900'
                                     : 'text-blue-700',
                             )}
                         >
                             {pieceOnSale && variant?.price_centavos && (
-                                <span className="mr-2 text-sm font-normal text-slate-400 line-through">
+                                <span className="mr-2 text-sm font-normal text-red-600 line-through">
                                     {formatPeso(variant.price_centavos)}
                                 </span>
                             )}
@@ -461,24 +538,19 @@ function PickerForm({
                                 </span>
                             )}
                         </p>
-                        {variant && (
+                        {details.most_per_buyer !== null && (
                             <p
-                                className={cn(
-                                    'text-xs font-bold',
-                                    preordering
-                                        ? variant.available_soon
-                                            ? 'text-blue-700'
-                                            : 'text-red-600'
-                                        : 'text-slate-500',
-                                )}
+                                data-test="per-buyer-limit"
+                                className="text-xs font-bold text-slate-600"
                             >
-                                {preordering
-                                    ? variant.available_soon
-                                        ? 'Available soon'
-                                        : 'Out of stock'
-                                    : variant.pieces_left !== null
-                                      ? `Only ${formatUnits(variant.pieces_left, 'Piece')} left`
-                                      : 'In stock'}
+                                Limit:{' '}
+                                {formatUnits(details.most_per_buyer, 'Piece')}{' '}
+                                per buyer
+                                {perBuyerLeft !== null &&
+                                    perBuyerLeft < details.most_per_buyer &&
+                                    (perBuyerLeft === 0
+                                        ? ' · you have reached it'
+                                        : ` · you can get ${formatUnits(perBuyerLeft, 'Piece')} more`)}
                             </p>
                         )}
                     </div>
@@ -603,35 +675,75 @@ function PickerForm({
                                 </button>
                             )}
                         </div>
+                        {/* How many are left, right under the number (user's decision). */}
+                        {variant && (
+                            <p
+                                data-test="stock-left"
+                                className={cn(
+                                    'text-sm font-bold',
+                                    preordering
+                                        ? variant.available_soon
+                                            ? 'text-blue-700'
+                                            : 'text-red-600'
+                                        : stockLeft(variant).tone,
+                                )}
+                            >
+                                {preordering
+                                    ? variant.available_soon
+                                        ? 'Available soon'
+                                        : 'Out of stock'
+                                    : stockLeft(variant).text}
+                            </p>
+                        )}
                         {tooMany ? (
-                            <p className="text-sm font-bold text-red-600">
-                                {stoppedByLimit
-                                    ? buyerLimitMessage(limit)
-                                    : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
+                            <p
+                                data-test="quantity-problem"
+                                className="text-sm font-bold text-red-600"
+                            >
+                                {stoppedByProduct
+                                    ? `${perBuyerText}.${most * piecesPerUnit < (details.most_per_buyer ?? 0) ? ` You can add ${formatUnits(most, unitName)} more.` : ''} Enter ${most} or fewer.`
+                                    : stoppedByLimit
+                                      ? buyerLimitMessage(limit)
+                                      : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
                             </p>
                         ) : (
                             !preordering &&
                             variant &&
                             most > 0 &&
-                            quantity === most && (
+                            quantity === most &&
+                            // "Only N pcs left" already says it, unless the list took some.
+                            (stoppedByProduct ||
+                                stoppedByLimit ||
+                                most * piecesPerUnit <
+                                    variant.stock_pieces) && (
                                 <p className="text-sm font-bold text-amber-700">
-                                    {stoppedByLimit
-                                        ? `You can get at most ${limit.toLocaleString('en-PH')} of one item.`
-                                        : `Only ${formatUnits(most, unitName)} left to add.`}
+                                    {stoppedByProduct
+                                        ? `${perBuyerText}: ${formatUnits(most, unitName)} more is the most you can add.`
+                                        : stoppedByLimit
+                                          ? `You can get at most ${limit.toLocaleString('en-PH')} of one item.`
+                                          : `Only ${formatUnits(most, unitName)} left to add.`}
                                 </p>
                             )
                         )}
-                        {!preordering && variant && most === 0 && (
-                            <p className="text-sm font-bold text-amber-700">
-                                {existing || data.items.length > 0
-                                    ? 'Your list already has all that is left of this size.'
-                                    : `Not enough left for 1 ${unitName}.`}
-                            </p>
-                        )}
+                        {variant &&
+                            most === 0 &&
+                            (stoppedByProduct || !preordering) && (
+                                <p
+                                    data-test="quantity-problem"
+                                    className="text-sm font-bold text-amber-700"
+                                >
+                                    {stoppedByProduct
+                                        ? `${perBuyerText}. You have reached it with ${data.items.length > 0 ? 'this list, your cart, orders or preorders' : 'your cart, orders or preorders'}.`
+                                        : existing || data.items.length > 0
+                                          ? 'Your list already has all that is left of this size.'
+                                          : `Not enough left for 1 ${unitName}.`}
+                                </p>
+                            )}
                         <InputError
                             message={
                                 preorderForm.errors.product_variant_id ??
-                                preorderForm.errors.quantity
+                                preorderForm.errors.quantity ??
+                                wishlistForm.errors.product_variant_id
                             }
                         />
                         {canList && data.items.length === 0 && !preordering && (
@@ -676,7 +788,7 @@ function PickerForm({
                                                 <p className="text-xs text-slate-500">
                                                     {onSale &&
                                                         lineVariant?.price_centavos && (
-                                                            <span className="mr-1 line-through">
+                                                            <span className="mr-1 text-red-600 line-through">
                                                                 {formatPeso(
                                                                     lineVariant.price_centavos,
                                                                 )}
@@ -685,7 +797,7 @@ function PickerForm({
                                                     <span
                                                         className={cn(
                                                             onSale &&
-                                                                'font-bold text-red-600',
+                                                                'font-bold text-slate-900',
                                                         )}
                                                     >
                                                         {formatPeso(
@@ -762,9 +874,12 @@ function PickerForm({
                 )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+            <div className="space-y-3 border-t border-slate-100 px-6 py-4">
                 {hasChoices && variant === undefined && lines.length === 0 && (
-                    <p className="mr-auto text-xs font-semibold text-slate-500">
+                    <p
+                        data-test="choose-first"
+                        className="text-xs font-semibold text-slate-500"
+                    >
                         Choose the{' '}
                         {details.options
                             .filter((option) => !picked[option.name])
@@ -774,7 +889,7 @@ function PickerForm({
                     </p>
                 )}
                 {chosenNotAdded && (
-                    <p className="mr-auto text-xs font-semibold text-blue-800">
+                    <p className="text-xs font-semibold text-blue-800">
                         {labelOf({
                             product_variant_id: String(variant.id),
                             product_pack_id: unit,
@@ -784,61 +899,105 @@ function PickerForm({
                         it.
                     </p>
                 )}
-                <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
-                    {preordering && !variant.can_preorder && lines.length === 0
-                        ? 'Close'
-                        : 'Cancel'}
-                </DialogClose>
-                {preordering && variant.can_preorder && (
+                {/* Like Add to Cart: only once the size and color are chosen.
+                    The same size as Add to Cart, right above it (user's decision). */}
+                <div className="flex justify-end">
                     <button
                         type="button"
-                        onClick={preorderChosen}
-                        disabled={preorderForm.processing || quantity < 1}
-                        className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {preorderForm.processing ? (
-                            <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                            <CalendarClock size={17} />
-                        )}
-                        {data.items.length > 0 && hasChoices
-                            ? `Preorder ${variant.label}`
-                            : 'Preorder'}
-                    </button>
-                )}
-                {(!preordering || data.items.length > 0) && (
-                    <button
-                        type="submit"
+                        onClick={addToWishlist}
                         disabled={
-                            processing ||
-                            lines.length === 0 ||
-                            // A line with a wrong amount, or more than can be had.
-                            lines.some((line) => {
-                                const typed = typedQuantity(line.quantity) ?? 0;
-
-                                return (
-                                    typed < 1 ||
-                                    typed >
-                                        mostFor(
-                                            variantOf(line.product_variant_id),
-                                            packOf(line.product_pack_id),
-                                            line,
-                                        )
-                                );
-                            })
+                            wishlistForm.processing || variant === undefined
                         }
-                        className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        data-test="add-to-wishlist"
+                        title={
+                            variant === undefined
+                                ? 'Choose the size and color first'
+                                : hasChoices
+                                  ? `Save ${variant.label} to buy later`
+                                  : 'Save it to buy later'
+                        }
+                        className="inline-flex w-48 items-center justify-center gap-2 rounded-xl border border-pink-200 bg-pink-50 px-5 py-3 text-sm font-black text-pink-700 transition hover:bg-pink-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {processing ? (
+                        {wishlistForm.processing ? (
                             <LoaderCircle size={17} className="animate-spin" />
                         ) : (
-                            <ShoppingCart size={17} />
+                            <Heart size={17} />
                         )}
-                        {data.items.length > 1
-                            ? 'Add all to Cart'
-                            : 'Add to Cart'}
+                        Add to Wishlist
                     </button>
-                )}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                    <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                        {preordering &&
+                        !variant.can_preorder &&
+                        lines.length === 0
+                            ? 'Close'
+                            : 'Cancel'}
+                    </DialogClose>
+                    {preordering && variant.can_preorder && (
+                        <button
+                            type="button"
+                            onClick={preorderChosen}
+                            disabled={
+                                preorderForm.processing ||
+                                quantity < 1 ||
+                                quantity > most
+                            }
+                            className="inline-flex w-48 items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {preorderForm.processing ? (
+                                <LoaderCircle
+                                    size={17}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <CalendarClock size={17} />
+                            )}
+                            {data.items.length > 0 && hasChoices
+                                ? `Preorder ${variant.label}`
+                                : 'Preorder'}
+                        </button>
+                    )}
+                    {(!preordering || data.items.length > 0) && (
+                        <button
+                            type="submit"
+                            disabled={
+                                processing ||
+                                lines.length === 0 ||
+                                // A line with a wrong amount, or more than can be had.
+                                lines.some((line) => {
+                                    const typed =
+                                        typedQuantity(line.quantity) ?? 0;
+
+                                    return (
+                                        typed < 1 ||
+                                        typed >
+                                            mostFor(
+                                                variantOf(
+                                                    line.product_variant_id,
+                                                ),
+                                                packOf(line.product_pack_id),
+                                                line,
+                                            )
+                                    );
+                                })
+                            }
+                            className="inline-flex w-48 items-center justify-center gap-2 rounded-xl border border-[#0D6EFD] bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {processing ? (
+                                <LoaderCircle
+                                    size={17}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <ShoppingCart size={17} />
+                            )}
+                            {data.items.length > 1
+                                ? 'Add all to Cart'
+                                : 'Add to Cart'}
+                        </button>
+                    )}
+                </div>
             </div>
         </form>
     );

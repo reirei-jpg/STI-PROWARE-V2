@@ -29,10 +29,10 @@ export default function PriceLines({
                                 From
                             </Text>
                         )}
-                        <Text className="font-sans text-xs text-slate-400 line-through">
+                        <Text className="font-sans text-xs text-red-600 line-through">
                             {formatPeso(price.piece_centavos)}
                         </Text>
-                        <Text className={`font-sans-bold text-red-600 ${mainSize}`}>
+                        <Text className={`font-sans-bold text-slate-900 ${mainSize}`}>
                             {formatPeso(price.sale_centavos)}
                         </Text>
                         <Text className="font-sans text-xs text-slate-500">/ pc</Text>
@@ -57,12 +57,12 @@ export default function PriceLines({
                     className="flex-row flex-wrap items-baseline gap-x-1"
                 >
                     {pack.sale_price_centavos !== null && (
-                        <Text className="font-sans text-xs text-slate-400 line-through">
+                        <Text className="font-sans text-xs text-red-600 line-through">
                             {formatPeso(pack.price_centavos)}
                         </Text>
                     )}
                     <Text
-                        className={`font-sans-bold ${pack.sale_price_centavos !== null ? 'text-red-600' : 'text-blue-700'} ${price.piece_centavos === null ? mainSize : 'text-sm'}`}
+                        className={`font-sans-bold ${pack.sale_price_centavos !== null ? 'text-slate-900' : 'text-blue-700'} ${price.piece_centavos === null ? mainSize : 'text-sm'}`}
                     >
                         {formatPeso(pack.sale_price_centavos ?? pack.price_centavos)}
                     </Text>

@@ -46,6 +46,9 @@ const MAX_PHOTOS = 6;
 const MAX_OPTIONS = 3;
 const MAX_PACKS = 5;
 
+/** The highest Most per buyer (ProductBuyerLimit::MAX). */
+const MOST_PER_BUYER_MAX = 10000;
+
 /** The expected arrival filled in from the close date: 2 to 3 weeks after it. */
 const ARRIVAL_STARTS_AFTER_DAYS = 14;
 const ARRIVAL_ENDS_AFTER_DAYS = 21;
@@ -98,6 +101,7 @@ type ProductFormData = {
     early_bird_price: string;
     early_bird_pieces: string;
     low_stock_alert_at: string;
+    most_per_buyer: string;
     photos: PhotoInput[];
     packs: ProductPackInput[];
     options: ProductOptionInput[];
@@ -239,6 +243,7 @@ export default function ProductForm({
         early_bird_price: product?.early_bird_price ?? '',
         early_bird_pieces: product?.early_bird_pieces ?? '',
         low_stock_alert_at: product?.low_stock_alert_at ?? '5',
+        most_per_buyer: product?.most_per_buyer ?? '',
         photos:
             product?.photos.map((photo) => ({
                 id: photo.id,
@@ -502,6 +507,7 @@ export default function ProductForm({
             early_bird_pieces:
                 status === 'preorder' ? current.early_bird_pieces : '',
             low_stock_alert_at: current.low_stock_alert_at,
+            most_per_buyer: current.most_per_buyer,
             photos: current.photos.map((photo) => ({
                 id: photo.id ?? '',
                 file: photo.file ?? '',
@@ -748,6 +754,11 @@ export default function ProductForm({
                     place: 'Notify me when stock falls to',
                     section: 'product-packs',
                 };
+            case 'most_per_buyer':
+                return {
+                    place: 'Most per buyer',
+                    section: 'product-packs',
+                };
             case 'packs': {
                 const packName =
                     data.packs[number]?.name.trim() || `Pack ${number + 1}`;
@@ -956,6 +967,17 @@ export default function ProductForm({
             message: 'Enter the number of pieces to be warned at, e.g. 5.',
             section: 'product-packs',
         },
+        data.most_per_buyer.trim() !== '' &&
+            (Number(data.most_per_buyer) < 1 ||
+                Number(data.most_per_buyer) > MOST_PER_BUYER_MAX) && {
+                key: 'most_per_buyer',
+                label: 'Most per buyer',
+                message:
+                    Number(data.most_per_buyer) < 1
+                        ? 'The most per buyer must be at least 1, or leave it empty for no limit.'
+                        : `The most per buyer cannot be more than ${MOST_PER_BUYER_MAX.toLocaleString('en-PH')}.`,
+                section: 'product-packs',
+            },
         data.options.some(
             (option) => option.choices.length > 0 && option.name.trim() === '',
         ) && {
@@ -1708,6 +1730,50 @@ export default function ProductForm({
                                 message={
                                     errors.low_stock_alert_at ??
                                     requiredMessage('low_stock_alert_at')
+                                }
+                            />
+                        </label>
+                    </div>
+                    <div className="border-t border-slate-100 px-6 py-5">
+                        <label className="grid gap-1.5">
+                            <span className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
+                                Most per buyer (optional)
+                                <input
+                                    value={data.most_per_buyer}
+                                    onBlur={() => touch('most_per_buyer')}
+                                    onChange={(event) => {
+                                        setData(
+                                            'most_per_buyer',
+                                            digitsOnly(event.target.value),
+                                        );
+                                        touch('most_per_buyer');
+                                    }}
+                                    inputMode="numeric"
+                                    placeholder="No limit"
+                                    data-test="most-per-buyer"
+                                    aria-invalid={Boolean(
+                                        errors.most_per_buyer ??
+                                        requiredMessage('most_per_buyer'),
+                                    )}
+                                    className={cn(
+                                        inputClasses,
+                                        'w-28 text-right',
+                                    )}
+                                    aria-label="Most pieces per buyer"
+                                />
+                                pcs
+                            </span>
+                            <span className="text-xs leading-5 text-slate-500">
+                                The most pieces one buyer can get, all sizes and
+                                colors together, counting their cart, orders and
+                                preorders. Use it when stock is few, e.g. 2, so
+                                more buyers get one. Leave it empty for no
+                                limit. Uniform sets are not counted.
+                            </span>
+                            <InputError
+                                message={
+                                    errors.most_per_buyer ??
+                                    requiredMessage('most_per_buyer')
                                 }
                             />
                         </label>

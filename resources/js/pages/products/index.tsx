@@ -880,17 +880,17 @@ function StudentPrice({ product }: { product: ProductListItem }) {
                         <span className="text-xs text-slate-500">
                             Sale from
                         </span>
-                        <span className="text-base font-black text-red-600">
+                        <span className="text-base font-black text-slate-900">
                             {formatPeso(product.sale_price_centavos)}
                         </span>
                         <span className="text-xs text-slate-500">/ pc</span>
                     </span>
                 ) : product.sale_price_centavos !== null ? (
                     <span className="inline-flex items-baseline gap-2">
-                        <span className="text-sm text-slate-400 line-through">
+                        <span className="text-sm text-red-600 line-through">
                             {formatPeso(product.price_centavos)}
                         </span>
-                        <span className="text-base font-black text-red-600">
+                        <span className="text-base font-black text-slate-900">
                             {formatPeso(product.sale_price_centavos)}
                         </span>
                         <span className="text-xs text-slate-500">/ pc</span>
@@ -910,10 +910,10 @@ function StudentPrice({ product }: { product: ProductListItem }) {
                 >
                     {pack.sale_price_centavos !== null ? (
                         <>
-                            <span className="text-xs text-slate-400 line-through">
+                            <span className="text-xs text-red-600 line-through">
                                 {formatPeso(pack.price_centavos)}
                             </span>
-                            <span className="text-sm font-black text-red-600">
+                            <span className="text-sm font-black text-slate-900">
                                 {formatPeso(pack.sale_price_centavos)}
                             </span>
                         </>

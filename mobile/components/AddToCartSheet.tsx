@@ -1,4 +1,4 @@
-import { CalendarClock, Plus, ShoppingCart } from 'lucide-react-native';
+import { CalendarClock, Heart, Plus, ShoppingCart } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { typedQuantity } from '@/lib/quantity';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
+import { stockLeft } from '@/components/StockLeft';
 import { formatPeso, formatUnits, unitWord } from '@/lib/format';
 import { buyerLimitMessage, mostPerItem } from '@/lib/buyer-limit';
 import { PREORDER_PRICE_MAY_CHANGE } from '@/lib/preorder-price';
@@ -19,6 +20,9 @@ import type { CartView, StorefrontProductDetails } from '@/lib/types';
 
 type ProductVariantRow = StorefrontProductDetails['variants'][number];
 type BuyPack = StorefrontProductDetails['buy_packs'][number];
+
+/** The Cancel button's width, so Add to Wishlist lines up over Add to Cart. */
+const CANCEL_WIDTH = 104;
 
 /** A line to add: which size, by the piece (packId null) or a pack, and how many. */
 type CartLine = { variantId: number; packId: number | null; quantity: string };
@@ -34,13 +38,16 @@ type CartLine = { variantId: number; packId: number | null; quantity: string };
 export default function AddToCartSheet({
     product,
     open,
+    startVariantId = null,
     onClose,
     onAdded,
 }: {
     product: StorefrontProductDetails;
     open: boolean;
+    /** A size or color to start with (e.g. the one saved in the wishlist). */
+    startVariantId?: number | null;
     onClose: () => void;
-    onAdded: (message: string, wasPreorder: boolean) => void;
+    onAdded: (message: string, kind: 'cart' | 'preorder' | 'wishlist') => void;
 }) {
     const { request } = useAuth();
     const { replace: replaceCart } = useCart();
@@ -69,10 +76,16 @@ export default function AddToCartSheet({
         setQuantityText('1');
     };
 
-    // Start fresh every time it opens.
+    // Start fresh every time it opens (with the size to start with, if any).
     useEffect(() => {
         if (open) {
             resetPick();
+            const startWith = product.variants.find((item) => item.id === startVariantId);
+
+            if (startWith) {
+                setPicked({ ...startWith.choices });
+            }
+
             setAdded([]);
             setError(null);
             setNotice(null);
@@ -103,10 +116,23 @@ export default function AddToCartSheet({
     };
     // The most of one item this buyer can get (BuyerLimit on the server).
     const limit = mostPerItem(product.most_per_item);
+    // The product's Most per buyer: pieces this buyer can still get, all sizes
+    // together, less what this list already has (null: no limit).
+    const perBuyerLeft = product.per_buyer_left ?? null;
+    const productMostFor = (itemPack: BuyPack | undefined, except?: CartLine): number => {
+        if (perBuyerLeft === null) {
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const listed = added.filter((line) => line !== except).reduce((sum, line) => sum + piecesOf(line), 0);
+
+        return Math.floor(Math.max(0, perBuyerLeft - listed) / (itemPack?.pieces ?? 1));
+    };
     // The most of this size and unit: what still fits in its stock after the
-    // other lines of the same size, and at most the buyer's limit.
+    // other lines of the same size, at most the buyer's limit and the
+    // product's Most per buyer.
     const mostFor = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined, except?: CartLine): number =>
-        Math.min(limit, stockMostFor(item, itemPack, except));
+        Math.min(limit, stockMostFor(item, itemPack, except), productMostFor(itemPack, except));
     const stockMostFor = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined, except?: CartLine): number => {
         if (item === undefined) {
             return 0;
@@ -131,9 +157,17 @@ export default function AddToCartSheet({
     const existing = added.find(
         (line) => variant !== undefined && line.variantId === variant.id && line.packId === packId,
     );
-    const most = preordering ? limit : mostFor(variant, pack);
+    const most = preordering ? Math.min(limit, productMostFor(undefined)) : mostFor(variant, pack);
+    // The product's Most per buyer stops it before the stock and the limit.
+    const stoppedByProduct =
+        variant !== undefined &&
+        productMostFor(preordering ? undefined : pack) < Math.min(limit, preordering ? limit : stockMostFor(variant, pack));
     // The buyer's limit stops it before the stock does.
-    const stoppedByLimit = !preordering && variant !== undefined && stockMostFor(variant, pack) > limit;
+    const stoppedByLimit = !preordering && !stoppedByProduct && variant !== undefined && stockMostFor(variant, pack) > limit;
+    const perBuyerText =
+        product.most_per_buyer == null
+            ? ''
+            : `Each buyer can get at most ${formatUnits(product.most_per_buyer, 'Piece')} of this item`;
     const quantity = typedQuantity(quantityText) ?? 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany = !preordering && variant !== undefined && most > 0 && quantity > most;
@@ -164,7 +198,7 @@ export default function AddToCartSheet({
 
             return typed >= 1 && typed <= mostFor(variantOf(line.variantId), packOf(line.packId), line);
         });
-    const canPreorder = preordering && !saving && variant.can_preorder && quantity >= 1 && quantity <= limit;
+    const canPreorder = preordering && !saving && variant.can_preorder && quantity >= 1 && quantity <= most;
 
     const addChosen = (): void => {
         if (!canAddChosen || variant === undefined) {
@@ -206,7 +240,7 @@ export default function AddToCartSheet({
             });
 
             replaceCart(result.cart);
-            onAdded(result.message, false);
+            onAdded(result.message, 'cart');
         } catch (caught) {
             setError(caught instanceof ApiError ? caught.message : 'It could not be added. Try again.');
         } finally {
@@ -233,12 +267,38 @@ export default function AddToCartSheet({
                 setNotice(result.message);
                 resetPick();
             } else {
-                onAdded(result.message, true);
+                onAdded(result.message, 'preorder');
             }
         } catch (caught) {
             setError(caught instanceof ApiError ? caught.message : 'The preorder could not be placed. Try again.');
         } finally {
             setSaving(false);
+        }
+    };
+
+    // Add to Wishlist: the size or color chosen now (or the item without one),
+    // to buy later. The sheet closes unless the list still has lines.
+    const [savingWish, setSavingWish] = useState(false);
+    const addToWishlist = async (): Promise<void> => {
+        setSavingWish(true);
+        setError(null);
+
+        try {
+            const result = await request<{ message: string }>(`/products/${product.id}/wishlist`, {
+                method: 'POST',
+                body: { product_variant_id: variant?.id ?? null },
+            });
+
+            if (added.length > 0) {
+                setNotice(result.message);
+                resetPick();
+            } else {
+                onAdded(result.message, 'wishlist');
+            }
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'It could not be added to your wishlist. Try again.');
+        } finally {
+            setSavingWish(false);
         }
     };
 
@@ -278,6 +338,21 @@ export default function AddToCartSheet({
                             yet. Tap Add to list to include it.
                         </Text>
                     )}
+                    {/* Like Add to Cart: only once the size and color are chosen.
+                        The same size as Add to Cart, right above it (user's decision). */}
+                    <View className="flex-row gap-2">
+                        <View style={{ width: CANCEL_WIDTH }} />
+                        <Pressable
+                            onPress={() => void addToWishlist()}
+                            disabled={savingWish || variant === undefined}
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: savingWish || variant === undefined }}
+                            className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-pink-200 bg-pink-50 py-4 ${savingWish || variant === undefined ? 'opacity-50' : ''}`}
+                        >
+                            {savingWish ? <ActivityIndicator color="#be185d" /> : <Heart size={18} color="#be185d" />}
+                            <Text className="font-sans-bold text-base text-pink-700">Add to Wishlist</Text>
+                        </Pressable>
+                    </View>
                     {preordering && !variant.can_preorder && added.length === 0 ? (
                         <View className="items-center rounded-2xl bg-slate-100 py-4">
                             <Text className="font-sans-bold text-base text-slate-500">
@@ -286,6 +361,14 @@ export default function AddToCartSheet({
                         </View>
                     ) : (
                         <View className="flex-row gap-2">
+                            <Pressable
+                                onPress={onClose}
+                                accessibilityRole="button"
+                                style={{ width: CANCEL_WIDTH }}
+                                className="items-center justify-center rounded-2xl border border-slate-200 bg-white py-4"
+                            >
+                                <Text className="font-sans-bold text-base text-slate-700">Cancel</Text>
+                            </Pressable>
                             {preordering && variant.can_preorder && (
                                 <Pressable
                                     onPress={preorder}
@@ -320,12 +403,12 @@ export default function AddToCartSheet({
                 <View className="flex-1 justify-center gap-1">
                     <View className="flex-row flex-wrap items-baseline gap-x-2">
                         {pieceOnSale && variant?.price_centavos != null && (
-                            <Text className="font-sans text-sm text-slate-400 line-through">
+                            <Text className="font-sans text-sm text-red-600 line-through">
                                 {formatPeso(variant.price_centavos)}
                             </Text>
                         )}
                         <Text
-                            className={`font-sans-bold text-2xl ${priceIsSale ? 'text-red-600' : 'text-blue-700'}`}
+                            className={`font-sans-bold text-2xl ${priceIsSale ? 'text-slate-900' : 'text-blue-700'}`}
                         >
                             {unitPrice !== null ? formatPeso(unitPrice) : 'Choose below'}
                         </Text>
@@ -335,17 +418,14 @@ export default function AddToCartSheet({
                             </Text>
                         )}
                     </View>
-                    {variant && (
-                        <Text
-                            className={`font-sans-bold text-xs ${preordering ? (variant.available_soon ? 'text-blue-700' : 'text-red-600') : 'text-slate-500'}`}
-                        >
-                            {preordering
-                                ? variant.available_soon
-                                    ? 'Available soon'
-                                    : 'Out of stock'
-                                : variant.pieces_left !== null
-                                  ? `Only ${formatUnits(variant.pieces_left, 'Piece')} left`
-                                  : 'In stock'}
+                    {product.most_per_buyer != null && (
+                        <Text className="font-sans-bold text-xs text-slate-600">
+                            Limit: {formatUnits(product.most_per_buyer, 'Piece')} per buyer
+                            {perBuyerLeft !== null && perBuyerLeft < product.most_per_buyer
+                                ? perBuyerLeft === 0
+                                    ? ' · you have reached it'
+                                    : ` · you can get ${formatUnits(perBuyerLeft, 'Piece')} more`
+                                : ''}
                         </Text>
                     )}
                 </View>
@@ -439,8 +519,15 @@ export default function AddToCartSheet({
                         onChange={setQuantityText}
                         keepTyped={!preordering}
                         invalid={tooMany}
-                        showLeft={!preordering && !stoppedByLimit}
-                        most={variant ? most : limit}
+                        // "Only N pcs left" under it already says it, unless the list took some.
+                        showLeft={
+                            !preordering &&
+                            !stoppedByLimit &&
+                            !stoppedByProduct &&
+                            variant !== undefined &&
+                            most * piecesPerUnit < variant.stock_pieces
+                        }
+                        most={variant ? Math.max(preordering ? 1 : 0, most) : limit}
                         unitText={
                             preordering
                                 ? unitWord(quantity, 'Piece')
@@ -451,18 +538,39 @@ export default function AddToCartSheet({
                                   }`
                         }
                     />
-                    {tooMany && (
-                        <Text className="font-sans-semibold text-sm text-red-600">
-                            {stoppedByLimit
-                                ? buyerLimitMessage(limit)
-                                : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
+                    {/* How many are left, right under the number (user's decision). */}
+                    {variant && (
+                        <Text
+                            className={`font-sans-bold text-sm ${preordering ? (variant.available_soon ? 'text-blue-700' : 'text-red-600') : stockLeft(variant).tone}`}
+                        >
+                            {preordering
+                                ? variant.available_soon
+                                    ? 'Available soon'
+                                    : 'Out of stock'
+                                : stockLeft(variant).text}
                         </Text>
                     )}
-                    {!preordering && variant && most === 0 && (
+                    {tooMany && (
+                        <Text className="font-sans-semibold text-sm text-red-600">
+                            {stoppedByProduct
+                                ? `${perBuyerText}.${most * piecesPerUnit < (product.most_per_buyer ?? 0) ? ` You can add ${formatUnits(most, unitName)} more.` : ''} Enter ${most} or fewer.`
+                                : stoppedByLimit
+                                  ? buyerLimitMessage(limit)
+                                  : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
+                        </Text>
+                    )}
+                    {!tooMany && stoppedByProduct && most > 0 && quantity === most && (
                         <Text className="font-sans-semibold text-sm text-amber-700">
-                            {added.length > 0
-                                ? 'Your list already has all that is left of this size.'
-                                : `Not enough left for 1 ${unitName}.`}
+                            {`${perBuyerText}: ${formatUnits(most, unitName)} more is the most you can add.`}
+                        </Text>
+                    )}
+                    {variant && most === 0 && (stoppedByProduct || !preordering) && (
+                        <Text className="font-sans-semibold text-sm text-amber-700">
+                            {stoppedByProduct
+                                ? `${perBuyerText}. You have reached it with ${added.length > 0 ? 'this list, your cart, orders or preorders' : 'your cart, orders or preorders'}.`
+                                : added.length > 0
+                                  ? 'Your list already has all that is left of this size.'
+                                  : `Not enough left for 1 ${unitName}.`}
                         </Text>
                     )}
                     {hasChoices && variant === undefined && (
@@ -512,11 +620,11 @@ export default function AddToCartSheet({
                                             </Text>
                                             <Text className="font-sans text-xs text-slate-500">
                                                 {onSale && lineVariant?.price_centavos != null && (
-                                                    <Text className="line-through">
+                                                    <Text className="text-red-600 line-through">
                                                         {formatPeso(lineVariant.price_centavos)}{' '}
                                                     </Text>
                                                 )}
-                                                <Text className={onSale ? 'font-sans-bold text-red-600' : ''}>
+                                                <Text className={onSale ? 'font-sans-bold text-slate-900' : ''}>
                                                     {formatPeso(linePrice ?? 0)}
                                                 </Text>{' '}
                                                 each

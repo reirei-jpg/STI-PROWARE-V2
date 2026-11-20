@@ -60,6 +60,7 @@ function RootNavigator() {
                 <Stack.Screen name="order/[id]" />
                 <Stack.Screen name="slip/[id]" />
                 <Stack.Screen name="preorder-slip/[id]" />
+                <Stack.Screen name="wishlist" />
             </Stack.Protected>
 
             <Stack.Protected guard={isSpecialist}>

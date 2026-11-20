@@ -525,10 +525,10 @@ function SalePriceField({
             {sale !== null && sale < normal && (
                 <span className="text-xs font-bold text-slate-700">
                     Students see{' '}
-                    <span className="text-slate-400 line-through">
+                    <span className="text-red-600 line-through">
                         {formatPeso(normal)}
                     </span>{' '}
-                    <span className="text-red-600">{formatPeso(sale)}</span>
+                    <span className="text-slate-900">{formatPeso(sale)}</span>
                 </span>
             )}
             {belowCost && cost !== null && (

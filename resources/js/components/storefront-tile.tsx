@@ -324,11 +324,14 @@ export function PriceLines({
                         {price.piece_from && (
                             <span className="text-xs text-slate-500">From</span>
                         )}
-                        <span className="text-xs text-slate-400 line-through">
+                        <span className="text-xs text-red-600 line-through">
                             {formatPeso(price.piece_centavos)}
                         </span>
                         <span
-                            className={cn('font-black text-red-600', mainSize)}
+                            className={cn(
+                                'font-black text-slate-900',
+                                mainSize,
+                            )}
                         >
                             {formatPeso(price.sale_centavos)}
                         </span>
@@ -353,7 +356,7 @@ export function PriceLines({
                     className="flex flex-wrap items-baseline gap-x-1"
                 >
                     {pack.sale_price_centavos !== null && (
-                        <span className="text-xs text-slate-400 line-through">
+                        <span className="text-xs text-red-600 line-through">
                             {formatPeso(pack.price_centavos)}
                         </span>
                     )}
@@ -361,7 +364,7 @@ export function PriceLines({
                         className={cn(
                             'font-black',
                             pack.sale_price_centavos !== null
-                                ? 'text-red-600'
+                                ? 'text-slate-900'
                                 : 'text-blue-700',
                             price.piece_centavos === null
                                 ? mainSize

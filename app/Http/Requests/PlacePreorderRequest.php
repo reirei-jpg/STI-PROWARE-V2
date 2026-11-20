@@ -6,6 +6,7 @@ use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Services\Shop\BuyerLimit;
+use App\Services\Shop\ProductBuyerLimit;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -102,6 +103,17 @@ class PlacePreorderRequest extends FormRequest
                     if ($already > 0 && $already + $item['quantity'] > $this->mostPerItem()) {
                         $variant = $product->variants()->findOrFail($item['product_variant_id'])->setRelation('product', $product);
                         $validator->errors()->add($this->hasList() ? "items.{$index}.quantity" : 'quantity', 'You already preordered '.Units::count($already, 'Piece')." of {$variant->displayName()}. You can get at most ".number_format($this->mostPerItem()).' of one item in all. Contact the PROWARE office to get more.');
+                    }
+                }
+
+                // The product's Most per buyer: all its sizes together, with what they already have.
+                $user = $this->user();
+
+                if ($validator->errors()->isEmpty() && $user !== null && $product->most_per_buyer !== null) {
+                    $taken = ProductBuyerLimit::taken($user, $product);
+
+                    if ($taken + array_sum(array_column($this->items(), 'quantity')) > $product->most_per_buyer) {
+                        $validator->errors()->add($this->hasList() ? 'items' : 'quantity', ProductBuyerLimit::message($product, $taken));
                     }
                 }
 

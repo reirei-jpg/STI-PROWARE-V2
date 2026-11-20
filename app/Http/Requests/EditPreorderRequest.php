@@ -8,6 +8,7 @@ use App\Enums\ProductStatus;
 use App\Models\Preorder;
 use App\Models\ProductVariant;
 use App\Services\Shop\BuyerLimit;
+use App\Services\Shop\ProductBuyerLimit;
 use App\Services\Stock\Units;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -123,6 +124,20 @@ class EditPreorderRequest extends FormRequest
 
                 if ($already > 0 && $already + $quantity > $limit) {
                     $validator->errors()->add('quantity', 'You already preordered '.Units::count($already, 'Piece')." of {$variant->displayName()} in another preorder. You can get at most ".number_format($limit).' of one item in all. Contact the PROWARE office to get more.');
+
+                    return;
+                }
+
+                // The product's Most per buyer, without this preorder's own pieces.
+                $product = $preorder->product;
+                $user = $this->user();
+
+                if ($user !== null && $product->most_per_buyer !== null) {
+                    $taken = ProductBuyerLimit::taken($user, $product, exceptPreorderId: $preorder->id);
+
+                    if ($taken + $quantity > $product->most_per_buyer) {
+                        $validator->errors()->add('quantity', ProductBuyerLimit::message($product, $taken));
+                    }
                 }
             },
         ];

@@ -4,6 +4,7 @@ namespace App\Services\Shop;
 
 use App\Models\CartItem;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\User;
 use App\Services\Stock\Units;
 use Illuminate\Database\Eloquent\Collection;
@@ -35,8 +36,16 @@ final class CartView
             ->get();
         $setPrices = UniformSetPrice::forCart($cart);
         $limit = BuyerLimit::for($student);
+        // Products with a Most per buyer: the pieces already in the buyer's
+        // orders and preorders (the cart's own lines are added per line).
+        $takenOutsideCart = Product::query()
+            ->whereKey($cart->whereNull('set_key')->map(fn (CartItem $line): int => $line->variant->product_id)->unique()->values()->all())
+            ->whereNotNull('most_per_buyer')
+            ->get()
+            ->mapWithKeys(fn (Product $product): array => [$product->id => ProductBuyerLimit::taken($student, $product, withCart: false)])
+            ->all();
 
-        $lines = self::joinSets(array_values($cart->map(fn (CartItem $line): array => self::line($line, $cart, $setPrices, $limit))->all()));
+        $lines = self::joinSets(array_values($cart->map(fn (CartItem $line): array => self::line($line, $cart, $setPrices, $limit, $takenOutsideCart))->all()));
         $ticked = collect($lines)->where('selected', true);
 
         return [
@@ -81,9 +90,10 @@ final class CartView
      * @param  Collection<int, CartItem>  $cart
      * @param  array<int, int|null>  $setPrices  today's price per piece of set lines, by line id
      * @param  int  $limit  the most of one item this buyer can get
-     * @return array{id: int, product_id: int, product_variant_id: int, product_pack_id: int|null, product_name: string, photo_url: string|null, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, selected: bool, most_allowed: int, stopped_by_limit: bool, unit_price_centavos: int|null, on_sale: bool, line_total_centavos: int, problem: string|null, set: array{key: string, name: string, for_label: string, price_centavos: int|null, uniform_set_id: int|null, for: string, top_variant_id: int|null, bottom_variant_id: int|null}|null}
+     * @param  array<int, int>  $takenOutsideCart  by product id: pieces in the buyer's orders and preorders, for products with a Most per buyer
+     * @return array{id: int, product_id: int, product_variant_id: int, product_pack_id: int|null, product_name: string, photo_url: string|null, variant_label: string|null, unit_name: string, pieces_per_unit: int, quantity: int, selected: bool, most_allowed: int, stopped_by_limit: bool, most_per_buyer: int|null, stopped_by_product: bool, unit_price_centavos: int|null, on_sale: bool, line_total_centavos: int, problem: string|null, set: array{key: string, name: string, for_label: string, price_centavos: int|null, uniform_set_id: int|null, for: string, top_variant_id: int|null, bottom_variant_id: int|null}|null}
      */
-    private static function line(CartItem $line, Collection $cart, array $setPrices, int $limit): array
+    private static function line(CartItem $line, Collection $cart, array $setPrices, int $limit, array $takenOutsideCart = []): array
     {
         $variant = $line->variant;
         $product = $variant->product;
@@ -103,11 +113,20 @@ final class CartView
         // How many more fit in the cart at all (the + button's limit): the
         // stock, and at most the buyer's limit (BuyerLimit).
         $stockMost = Cart::mostOf($variant->freeToSell(), (int) $otherLines->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
-        $mostAllowed = min($limit, $stockMost);
+
+        // The product's Most per buyer, all its sizes together: what the
+        // buyer's orders and preorders take, and their other cart lines of it
+        // (all of them for the + button; the ticked ones for Place Order).
+        $mostPerBuyer = $inSet ? null : $product->most_per_buyer;
+        $sameProduct = $cart->filter(fn (CartItem $other): bool => $other->set_key === null && $other->id !== $line->id && $other->variant->product_id === $product->id);
+        $productMost = $mostPerBuyer === null ? PHP_INT_MAX : Cart::mostOf($mostPerBuyer, ($takenOutsideCart[$product->id] ?? 0) + (int) $sameProduct->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
+        $productOrderable = $mostPerBuyer === null ? PHP_INT_MAX : Cart::mostOf($mostPerBuyer, ($takenOutsideCart[$product->id] ?? 0) + (int) $sameProduct->where('selected', true)->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
+        $mostAllowed = min($limit, $stockMost, $productMost);
 
         // How many can be ordered with the other ticked lines, as Place
         // Order will take them; lines set aside do not count.
         $mostOrderable = Cart::mostOf($variant->freeToSell(), (int) $otherLines->where('selected', true)->sum(fn (CartItem $other): int => $other->pieces()), $piecesPerUnit);
+        $perBuyer = $mostPerBuyer === null ? '' : 'Each buyer can get at most '.Units::count($mostPerBuyer, 'Piece')." of {$product->name}, counting your orders and preorders.";
 
         $problem = match (true) {
             $unitPrice === null && $inSet => 'This set is no longer for sale as it is. Remove it, or untick it to order the rest.',
@@ -115,6 +134,8 @@ final class CartView
             $variant->freeToSell() === 0 => 'Out of stock. Remove it, or untick it to order the rest.',
             $mostOrderable === 0 => 'Not enough left for this. Remove it, or untick it to order the rest.',
             $line->quantity > $limit => 'You can get at most '.number_format($limit).' of one item. Lower the quantity, or contact the PROWARE office to get more.',
+            $productOrderable === 0 => "{$perBuyer} Remove it, or untick it to order the rest.",
+            $line->quantity > $productOrderable => "{$perBuyer} Lower the quantity to ".Units::count($productOrderable, $line->pack->name ?? 'Piece').'.',
             $line->quantity > $mostOrderable => 'Only '.Units::count($mostOrderable, $line->pack->name ?? 'Piece').' can be ordered now. Lower the quantity.',
             default => null,
         };
@@ -137,7 +158,10 @@ final class CartView
             'selected' => $line->selected,
             'most_allowed' => $mostAllowed,
             // The buyer's limit stops it before the stock does (\"at most 99 of one item\", not \"only 99 left\").
-            'stopped_by_limit' => $stockMost > $limit,
+            'stopped_by_limit' => $stockMost > $limit && $productMost >= $limit,
+            // The product's Most per buyer stops the + button first ("at most 2 pcs per buyer").
+            'most_per_buyer' => $mostPerBuyer,
+            'stopped_by_product' => $productMost < min($limit, $stockMost),
             'unit_price_centavos' => $unitPrice,
             'on_sale' => ! $inSet && ($line->pack === null ? $variant->salePiecePrice() !== null : $product->isOnSale() && $line->pack->sale_price_centavos !== null),
             'line_total_centavos' => ($unitPrice ?? 0) * $line->quantity,

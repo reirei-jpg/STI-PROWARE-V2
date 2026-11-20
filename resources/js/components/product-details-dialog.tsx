@@ -185,6 +185,13 @@ export default function ProductDetailsDialog({
                                         ? 'Not watched'
                                         : `at ${product.low_stock_alert_at.toLocaleString('en-PH')} pcs${hasOptions ? ' each' : ''}`}
                                 </Fact>
+                                <Fact label="Most per buyer">
+                                    {!details
+                                        ? '…'
+                                        : details.most_per_buyer === null
+                                          ? 'No limit'
+                                          : `${details.most_per_buyer.toLocaleString('en-PH')} pcs`}
+                                </Fact>
                                 <Fact label="Updated">
                                     {product.updated_at
                                         ? formatDateOrdered(product.updated_at)
@@ -383,12 +390,12 @@ export default function ProductDetailsDialog({
                                                                     ) : variant.sale_price_centavos !==
                                                                       null ? (
                                                                         <>
-                                                                            <span className="mr-1.5 text-xs text-slate-400 line-through">
+                                                                            <span className="mr-1.5 text-xs text-red-600 line-through">
                                                                                 {formatPeso(
                                                                                     variant.price_centavos,
                                                                                 )}
                                                                             </span>
-                                                                            <span className="font-black text-red-600">
+                                                                            <span className="font-black text-slate-900">
                                                                                 {formatPeso(
                                                                                     variant.sale_price_centavos,
                                                                                 )}
@@ -436,11 +443,11 @@ function Price({ product }: { product: ProductListItem }) {
                         from
                     </span>
                 ) : (
-                    <span className="mr-1.5 text-xs text-slate-400 line-through">
+                    <span className="mr-1.5 text-xs text-red-600 line-through">
                         {formatPeso(product.price_centavos)}
                     </span>
                 )}
-                <span className="text-red-600">
+                <span className="text-slate-900">
                     {formatPeso(product.sale_price_centavos)}
                 </span>
                 <span className="text-xs font-semibold text-slate-500">

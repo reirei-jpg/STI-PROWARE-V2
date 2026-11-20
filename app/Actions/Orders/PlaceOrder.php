@@ -7,10 +7,12 @@ use App\Enums\OrderStatus;
 use App\Enums\UserRole;
 use App\Models\CartItem;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
 use App\Services\Shop\BuyerLimit;
+use App\Services\Shop\ProductBuyerLimit;
 use App\Services\Shop\ShopPrice;
 use App\Services\Shop\UniformSetPrice;
 use App\Services\Stock\LowStockAlerts;
@@ -62,6 +64,7 @@ class PlaceOrder
             $setPrices = UniformSetPrice::forCart($cart);
 
             $this->ensureCanBeOrdered($cart->all(), $variants->all(), $setPrices, BuyerLimit::for($student));
+            $this->ensureWithinProductLimits($student, $cart->all(), $variants->all());
 
             $order = $student->orders()->create([
                 'student_section' => $section ?? $student->section,
@@ -125,6 +128,41 @@ class PlaceOrder
     public static function message(Order $order): string
     {
         return "Order {$order->number} has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. First to pay, first served.";
+    }
+
+    /**
+     * A product with a Most per buyer: what is ordered now, with the buyer's
+     * other orders and preorders of it, stays within it (the limit may have
+     * been set, or another order placed, since it was added to the cart).
+     * Uniform sets are not limited.
+     *
+     * @param  array<int, CartItem>  $cart
+     * @param  array<int, ProductVariant>  $variants  by id
+     */
+    private function ensureWithinProductLimits(User $student, array $cart, array $variants): void
+    {
+        /** @var array<int, array{product: Product, pieces: int}> $wanted */
+        $wanted = [];
+
+        foreach ($cart as $line) {
+            $product = $variants[$line->product_variant_id]->product;
+
+            if ($line->set_key !== null || $product->most_per_buyer === null) {
+                continue;
+            }
+
+            $wanted[$product->id] = ['product' => $product, 'pieces' => ($wanted[$product->id]['pieces'] ?? 0) + $line->pieces()];
+        }
+
+        foreach ($wanted as ['product' => $product, 'pieces' => $pieces]) {
+            $taken = ProductBuyerLimit::taken($student, $product, withCart: false);
+
+            if ($taken + $pieces > (int) $product->most_per_buyer) {
+                $already = $taken === 0 ? '' : ' You already have '.Units::count($taken, 'Piece').' in your orders or preorders.';
+
+                throw ValidationException::withMessages(['cart' => 'Each buyer can get at most '.Units::count((int) $product->most_per_buyer, 'Piece')." of {$product->name}, and your cart has ".Units::count($pieces, 'Piece').'.'.$already.' Lower the quantity in your cart.']);
+            }
+        }
     }
 
     /**

@@ -25,6 +25,7 @@ use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StudentOrderController;
 use App\Http\Controllers\StudentPreorderController;
 use App\Http\Controllers\UniformSetController;
+use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
@@ -49,6 +50,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('cart-selection', [CartController::class, 'select'])->name('cart.select');
         Route::patch('cart/{cartItem}', [CartController::class, 'update'])->name('cart.update');
         Route::delete('cart/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
+        Route::post('merchandise/{product}/wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
+        Route::delete('wishlist/{wishlistItem}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+        Route::post('cart/{cartItem}/wishlist', [WishlistController::class, 'moveFromCart'])->name('wishlist.move-from-cart');
 
         Route::get('my-orders', [StudentOrderController::class, 'index'])->name('my-orders.index');
         Route::post('my-orders', [StudentOrderController::class, 'store'])->name('my-orders.store');

@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Bell, CircleCheck, Clock, Flame, LogIn, Search, Shirt, Store, X } from 'lucide-react-native';
+import { Bell, CircleCheck, Clock, Flame, Heart, LogIn, Search, Shirt, Store, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -304,6 +304,15 @@ export default function HomeScreen() {
                             <Text className="font-sans-bold text-sm text-brand">Sign in</Text>
                         </Pressable>
                     ) : (
+                    <View className="flex-row gap-2">
+                    <Pressable
+                        onPress={() => router.push('/wishlist')}
+                        accessibilityRole="button"
+                        accessibilityLabel="My Wishlist"
+                        className="h-11 w-11 items-center justify-center rounded-2xl bg-white/15"
+                    >
+                        <Heart size={22} color="#ffffff" />
+                    </Pressable>
                     <Pressable
                         onPress={() => router.push('/notifications')}
                         accessibilityRole="button"
@@ -323,6 +332,7 @@ export default function HomeScreen() {
                             </View>
                         )}
                     </Pressable>
+                    </View>
                     )}
                 </View>
                 <Text className="mt-1 font-sans text-sm leading-5 text-blue-50">
