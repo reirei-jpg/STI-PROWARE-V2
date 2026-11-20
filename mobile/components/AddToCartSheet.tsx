@@ -21,6 +21,9 @@ import type { CartView, StorefrontProductDetails } from '@/lib/types';
 type ProductVariantRow = StorefrontProductDetails['variants'][number];
 type BuyPack = StorefrontProductDetails['buy_packs'][number];
 
+/** The Cancel button's width, so Add to Wishlist lines up over Add to Cart. */
+const CANCEL_WIDTH = 104;
+
 /** A line to add: which size, by the piece (packId null) or a pack, and how many. */
 type CartLine = { variantId: number; packId: number | null; quantity: string };
 
@@ -335,6 +338,21 @@ export default function AddToCartSheet({
                             yet. Tap Add to list to include it.
                         </Text>
                     )}
+                    {/* Like Add to Cart: only once the size and color are chosen.
+                        The same size as Add to Cart, right above it (user's decision). */}
+                    <View className="flex-row gap-2">
+                        <View style={{ width: CANCEL_WIDTH }} />
+                        <Pressable
+                            onPress={() => void addToWishlist()}
+                            disabled={savingWish || variant === undefined}
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: savingWish || variant === undefined }}
+                            className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-pink-200 bg-pink-50 py-4 ${savingWish || variant === undefined ? 'opacity-50' : ''}`}
+                        >
+                            {savingWish ? <ActivityIndicator color="#be185d" /> : <Heart size={18} color="#be185d" />}
+                            <Text className="font-sans-bold text-base text-pink-700">Add to Wishlist</Text>
+                        </Pressable>
+                    </View>
                     {preordering && !variant.can_preorder && added.length === 0 ? (
                         <View className="items-center rounded-2xl bg-slate-100 py-4">
                             <Text className="font-sans-bold text-base text-slate-500">
@@ -343,6 +361,14 @@ export default function AddToCartSheet({
                         </View>
                     ) : (
                         <View className="flex-row gap-2">
+                            <Pressable
+                                onPress={onClose}
+                                accessibilityRole="button"
+                                style={{ width: CANCEL_WIDTH }}
+                                className="items-center justify-center rounded-2xl border border-slate-200 bg-white py-4"
+                            >
+                                <Text className="font-sans-bold text-base text-slate-700">Cancel</Text>
+                            </Pressable>
                             {preordering && variant.can_preorder && (
                                 <Pressable
                                     onPress={preorder}
@@ -363,15 +389,6 @@ export default function AddToCartSheet({
                             {(!preordering || added.length > 0) && cartButton}
                         </View>
                     )}
-                    <Pressable
-                        onPress={() => void addToWishlist()}
-                        disabled={savingWish}
-                        accessibilityRole="button"
-                        className={`flex-row items-center justify-center gap-2 rounded-2xl border border-pink-200 bg-pink-50 py-3 ${savingWish ? 'opacity-50' : ''}`}
-                    >
-                        {savingWish ? <ActivityIndicator color="#be185d" /> : <Heart size={17} color="#be185d" />}
-                        <Text className="font-sans-bold text-sm text-pink-700">Add to Wishlist</Text>
-                    </Pressable>
                 </View>
             }
         >
@@ -401,17 +418,6 @@ export default function AddToCartSheet({
                             </Text>
                         )}
                     </View>
-                    {variant && (
-                        <Text
-                            className={`font-sans-bold text-sm ${preordering ? (variant.available_soon ? 'text-blue-700' : 'text-red-600') : stockLeft(variant).tone}`}
-                        >
-                            {preordering
-                                ? variant.available_soon
-                                    ? 'Available soon'
-                                    : 'Out of stock'
-                                : stockLeft(variant).text}
-                        </Text>
-                    )}
                     {product.most_per_buyer != null && (
                         <Text className="font-sans-bold text-xs text-slate-600">
                             Limit: {formatUnits(product.most_per_buyer, 'Piece')} per buyer
@@ -513,7 +519,14 @@ export default function AddToCartSheet({
                         onChange={setQuantityText}
                         keepTyped={!preordering}
                         invalid={tooMany}
-                        showLeft={!preordering && !stoppedByLimit && !stoppedByProduct}
+                        // "Only N pcs left" under it already says it, unless the list took some.
+                        showLeft={
+                            !preordering &&
+                            !stoppedByLimit &&
+                            !stoppedByProduct &&
+                            variant !== undefined &&
+                            most * piecesPerUnit < variant.stock_pieces
+                        }
                         most={variant ? Math.max(preordering ? 1 : 0, most) : limit}
                         unitText={
                             preordering
@@ -525,6 +538,18 @@ export default function AddToCartSheet({
                                   }`
                         }
                     />
+                    {/* How many are left, right under the number (user's decision). */}
+                    {variant && (
+                        <Text
+                            className={`font-sans-bold text-sm ${preordering ? (variant.available_soon ? 'text-blue-700' : 'text-red-600') : stockLeft(variant).tone}`}
+                        >
+                            {preordering
+                                ? variant.available_soon
+                                    ? 'Available soon'
+                                    : 'Out of stock'
+                                : stockLeft(variant).text}
+                        </Text>
+                    )}
                     {tooMany && (
                         <Text className="font-sans-semibold text-sm text-red-600">
                             {stoppedByProduct

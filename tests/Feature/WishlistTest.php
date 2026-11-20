@@ -45,12 +45,17 @@ test('a buyer adds an item to the wishlist with its size, and sees it on My Wish
         ->where('wishlist_count', 1));
 });
 
-test('without a size it is saved as the item, and choosing a size later replaces it', function () {
-    $this->actingAs($this->student)->post(route('wishlist.store', $this->shirt), ['product_variant_id' => ''])
-        ->assertInertiaFlash('toast.message', 'STI Shirt has been added to your wishlist.');
-    $this->post(route('wishlist.store', $this->shirt), ['product_variant_id' => $this->small->id]);
+test('the size and color must be chosen first, like Add to Cart', function () {
+    $this->actingAs($this->student)
+        ->post(route('wishlist.store', $this->shirt), ['product_variant_id' => ''])
+        ->assertSessionHasErrors(['product_variant_id' => 'Choose the size and color first.']);
 
-    expect(WishlistItem::sole()->product_variant_id)->toBe($this->small->id);
+    Sanctum::actingAs($this->student);
+    $this->postJson(route('api.v1.wishlist.store', $this->shirt), [])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['product_variant_id' => 'Choose the size and color first.']);
+
+    expect(WishlistItem::count())->toBe(0);
 });
 
 test('a sold-out size says so, and it can be preordered', function () {

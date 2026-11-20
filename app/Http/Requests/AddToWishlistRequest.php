@@ -10,8 +10,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Add to Wishlist (website and phone): an item in the store, with the size
- * or color chosen, or none yet.
+ * Add to Wishlist (website and phone): an item in the store, with its size
+ * and color chosen (like Add to Cart).
  */
 class AddToWishlistRequest extends FormRequest
 {
@@ -21,7 +21,8 @@ class AddToWishlistRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'product_variant_id' => ['nullable', 'integer', Rule::exists('product_variants', 'id')->where('product_id', $this->product()->id)->whereNot('status', ProductStatus::Draft->value)],
+            // Like Add to Cart: the size and color must be chosen first (user's decision).
+            'product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')->where('product_id', $this->product()->id)->whereNot('status', ProductStatus::Draft->value)],
         ];
     }
 
@@ -31,6 +32,7 @@ class AddToWishlistRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'product_variant_id.required' => 'Choose the size and color first.',
             'product_variant_id.integer' => 'Choose one of this item\'s sizes or colors.',
             'product_variant_id.exists' => 'Choose one of this item\'s sizes or colors.',
         ];
@@ -45,10 +47,8 @@ class AddToWishlistRequest extends FormRequest
         return $product;
     }
 
-    public function variant(): ?ProductVariant
+    public function variant(): ProductVariant
     {
-        return $this->filled('product_variant_id')
-            ? ProductVariant::query()->findOrFail($this->integer('product_variant_id'))
-            : null;
+        return ProductVariant::query()->findOrFail($this->integer('product_variant_id'));
     }
 }
