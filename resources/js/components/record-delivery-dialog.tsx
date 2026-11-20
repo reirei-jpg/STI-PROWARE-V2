@@ -173,6 +173,7 @@ export default function RecordDeliveryDialog({
                         waiting={waiting}
                         orderLabel={orderLabel}
                         onSaved={onSaved}
+                        onCancel={onClose}
                     />
                 )}
             </DialogContent>
@@ -190,11 +191,14 @@ function DeliveryForm({
     waiting,
     orderLabel,
     onSaved,
+    onCancel,
 }: {
     purchaseOrderId: number;
     waiting: WaitingItems;
     orderLabel: string;
     onSaved: () => void;
+    /** Cancel was confirmed: close the popup. */
+    onCancel: () => void;
 }) {
     const { groups } = waiting;
     const delivery = useRecordDelivery(groups, purchaseOrderId);
@@ -463,12 +467,20 @@ function DeliveryForm({
                 </div>
 
                 <div className="flex shrink-0 gap-2">
-                    <DialogClose
+                    {/* Cancel throws what was typed away (asks first); an
+                        accidental close keeps it as a draft. */}
+                    <button
                         type="button"
+                        onClick={() =>
+                            unsaved.confirmDiscard(() => {
+                                draft.discard();
+                                onCancel();
+                            })
+                        }
                         className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                     >
                         Cancel
-                    </DialogClose>
+                    </button>
                     <button
                         type="submit"
                         disabled={

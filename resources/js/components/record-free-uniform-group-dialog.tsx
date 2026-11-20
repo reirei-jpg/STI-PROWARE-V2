@@ -644,9 +644,20 @@ function GroupForm({
                     )}
                 </p>
                 <div className="flex justify-end gap-3">
-                    <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                    {/* Cancel throws what was typed away (asks first); an
+                        accidental close keeps it as a draft. */}
+                    <button
+                        type="button"
+                        onClick={() =>
+                            unsaved.confirmDiscard(() => {
+                                draft.discard();
+                                onClose();
+                            })
+                        }
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                    >
                         Cancel
-                    </DialogClose>
+                    </button>
                     {/* Reaching for the greyed-out Save shows every message
                         and the list of what is still needed. */}
                     <span

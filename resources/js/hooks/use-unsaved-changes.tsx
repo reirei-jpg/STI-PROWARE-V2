@@ -18,12 +18,21 @@ import { logout } from '@/routes';
  * The form's own Save is not asked about. `kept: true` says the form keeps a
  * draft (useFormDraft); `notKept` says what the draft cannot keep.
  * Render `prompt` once inside the form.
+ *
+ * The form's own Cancel uses `confirmDiscard` instead: "Discard what you
+ * typed?", and Discard throws the draft away, so the form opens empty next
+ * time (user's decision, 20 Nov 2026). Only an accidental leave keeps it.
  */
 export function useUnsavedChanges(
     dirty: boolean,
     { kept = false, notKept }: { kept?: boolean; notKept?: string } = {},
-): { confirmLeave: (leave: () => void) => void; prompt: ReactNode } {
+): {
+    confirmLeave: (leave: () => void) => void;
+    confirmDiscard: (discard: () => void) => void;
+    prompt: ReactNode;
+} {
     const [pending, setPending] = useState<(() => void) | null>(null);
+    const [discarding, setDiscarding] = useState<(() => void) | null>(null);
     const dirtyRef = useRef(dirty);
     // Set once Leave was chosen, so the leaving itself is not asked about.
     const leaving = useRef(false);
@@ -139,9 +148,70 @@ export function useUnsavedChanges(
         [isDirty],
     );
 
+    /** Cancel: ask before throwing away what was typed (and its draft). */
+    const confirmDiscard = useCallback(
+        (discard: () => void) => {
+            if (isDirty()) {
+                setDiscarding(() => discard);
+            } else {
+                leaving.current = true;
+                discard();
+            }
+        },
+        [isDirty],
+    );
+
     const prompt = (
+        <>
+            <ConfirmDialog
+                open={discarding !== null}
+                title="Discard what you typed?"
+                description="The form will be empty the next time you open it. This cannot be undone."
+                cancelLabel="Keep editing"
+                confirmLabel="Discard"
+                tone="red"
+                onConfirm={() => {
+                    const discard = discarding;
+                    setDiscarding(null);
+                    leaving.current = true;
+                    discard?.();
+                }}
+                onClose={() => setDiscarding(null)}
+            />
+            <LeavePrompt
+                open={pending !== null}
+                kept={kept}
+                notKept={notKept}
+                onConfirm={() => {
+                    const leave = pending;
+                    setPending(null);
+                    leave?.();
+                }}
+                onClose={() => setPending(null)}
+            />
+        </>
+    );
+
+    return { confirmLeave, confirmDiscard, prompt };
+}
+
+/** "Leave without saving?" for a leave by accident (a link, Back, X). */
+function LeavePrompt({
+    open,
+    kept,
+    notKept,
+    onConfirm,
+    onClose,
+}: {
+    open: boolean;
+    kept: boolean;
+    notKept?: string;
+    onConfirm: () => void;
+    onClose: () => void;
+}) {
+    return (
         <ConfirmDialog
-            open={pending !== null}
+            open={open}
             title="Leave without saving?"
             description={
                 kept
@@ -151,16 +221,10 @@ export function useUnsavedChanges(
             cancelLabel="Keep editing"
             confirmLabel="Leave"
             tone="red"
-            onConfirm={() => {
-                const leave = pending;
-                setPending(null);
-                leave?.();
-            }}
-            onClose={() => setPending(null)}
+            onConfirm={onConfirm}
+            onClose={onClose}
         />
     );
-
-    return { confirmLeave, prompt };
 }
 
 /**

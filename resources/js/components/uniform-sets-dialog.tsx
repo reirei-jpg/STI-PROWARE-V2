@@ -339,12 +339,18 @@ function SetEditor({
             </p>
 
             <div className="flex justify-end gap-3">
+                {/* Cancel throws what was typed away (asks first). */}
                 <button
                     type="button"
-                    onClick={() => unsaved.confirmLeave(onDone)}
+                    onClick={() =>
+                        unsaved.confirmDiscard(() => {
+                            draft.discard();
+                            onDone();
+                        })
+                    }
                     className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
                 >
-                    Back
+                    Cancel
                 </button>
                 <button
                     type="submit"

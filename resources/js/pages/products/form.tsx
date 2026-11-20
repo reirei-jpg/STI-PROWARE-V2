@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     ArrowRight,
@@ -2502,12 +2502,20 @@ export default function ProductForm({
                 )}
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <Link
-                        href={ProductController.index()}
+                    {/* Cancel throws what was typed away (asks first);
+                        Back to Products keeps it as a draft. */}
+                    <button
+                        type="button"
+                        onClick={() =>
+                            unsaved.confirmDiscard(() => {
+                                draft.discard();
+                                router.visit(ProductController.index().url);
+                            })
+                        }
                         className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                     >
                         Cancel
-                    </Link>
+                    </button>
                     {/* Reaching for the greyed-out button shows every
                         message under the boxes still to fill in. */}
                     <span
