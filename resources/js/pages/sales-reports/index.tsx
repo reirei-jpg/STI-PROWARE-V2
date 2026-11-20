@@ -241,56 +241,7 @@ export default function SalesReportsIndex({
                 </section>
 
                 <Panel>
-                    <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.value}
-                                    type="button"
-                                    onClick={() => show({ tab: tab.value })}
-                                    className={cn(
-                                        'rounded-xl px-4 py-2 text-sm font-black transition',
-                                        filters.tab === tab.value
-                                            ? 'bg-[#0D6EFD] text-white shadow-sm'
-                                            : 'text-slate-600 hover:bg-white',
-                                    )}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
-                        {filters.tab === 'sold' && (
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:w-72">
-                                    <Search size={18} className="shrink-0" />
-                                    <input
-                                        type="search"
-                                        maxLength={120}
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search item"
-                                        className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
-                                        aria-label="Search item"
-                                    />
-                                </label>
-                                <a
-                                    href={
-                                        SalesReportController.export({
-                                            query: exportQuery,
-                                        }).url
-                                    }
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                                >
-                                    <Download size={16} />
-                                    Export to Excel
-                                </a>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* The period, under the tabs: change it while reading a list. */}
+                    {/* The period first, between the cards and the tabs. */}
                     <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
                             {periods.map((period) => {
@@ -359,6 +310,58 @@ export default function SalesReportsIndex({
                                     }
                                 }}
                             />
+                        </div>
+                    )}
+
+                    <div className="flex justify-center border-b border-slate-100 px-6 py-5">
+                        <div className="inline-flex flex-wrap justify-center rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    type="button"
+                                    onClick={() => show({ tab: tab.value })}
+                                    className={cn(
+                                        'rounded-xl px-4 py-2 text-sm font-black transition',
+                                        filters.tab === tab.value
+                                            ? 'bg-[#0D6EFD] text-white shadow-sm'
+                                            : 'text-slate-600 hover:bg-white',
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {filters.tab === 'sold' && (
+                        <div className="border-b border-slate-100 px-6 py-4">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:w-72">
+                                    <Search size={18} className="shrink-0" />
+                                    <input
+                                        type="search"
+                                        maxLength={120}
+                                        value={search}
+                                        onChange={(event) =>
+                                            setSearch(event.target.value)
+                                        }
+                                        placeholder="Search item"
+                                        className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                        aria-label="Search item"
+                                    />
+                                </label>
+                                <a
+                                    href={
+                                        SalesReportController.export({
+                                            query: exportQuery,
+                                        }).url
+                                    }
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    <Download size={16} />
+                                    Export to Excel
+                                </a>
+                            </div>
                         </div>
                     )}
 
