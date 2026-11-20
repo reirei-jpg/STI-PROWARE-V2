@@ -126,12 +126,16 @@ test('a cancelled order or a made-up code cannot be paid', function () {
     $this->actingAs($this->cashier)->post(route('cashier.orders.paid', $order))
         ->assertInertiaFlash('toast.message', "Order {$order->number} has been cancelled, so the payment cannot be accepted.");
     $this->get(route('cashier.index', ['code' => 'NOT-A-SLIP']))->assertInertia(fn (Assert $page) => $page->where('result', null));
+    $this->from(route('cashier.index'))->get(route('cashier.index', ['code' => str_repeat('X', 121)]))
+        ->assertSessionHasErrors(['code' => 'The slip number is too long. Check the number or scan the QR code again.']);
 
     Sanctum::actingAs($this->cashier);
     $this->getJson(route('api.v1.cashier.slip', ['code' => 'NOT-A-SLIP']))->assertNotFound()
         ->assertJsonPath('message', 'No PROWARE slip matches this code. Check the number or scan the QR code again.');
     $this->getJson(route('api.v1.cashier.slip'))->assertUnprocessable()
         ->assertJsonValidationErrors(['code' => 'Scan the slip or enter its number.']);
+    $this->getJson(route('api.v1.cashier.slip', ['code' => str_repeat('X', 121)]))->assertUnprocessable()
+        ->assertJsonValidationErrors(['code' => 'The slip number is too long. Check the number or scan the QR code again.']);
 });
 
 test('the cashier pays an order on the phone too', function () {

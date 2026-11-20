@@ -74,7 +74,7 @@ test('the cashier scans the slip and marks it paid; the buyer is told and the sl
         ->where('result.can_mark_paid', true));
 
     $this->post(route('cashier.preorder-slips.paid', $slip))
-        ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number} has been marked as paid: ₱2,050.00 from Juan Dela Cruz.");
+        ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number}: payment of ₱2,050.00 from Juan Dela Cruz has been recorded.");
 
     expect($slip->refresh())->paid_centavos->toBe(205000)->paid_by->toBe($cashier->id);
     Notification::assertSentTo($this->buyer, PreorderPaid::class, fn (PreorderPaid $notice): bool => $notice->toPush($this->buyer)['body']
@@ -82,7 +82,7 @@ test('the cashier scans the slip and marks it paid; the buyer is told and the sl
 
     // Not twice; the number typed in finds it too; it is in today's payments.
     $this->post(route('cashier.preorder-slips.paid', $slip))
-        ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number} was already paid on Nov 14, 2026 10:00 AM (marked by Cashier 1).");
+        ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number} has already been paid (recorded by Cashier 1 on Nov 14, 2026, 10:00 AM).");
     $this->get(route('cashier.index', ['code' => strtolower((string) $slip->number)]))
         ->assertInertia(fn (Assert $page) => $page
             ->where('result.slip.status', 'paid')
@@ -126,7 +126,7 @@ test('on the phone the buyer sees the slip and the cashier marks it paid', funct
 
     Sanctum::actingAs(User::factory()->cashier()->create());
     $this->getJson(route('api.v1.cashier.slip', ['code' => $slip->code]))->assertOk()->assertJsonPath('kind', 'preorder')->assertJsonPath('can_mark_paid', true)->assertJsonPath('to_collect_centavos', 205000);
-    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertOk()->assertJsonPath('message', "Preorder slip {$slip->number} has been marked as paid: ₱2,050.00 from Juan Dela Cruz.");
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertOk()->assertJsonPath('message', "Preorder slip {$slip->number}: payment of ₱2,050.00 from Juan Dela Cruz has been recorded.");
     $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertUnprocessable();
 
     // Only the cashier marks slips paid: not the buyer, not the Specialist.

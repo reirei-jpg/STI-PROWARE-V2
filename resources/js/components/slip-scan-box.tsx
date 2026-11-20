@@ -1,8 +1,9 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { Camera, FileText, QrCode, Search } from 'lucide-react';
 import { useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CameraScanDialog from '@/components/camera-scan-dialog';
+import InputError from '@/components/input-error';
 import { cn } from '@/lib/utils';
 
 /**
@@ -30,6 +31,8 @@ export default function SlipScanBox({
 }) {
     const [code, setCode] = useState(initialCode);
     const [scanning, setScanning] = useState(false);
+    // The server's reason when it refuses the code (e.g. a scanned QR that is too long).
+    const refusal = usePage().props.errors?.code;
 
     const open = (value: string) => {
         if (value.trim() !== '') {
@@ -86,6 +89,7 @@ export default function SlipScanBox({
                     Scan with camera
                 </button>
             </form>
+            <InputError message={refusal} className="mt-2 font-semibold" />
 
             <CameraScanDialog
                 open={scanning}

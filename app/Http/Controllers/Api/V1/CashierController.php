@@ -23,7 +23,7 @@ class CashierController extends Controller
      */
     public function lookup(Request $request): JsonResponse
     {
-        $code = trim((string) ($request->validate(['code' => ['required', 'string', 'max:120']], ['code.required' => 'Scan the slip or enter its number.'])['code']));
+        $code = trim((string) ($request->validate(['code' => ['required', 'string', 'max:120']], ['code.required' => 'Scan the slip or enter its number.', 'code.max' => 'The slip number is too long. Check the number or scan the QR code again.'])['code']));
         $result = CashierDesk::lookup($code);
 
         abort_if($result === null, 404, 'No PROWARE slip matches this code. Check the number or scan the QR code again.');

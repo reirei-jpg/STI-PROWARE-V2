@@ -223,7 +223,7 @@ test('an unpaid slip whose item is back in stock says so, and cannot be paid any
     $slip = slipOf($this->third);
 
     $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $slip))
-        ->assertInertiaFlash('toast.message', "STI Hoodie is back in stock, so preorder slip {$slip->number} is closed. The buyer can buy it in the store.");
+        ->assertInertiaFlash('toast.message', "STI Hoodie is back in stock, so preorder slip {$slip->number} is closed. The buyer may purchase it from the store.");
 });
 
 test('after part of a preorder was released, the rest is named as not arrived yet', function () {

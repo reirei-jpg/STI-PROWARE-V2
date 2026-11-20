@@ -111,7 +111,7 @@ export default function CashierSlipScreen() {
                 setResult(answer.result);
             }
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'It could not be marked as paid. Try again.');
+            setError(caught instanceof ApiError ? caught.message : 'The payment could not be recorded. Try again.');
             await load();
         } finally {
             setBusy(false);

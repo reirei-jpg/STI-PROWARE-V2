@@ -24,7 +24,10 @@ class CashierController extends Controller
 {
     public function index(Request $request): Response
     {
-        $code = trim((string) ($request->validate(['code' => ['nullable', 'string', 'max:120']])['code'] ?? ''));
+        $code = trim((string) ($request->validate(
+            ['code' => ['nullable', 'string', 'max:120']],
+            ['code.max' => 'The slip number is too long. Check the number or scan the QR code again.'],
+        )['code'] ?? ''));
 
         return Inertia::render('cashier/index', [
             'code' => $code,
