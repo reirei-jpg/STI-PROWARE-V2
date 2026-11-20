@@ -33,7 +33,7 @@ enum OrderStatus: string
     {
         return match ($this) {
             self::Placed => 'Waiting for payment',
-            self::Paid => 'Paid · ready to release',
+            self::Paid => 'Paid · Ready for pickup',
             self::PickedUp => 'Released',
             self::Cancelled => 'Cancelled',
         };

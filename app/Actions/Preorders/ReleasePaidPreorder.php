@@ -34,7 +34,7 @@ class ReleasePaidPreorder
     public static function refusal(PreorderSlip $slip): ?string
     {
         if (! $slip->isPaid()) {
-            return "Preorder slip {$slip->number} is not paid yet, so nothing can be released. The buyer pays at the cashier first.";
+            return "Preorder slip {$slip->number} has not been paid, so nothing can be released. The buyer must pay at the cashier first.";
         }
 
         if ($slip->preorders()->where('status', PreorderStatus::Held)->exists()) {

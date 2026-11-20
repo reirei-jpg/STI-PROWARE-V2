@@ -100,7 +100,7 @@ test('an order from an old 24-hour hold is a normal order: it cannot take pieces
 
     expect($oldHold->holdsItems())->toBeFalse()->and($this->variant->refresh()->freeToSell())->toBe(0);
 
-    expect(fn () => payAtCashier($oldHold))->toThrow(ValidationException::class, "Nothing of order {$oldHold->number} is left in stock, so it cannot be paid. The buyer can cancel it and order again when it is back.");
+    expect(fn () => payAtCashier($oldHold))->toThrow(ValidationException::class, "None of the items in order {$oldHold->number} are in stock, so the payment cannot be accepted. The buyer may cancel the order and place it again once the items are restocked.");
 
     // One more piece comes in: whoever pays first gets it.
     hoodiesComeIn($this->variant, 1);
@@ -153,7 +153,7 @@ test('release is refused while unpaid, before anything arrived, and once all is 
     $this->actingAs($this->specialist);
 
     $this->post(route('preorder-slips.release', slipOf($this->third)))
-        ->assertInertiaFlash('toast.message', 'Preorder slip '.slipOf($this->third)->number.' is not paid yet, so nothing can be released. The buyer pays at the cashier first.');
+        ->assertInertiaFlash('toast.message', 'Preorder slip '.slipOf($this->third)->number.' has not been paid, so nothing can be released. The buyer must pay at the cashier first.');
     $this->post(route('preorder-slips.release', slipOf($this->first)))
         ->assertInertiaFlash('toast.message', 'Nothing of preorder '.slipOf($this->first)->number.' has arrived yet. The buyer is told when it arrives.');
 

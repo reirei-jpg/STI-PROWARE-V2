@@ -65,9 +65,9 @@ export default function CashierSlipScreen() {
                     className="items-center gap-2 rounded-3xl border border-slate-200 bg-white px-6 py-10"
                 >
                     <SearchX size={40} color="#f87171" />
-                    <Text className="font-sans-bold text-lg text-slate-900">Not a PROWARE slip</Text>
+                    <Text className="font-sans-bold text-lg text-slate-900">Slip not found</Text>
                     <Text className="text-center font-sans text-sm leading-5 text-slate-500">
-                        Nothing was found for <Text className="font-sans-bold text-slate-700">{code}</Text>. Check the
+                        No PROWARE slip matches <Text className="font-sans-bold text-slate-700">{code}</Text>. Check the
                         number, or scan the QR again.
                     </Text>
                 </View>
@@ -120,15 +120,15 @@ export default function CashierSlipScreen() {
 
     const confirm = (): void =>
         Alert.alert(
-            `Mark ${number ?? ''} as paid?`,
-            `${buyer} paid ${formatPeso(amount)}. ${
+            `Record the payment for ${number ?? ''}?`,
+            `Confirm that ${buyer} has paid ${formatPeso(amount)}. ${
                 isOrder
-                    ? 'The items are set aside for them; they get them at the PROWARE office.'
-                    : 'The slip will say PAID, and the preorder can no longer be changed or cancelled.'
-            } This cannot be undone.`,
+                    ? 'The items will be reserved for pickup at the PROWARE office.'
+                    : 'The slip will be marked PAID, and the preorder can no longer be changed or cancelled.'
+            } This action cannot be undone.`,
             [
-                { text: 'Not yet', style: 'cancel' },
-                { text: 'Mark as paid', onPress: () => void markPaid() },
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Mark as Paid', onPress: () => void markPaid() },
             ],
         );
 
@@ -165,14 +165,14 @@ export default function CashierSlipScreen() {
                     <View className="flex-1 gap-0.5">
                         <Text className="font-sans-bold text-lg uppercase tracking-wide text-white">
                             {result.can_mark_paid
-                                ? `Collect ${formatPeso(amount)}`
+                                ? `Amount due: ${formatPeso(amount)}`
                                 : alreadyPaid
-                                  ? 'Already paid: do not collect'
-                                  : 'Do not collect'}
+                                  ? 'Payment already recorded'
+                                  : 'Payment cannot be accepted'}
                         </Text>
                         <Text className="font-sans text-sm leading-5 text-white/90">
                             {result.can_mark_paid
-                                ? `${isOrder ? 'Order' : 'Preorder'} ${number} of ${buyer}. Collect the amount, then mark it paid.`
+                                ? `${isOrder ? 'Order' : 'Preorder'} ${number} · ${buyer}. Collect this amount, then tap Mark as Paid.`
                                 : result.refusal}
                         </Text>
                     </View>
@@ -198,12 +198,12 @@ export default function CashierSlipScreen() {
             {result.can_mark_paid && !done && (
                 <>
                     <View className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                        <Text className="font-sans-bold text-xs uppercase tracking-wide text-amber-800">Amount to collect</Text>
+                        <Text className="font-sans-bold text-xs uppercase tracking-wide text-amber-800">Amount due</Text>
                         <Text className="font-sans-bold text-3xl text-slate-900">{formatPeso(amount)}</Text>
                     </View>
                     {result.short.length > 0 && (
                         <Text className="rounded-xl bg-amber-50 px-3 py-2 font-sans-semibold text-sm leading-5 text-amber-900">
-                            Not charged (already sold to buyers who paid first): {result.short.join(', ')}.
+                            Not charged (sold out before payment): {result.short.join(', ')}.
                         </Text>
                     )}
                     <Pressable
@@ -213,7 +213,7 @@ export default function CashierSlipScreen() {
                         className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4 ${busy ? 'opacity-60' : ''}`}
                     >
                         {busy ? <ActivityIndicator color="#ffffff" /> : <Banknote size={18} color="#ffffff" />}
-                        <Text className="font-sans-bold text-base text-white">Mark as paid · {formatPeso(amount)}</Text>
+                        <Text className="font-sans-bold text-base text-white">Mark as Paid · {formatPeso(amount)}</Text>
                     </Pressable>
                 </>
             )}

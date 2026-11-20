@@ -77,13 +77,15 @@ export default function CashierPayments({
             <div className="space-y-6">
                 <PageHeader
                     title="Payments"
-                    description="Scan the buyer's slip, collect the amount shown, then mark it paid. The PROWARE office then hands the items over."
+                    description="Scan the buyer's slip, collect the amount due, and record the payment. The PROWARE office releases the items afterward."
                 />
 
                 <SlipScanBox
                     key={code}
                     openUrl={CashierController.index().url}
-                    placeholder="Type the slip number, e.g. PW-0042 or PR-0003"
+                    placeholder="Enter the slip number, e.g. PW-0042 or PR-0003"
+                    title="Scan a slip"
+                    description="Scan the QR code on the buyer's issuance slip or preorder slip, or enter the slip number."
                 />
 
                 {result === null ? (
@@ -172,14 +174,14 @@ function Payment({ result }: { result: CashierResult }) {
                 <div>
                     <p className="text-xl font-black tracking-wide uppercase">
                         {result.can_mark_paid
-                            ? `Collect ${formatPeso(amount)}`
+                            ? `Amount due: ${formatPeso(amount)}`
                             : alreadyPaid
-                              ? 'Already paid: do not collect'
-                              : 'Do not collect'}
+                              ? 'Payment already recorded'
+                              : 'Payment cannot be accepted'}
                     </p>
                     <p className="mt-0.5 text-sm text-white/90">
                         {result.can_mark_paid
-                            ? `${result.kind === 'order' ? 'Order' : 'Preorder'} ${number} of ${buyer}. Collect the amount, then mark it paid.`
+                            ? `${result.kind === 'order' ? 'Order' : 'Preorder'} ${number} · ${buyer}. Collect this amount, then select Mark as Paid.`
                             : result.refusal}
                     </p>
                 </div>
@@ -214,7 +216,7 @@ function Payment({ result }: { result: CashierResult }) {
                         <>
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
                                 <p className="text-xs font-black tracking-wide text-amber-800 uppercase">
-                                    Amount to collect
+                                    Amount due
                                 </p>
                                 <p
                                     data-test="amount-to-collect"
@@ -225,8 +227,8 @@ function Payment({ result }: { result: CashierResult }) {
                             </div>
                             {result.short.length > 0 && (
                                 <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm leading-6 font-semibold text-amber-900">
-                                    Not charged (already sold to buyers who paid
-                                    first): {result.short.join(', ')}.
+                                    Not charged (sold out before payment):{' '}
+                                    {result.short.join(', ')}.
                                 </p>
                             )}
                             <button
@@ -244,12 +246,12 @@ function Payment({ result }: { result: CashierResult }) {
                                 ) : (
                                     <Banknote size={18} />
                                 )}
-                                Mark as paid
+                                Mark as Paid
                             </button>
                             <p className="text-center text-xs font-semibold text-slate-500">
                                 {result.kind === 'order'
-                                    ? 'The items are set aside for the buyer. A payment cannot be undone.'
-                                    : 'The preorder can no longer be changed or cancelled. A payment cannot be undone.'}
+                                    ? 'The items will be reserved for the buyer. Recorded payments cannot be undone.'
+                                    : 'The preorder can no longer be changed or cancelled. Recorded payments cannot be undone.'}
                             </p>
                         </>
                     )}
@@ -271,14 +273,14 @@ function Payment({ result }: { result: CashierResult }) {
 
             <ConfirmDialog
                 open={confirming}
-                title={`Mark ${number ?? ''} as paid?`}
-                description={`${buyer} paid ${formatPeso(amount)}. ${
+                title={`Record the payment for ${number ?? ''}?`}
+                description={`Confirm that ${buyer} has paid ${formatPeso(amount)}. ${
                     result.kind === 'order'
-                        ? 'The items are set aside for them; they get them at the PROWARE office.'
-                        : 'The slip will say PAID, and the preorder can no longer be changed or cancelled.'
-                } This cannot be undone.`}
-                cancelLabel="Not yet"
-                confirmLabel="Mark as paid"
+                        ? 'The items will be reserved for pickup at the PROWARE office.'
+                        : 'The slip will be marked PAID, and the preorder can no longer be changed or cancelled.'
+                } This action cannot be undone.`}
+                cancelLabel="Cancel"
+                confirmLabel="Mark as Paid"
                 busy={busy}
                 onConfirm={markPaid}
                 onClose={() => setConfirming(false)}
@@ -292,11 +294,11 @@ function NotFound({ code }: { code: string }) {
         <section className="rounded-3xl border border-l-4 border-slate-200 border-l-red-500 bg-white px-6 py-10 text-center shadow-sm">
             <SearchX size={40} className="mx-auto text-red-400" />
             <h2 className="mt-3 text-lg font-black text-slate-900">
-                Not a PROWARE slip
+                Slip not found
             </h2>
             <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                Nothing was found for &ldquo;{code}&rdquo;. Check the number, or
-                scan the QR again.
+                No PROWARE slip matches &ldquo;{code}&rdquo;. Check the number
+                or scan the QR code again.
             </p>
         </section>
     );
@@ -323,7 +325,7 @@ function PaidTodayTable({ paidToday }: { paidToday: PaidToday }) {
             </div>
             {paidToday.rows.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-slate-500">
-                    No payments yet today.
+                    No payments have been recorded today.
                 </p>
             ) : (
                 <div className="overflow-x-auto">

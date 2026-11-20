@@ -348,7 +348,7 @@ test('the specialist releases an order once the cashier marked it paid, and the 
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.release', $order))
-        ->assertInertiaFlash('toast.message', 'Order PW-0001 is not paid yet. The buyer pays at the cashier first; then release it.');
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has not been paid. The buyer must pay at the cashier before the items can be released.');
     expect($order->refresh()->status)->toBe(OrderStatus::Placed)
         ->and($variant->refresh()->stock_on_hand)->toBe(30);
 

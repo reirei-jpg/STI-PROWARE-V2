@@ -298,9 +298,9 @@ function ReleaseVerdict({ order }: { order: SpecialistOrder }) {
     const ok = order.status === 'paid';
     const waiting = order.status === 'placed';
     const title = ok
-        ? 'OK to release'
+        ? 'Ready for release'
         : waiting
-          ? 'Not paid yet'
+          ? 'Awaiting payment'
           : order.status === 'picked_up'
           ? 'Do not release: already released'
           : order.expired
@@ -308,9 +308,9 @@ function ReleaseVerdict({ order }: { order: SpecialistOrder }) {
             : 'Do not release: cancelled';
     const text =
         ok
-            ? `Paid at the cashier ${formatDateTime(order.paid_at ?? null)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand the items over, then release.`
+            ? `Paid at the cashier on ${formatDateTime(order.paid_at ?? null)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand over the items, then tap Release.`
             : waiting
-              ? 'Send the buyer to the cashier first. Release it once the cashier marks it paid.'
+              ? 'Direct the buyer to the cashier. The items can be released once the payment is recorded.'
               : order.status === 'picked_up'
               ? `Released ${formatDateTime(order.picked_up_at)}${order.handled_by ? ` by ${order.handled_by}` : ''}. Do not hand the items over again.`
               : `${order.expired ? `Not released by ${order.pick_up_by ? formatDate(order.pick_up_by) : 'its pick-up date'}.` : `Cancelled ${formatDateTime(order.cancelled_at)}.`} This slip can no longer be used.${!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}`;
@@ -444,23 +444,23 @@ function PreorderPayment({
                     <View className="flex-1">
                         <Text className="font-sans-bold text-lg text-white">
                             {paid && lookup.can_release
-                                ? `Preorder ${slip.number}: ready to release`
+                                ? `Preorder ${slip.number}: ready for release`
                                 : released
                                 ? `Preorder ${slip.number} is released`
                                 : paid
                                 ? `Preorder ${slip.number} is paid`
                                 : lookup.can_mark_paid
-                                  ? `Preorder ${slip.number}: waiting for payment`
+                                  ? `Preorder ${slip.number}: awaiting payment`
                                   : `Preorder ${slip.number} cannot be paid`}
                         </Text>
                         <Text className="font-sans text-sm leading-5 text-white">
                             {paid
                                 ? lookup.can_release
-                                    ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name}, already paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
+                                    ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name} and ${readyPieces === 1 ? 'has' : 'have'} been paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then tap Release.`
                                     : lookup.release_refusal
                                 : !lookup.can_mark_paid
                                 ? lookup.refusal
-                                : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name} at the cashier first. The cashier marks it paid.`}
+                                : `${slip.student_name} must pay ${formatPeso(slip.total_centavos)} for ${slip.product_name} at the cashier. The cashier records the payment.`}
                         </Text>
                     </View>
                 </View>

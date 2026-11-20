@@ -220,7 +220,7 @@ function NextStep({ order }: { order: StudentOrder }) {
                 <Banknote size={20} color="#b45309" />
                 <Text className="flex-1 font-sans text-sm leading-5 text-amber-900">
                     Pay <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> at the
-                    cashier with your issuance slip, then get your items at the PROWARE office. First to pay,
+                    cashier with your issuance slip, then claim your items at the PROWARE office. First to pay,
                     first served.
                 </Text>
             </View>
@@ -234,8 +234,8 @@ function NextStep({ order }: { order: StudentOrder }) {
             >
                 <CircleCheck size={20} color="#1d4ed8" />
                 <Text className="flex-1 font-sans text-sm leading-5 text-blue-900">
-                    Paid <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> at the
-                    cashier. Your items are set aside: show your issuance slip at the PROWARE office to get them.
+                    Payment of <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> has
+                    been received. Your items are reserved; present your issuance slip at the PROWARE office to claim them.
                 </Text>
             </View>
         );

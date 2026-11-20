@@ -93,7 +93,7 @@ test('the Specialist releases once paid on the app, and a release is final', fun
 
     $this->postJson(route('api.v1.specialist.orders.release', $order))
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} is not paid yet. The buyer pays at the cashier first; then release it."]);
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} has not been paid. The buyer must pay at the cashier before the items can be released."]);
 
     payAtCashier($order);
     $this->postJson(route('api.v1.specialist.orders.release', $order))

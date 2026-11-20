@@ -108,7 +108,7 @@ export default function OrderSlip({
             <div className="space-y-6">
                 <PageHeader
                     title="Issuance Slip"
-                    description="The cashier marks the slip paid; then hand the items over and release them."
+                    description="Release the items once the cashier has recorded the payment."
                     actions={
                         <Link
                             href={OrderController.index()}
@@ -204,23 +204,23 @@ function PreorderPayment({ result }: { result: PreorderSlipResult }) {
                 <div>
                     <p className="text-lg font-black">
                         {paid && result.can_release
-                            ? `Preorder ${slip.number}: ready to release`
+                            ? `Preorder ${slip.number}: ready for release`
                             : released
-                              ? `Preorder ${slip.number} is released`
+                              ? `Preorder ${slip.number} has been released`
                               : paid
-                                ? `Preorder ${slip.number} is paid`
+                                ? `Preorder ${slip.number} has been paid`
                                 : result.can_mark_paid
-                                  ? `Preorder ${slip.number}: waiting for payment`
-                                  : `Preorder ${slip.number} cannot be paid`}
+                                  ? `Preorder ${slip.number}: awaiting payment`
+                                  : `Preorder ${slip.number}: payment cannot be accepted`}
                     </p>
                     <p className="text-sm">
                         {paid
                             ? result.can_release
-                                ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name}, already paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
+                                ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name} and ${readyPieces === 1 ? 'has' : 'have'} been paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then select Release.`
                                 : result.release_refusal
                             : !result.can_mark_paid
                               ? result.refusal
-                              : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name} at the cashier first. The cashier marks it paid.`}
+                              : `${slip.student_name} must pay ${formatPeso(slip.total_centavos)} for ${slip.product_name} at the cashier. The cashier records the payment.`}
                     </p>
                 </div>
             </section>
@@ -320,15 +320,15 @@ function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
                 return {
                     tone: 'green' as const,
                     icon: <CheckCircle2 size={30} />,
-                    title: 'OK to release',
-                    text: `Paid at the cashier ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand the items over, then release.`,
+                    title: 'Ready for release',
+                    text: `Paid at the cashier on ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand over the items, then select Release.`,
                 };
             case 'placed':
                 return {
                     tone: 'amber' as const,
                     icon: <Banknote size={30} />,
-                    title: 'Not paid yet',
-                    text: 'Send the buyer to the cashier first. Release it once the cashier marks it paid.',
+                    title: 'Awaiting payment',
+                    text: 'Direct the buyer to the cashier. The items can be released once the payment is recorded.',
                 };
             case 'picked_up':
                 return {
@@ -450,11 +450,11 @@ function ReleaseCard({ result }: { result: SlipResult }) {
 
             {waiting && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                    <p className="font-black">Not paid yet</p>
+                    <p className="font-black">Awaiting payment</p>
                     <p>
-                        The buyer pays {formatPeso(order.total_centavos)} at the
-                        cashier first. Release it once the cashier marks it
-                        paid.
+                        The buyer must pay {formatPeso(order.total_centavos)} at
+                        the cashier. The items can be released once the payment
+                        is recorded.
                     </p>
                 </div>
             )}
@@ -475,8 +475,8 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                     </div>
                     {shortLines.length > 0 && (
                         <Check tone="amber">
-                            Not paid for (sold before the buyer paid), do not
-                            hand over:{' '}
+                            Not paid for (sold out before payment). Do not hand
+                            over:{' '}
                             {shortLines
                                 .map(
                                     (item) =>

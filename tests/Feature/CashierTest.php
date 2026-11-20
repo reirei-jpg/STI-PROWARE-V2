@@ -71,7 +71,7 @@ test('the cashier scans the slip, collects the amount and marks it paid: the ite
         ->where('result.short', []));
 
     $this->post(route('cashier.orders.paid', $order))
-        ->assertInertiaFlash('toast.message', "Order {$order->number} is paid: ₱160.00 from Juan Dela Cruz. The items are set aside; the buyer gets them at the PROWARE office.");
+        ->assertInertiaFlash('toast.message', "Order {$order->number}: payment of ₱160.00 from Juan Dela Cruz has been recorded. The items are reserved for pickup at the PROWARE office.");
 
     expect($order->refresh())
         ->status->toBe(OrderStatus::Paid)
@@ -80,10 +80,10 @@ test('the cashier scans the slip, collects the amount and marks it paid: the ite
     Notification::assertSentTo($this->juan, OrderPaid::class);
 
     // Not twice; typing the number finds it; it is in today's payments.
-    $this->post(route('cashier.orders.paid', $order))->assertInertiaFlash('toast.message', "Order {$order->number} is already paid.");
+    $this->post(route('cashier.orders.paid', $order))->assertInertiaFlash('toast.message', "Order {$order->number} has already been paid.");
     $this->get(route('cashier.index', ['code' => strtolower((string) $order->number)]))->assertInertia(fn (Assert $page) => $page
         ->where('result.can_mark_paid', false)
-        ->where('result.refusal', "Order {$order->number} is already paid.")
+        ->where('result.refusal', "Order {$order->number} has already been paid.")
         ->where('paidToday.total_centavos', 16000)
         ->where('paidToday.rows.0.number', $order->number)
         ->where('paidToday.rows.0.buyer', 'Juan Dela Cruz'));
@@ -105,13 +105,13 @@ test('a paid order can no longer be cancelled by the buyer, and the Specialist r
     payAtCashier($order, $this->cashier);
 
     $this->actingAs($this->juan)->post(route('my-orders.cancel', $order), ['reason' => 'ordered_by_mistake'])
-        ->assertInertiaFlash('toast.message', "Order {$order->number} is already paid, so it can no longer be cancelled. Get your items at the PROWARE office.");
+        ->assertInertiaFlash('toast.message', "Order {$order->number} has already been paid, so it can no longer be cancelled. Claim your items at the PROWARE office.");
     expect($order->refresh()->status)->toBe(OrderStatus::Paid);
 
     $this->actingAs($this->specialist)->get(route('orders.index'))->assertInertia(fn (Assert $page) => $page
         ->where('filters.show', 'paid')
         ->where('orders.data.0.number', $order->number)
-        ->where('orders.data.0.status_label', 'Paid · ready to release')
+        ->where('orders.data.0.status_label', 'Paid · Ready for pickup')
         ->where('orders.data.0.paid_to', 'Cashier 1'));
 
     $this->post(route('orders.release', $order))->assertInertiaFlash('toast.type', 'success');
@@ -124,14 +124,14 @@ test('a cancelled order or a made-up code cannot be paid', function () {
     $this->actingAs($this->juan)->post(route('my-orders.cancel', $order), ['reason' => 'ordered_by_mistake']);
 
     $this->actingAs($this->cashier)->post(route('cashier.orders.paid', $order))
-        ->assertInertiaFlash('toast.message', "Order {$order->number} is cancelled, so it cannot be paid.");
+        ->assertInertiaFlash('toast.message', "Order {$order->number} has been cancelled, so the payment cannot be accepted.");
     $this->get(route('cashier.index', ['code' => 'NOT-A-SLIP']))->assertInertia(fn (Assert $page) => $page->where('result', null));
 
     Sanctum::actingAs($this->cashier);
     $this->getJson(route('api.v1.cashier.slip', ['code' => 'NOT-A-SLIP']))->assertNotFound()
-        ->assertJsonPath('message', 'This is not a PROWARE slip. Check the number, or scan the QR again.');
+        ->assertJsonPath('message', 'No PROWARE slip matches this code. Check the number or scan the QR code again.');
     $this->getJson(route('api.v1.cashier.slip'))->assertUnprocessable()
-        ->assertJsonValidationErrors(['code' => 'Scan the slip, or type its number.']);
+        ->assertJsonValidationErrors(['code' => 'Scan the slip or enter its number.']);
 });
 
 test('the cashier pays an order on the phone too', function () {
@@ -142,9 +142,9 @@ test('the cashier pays an order on the phone too', function () {
         ->assertJsonPath('kind', 'order')
         ->assertJsonPath('to_collect_centavos', 8000);
     $this->postJson(route('api.v1.cashier.orders.paid', $order))->assertOk()
-        ->assertJsonPath('message', "Order {$order->number} is paid: ₱80.00 from Juan Dela Cruz. The items are set aside; the buyer gets them at the PROWARE office.")
+        ->assertJsonPath('message', "Order {$order->number}: payment of ₱80.00 from Juan Dela Cruz has been recorded. The items are reserved for pickup at the PROWARE office.")
         ->assertJsonPath('result.can_mark_paid', false);
     $this->postJson(route('api.v1.cashier.orders.paid', $order))->assertUnprocessable()
-        ->assertJsonValidationErrors(['order' => "Order {$order->number} is already paid."]);
+        ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been paid."]);
     $this->getJson(route('api.v1.cashier.paid-today'))->assertOk()->assertJsonPath('total_centavos', 8000);
 });

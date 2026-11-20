@@ -17,7 +17,7 @@ import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
 type Show = 'paid' | 'placed' | 'picked_up' | 'cancelled' | 'all';
 
 const chips: { value: Show; label: string }[] = [
-    { value: 'paid', label: 'Paid · to release' },
+    { value: 'paid', label: 'Paid · Ready for release' },
     { value: 'placed', label: 'Waiting for payment' },
     { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
@@ -25,8 +25,8 @@ const chips: { value: Show; label: string }[] = [
 ];
 
 const descriptions: Record<Show, string> = {
-    paid: 'Paid at the cashier: the items are set aside. Hand them over and release. Paid the earliest first.',
-    placed: 'Not paid yet: the buyer pays at the cashier first. First to pay, first served. Oldest first.',
+    paid: 'Paid at the cashier; the items are reserved. Hand them over, then release them. Earliest payment first.',
+    placed: 'Awaiting payment at the cashier. First to pay, first served. Oldest first.',
     picked_up: 'Paid and handed over. Newest first.',
     cancelled: 'Cancelled by the buyer. Newest first.',
     all: 'Every order, newest first.',

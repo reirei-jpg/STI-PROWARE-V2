@@ -75,7 +75,7 @@ export default function CashierScreen() {
                         </Text>
                         <Text className="mt-1 font-sans-bold text-2xl text-white">Payments</Text>
                         <Text className="mt-1 font-sans text-sm leading-5 text-blue-50">
-                            Hi, {user?.name}. Scan the buyer&apos;s slip, collect the amount shown, then mark it paid.
+                            Hi, {user?.name}. Scan the buyer&apos;s slip, collect the amount due, and record the payment.
                         </Text>
                     </View>
                     <Pressable
@@ -99,7 +99,7 @@ export default function CashierScreen() {
             </Pressable>
 
             <View className="gap-2 rounded-3xl border border-slate-200 bg-white p-4">
-                <Text className="font-sans-bold text-sm text-slate-700">Nothing to scan? Type the slip number</Text>
+                <Text className="font-sans-bold text-sm text-slate-700">No QR code? Enter the slip number</Text>
                 <View className="flex-row gap-2">
                     <TextInput
                         value={typed}
@@ -136,7 +136,7 @@ export default function CashierScreen() {
                     </Text>
                 </View>
                 {paidToday === null ? null : paidToday.rows.length === 0 ? (
-                    <Text className="px-4 py-6 text-center font-sans text-sm text-slate-500">No payments yet today.</Text>
+                    <Text className="px-4 py-6 text-center font-sans text-sm text-slate-500">No payments have been recorded today.</Text>
                 ) : (
                     paidToday.rows.map((row, index) => (
                         <View

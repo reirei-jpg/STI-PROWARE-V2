@@ -44,25 +44,25 @@ class OrderPaid extends Notification implements PushesToPhones
     }
 
     /**
-     * "Paid: STI Lanyard (Blue)": item names, not the PW- number.
+     * "Payment received: STI Lanyard (Blue)": item names, not the PW- number.
      *
      * @return array{title: string, body: string, data: array<string, scalar|null>}
      */
     public function toPush(object $notifiable): array
     {
         return [
-            'title' => "Paid: {$this->order->itemsText(handedOver: true)}",
+            'title' => "Payment received: {$this->order->itemsText(handedOver: true)}",
             'body' => self::body($this->order->total_centavos, $this->short === [] ? null : implode(', ', $this->short)),
             'data' => ['kind' => 'order_paid', 'order_id' => $this->order->id],
         ];
     }
 
     /**
-     * "₱560.00 paid. Get your items at the PROWARE office with your issuance slip."
+     * "₱560.00 has been received. Present your issuance slip at the PROWARE office to claim your items."
      */
     public static function body(int $totalCentavos, ?string $short): string
     {
-        return '₱'.number_format($totalCentavos / 100, 2).' paid. Get your items at the PROWARE office with your issuance slip.'
-            .($short === null ? '' : " Sold out before you paid, so you were not charged for: {$short}.");
+        return '₱'.number_format($totalCentavos / 100, 2).' has been received. Present your issuance slip at the PROWARE office to claim your items.'
+            .($short === null ? '' : " Not charged (sold out before your payment): {$short}.");
     }
 }

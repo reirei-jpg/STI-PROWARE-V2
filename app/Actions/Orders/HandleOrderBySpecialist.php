@@ -89,9 +89,9 @@ class HandleOrderBySpecialist
     public static function notPaid(Order $order): string
     {
         return match ($order->status) {
-            OrderStatus::Placed => "Order {$order->number} is not paid yet. The buyer pays at the cashier first; then release it.",
+            OrderStatus::Placed => "Order {$order->number} has not been paid. The buyer must pay at the cashier before the items can be released.",
             OrderStatus::PickedUp => "Order {$order->number} has already been released.",
-            OrderStatus::Cancelled => "Order {$order->number} is cancelled, so it cannot be released.",
+            OrderStatus::Cancelled => "Order {$order->number} has been cancelled, so it cannot be released.",
             OrderStatus::Paid => '',
         };
     }

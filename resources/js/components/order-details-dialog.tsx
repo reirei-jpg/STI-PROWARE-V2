@@ -135,8 +135,8 @@ export default function OrderDetailsDialog({
                                             done={order.paid_at !== null}
                                         >
                                             {order.paid_at !== null
-                                                ? `Paid at the cashier ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}: ${formatPeso(order.total_centavos)}`
-                                                : `Paid: not yet. The buyer pays ${formatPeso(order.total_centavos)} at the cashier.`}
+                                                ? `Paid at the cashier on ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}: ${formatPeso(order.total_centavos)}`
+                                                : `Payment pending: ${formatPeso(order.total_centavos)} to be paid at the cashier`}
                                         </HistoryStep>
                                     )}
                                     {order.status === 'cancelled' ? (
@@ -161,7 +161,7 @@ export default function OrderDetailsDialog({
                                         >
                                             {order.status === 'picked_up'
                                                 ? `Released ${formatDateTime(order.picked_up_at)}${order.handled_by ? ` by ${order.handled_by}` : ''}`
-                                                : 'Released: not yet'}
+                                                : 'Release pending'}
                                         </HistoryStep>
                                     )}
                                 </ol>
@@ -191,17 +191,17 @@ export default function OrderDetailsDialog({
                                         Release the items
                                     </button>
                                     <p className="text-xs font-semibold text-emerald-900/70">
-                                        Paid at the cashier. The paid items
-                                        leave the stock at once. This cannot be
+                                        Payment recorded at the cashier. The
+                                        items will be deducted from stock
+                                        immediately. This action cannot be
                                         undone.
                                     </p>
                                 </section>
                             )}
                             {order.status === 'placed' && (
                                 <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-                                    Not paid yet. The buyer pays at the cashier
-                                    first; release it once the cashier marks it
-                                    paid.
+                                    Awaiting payment. The items can be released
+                                    once the cashier records the payment.
                                 </p>
                             )}
                         </div>

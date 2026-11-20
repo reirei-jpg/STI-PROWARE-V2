@@ -21,7 +21,7 @@ export function orderNote(order: OrderDates): { text: string; className: string 
     }
     if (order.status === 'paid') {
         return {
-            text: `Paid ${formatDate(order.paid_at ?? null)} · ready to release`,
+            text: `Paid ${formatDate(order.paid_at ?? null)} · ready for pickup`,
             className: 'font-sans-bold text-blue-700',
         };
     }

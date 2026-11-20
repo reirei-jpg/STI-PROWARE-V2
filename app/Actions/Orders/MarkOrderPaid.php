@@ -85,7 +85,7 @@ class MarkOrderPaid
                 }
             }
 
-            self::refuseUnless(array_sum($given) > 0, "Nothing of order {$order->number} is left in stock, so it cannot be paid. The buyer can cancel it and order again when it is back.");
+            self::refuseUnless(array_sum($given) > 0, "None of the items in order {$order->number} are in stock, so the payment cannot be accepted. The buyer may cancel the order and place it again once the items are restocked.");
 
             $total = 0;
 
@@ -119,19 +119,19 @@ class MarkOrderPaid
         $order->refresh();
         $order->student->notify(new OrderPaid($order, $short));
 
-        return "Order {$order->number} is paid: ₱".number_format($order->total_centavos / 100, 2)." from {$order->student->name}. The items are set aside; the buyer gets them at the PROWARE office."
-            .($short === [] ? '' : ' Not charged (already sold to buyers who paid first): '.implode(', ', $short).'.');
+        return "Order {$order->number}: payment of ₱".number_format($order->total_centavos / 100, 2)." from {$order->student->name} has been recorded. The items are reserved for pickup at the PROWARE office."
+            .($short === [] ? '' : ' Not charged (sold out before payment): '.implode(', ', $short).'.');
     }
 
     /**
-     * "Order PW-0042 is already paid." or "… is cancelled, so it cannot be paid."
+     * "Order PW-0042 is already paid." or "… has been cancelled, so the payment cannot be accepted."
      */
     public static function notWaiting(Order $order): string
     {
         return match ($order->status) {
-            OrderStatus::Paid => "Order {$order->number} is already paid.",
+            OrderStatus::Paid => "Order {$order->number} has already been paid.",
             OrderStatus::PickedUp => "Order {$order->number} has already been paid and released.",
-            OrderStatus::Cancelled => "Order {$order->number} is cancelled, so it cannot be paid.",
+            OrderStatus::Cancelled => "Order {$order->number} has been cancelled, so the payment cannot be accepted.",
             OrderStatus::Placed => '',
         };
     }

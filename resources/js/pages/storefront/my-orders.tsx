@@ -70,7 +70,7 @@ export default function MyOrders({
             ? [
                   { value: 'all', label: 'All active' },
                   { value: 'placed', label: 'Waiting for payment' },
-                  { value: 'paid', label: 'Paid · ready to get' },
+                  { value: 'paid', label: 'Paid · Ready for pickup' },
               ]
             : [
                   { value: 'all', label: 'All history' },
@@ -92,7 +92,7 @@ export default function MyOrders({
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                         Track your orders. Pay at the cashier with your issuance
-                        slip, then get your items at the PROWARE office. First
+                        slip, then claim your items at the PROWARE office. First
                         to pay, first served.
                     </p>
                 </div>
@@ -108,9 +108,9 @@ export default function MyOrders({
                         onClick={() => setFilter('placed')}
                     />
                     <SummaryCard
-                        title="Paid · Ready to Get"
+                        title="Paid · Ready for Pickup"
                         value={statusCounts.paid}
-                        description="Paid at the cashier. Get your items at the PROWARE office."
+                        description="Claim your items at the PROWARE office."
                         icon={Banknote}
                         tone="blue"
                         href={tabHref('waiting')}
@@ -384,9 +384,9 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
             };
         case 'paid':
             return {
-                label: 'Paid · ready to get',
+                label: 'Paid · Ready for pickup',
                 description:
-                    'You paid at the cashier, and your items are set aside. Show your issuance slip at the PROWARE office to get them.',
+                    'Your payment has been received and your items are reserved. Present your issuance slip at the PROWARE office to claim them.',
             };
         case 'picked_up':
             return {

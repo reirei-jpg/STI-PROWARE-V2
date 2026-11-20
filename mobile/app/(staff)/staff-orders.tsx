@@ -23,7 +23,7 @@ import { usePagedList } from '@/lib/use-paged-list';
 type Show = 'paid' | 'placed' | 'picked_up' | 'cancelled' | 'all';
 
 const TABS: { value: Show; label: string }[] = [
-    { value: 'paid', label: 'Paid · to release' },
+    { value: 'paid', label: 'Paid · Ready for release' },
     { value: 'placed', label: 'Waiting for payment' },
     { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
@@ -193,7 +193,7 @@ export default function StaffOrdersScreen() {
                 ) : (
                     <NoResults
                         icon={<Package size={40} color="#cbd5e1" />}
-                        title={show === 'paid' ? 'No paid orders to release.' : show === 'placed' ? 'No orders waiting for payment.' : 'No orders here.'}
+                        title={show === 'paid' ? 'No paid orders are awaiting release.' : show === 'placed' ? 'No orders are awaiting payment.' : 'No orders here.'}
                         hint="New orders show here when buyers place them, and you get a notification."
                     />
                 )

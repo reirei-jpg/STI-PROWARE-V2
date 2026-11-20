@@ -80,7 +80,7 @@ export function ReleaseBox({
             ) : null}
             {short.length > 0 && (
                 <Text className="rounded-xl bg-amber-50 px-3 py-2 font-sans-semibold text-sm leading-5 text-amber-900">
-                    Not paid for (sold before the buyer paid), do not hand over:{' '}
+                    Not paid for (sold out before payment). Do not hand over:{' '}
                     {short
                         .map((item) => `${formatUnits(item.quantity_short, item.unit_name)} of ${item.product_name}${item.variant_label ? ` (${item.variant_label})` : ''}`)
                         .join(', ')}
@@ -95,7 +95,7 @@ export function ReleaseBox({
                 Release the items
             </ActionButton>
             <Text className="font-sans-semibold text-xs text-emerald-900/70">
-                The paid items leave the stock at once. This cannot be undone.
+                The items will be deducted from stock immediately. This action cannot be undone.
             </Text>
         </View>
     );
@@ -117,7 +117,7 @@ function confirmRelease(order: SpecialistOrder, onRelease: () => void): void {
 
     Alert.alert(
         `Release Order ${order.number} to ${order.student_name}?`,
-        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now. This cannot be undone.`,
+        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now. This action cannot be undone.`,
         [
             { text: 'Check again', style: 'cancel' },
             { text: 'Release', onPress: onRelease },

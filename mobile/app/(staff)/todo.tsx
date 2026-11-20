@@ -38,7 +38,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /** The website dashboard's order cards, in its V1 colors. */
 const orderCards: { key: OrderCardKey; label: string; detail: string; icon: LucideIcon; box: string; color: string }[] = [
     { key: 'waiting', label: 'Waiting for payment', detail: 'to pay at the cashier', icon: ShoppingBag, box: 'bg-amber-50', color: '#b45309' },
-    { key: 'paid', label: 'Paid · to release', detail: 'paid at the cashier, to hand over', icon: Banknote, box: 'bg-blue-50', color: '#1d4ed8' },
+    { key: 'paid', label: 'Ready for release', detail: 'paid at the cashier', icon: Banknote, box: 'bg-blue-50', color: '#1d4ed8' },
     { key: 'released_today', label: 'Released today', detail: 'paid and handed over', icon: CircleCheck, box: 'bg-emerald-50', color: '#047857' },
 ];
 

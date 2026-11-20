@@ -254,17 +254,18 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
             return (
                 <Notice tone="amber" icon={<Clock size={20} />}>
                     Pay <strong>{formatPeso(slip.total_centavos)}</strong> at
-                    the cashier with this slip, then get your items at the
-                    PROWARE office. First to pay, first served. You can show the
+                    the cashier with this slip, then claim your items at the
+                    PROWARE office. First to pay, first served. You may show the
                     slip on your phone or print it.
                 </Notice>
             );
         case 'paid':
             return (
                 <Notice tone="green" icon={<CheckCircle2 size={20} />}>
-                    Paid <strong>{formatPeso(slip.total_centavos)}</strong> at
-                    the cashier. Your items are set aside: show this slip at the
-                    PROWARE office to get them.
+                    Payment of{' '}
+                    <strong>{formatPeso(slip.total_centavos)}</strong> has been
+                    received. Your items are reserved; present this slip at the
+                    PROWARE office to claim them.
                 </Notice>
             );
         case 'picked_up':

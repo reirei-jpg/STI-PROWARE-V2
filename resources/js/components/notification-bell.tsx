@@ -279,13 +279,14 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         return (
             <>
                 <span className="block text-sm font-bold text-emerald-700">
-                    Paid: {data.items}
+                    Payment received: {data.items}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    {formatPeso(data.total_centavos)} paid. Get your items at
-                    the PROWARE office with your issuance slip.
+                    {formatPeso(data.total_centavos)} has been received. Present
+                    your issuance slip at the PROWARE office to claim your
+                    items.
                     {data.short &&
-                        ` Sold out before you paid, so you were not charged for: ${data.short}.`}
+                        ` Not charged (sold out before your payment): ${data.short}.`}
                 </span>
             </>
         );
@@ -299,7 +300,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.short
-                        ? `Sold out before you paid, so you were not charged for: ${data.short}.`
+                        ? `Not charged (sold out before your payment): ${data.short}.`
                         : 'Thank you for your order.'}
                 </span>
             </>

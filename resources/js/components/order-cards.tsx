@@ -61,12 +61,12 @@ const cards: Card[] = [
     },
     {
         key: 'paid',
-        title: 'Paid · to release',
+        title: 'Ready for release',
         icon: Banknote,
-        detail: () => 'paid at the cashier, to hand over',
-        popupTitle: 'Paid · to release',
+        detail: () => 'paid at the cashier',
+        popupTitle: 'Ready for release',
         emptyText:
-            'No paid orders are waiting. When the cashier marks one paid, it shows here.',
+            'No paid orders are awaiting release. Orders appear here once the cashier records the payment.',
         iconClassName: 'bg-blue-50 text-blue-600',
         hoverClassName: 'hover:border-blue-300',
         listShow: 'paid',

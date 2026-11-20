@@ -69,11 +69,11 @@ test('whoever pays first at the cashier gets the stock, and a buyer who pays lat
     [$juansOrder, $beasOrder] = Order::query()->orderBy('id')->get()->all();
 
     // Bea pays first: both are set aside for her.
-    expect(payAtCashier($beasOrder))->toBe("Order {$beasOrder->number} is paid: ₱160.00 from Bea Villareal. The items are set aside; the buyer gets them at the PROWARE office.")
+    expect(payAtCashier($beasOrder))->toBe("Order {$beasOrder->number}: payment of ₱160.00 from Bea Villareal has been recorded. The items are reserved for pickup at the PROWARE office.")
         ->and($variant->refresh())->stock_on_hand->toBe(3)->held_pieces->toBe(2);
 
     // Juan pays later: only 1 is left, so he pays for 1 and the other is short.
-    expect(payAtCashier($juansOrder))->toBe("Order {$juansOrder->number} is paid: ₱80.00 from Juan Dela Cruz. The items are set aside; the buyer gets them at the PROWARE office. Not charged (already sold to buyers who paid first): 1 pc of STI Lanyard.");
+    expect(payAtCashier($juansOrder))->toBe("Order {$juansOrder->number}: payment of ₱80.00 from Juan Dela Cruz has been recorded. The items are reserved for pickup at the PROWARE office. Not charged (sold out before payment): 1 pc of STI Lanyard.");
 
     $this->actingAs($this->specialist)
         ->post(route('orders.release', $beasOrder))
@@ -105,15 +105,15 @@ test('the paid and release notices name what the buyer got and what was sold out
 
     Notification::assertSentTo($juan, OrderPaid::class, function (OrderPaid $notice) use ($juan): bool {
         expect($notice->toArray($juan))->items->toBe('STI Lanyard')->total_centavos->toBe(8000)->short->toBe('1 pc of STI Cap')
-            ->and($notice->toPush($juan))->title->toBe('Paid: STI Lanyard')
-            ->body->toBe('₱80.00 paid. Get your items at the PROWARE office with your issuance slip. Sold out before you paid, so you were not charged for: 1 pc of STI Cap.');
+            ->and($notice->toPush($juan))->title->toBe('Payment received: STI Lanyard')
+            ->body->toBe('₱80.00 has been received. Present your issuance slip at the PROWARE office to claim your items. Not charged (sold out before your payment): 1 pc of STI Cap.');
 
         return true;
     });
     Notification::assertSentTo($juan, OrderReleased::class, function (OrderReleased $notice) use ($juan): bool {
         expect($notice->toArray($juan))->items->toBe('STI Lanyard')->short->toBe('1 pc of STI Cap')
             ->and($notice->toPush($juan))->title->toBe('Released to you: STI Lanyard')
-            ->body->toBe('Sold out before you paid, so you were not charged for: 1 pc of STI Cap.');
+            ->body->toBe('Not charged (sold out before your payment): 1 pc of STI Cap.');
 
         return true;
     });
@@ -127,7 +127,7 @@ test('an order with nothing left in stock cannot be paid', function () {
 
     payAtCashier($second);
 
-    expect(fn () => payAtCashier($first))->toThrow(ValidationException::class, "Nothing of order {$first->number} is left in stock, so it cannot be paid. The buyer can cancel it and order again when it is back.")
+    expect(fn () => payAtCashier($first))->toThrow(ValidationException::class, "None of the items in order {$first->number} are in stock, so the payment cannot be accepted. The buyer may cancel the order and place it again once the items are restocked.")
         ->and($first->refresh()->status)->toBe(OrderStatus::Placed);
 });
 test('a buyer can have several orders waiting at once', function () {

@@ -48,7 +48,7 @@ class CancelOrderByStudent
     {
         return match ($order->status) {
             OrderStatus::Cancelled => "Order {$order->number} is already cancelled.",
-            OrderStatus::Paid => "Order {$order->number} is already paid, so it can no longer be cancelled. Get your items at the PROWARE office.",
+            OrderStatus::Paid => "Order {$order->number} has already been paid, so it can no longer be cancelled. Claim your items at the PROWARE office.",
             OrderStatus::PickedUp => "Order {$order->number} has already been released, so it can no longer be cancelled.",
             default => "Order {$order->number} cannot be cancelled because its status is {$order->status->label()}.",
         };

@@ -40,7 +40,7 @@ final class CashierDesk
                 'can_mark_paid' => $waiting && ! $nothingLeft,
                 'refusal' => match (true) {
                     ! $waiting => MarkOrderPaid::notWaiting($order),
-                    $nothingLeft => "Nothing of order {$order->number} is left in stock, so it cannot be paid. The buyer can cancel it and order again when it is back.",
+                    $nothingLeft => "None of the items in order {$order->number} are in stock, so the payment cannot be accepted. The buyer may cancel the order and place it again once the items are restocked.",
                     default => null,
                 },
                 // What to collect now: only what is still left (first to pay, first served).
