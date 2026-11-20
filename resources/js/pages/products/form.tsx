@@ -291,8 +291,7 @@ export default function ProductForm({
 
     // Leaving with unsaved changes asks first (the draft keeps them, not new photos).
     const unsaved = useUnsavedChanges(form.isDirty && !processing, {
-        kept: true,
-        notKept: 'Photos you added are not kept.',
+        discardDraft: draft.discard,
     });
 
     // The expected arrival follows the close date until the Specialist

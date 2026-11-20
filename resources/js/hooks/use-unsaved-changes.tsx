@@ -15,17 +15,18 @@ import { logout } from '@/routes';
  * - closing the popup the form is in: the popup's close goes through
  *   `confirmLeave` from back-guard (X, Cancel, a click outside, Esc).
  *
- * The form's own Save is not asked about. `kept: true` says the form keeps a
- * draft (useFormDraft); `notKept` says what the draft cannot keep.
- * Render `prompt` once inside the form.
+ * The form's own Save is not asked about. Render `prompt` once inside the
+ * form.
  *
- * The form's own Cancel uses `confirmDiscard` instead: "Discard what you
- * typed?", and Discard throws the draft away, so the form opens empty next
- * time (user's decision, 20 Nov 2026). Only an accidental leave keeps it.
+ * Leave (and the form's own Cancel, through `confirmDiscard`: "Discard what
+ * you typed?") throws what was typed away, with its draft (`discardDraft`,
+ * from useFormDraft), so the form opens empty next time (user's decision,
+ * 20 Nov 2026). A draft is only kept when nobody was asked: the tab closed,
+ * the sign-in expired or the internet dropped.
  */
 export function useUnsavedChanges(
     dirty: boolean,
-    { kept = false, notKept }: { kept?: boolean; notKept?: string } = {},
+    { discardDraft }: { discardDraft?: () => void } = {},
 ): {
     confirmLeave: (leave: () => void) => void;
     confirmDiscard: (discard: () => void) => void;
@@ -180,11 +181,11 @@ export function useUnsavedChanges(
             />
             <LeavePrompt
                 open={pending !== null}
-                kept={kept}
-                notKept={notKept}
                 onConfirm={() => {
                     const leave = pending;
                     setPending(null);
+                    // Leaving throws the draft away too.
+                    discardDraft?.();
                     leave?.();
                 }}
                 onClose={() => setPending(null)}
@@ -195,17 +196,13 @@ export function useUnsavedChanges(
     return { confirmLeave, confirmDiscard, prompt };
 }
 
-/** "Leave without saving?" for a leave by accident (a link, Back, X). */
+/** "Leave without saving?" for leaving another way (a link, Back, X). */
 function LeavePrompt({
     open,
-    kept,
-    notKept,
     onConfirm,
     onClose,
 }: {
     open: boolean;
-    kept: boolean;
-    notKept?: string;
     onConfirm: () => void;
     onClose: () => void;
 }) {
@@ -213,11 +210,7 @@ function LeavePrompt({
         <ConfirmDialog
             open={open}
             title="Leave without saving?"
-            description={
-                kept
-                    ? `What you typed is kept as a draft and comes back when you open this form again.${notKept ? ` ${notKept}` : ''}`
-                    : 'What you typed will be lost. This cannot be undone.'
-            }
+            description="What you typed will be lost. This cannot be undone."
             cancelLabel="Keep editing"
             confirmLabel="Leave"
             tone="red"
@@ -231,12 +224,6 @@ function LeavePrompt({
  * The same, for a form whose "changed" is only known inside it, e.g. an
  * Inertia `<Form>`: render `<UnsavedChangesGuard dirty={isDirty} />` in it.
  */
-export function UnsavedChangesGuard({
-    dirty,
-    kept = false,
-}: {
-    dirty: boolean;
-    kept?: boolean;
-}) {
-    return useUnsavedChanges(dirty, { kept }).prompt;
+export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
+    return useUnsavedChanges(dirty).prompt;
 }

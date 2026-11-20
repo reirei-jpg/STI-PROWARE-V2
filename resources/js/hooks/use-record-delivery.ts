@@ -54,7 +54,7 @@ export function useRecordDelivery(
 
     // Leaving with counts typed asks first (the draft keeps them).
     const unsaved = useUnsavedChanges(form.isDirty && !form.processing, {
-        kept: true,
+        discardDraft: draft.discard,
     });
 
     const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);

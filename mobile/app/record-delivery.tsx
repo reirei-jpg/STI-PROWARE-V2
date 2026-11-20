@@ -68,7 +68,7 @@ export default function RecordDeliveryScreen() {
         setTotals(saved.totals);
     });
     const hasTyping = [salesInvoice, deliveryReceipt, note, ...Object.values(totals)].some((value) => value.trim() !== '');
-    useUnsavedChanges(hasTyping && !saving && result === null, { kept: true });
+    useUnsavedChanges(hasTyping && !saving && result === null, { discardDraft: draft.discard });
 
     useEffect(() => {
         request<{ groups: WaitingDeliveryGroup[] }>('/specialist/deliveries/waiting')

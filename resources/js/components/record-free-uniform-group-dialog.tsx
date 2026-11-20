@@ -261,7 +261,7 @@ function GroupForm({
         setData(saved);
     });
     const unsaved = useUnsavedChanges(form.isDirty && !processing, {
-        kept: true,
+        discardDraft: draft.discard,
     });
 
     /** Clears these server messages, e.g. once their box is changed. */

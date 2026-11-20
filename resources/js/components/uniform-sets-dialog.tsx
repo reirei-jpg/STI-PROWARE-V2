@@ -212,7 +212,7 @@ function SetEditor({
         (saved) => setData(saved),
     );
     const unsaved = useUnsavedChanges(form.isDirty && !processing, {
-        kept: true,
+        discardDraft: draft.discard,
     });
 
     const productSelect = (

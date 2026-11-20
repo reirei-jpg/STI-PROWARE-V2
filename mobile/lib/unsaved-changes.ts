@@ -8,30 +8,32 @@ import { useAuth } from '@/lib/auth';
 
 /**
  * "Leave without saving?" with Keep editing / Leave, in the website's words.
- * `kept` says a draft keeps what was typed (useDraft).
+ * Leave throws what was typed away (user's decision, 20 Nov 2026).
  */
-export function askBeforeLeaving(leave: () => void, kept = false): void {
-    Alert.alert(
-        'Leave without saving?',
-        kept
-            ? 'What you typed is kept as a draft and comes back when you open this again.'
-            : 'What you typed will be lost. This cannot be undone.',
-        [
-            { text: 'Keep editing', style: 'cancel' },
-            { text: 'Leave', style: 'destructive', onPress: leave },
-        ],
-    );
+export function askBeforeLeaving(leave: () => void): void {
+    Alert.alert('Leave without saving?', 'What you typed will be lost. This cannot be undone.', [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: leave },
+    ]);
 }
 
 /**
  * While `dirty` (something was typed and not saved yet), leaving the screen
  * asks first: its Back button, the phone's Back button or gesture, or
- * anything else that closes the screen. Saving is not asked about.
+ * anything else that closes the screen. Saving is not asked about. Leave
+ * also throws the draft away (`discardDraft`, from useDraft), so the screen
+ * opens empty next time; a draft is only kept when nobody was asked (the
+ * app closed, the sign-in expired).
  */
-export function useUnsavedChanges(dirty: boolean, { kept = false }: { kept?: boolean } = {}): void {
+export function useUnsavedChanges(dirty: boolean, { discardDraft }: { discardDraft?: () => void } = {}): void {
     const navigation = useNavigation();
 
-    usePreventRemove(dirty, ({ data }) => askBeforeLeaving(() => navigation.dispatch(data.action), kept));
+    usePreventRemove(dirty, ({ data }) =>
+        askBeforeLeaving(() => {
+            discardDraft?.();
+            navigation.dispatch(data.action);
+        }),
+    );
 }
 
 /** Drafts older than this are dropped instead of brought back. */

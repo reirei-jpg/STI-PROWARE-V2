@@ -64,9 +64,7 @@ export default function ScanPurchaseOrder({
     // Leaving with a pasted email not scanned yet asks first (the draft keeps it).
     const unsaved = useUnsavedChanges(
         scan === null && emailText.trim() !== '',
-        {
-            kept: true,
-        },
+        { discardDraft: draft.discard },
     );
 
     return (
