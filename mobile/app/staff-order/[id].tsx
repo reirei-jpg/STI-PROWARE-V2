@@ -54,7 +54,7 @@ export default function StaffOrderScreen() {
 
     // Up to date by itself while the order is open: once it is released,
     // cancelled or expires elsewhere, Release and Cancel go away.
-    useLiveReload(load, order?.status === 'placed' && !busy);
+    useLiveReload(load, (order?.status === 'placed' || order?.status === 'paid') && !busy);
 
     const run = async (path: string, body?: Record<string, unknown>): Promise<boolean> => {
         if (!order) {
@@ -86,7 +86,8 @@ export default function StaffOrderScreen() {
         }
     };
 
-    const isOpen = order?.status === 'placed';
+    // Release only once the cashier marked it paid (panel revision, 20 Nov 2026).
+    const isOpen = order?.status === 'paid';
 
     return (
         <ScrollView
@@ -159,7 +160,7 @@ export default function StaffOrderScreen() {
                             <ReleaseBox
                                 order={order}
                                 busy={busy}
-                                onRelease={() => void run('release', { paid: true })}
+                                onRelease={() => void run('release')}
                             />
                         )}
                     </View>
@@ -175,8 +176,10 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
     const note = orderNote(order);
     const text =
         order.status === 'placed'
-            ? `Waiting for ${order.student_name} to pay ${formatPeso(order.total_centavos)} at the cashier and show the receipt and the issuance slip.`
-            : order.status === 'picked_up'
+            ? `Awaiting payment: ${order.student_name} must pay ${formatPeso(order.total_centavos)} at the cashier. The items can be released once the payment is recorded.`
+            : order.status === 'paid'
+              ? `Paid at the cashier on ${formatDateTime(order.paid_at ?? null)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand over the items, then tap Release.`
+              : order.status === 'picked_up'
               ? `Released ${formatDateTime(order.picked_up_at)}.`
               : order.expired
                 ? `Expired: not released by ${order.pick_up_by ? formatDate(order.pick_up_by) : 'its pick-up date'}.`

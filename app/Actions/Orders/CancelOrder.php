@@ -12,10 +12,11 @@ use App\Services\Stock\RestockedPreorders;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Cancels an order that was not released yet. Orders do not hold stock,
- * except an order of an arrived preorder's pieces: those pieces are free to
- * sell again, and buyers waiting for a sold-out size get notified. When the
- * buyer did not cancel it themselves, they are told why.
+ * Cancels an order that was not released yet. An order holds no stock until
+ * it is paid; a paid order's (or an arrived preorder's) set-aside pieces are
+ * free to sell again, and buyers waiting for a sold-out size get notified.
+ * When the buyer did not cancel it themselves, they are told why. (Buyers
+ * can cancel only before paying, see CancelOrderByStudent.)
  */
 class CancelOrder
 {
@@ -33,10 +34,14 @@ class CancelOrder
                 return;
             }
 
-            if ($order->holdsItems()) {
+            // Set-aside pieces (a paid order's, or a paid preorder's) are for sale again.
+            $paid = $order->status === OrderStatus::Paid;
+
+            if ($paid || $order->holdsItems()) {
                 foreach ($order->items as $item) {
+                    $pieces = $paid ? ($item->quantity - $item->quantity_short) * $item->pieces_per_unit : $item->pieces();
                     $variant = ProductVariant::query()->with('product')->lockForUpdate()->findOrFail($item->product_variant_id);
-                    $variant->forceFill(['held_pieces' => max(0, $variant->held_pieces - $item->pieces())])->save();
+                    $variant->forceFill(['held_pieces' => max(0, $variant->held_pieces - $pieces)])->save();
 
                     $this->lowStockAlerts->check($variant);
                     $this->restockedPreorders->check($variant);

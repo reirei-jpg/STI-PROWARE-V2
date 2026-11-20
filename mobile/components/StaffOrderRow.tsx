@@ -20,7 +20,7 @@ export default function StaffOrderRow({
     /** Runs before the order opens, e.g. to close a popup. */
     onOpen?: () => void;
 }) {
-    const isOpen = order.status === 'placed';
+    const isOpen = order.status === 'placed' || order.status === 'paid';
     const note = orderNote(order);
     const itemCount = order.items.length;
 

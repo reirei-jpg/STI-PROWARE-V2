@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CartController;
+use App\Http\Controllers\Api\V1\CashierController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
@@ -72,6 +73,14 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
     });
 
     // The Specialist's to-do, orders, deliveries and stock.
+    // The cashier marks buyers' slips Paid (panel revision, 20 Nov 2026).
+    Route::middleware(['auth:sanctum', 'role:cashier'])->prefix('cashier')->name('cashier.')->group(function () {
+        Route::get('slip', [CashierController::class, 'lookup'])->name('slip');
+        Route::get('paid-today', [CashierController::class, 'paidToday'])->name('paid-today');
+        Route::post('orders/{order}/paid', [CashierController::class, 'payOrder'])->name('orders.paid');
+        Route::post('preorder-slips/{preorderSlip}/paid', [CashierController::class, 'payPreorderSlip'])->name('preorder-slips.paid');
+    });
+
     Route::middleware(['auth:sanctum', 'role:specialist'])->prefix('specialist')->name('specialist.')->group(function () {
         Route::get('tasks', TaskController::class)->name('tasks');
 
@@ -79,7 +88,6 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('orders/{order}', [SpecialistOrderController::class, 'show'])->name('orders.show');
         Route::get('slips/{code}', [SpecialistOrderController::class, 'slip'])->name('slips.show');
         Route::get('preorder-slips', [SpecialistOrderController::class, 'preorderSlips'])->name('preorder-slips.index');
-        Route::post('preorder-slips/{preorderSlip}/paid', [SpecialistOrderController::class, 'preorderPaid'])->name('preorder-slips.paid');
         Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
         Route::post('preorder-slips/{preorderSlip}/release', [SpecialistOrderController::class, 'preorderRelease'])->name('preorder-slips.release');
         Route::post('orders/{order}/release', [SpecialistOrderController::class, 'release'])->name('orders.release');

@@ -275,6 +275,23 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
         );
     }
 
+    if (data.kind === 'order_paid') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-emerald-700">
+                    Payment received: {data.items}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {formatPeso(data.total_centavos)} has been received. Present
+                    your issuance slip at the PROWARE office to claim your
+                    items.
+                    {data.short &&
+                        ` Not charged (sold out before your payment): ${data.short}.`}
+                </span>
+            </>
+        );
+    }
+
     if (data.kind === 'order_released') {
         return (
             <>
@@ -283,7 +300,7 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.short
-                        ? `Sold out before you paid, so you were not charged for: ${data.short}.`
+                        ? `Not charged (sold out before your payment): ${data.short}.`
                         : 'Thank you for your order.'}
                 </span>
             </>

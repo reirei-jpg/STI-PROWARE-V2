@@ -1,8 +1,8 @@
-import { Banknote, Check } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { CircleCheck } from 'lucide-react-native';
+import { type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import { formatPeso } from '@/lib/format';
+import { formatDateTime, formatPeso, formatUnits } from '@/lib/format';
 import type { SpecialistOrder } from '@/lib/types';
 
 /*
@@ -50,10 +50,12 @@ export function ActionButton({
     );
 }
 
+
 /**
- * Release, like the website's order popup: one green box where the
- * Specialist ticks "I checked the cashier's receipt" and only then releases the items
- * (they leave the shelf only now). The tick clears after each release.
+ * Release, like the website's order popup: once the cashier marked the
+ * order paid (panel revision, 20 Nov 2026), one green box shows what was
+ * paid and Release the items (they leave the shelf only now). There is no
+ * receipt box any more: the cashier's Paid is the check.
  */
 export function ReleaseBox({
     order,
@@ -64,42 +66,36 @@ export function ReleaseBox({
     busy: boolean;
     onRelease: () => void;
 }) {
-    const [paid, setPaid] = useState(false);
-
-    useEffect(() => {
-        setPaid(false);
-    }, [order.id, order.status]);
+    const short = order.items.filter((item) => item.quantity_short > 0);
 
     return (
         <View className="gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-            <Text className="font-sans-bold text-xs uppercase tracking-wide text-emerald-800">Release</Text>
-            <Pressable
-                onPress={() => setPaid(!paid)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: paid }}
-                className={`flex-row items-center gap-3 rounded-xl border px-4 py-3 ${paid ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white'}`}
-            >
-                <View
-                    className={`h-6 w-6 items-center justify-center rounded-md border-2 ${paid ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'}`}
-                >
-                    {paid && <Check size={16} color="#ffffff" strokeWidth={3} />}
-                </View>
-                <Text className="flex-1 font-sans-bold text-sm text-slate-800">
-                    I checked the cashier&apos;s receipt for {formatPeso(order.total_centavos)}.
+            <Text className="font-sans-bold text-xs uppercase tracking-wide text-emerald-800">Paid at the cashier</Text>
+            <Text className="font-sans-bold text-3xl text-emerald-700">{formatPeso(order.total_centavos)}</Text>
+            {order.paid_at ? (
+                <Text className="font-sans-semibold text-xs text-emerald-900">
+                    {formatDateTime(order.paid_at)}
+                    {order.paid_to ? ` · ${order.paid_to}` : ''}
                 </Text>
-            </Pressable>
+            ) : null}
+            {short.length > 0 && (
+                <Text className="rounded-xl bg-amber-50 px-3 py-2 font-sans-semibold text-sm leading-5 text-amber-900">
+                    Not paid for (sold out before payment). Do not hand over:{' '}
+                    {short
+                        .map((item) => `${formatUnits(item.quantity_short, item.unit_name)} of ${item.product_name}${item.variant_label ? ` (${item.variant_label})` : ''}`)
+                        .join(', ')}
+                </Text>
+            )}
             <ActionButton
                 tone="green"
-                icon={busy ? <ActivityIndicator color="#ffffff" /> : <Banknote size={18} color="#ffffff" />}
+                icon={busy ? <ActivityIndicator color="#ffffff" /> : <CircleCheck size={18} color="#ffffff" />}
                 busy={busy}
-                disabled={!paid}
                 onPress={() => confirmRelease(order, onRelease)}
             >
                 Release the items
             </ActionButton>
             <Text className="font-sans-semibold text-xs text-emerald-900/70">
-                {!paid ? 'Tick the box above after checking the cashier receipt. ' : ''}
-                The items leave the stock at once. This cannot be undone.
+                The items will be deducted from stock immediately. This action cannot be undone.
             </Text>
         </View>
     );
@@ -110,7 +106,8 @@ export function ReleaseBox({
  * release is final, so the Specialist answers first, like the website.
  */
 function confirmRelease(order: SpecialistOrder, onRelease: () => void): void {
-    const pieces = order.items.reduce((sum, item) => sum + item.quantity * item.pieces_per_unit, 0);
+    // What was paid for (a line short at payment is not handed over).
+    const pieces = order.items.reduce((sum, item) => sum + (item.quantity - item.quantity_short) * item.pieces_per_unit, 0);
     const piecesText = `${pieces} ${pieces === 1 ? 'pc' : 'pcs'}`;
     const first = order.items[0];
     const what =
@@ -120,7 +117,7 @@ function confirmRelease(order: SpecialistOrder, onRelease: () => void): void {
 
     Alert.alert(
         `Release Order ${order.number} to ${order.student_name}?`,
-        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now, as many as are left (items already sold to buyers who paid first are released short). This cannot be undone.`,
+        `${what} ${pieces === 1 ? 'leaves' : 'leave'} the stock now. This action cannot be undone.`,
         [
             { text: 'Check again', style: 'cancel' },
             { text: 'Release', onPress: onRelease },

@@ -5,7 +5,7 @@ import type { StudentOrder } from '@/lib/types';
 
 type OrderDates = Pick<
     StudentOrder,
-    'status' | 'placed_at' | 'picked_up_at' | 'cancelled_at' | 'expired'
+    'status' | 'placed_at' | 'paid_at' | 'picked_up_at' | 'cancelled_at' | 'expired'
 >;
 
 /**
@@ -17,6 +17,12 @@ export function orderNote(order: OrderDates): { text: string; className: string 
         return {
             text: `Placed ${formatDate(order.placed_at)} · first to pay, first served`,
             className: 'font-sans-bold text-amber-600',
+        };
+    }
+    if (order.status === 'paid') {
+        return {
+            text: `Paid ${formatDate(order.paid_at ?? null)} · ready for pickup`,
+            className: 'font-sans-bold text-blue-700',
         };
     }
     return order.status === 'picked_up'
@@ -31,11 +37,12 @@ export function orderNote(order: OrderDates): { text: string; className: string 
 
 /*
  * V1's status colors, which the user chose for the whole system (website
- * and phone): amber is waiting for payment, green is released, red is
- * cancelled.
+ * and phone): amber is waiting for payment, blue is paid (waiting for
+ * release), green is released, red is cancelled.
  */
 const statusClasses: Record<StudentOrder['status'], [string, string]> = {
     placed: ['bg-amber-100', 'text-amber-700'],
+    paid: ['bg-blue-100', 'text-blue-700'],
     picked_up: ['bg-emerald-100', 'text-emerald-700'],
     cancelled: ['bg-red-100', 'text-red-700'],
 };
@@ -43,6 +50,7 @@ const statusClasses: Record<StudentOrder['status'], [string, string]> = {
 /** The stripe down a card's left edge, in its status color. */
 export const orderStripeColors: Record<StudentOrder['status'], string> = {
     placed: '#f59e0b',
+    paid: '#3b82f6',
     picked_up: '#10b981',
     cancelled: '#f87171',
 };

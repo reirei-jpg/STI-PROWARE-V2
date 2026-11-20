@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Actions\Preorders\ReleasePaidPreorder;
 use App\Http\Requests\FilterPreorderSlipsRequest;
 use App\Models\PreorderSlip;
-use App\Services\Preorders\PreorderPayment;
 use App\Services\Preorders\PreorderSlipList;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -14,9 +13,9 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
- * The Specialist marks a preorder slip Paid after the buyer paid at the
- * cashier, and later releases its pieces that arrived (from Scan slip).
- * Shared with the phone (PreorderPayment, ReleasePaidPreorder).
+ * The Specialist releases a paid preorder slip's pieces that arrived (from
+ * Scan slip). The cashier marks slips Paid (CashierController; panel
+ * revision, 20 Nov 2026). Shared with the phone (ReleasePaidPreorder).
  */
 class PreorderSlipController extends Controller
 {
@@ -38,17 +37,6 @@ class PreorderSlipController extends Controller
     {
         try {
             Inertia::flash('toast', ['type' => 'success', 'message' => $releasePreorder->handle($preorderSlip, $request->user())]);
-        } catch (ValidationException $refused) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => $refused->validator->errors()->first('slip')]);
-        }
-
-        return back();
-    }
-
-    public function paid(Request $request, PreorderSlip $preorderSlip): RedirectResponse
-    {
-        try {
-            Inertia::flash('toast', ['type' => 'success', 'message' => PreorderPayment::markPaid($preorderSlip, $request->user())]);
         } catch (ValidationException $refused) {
             Inertia::flash('toast', ['type' => 'error', 'message' => $refused->validator->errors()->first('slip')]);
         }

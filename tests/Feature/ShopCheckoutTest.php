@@ -198,7 +198,7 @@ test('my orders shows orders waiting for payment oldest first, past orders on th
     $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page
         ->where('show', 'waiting')
         ->where('counts', ['waiting' => 2, 'past' => 1])
-        ->where('statusCounts', ['placed' => 2, 'picked_up' => 1, 'cancelled' => 0])
+        ->where('statusCounts', ['placed' => 2, 'paid' => 0, 'picked_up' => 1, 'cancelled' => 0])
         ->where('orders.data.0.id', $older->id)
         ->where('orders.data.1.id', $newer->id)
         ->has('orders.data', 2)
@@ -342,17 +342,22 @@ test('a student cannot see or cancel another student\'s order', function () {
     $this->get(route('my-orders.index'))->assertInertia(fn (Assert $page) => $page->has('orders.data', 0));
 });
 
-test('the specialist releases an order once paid, and the items leave the shelf only then', function () {
+test('the specialist releases an order once the cashier marked it paid, and the items leave the shelf only then', function () {
     [, $variant] = ballpen(stock: 30);
     $order = placedOrder($variant, 2);
     $this->actingAs($this->specialist);
 
     $this->post(route('orders.release', $order))
-        ->assertSessionHasErrors(['paid' => 'Check the cashier receipt and tick the box before releasing the items.']);
+        ->assertInertiaFlash('toast.message', 'Order PW-0001 has not been paid. The buyer must pay at the cashier before the items can be released.');
     expect($order->refresh()->status)->toBe(OrderStatus::Placed)
         ->and($variant->refresh()->stock_on_hand)->toBe(30);
 
-    $this->post(route('orders.release', $order), ['paid' => true])
+    // Paid at the cashier: the 2 pcs are set aside for the buyer.
+    payAtCashier($order);
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($variant->refresh())->stock_on_hand->toBe(30)->held_pieces->toBe(2);
+
+    $this->post(route('orders.release', $order))
         ->assertInertiaFlash('toast.message', 'Order PW-0001 has been released to Juan Dela Cruz. Paid at the cashier: ₱30.00.');
     expect($order->refresh())
         ->status->toBe(OrderStatus::PickedUp)
@@ -369,7 +374,8 @@ test('the specialist releases an order once paid, and the items leave the shelf 
 test('an order released from the Waiting for payment tab stays open in its popup, with its new status', function () {
     [, $variant] = ballpen(stock: 30);
     $order = placedOrder($variant, 2);
-    $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
+    payAtCashier($order);
+    $this->actingAs($this->specialist)->post(route('orders.release', $order));
 
     $this->get(route('orders.index', ['viewing' => $order->id]))
         ->assertInertia(fn (Assert $page) => $page
@@ -384,7 +390,8 @@ test('an order released from the Waiting for payment tab stays open in its popup
 test('a release is final: it cannot be undone, even right away', function () {
     [, $variant] = ballpen(stock: 30);
     $order = placedOrder($variant, 2);
-    $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
+    payAtCashier($order);
+    $this->actingAs($this->specialist)->post(route('orders.release', $order));
 
     $this->post("/orders/{$order->id}/undo-release")->assertNotFound();
 
@@ -395,9 +402,10 @@ test('a release is final: it cannot be undone, even right away', function () {
 test('an order cannot be released twice', function () {
     [, $variant] = ballpen(stock: 30);
     $order = placedOrder($variant, 2);
-    $this->actingAs($this->specialist)->post(route('orders.release', $order), ['paid' => true]);
+    payAtCashier($order);
+    $this->actingAs($this->specialist)->post(route('orders.release', $order));
 
-    $this->post(route('orders.release', $order), ['paid' => true])
+    $this->post(route('orders.release', $order))
         ->assertInertiaFlash('toast.message', 'Order PW-0001 has already been released.');
 
     expect($variant->refresh()->stock_on_hand)->toBe(28)
@@ -414,7 +422,7 @@ test('only the buyer can cancel an order, not the specialist', function () {
 
     expect($order->refresh()->status)->toBe(OrderStatus::Placed);
 });
-test('the orders page shows orders waiting for payment by default and finds by order number or student', function () {
+test('the orders page shows paid orders to release by default, then waiting for payment, and finds by order number or student', function () {
     [, $variant] = ballpen();
     placedOrder($variant);
     placedOrder($variant);
@@ -422,8 +430,12 @@ test('the orders page shows orders waiting for payment by default and finds by o
 
     $this->get(route('orders.index'))->assertInertia(fn (Assert $page) => $page
         ->component('orders/index')
-        ->where('filters.show', 'placed')
-        ->where('counts', ['placed' => 2, 'picked_up' => 0, 'cancelled' => 0])
+        ->where('filters.show', 'paid')
+        ->where('counts', ['paid' => 0, 'placed' => 2, 'picked_up' => 0, 'cancelled' => 0])
+        ->has('orders.data', 0)
+    );
+
+    $this->get(route('orders.index', ['show' => 'placed']))->assertInertia(fn (Assert $page) => $page
         ->where('orders.data.0.number', 'PW-0001')
         ->where('orders.data.0.status_label', 'Waiting for payment')
         ->has('orders.data', 2)
@@ -472,7 +484,7 @@ test('only students shop, and only the specialist handles orders', function () {
         ->assertForbidden();
 
     $this->actingAs($this->student)->get(route('orders.index'))->assertForbidden();
-    $this->post(route('orders.release', $order), ['paid' => true])->assertForbidden();
+    $this->post(route('orders.release', $order))->assertForbidden();
 });
 
 test('opening an order notice goes to the order', function () {
@@ -483,10 +495,16 @@ test('opening an order notice goes to the order', function () {
         ->post(route('notifications.open', $this->specialist->notifications()->sole()->id))
         ->assertRedirect(route('orders.index', ['show' => 'all', 'search' => 'PW-0001']));
 
-    $this->post(route('orders.release', $order), ['paid' => true]);
-    $this->actingAs($this->student)
-        ->post(route('notifications.open', $this->student->notifications()->sole()->id))
-        ->assertRedirect(route('my-orders.index'));
+    payAtCashier($order);
+    $this->post(route('orders.release', $order));
+
+    // The buyer's "Paid" and "Released" notices both go to My Orders.
+    $this->actingAs($this->student);
+    expect($this->student->notifications()->count())->toBe(2);
+
+    foreach ($this->student->notifications as $notice) {
+        $this->post(route('notifications.open', $notice->id))->assertRedirect(route('my-orders.index'));
+    }
 });
 
 test('an order waiting for payment holds no stock, and only a released order is a sale in the stock history', function () {
@@ -505,7 +523,8 @@ test('an order waiting for payment holds no stock, and only a released order is 
     $this->get(route('products.index', ['stock' => 'slow']))
         ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 1));
 
-    $this->post(route('orders.release', $order), ['paid' => true]);
+    payAtCashier($order);
+    $this->post(route('orders.release', $order));
 
     $this->get(route('products.stock', $product))->assertInertia(fn (Assert $page) => $page
         ->where('product.stock_on_hand', 8)

@@ -22,6 +22,13 @@ class DatabaseSeeder extends Seeder
             'password' => 'Demo@2026!',
         ]);
 
+        // The school's cashier marks buyers' slips Paid (panel revision, 20 Nov 2026).
+        User::factory()->cashier()->create([
+            'name' => 'Cashier 1',
+            'email' => 'cashier1@proware.sti.edu.ph',
+            'password' => 'Demo@2026!',
+        ]);
+
         User::factory()->schoolAdmin()->create([
             'name' => 'Liza Garcia',
             'email' => 'liza.garcia.adm2026@proware.sti.edu.ph',

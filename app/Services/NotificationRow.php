@@ -15,7 +15,7 @@ final class NotificationRow
     /**
      * The buyer's order notices: they name the items, never the PW- number.
      */
-    private const array ORDER_KINDS = ['order_ready', 'order_released', 'order_last_day', 'order_cancelled'];
+    private const array ORDER_KINDS = ['order_ready', 'order_paid', 'order_released', 'order_last_day', 'order_cancelled'];
 
     /**
      * @return array{id: string, data: array<mixed>, read: bool, created_at: string|null}

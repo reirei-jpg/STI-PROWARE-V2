@@ -1,4 +1,9 @@
-export type UserRole = 'specialist' | 'school_admin' | 'student' | 'employee';
+export type UserRole =
+    | 'specialist'
+    | 'school_admin'
+    | 'student'
+    | 'employee'
+    | 'cashier';
 
 export type User = {
     id: number;

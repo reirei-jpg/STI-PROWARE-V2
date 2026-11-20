@@ -63,7 +63,8 @@ function releasedJackets(ProductVariant $variant, int $pieces): Order
     test()->actingAs(test()->student)->post(route('my-orders.store'))->assertSessionHasNoErrors();
     $order = Order::query()->latest('id')->firstOrFail();
 
-    test()->actingAs(test()->specialist)->post(route('orders.release', $order), ['paid' => true])->assertSessionHasNoErrors();
+    payAtCashier($order);
+    test()->actingAs(test()->specialist)->post(route('orders.release', $order))->assertSessionHasNoErrors();
 
     return $order;
 }

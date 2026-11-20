@@ -45,7 +45,7 @@ final class OrderRow
             ->when(
                 $show === 'waiting',
                 fn (Builder $query) => $query->open()->orderBy('id'),
-                fn (Builder $query) => $query->where('status', '!=', OrderStatus::Placed)->latest('id'),
+                fn (Builder $query) => $query->whereNotIn('status', [OrderStatus::Placed, OrderStatus::Paid])->latest('id'),
             )
             ->paginate(20)
             ->withQueryString()
@@ -68,7 +68,7 @@ final class OrderRow
      * How many of the student's orders are in each status, for the cards at
      * the top of My Orders.
      *
-     * @return array{placed: int, picked_up: int, cancelled: int}
+     * @return array{placed: int, paid: int, picked_up: int, cancelled: int}
      */
     public static function studentStatusCounts(User $student): array
     {
@@ -76,6 +76,7 @@ final class OrderRow
 
         return [
             'placed' => (int) ($counts[OrderStatus::Placed->value] ?? 0),
+            'paid' => (int) ($counts[OrderStatus::Paid->value] ?? 0),
             'picked_up' => (int) ($counts[OrderStatus::PickedUp->value] ?? 0),
             'cancelled' => (int) ($counts[OrderStatus::Cancelled->value] ?? 0),
         ];
@@ -101,7 +102,7 @@ final class OrderRow
      * student's course/section. For an STI staff buyer (is_staff), student_id
      * is their Employee ID and student_section their office/department.
      *
-     * @return array{id: int, number: string|null, slip_code: string|null, status: string, status_label: string, student_name: string, student_id: string|null, student_section: string|null, is_staff: bool, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, pieces_per_unit: int, quantity: int, quantity_short: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, pick_up_by: string|null, picked_up_at: string|null, cancelled_at: string|null, expired: bool, cancel_reason: string|null}
+     * @return array{id: int, number: string|null, slip_code: string|null, status: string, status_label: string, student_name: string, student_id: string|null, student_section: string|null, is_staff: bool, total_centavos: int, items: list<array{id: int, product_name: string, variant_label: string|null, set_name: string|null, unit_name: string, pieces_per_unit: int, quantity: int, quantity_short: int, unit_price_centavos: int, line_total_centavos: int}>, placed_at: string|null, paid_at: string|null, pick_up_by: string|null, picked_up_at: string|null, cancelled_at: string|null, expired: bool, cancel_reason: string|null}
      */
     public static function of(Order $order): array
     {
@@ -131,6 +132,8 @@ final class OrderRow
                 'line_total_centavos' => $item->line_total_centavos,
             ])->all()),
             'placed_at' => $order->created_at?->toIso8601String(),
+            // When the cashier marked it Paid (null: not paid yet).
+            'paid_at' => $order->paid_at?->toIso8601String(),
             // Only on orders placed before orders stopped holding stock.
             'pick_up_by' => $order->pick_up_by?->toDateString(),
             'picked_up_at' => $order->picked_up_at?->toIso8601String(),

@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
     ArrowRight,
+    Banknote,
     CheckCircle2,
     Eye,
     QrCode,
@@ -23,7 +24,7 @@ import { formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { SpecialistOrderRow } from '@/types';
 
-export type OrderCardKey = 'waiting' | 'released_today';
+export type OrderCardKey = 'waiting' | 'paid' | 'released_today';
 
 export type OrderCardsData = Record<
     OrderCardKey,
@@ -41,10 +42,10 @@ type Card = {
     iconClassName: string;
     hoverClassName: string;
     /** Student Orders opened on the matching tab. */
-    listShow: 'placed' | 'picked_up';
+    listShow: 'placed' | 'paid' | 'picked_up';
 };
 
-/** The two cards, in V1's colors: amber waiting, green done. */
+/** The cards, in V1's colors: amber waiting, blue paid (to release), green done. */
 const cards: Card[] = [
     {
         key: 'waiting',
@@ -59,6 +60,18 @@ const cards: Card[] = [
         listShow: 'placed',
     },
     {
+        key: 'paid',
+        title: 'Ready for release',
+        icon: Banknote,
+        detail: () => 'paid at the cashier',
+        popupTitle: 'Ready for release',
+        emptyText:
+            'No paid orders are awaiting release. Orders appear here once the cashier records the payment.',
+        iconClassName: 'bg-blue-50 text-blue-600',
+        hoverClassName: 'hover:border-blue-300',
+        listShow: 'paid',
+    },
+    {
         key: 'released_today',
         title: 'Released today',
         icon: CheckCircle2,
@@ -71,8 +84,8 @@ const cards: Card[] = [
     },
 ];
 /**
- * The order cards on the Specialist's dashboard: Waiting for payment and
- * Released today. A card opens a popup with its orders and their buttons
+ * The order cards on the Specialist's dashboard: Waiting for payment, Paid
+ * (to release) and Released today. A card opens a popup with its orders and their buttons
  * (Open slip to release one, View).
  * When the dashboard refreshes and a new order has come in, a small
  * "New order" popup says so.
@@ -103,7 +116,7 @@ export default function OrderCards({ data }: { data: OrderCardsData }) {
                         Click a card to see its orders. Updates by itself.
                     </p>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                     {cards.map((card) => (
                         <OrderCard
                             key={card.key}

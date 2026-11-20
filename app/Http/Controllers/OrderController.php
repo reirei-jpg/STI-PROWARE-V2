@@ -47,7 +47,10 @@ class OrderController extends Controller
      */
     public function slip(Request $request): Response
     {
-        $code = trim((string) ($request->validate(['code' => ['nullable', 'string', 'max:120']])['code'] ?? ''));
+        $code = trim((string) ($request->validate(
+            ['code' => ['nullable', 'string', 'max:120']],
+            ['code.max' => 'The slip number is too long. Check the number or scan the QR code again.'],
+        )['code'] ?? ''));
 
         return Inertia::render('orders/slip', [
             'code' => $code,

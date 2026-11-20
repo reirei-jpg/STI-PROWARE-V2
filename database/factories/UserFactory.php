@@ -61,6 +61,13 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function cashier(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Cashier,
+        ]);
+    }
+
     /**
      * A student account (signs in on the storefront).
      */

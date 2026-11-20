@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
+    Banknote,
     CheckCircle2,
     Clock3,
     History,
@@ -28,6 +29,7 @@ type Show = 'waiting' | 'past';
 
 type StatusCounts = {
     placed: number;
+    paid: number;
     picked_up: number;
     cancelled: number;
 };
@@ -68,6 +70,7 @@ export default function MyOrders({
             ? [
                   { value: 'all', label: 'All active' },
                   { value: 'placed', label: 'Waiting for payment' },
+                  { value: 'paid', label: 'Paid · Ready for pickup' },
               ]
             : [
                   { value: 'all', label: 'All history' },
@@ -88,13 +91,13 @@ export default function MyOrders({
                         My Orders
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                        Track your orders. Pay at the cashier, then show the
-                        receipt and the issuance slip at the PROWARE office to
-                        get your items. First to pay, first served.
+                        Track your orders. Pay at the cashier with your issuance
+                        slip, then claim your items at the PROWARE office. First
+                        to pay, first served.
                     </p>
                 </div>
 
-                <section className="grid gap-4 sm:grid-cols-3">
+                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <SummaryCard
                         title="Waiting for Payment"
                         value={statusCounts.placed}
@@ -103,6 +106,15 @@ export default function MyOrders({
                         tone="amber"
                         href={tabHref('waiting')}
                         onClick={() => setFilter('placed')}
+                    />
+                    <SummaryCard
+                        title="Paid · Ready for Pickup"
+                        value={statusCounts.paid}
+                        description="Claim your items at the PROWARE office."
+                        icon={Banknote}
+                        tone="blue"
+                        href={tabHref('waiting')}
+                        onClick={() => setFilter('paid')}
                     />
                     <SummaryCard
                         title="Released"
@@ -241,6 +253,11 @@ const tones = {
         icon: 'bg-amber-100 text-amber-700',
         value: 'text-amber-700',
     },
+    blue: {
+        card: 'border-blue-200 bg-blue-50/60',
+        icon: 'bg-blue-100 text-blue-700',
+        value: 'text-blue-700',
+    },
     green: {
         card: 'border-emerald-200 bg-emerald-50/60',
         icon: 'bg-emerald-100 text-emerald-700',
@@ -365,6 +382,12 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
                 description:
                     'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office. First to pay, first served.',
             };
+        case 'paid':
+            return {
+                label: 'Paid · Ready for pickup',
+                description:
+                    'Your payment has been received and your items are reserved. Present your issuance slip at the PROWARE office to claim them.',
+            };
         case 'picked_up':
             return {
                 label: 'Released',
@@ -397,7 +420,7 @@ function OrderCard({ order }: { order: MyOrder }) {
         (total, item) => total + item.quantity * item.pieces_per_unit,
         0,
     );
-    const open = order.status === 'placed';
+    const open = order.status === 'placed' || order.status === 'paid';
 
     return (
         <article className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md">
@@ -478,7 +501,7 @@ function OrderCard({ order }: { order: MyOrder }) {
 
             <div className="mt-5 flex items-end justify-between gap-4 border-t border-slate-100 pt-5">
                 <p className="text-xs text-slate-400">
-                    {order.status === 'picked_up'
+                    {order.status === 'picked_up' || order.status === 'paid'
                         ? 'Total paid at the cashier'
                         : order.status === 'cancelled'
                           ? 'Order total'

@@ -183,7 +183,7 @@ export type StudentOrder = {
     /** What the slip's QR holds. */
     slip_code: string | null;
     /** Waiting for payment, released, or cancelled. Orders hold no stock: whoever pays first gets it. */
-    status: 'placed' | 'picked_up' | 'cancelled';
+    status: 'placed' | 'paid' | 'picked_up' | 'cancelled';
     status_label: string;
     student_name: string;
     /** The student's 11-digit Student ID, or an STI staff buyer's Employee ID (null for older accounts). */
@@ -208,6 +208,8 @@ export type StudentOrder = {
         line_total_centavos: number;
     }[];
     placed_at: string | null;
+    /** When the cashier marked it Paid (null: not paid yet). */
+    paid_at?: string | null;
     /** Only on orders from before orders stopped holding stock. */
     pick_up_by: string | null;
     picked_up_at: string | null;
@@ -286,7 +288,7 @@ export type StudentPreorder = {
     /** The order the held pieces went into. */
     order_id: number | null;
     order_number: string | null;
-    order_status: 'placed' | 'picked_up' | 'cancelled' | null;
+    order_status: 'placed' | 'paid' | 'picked_up' | 'cancelled' | null;
     hold_ended_at: string | null;
     /** The payment dates (null until the Specialist sets them). */
     pay_from?: string | null;
@@ -324,6 +326,7 @@ export type StudentNotificationData =
           total_centavos: number;
           pick_up_by: string | null;
       }
+    | { kind: 'order_paid'; order_id: number; order_number: string; items: string; total_centavos: number; short?: string | null }
     | { kind: 'order_released'; order_id: number; order_number: string; items: string; short?: string | null }
     | {
           kind: 'order_last_day';
@@ -551,11 +554,13 @@ export type StockCardsData = {
     };
 };
 
-export type OrderCardKey = 'waiting' | 'released_today';
+export type OrderCardKey = 'waiting' | 'paid' | 'released_today';
 
 /** A student's order on the Specialist's list. */
 export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {
     handled_by: string | null;
+    /** The cashier who took the payment. */
+    paid_to?: string | null;
 };
 
 /** A scanned slip (or typed order number): the order, its slip, and the student's other open orders. */
@@ -566,8 +571,9 @@ export type SlipLookup = {
 };
 
 export type SpecialistOrderCounts = {
+    paid: number;
     placed: number;
-    ready: number;
+    ready?: number;
     picked_up: number;
     cancelled: number;
 };
@@ -695,4 +701,24 @@ export type WishlistRow = {
     status_tone: 'green' | 'amber' | 'red' | 'blue' | 'slate';
     added_on: string | null;
     product: StorefrontTileProduct;
+};
+/** A slip the cashier scanned or typed (the website's CashierDesk::lookup). */
+export type CashierLookup = {
+    kind: 'order' | 'preorder';
+    /** The order, for an issuance slip. */
+    order?: SpecialistOrder;
+    /** The issuance slip (order) or the preorder slip. */
+    slip: Omit<IssuanceSlipData, 'status'> & { slip_id?: number; status: string; product_name?: string };
+    can_mark_paid: boolean;
+    refusal: string | null;
+    /** What to collect now: only what is still left. */
+    to_collect_centavos: number | null;
+    /** What is no longer left, so not charged. */
+    short: string[];
+};
+
+/** What this cashier collected today. */
+export type CashierPaidToday = {
+    rows: { kind: 'order' | 'preorder'; number: string | null; buyer: string; amount_centavos: number; paid_at: string | null }[];
+    total_centavos: number;
 };

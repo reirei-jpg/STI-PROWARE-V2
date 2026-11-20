@@ -50,7 +50,7 @@ class OrderReleased extends Notification implements PushesToPhones
     {
         return [
             'title' => "Released to you: {$this->order->itemsText(handedOver: true)}",
-            'body' => $this->short === [] ? 'Thank you for your order.' : 'Sold out before you paid, so you were not charged for: '.implode(', ', $this->short).'.',
+            'body' => $this->short === [] ? 'Thank you for your order.' : 'Not charged (sold out before your payment): '.implode(', ', $this->short).'.',
             'data' => ['kind' => 'order_released', 'order_id' => $this->order->id],
         ];
     }

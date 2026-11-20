@@ -161,11 +161,14 @@ function HeadingCell({
 }
 
 /**
- * CANCELLED in red, or RELEASED (or PAID, on a preorder slip) in green across
- * the slip, so a used or cancelled slip is not taken for an open one.
+ * CANCELLED in red, or RELEASED or PAID (paid at the cashier, waiting for
+ * release) in green across the slip, so a used or cancelled slip is not
+ * taken for an open one.
  */
 function SlipStamp({ status, paid }: { status: IssuanceSlipData['status']; paid: boolean }) {
-    if (status !== 'cancelled' && status !== 'picked_up' && !paid) {
+    const isPaid = paid || status === 'paid';
+
+    if (status !== 'cancelled' && status !== 'picked_up' && !isPaid) {
         return null;
     }
 
@@ -185,7 +188,7 @@ function SlipStamp({ status, paid }: { status: IssuanceSlipData['status']; paid:
                 <Text
                     className={`font-sans-bold text-4xl tracking-[4px] ${cancelled ? 'text-red-600' : 'text-emerald-600'}`}
                 >
-                    {cancelled ? 'CANCELLED' : paid ? 'PAID' : 'RELEASED'}
+                    {cancelled ? 'CANCELLED' : status === 'picked_up' ? 'RELEASED' : 'PAID'}
                 </Text>
             </View>
         </View>

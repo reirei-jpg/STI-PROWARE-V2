@@ -90,7 +90,7 @@ export default function SlipCheckScreen() {
 
     // Up to date by itself while the order is open: once it is released,
     // cancelled or expires elsewhere, Release and Cancel go away.
-    useLiveReload(load, result?.order.status === 'placed' && !busy);
+    useLiveReload(load, (result?.order.status === 'placed' || result?.order.status === 'paid') && !busy);
 
     const run = async (path: string, body?: Record<string, unknown>): Promise<boolean> => {
         if (!result) {
@@ -130,7 +130,8 @@ export default function SlipCheckScreen() {
     };
 
     const order = result?.order;
-    const isOpen = order?.status === 'placed';
+    // Release only once the cashier marked it paid (panel revision, 20 Nov 2026).
+    const isOpen = order?.status === 'paid';
 
     return (
         <ScrollView
@@ -229,14 +230,8 @@ export default function SlipCheckScreen() {
                         <OrderStatusPill order={order} />
                     </View>
 
-                    {(isOpen || result.other_open_orders.length > 0) && (
+                    {result.other_open_orders.length > 0 && (
                         <View className="gap-2">
-                            {isOpen && (
-                                <Check tone="amber">
-                                    First to pay, first served.
-                                    Items already sold are released short.
-                                </Check>
-                            )}
                             {result.other_open_orders.length > 0 && (
                                 <>
                                     <Check tone="amber">
@@ -269,7 +264,7 @@ export default function SlipCheckScreen() {
                         <ReleaseBox
                             order={order}
                             busy={busy}
-                            onRelease={() => void run('release', { paid: true })}
+                            onRelease={() => void run('release')}
                         />
                     )}
 
@@ -300,26 +295,33 @@ function initials(name: string): string {
  * over twice) or the order was cancelled or expired.
  */
 function ReleaseVerdict({ order }: { order: SpecialistOrder }) {
-    const ok = order.status === 'placed';
+    const ok = order.status === 'paid';
+    const waiting = order.status === 'placed';
     const title = ok
-        ? 'OK to release'
-        : order.status === 'picked_up'
+        ? 'Ready for release'
+        : waiting
+          ? 'Awaiting payment'
+          : order.status === 'picked_up'
           ? 'Do not release: already released'
           : order.expired
             ? 'Do not release: expired'
             : 'Do not release: cancelled';
     const text =
-        order.status === 'placed'
-            ? 'Not released yet. Check the cashier receipt, then release what is in stock.'
-            : order.status === 'picked_up'
+        ok
+            ? `Paid at the cashier on ${formatDateTime(order.paid_at ?? null)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand over the items, then tap Release.`
+            : waiting
+              ? 'Direct the buyer to the cashier. The items can be released once the payment is recorded.'
+              : order.status === 'picked_up'
               ? `Released ${formatDateTime(order.picked_up_at)}${order.handled_by ? ` by ${order.handled_by}` : ''}. Do not hand the items over again.`
               : `${order.expired ? `Not released by ${order.pick_up_by ? formatDate(order.pick_up_by) : 'its pick-up date'}.` : `Cancelled ${formatDateTime(order.cancelled_at)}.`} This slip can no longer be used.${!order.expired && order.cancel_reason ? ` ${order.cancel_reason}` : ''}`;
 
     return (
-        <View className={`flex-row items-center gap-4 rounded-3xl p-5 ${ok ? 'bg-emerald-600' : 'bg-red-600'}`}>
+        <View className={`flex-row items-center gap-4 rounded-3xl p-5 ${ok ? 'bg-emerald-600' : waiting ? 'bg-amber-500' : 'bg-red-600'}`}>
             <View className="h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
                 {ok ? (
                     <CircleCheck size={30} color="#ffffff" />
+                ) : waiting ? (
+                    <TriangleAlert size={30} color="#ffffff" />
                 ) : order.status === 'picked_up' ? (
                     <ShieldAlert size={30} color="#ffffff" />
                 ) : (
@@ -362,10 +364,9 @@ function Check({ tone, children }: { tone: 'green' | 'amber'; children: ReactNod
 }
 
 /**
- * A scanned preorder slip: what to collect at the cashier, then Mark as
- * paid (asked first: a payment is final, the preorder can no longer be
- * changed or cancelled, and there is no refund). Once paid the slip says
- * PAID.
+ * A scanned preorder slip: not paid yet (the buyer pays at the cashier,
+ * who marks it paid; panel revision, 20 Nov 2026), or paid, with Release
+ * for its pieces that arrived. Once paid the slip says PAID.
  */
 function PreorderPayment({
     lookup,
@@ -383,21 +384,6 @@ function PreorderPayment({
     const [busy, setBusy] = useState(false);
     const [done, setDone] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    const markPaid = async (): Promise<void> => {
-        setBusy(true);
-        setError(null);
-
-        try {
-            const answer = await request<{ message: string }>(`/specialist/preorder-slips/${slip.slip_id}/paid`, { method: 'POST' });
-            setDone(answer.message);
-        } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'It could not be marked as paid. Try again.');
-        } finally {
-            await onChanged();
-            setBusy(false);
-        }
-    };
 
     const readyPieces = lookup.ready.reduce((sum, line) => sum + line.pieces, 0);
 
@@ -423,17 +409,6 @@ function PreorderPayment({
             [
                 { text: 'Not yet', style: 'cancel' },
                 { text: 'Release', onPress: () => void release() },
-            ],
-        );
-    };
-
-    const confirm = (): void => {
-        Alert.alert(
-            `Mark ${slip.number} as paid?`,
-            `${slip.student_name} paid ${formatPeso(slip.total_centavos)} for ${slip.product_name}. The slip will say PAID, and the preorder can no longer be changed or cancelled. This cannot be undone.`,
-            [
-                { text: 'Not yet', style: 'cancel' },
-                { text: 'Mark as paid', onPress: () => void markPaid() },
             ],
         );
     };
@@ -469,23 +444,23 @@ function PreorderPayment({
                     <View className="flex-1">
                         <Text className="font-sans-bold text-lg text-white">
                             {paid && lookup.can_release
-                                ? `Preorder ${slip.number}: ready to release`
+                                ? `Preorder ${slip.number}: ready for release`
                                 : released
                                 ? `Preorder ${slip.number} is released`
                                 : paid
                                 ? `Preorder ${slip.number} is paid`
                                 : lookup.can_mark_paid
-                                  ? `Preorder ${slip.number}: waiting for payment`
+                                  ? `Preorder ${slip.number}: awaiting payment`
                                   : `Preorder ${slip.number} cannot be paid`}
                         </Text>
                         <Text className="font-sans text-sm leading-5 text-white">
                             {paid
                                 ? lookup.can_release
-                                    ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name}, already paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then release.`
+                                    ? `${formatUnits(readyPieces, 'Piece')} arrived for ${slip.student_name} and ${readyPieces === 1 ? 'has' : 'have'} been paid. Hand ${readyPieces === 1 ? 'it' : 'them'} over, then tap Release.`
                                     : lookup.release_refusal
                                 : !lookup.can_mark_paid
                                 ? lookup.refusal
-                                : `${slip.student_name} pays ${formatPeso(slip.total_centavos)} for ${slip.product_name}. Check the cashier receipt, then mark it paid.`}
+                                : `${slip.student_name} must pay ${formatPeso(slip.total_centavos)} for ${slip.product_name} at the cashier. The cashier records the payment.`}
                         </Text>
                     </View>
                 </View>
@@ -506,20 +481,6 @@ function PreorderPayment({
                 >
                     {busy && <ActivityIndicator size="small" color="#ffffff" />}
                     <Text className="font-sans-bold text-base text-white">Release {formatUnits(readyPieces, 'Piece')}</Text>
-                </Pressable>
-            )}
-
-            {lookup.can_mark_paid && !done && (
-                <Pressable
-                    onPress={confirm}
-                    disabled={busy}
-                    accessibilityRole="button"
-                    className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4 ${busy ? 'opacity-60' : ''}`}
-                >
-                    {busy && <ActivityIndicator size="small" color="#ffffff" />}
-                    <Text className="font-sans-bold text-base text-white">
-                        Mark as paid · {formatPeso(slip.total_centavos)}
-                    </Text>
                 </Pressable>
             )}
 

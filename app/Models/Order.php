@@ -15,10 +15,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
- * A buyer's order, numbered PW-0001, PW-0002… It does not hold stock: its
- * items stay for sale until the Specialist checks the cashier's receipt and
- * the issuance slip and releases it, so whoever pays first gets them (only
- * a paid preorder's pieces are its own, see holdsItems).
+ * A buyer's order, numbered PW-0001, PW-0002… Until it is paid it holds no
+ * stock: its items stay for sale, so whoever pays first gets them. When the
+ * cashier marks it Paid, what is left of its items is set aside for the
+ * buyer (held pieces) until the Specialist releases it (panel revision,
+ * 20 Nov 2026). A paid preorder's order holds its pieces from the start.
  *
  * @property int $id
  * @property string|null $number
@@ -27,6 +28,8 @@ use Illuminate\Support\Str;
  * @property string|null $student_section the student's course/section when ordered, for the slip
  * @property OrderStatus $status
  * @property int $total_centavos
+ * @property Carbon|null $paid_at when the cashier marked it Paid
+ * @property int|null $paid_to the cashier who took the payment
  * @property Carbon|null $pick_up_by the old pick-up date (orders placed before orders stopped holding stock)
  * @property Carbon|null $ready_at when it was marked ready (before that step was removed)
  * @property Carbon|null $picked_up_at when it was released
@@ -63,6 +66,7 @@ class Order extends Model
         return [
             'status' => OrderStatus::class,
             'total_centavos' => 'integer',
+            'paid_at' => 'datetime',
             'pick_up_by' => 'datetime',
             'ready_at' => 'datetime',
             'picked_up_at' => 'datetime',
@@ -81,14 +85,22 @@ class Order extends Model
     }
 
     /**
-     * Orders not released or cancelled yet: their items are held.
+     * Orders not released or cancelled yet (waiting for payment, or paid).
      *
      * @param  Builder<self>  $query
      */
     #[Scope]
     protected function open(Builder $query): void
     {
-        $query->where('status', OrderStatus::Placed);
+        $query->whereIn('status', [OrderStatus::Placed, OrderStatus::Paid]);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function cashier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paid_to');
     }
 
     /**

@@ -111,15 +111,17 @@ final class PreorderPayment
         $slip->loadMissing(['product', 'payer']);
 
         if ($slip->isPaid()) {
-            return "Preorder slip {$slip->number} was already paid on {$slip->paid_at?->format('M j, Y g:i A')}".($slip->payer ? " (marked by {$slip->payer->name})" : '').'.';
+            $paidOn = $slip->paid_at?->format('M j, Y, g:i A');
+
+            return "Preorder slip {$slip->number} has already been paid (recorded ".($slip->payer ? "by {$slip->payer->name} " : '')."on {$paidOn}).";
         }
 
         if (! $slip->preorders()->where('status', PreorderStatus::Active)->exists() && $slip->preorders()->where('status', PreorderStatus::Arrived)->exists()) {
-            return "{$slip->product->name} is back in stock, so preorder slip {$slip->number} is closed. The buyer can buy it in the store.";
+            return "{$slip->product->name} is back in stock, so preorder slip {$slip->number} is closed. The buyer may purchase it from the store.";
         }
 
         if (! $slip->preorders()->where('status', PreorderStatus::Active)->exists()) {
-            return "Preorder slip {$slip->number} has no preorder waiting any more (cancelled or closed), so there is nothing to pay.";
+            return "Preorder slip {$slip->number} has no open preorders (cancelled or closed), so no payment is due.";
         }
 
         return null;
@@ -149,7 +151,7 @@ final class PreorderPayment
 
             $slip->setRawAttributes($locked->getAttributes(), true);
 
-            return "Preorder slip {$locked->number} has been marked as paid: ₱".number_format((int) $locked->paid_centavos / 100, 2)." from {$locked->student->name}.";
+            return "Preorder slip {$locked->number}: payment of ₱".number_format((int) $locked->paid_centavos / 100, 2)." from {$locked->student->name} has been recorded.";
         });
 
         $slip->loadMissing(['student', 'product']);

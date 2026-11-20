@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import {
     ArrowRight,
+    Banknote,
     Bell,
     Boxes,
     CalendarClock,
@@ -34,9 +35,10 @@ import type { OrderCardKey, SpecialistTask, SpecialistTasks } from '@/lib/types'
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** The website dashboard's two order cards, in its V1 colors. */
+/** The website dashboard's order cards, in its V1 colors. */
 const orderCards: { key: OrderCardKey; label: string; detail: string; icon: LucideIcon; box: string; color: string }[] = [
     { key: 'waiting', label: 'Waiting for payment', detail: 'to pay at the cashier', icon: ShoppingBag, box: 'bg-amber-50', color: '#b45309' },
+    { key: 'paid', label: 'Ready for release', detail: 'paid at the cashier', icon: Banknote, box: 'bg-blue-50', color: '#1d4ed8' },
     { key: 'released_today', label: 'Released today', detail: 'paid and handed over', icon: CircleCheck, box: 'bg-emerald-50', color: '#047857' },
 ];
 

@@ -11,13 +11,13 @@ use Illuminate\Validation\Rule;
 
 /**
  * The Specialist's list of students' orders (website Orders page and phone
- * app): by status, Waiting for payment by default, with a search by order
- * number or buyer name. Orders waiting for payment come oldest first; others
- * newest first.
+ * app): by status, Paid (to release) by default, with a search by order
+ * number or buyer name. Paid orders come the earliest paid first, orders
+ * waiting for payment oldest first; others newest first.
  */
 final class SpecialistOrders
 {
-    public const SHOW = ['placed', 'picked_up', 'cancelled', 'all'];
+    public const SHOW = ['paid', 'placed', 'picked_up', 'cancelled', 'all'];
 
     /**
      * @return array{show: string, search: string|null}
@@ -31,7 +31,8 @@ final class SpecialistOrders
         $search = trim((string) ($validated['search'] ?? ''));
 
         return [
-            'show' => $validated['show'] ?? 'placed',
+            // Paid orders, to release, are the Specialist's work.
+            'show' => $validated['show'] ?? 'paid',
             'search' => $search === '' ? null : $search,
         ];
     }
@@ -42,12 +43,14 @@ final class SpecialistOrders
     public static function page(string $show, ?string $search): LengthAwarePaginator
     {
         return Order::query()
-            ->with(['items', 'student', 'handler'])
+            ->with(['items', 'student', 'handler', 'cashier'])
             ->when($show !== 'all', fn (Builder $query) => $query->where('status', $show))
             ->when($search !== null, fn (Builder $query) => $query->where(fn (Builder $matches) => $matches
                 ->whereLike('number', "%{$search}%")
                 ->orWhereHas('student', fn (Builder $students) => $students->whereLike('name', "%{$search}%"))))
             ->when($show === 'placed', fn (Builder $query) => $query->orderBy('id'))
+            // Paid the earliest, first: they have waited the longest.
+            ->when($show === 'paid', fn (Builder $query) => $query->orderBy('paid_at')->orderBy('id'))
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -62,7 +65,7 @@ final class SpecialistOrders
      */
     public static function one(int $orderId): ?array
     {
-        $order = Order::query()->with(['items', 'student', 'handler'])->find($orderId);
+        $order = Order::query()->with(['items', 'student', 'handler', 'cashier'])->find($orderId);
 
         return $order === null ? null : self::row($order);
     }
@@ -79,6 +82,8 @@ final class SpecialistOrders
             ...OrderRow::of($order),
             'status_label' => $order->status->staffLabel(),
             'handled_by' => $order->handler?->name,
+            // The cashier who took the payment.
+            'paid_to' => $order->cashier?->name,
         ];
     }
 
@@ -91,17 +96,7 @@ final class SpecialistOrders
      */
     public static function bySlip(string $code): ?array
     {
-        $code = trim($code);
-
-        if ($code === '') {
-            return null;
-        }
-
-        $order = Order::query()
-            ->with(['items', 'student', 'handler'])
-            ->where('slip_code', $code)
-            ->orWhere('number', strtoupper($code))
-            ->first();
+        $order = self::findBySlip($code);
 
         if ($order === null) {
             return null;
@@ -121,27 +116,48 @@ final class SpecialistOrders
         ];
     }
 
+    /**
+     * The order of an issuance slip's QR code, or of a typed order number
+     * ("pw-0042" works too); null when there is none.
+     */
+    public static function findBySlip(string $code): ?Order
+    {
+        $code = trim($code);
+
+        if ($code === '') {
+            return null;
+        }
+
+        return Order::query()
+            ->with(['items', 'student', 'handler', 'cashier'])
+            ->where('slip_code', $code)
+            ->orWhere('number', strtoupper($code))
+            ->first();
+    }
+
     /** Orders shown in a dashboard card's popup; the rest are on Student Orders. */
     public const SHOWN_ON_DASHBOARD = 8;
 
     /**
      * The order cards on the Specialist's dashboard, each with how many
      * orders it has and the first ones for its popup: orders waiting for
-     * payment (the oldest first) and orders released today.
+     * payment (the oldest first), orders paid and ready to release (the
+     * earliest paid first) and orders released today.
      *
-     * @return array<'waiting'|'released_today', array{count: int, orders: list<array<string, mixed>>}>
+     * @return array<'waiting'|'paid'|'released_today', array{count: int, orders: list<array<string, mixed>>}>
      */
     public static function dashboardCards(): array
     {
         $groups = [
-            'waiting' => fn () => Order::query()->open()->orderBy('id'),
+            'waiting' => fn () => Order::query()->where('status', OrderStatus::Placed)->orderBy('id'),
+            'paid' => fn () => Order::query()->where('status', OrderStatus::Paid)->orderBy('paid_at')->orderBy('id'),
             'released_today' => fn () => Order::query()->where('status', OrderStatus::PickedUp)->whereDate('picked_up_at', now()->toDateString())->latest('picked_up_at')->latest('id'),
         ];
 
         return array_map(fn (callable $orders): array => [
             'count' => $orders()->count(),
             'orders' => array_values($orders()
-                ->with(['items', 'student', 'handler'])
+                ->with(['items', 'student', 'handler', 'cashier'])
                 ->limit(self::SHOWN_ON_DASHBOARD)
                 ->get()
                 ->map(self::row(...))
@@ -152,13 +168,14 @@ final class SpecialistOrders
     /**
      * How many orders there are of each status, for the tabs.
      *
-     * @return array{placed: int, picked_up: int, cancelled: int}
+     * @return array{paid: int, placed: int, picked_up: int, cancelled: int}
      */
     public static function counts(): array
     {
         $counts = Order::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
         return [
+            'paid' => (int) ($counts[OrderStatus::Paid->value] ?? 0),
             'placed' => (int) ($counts[OrderStatus::Placed->value] ?? 0),
             'picked_up' => (int) ($counts[OrderStatus::PickedUp->value] ?? 0),
             'cancelled' => (int) ($counts[OrderStatus::Cancelled->value] ?? 0),

@@ -19,6 +19,13 @@ enum UserRole: string
     case Student = 'student';
     case Employee = 'employee';
 
+    /**
+     * The school's cashier (panel revision, 20 Nov 2026): scans a buyer's
+     * issuance slip or preorder slip and marks it Paid when the buyer pays.
+     * The Specialist then only releases the items.
+     */
+    case Cashier = 'cashier';
+
     public function label(): string
     {
         return match ($this) {
@@ -26,6 +33,7 @@ enum UserRole: string
             self::SchoolAdmin => 'School Admin',
             self::Student => 'Student',
             self::Employee => 'STI Staff',
+            self::Cashier => 'Cashier',
         };
     }
 

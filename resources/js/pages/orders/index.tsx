@@ -14,9 +14,10 @@ import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
 import type { Paginated, SpecialistOrderRow as SpecialistOrder } from '@/types';
 
-type Show = 'placed' | 'picked_up' | 'cancelled' | 'all';
+type Show = 'paid' | 'placed' | 'picked_up' | 'cancelled' | 'all';
 
 const chips: { value: Show; label: string }[] = [
+    { value: 'paid', label: 'Paid · Ready for release' },
     { value: 'placed', label: 'Waiting for payment' },
     { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
@@ -24,7 +25,8 @@ const chips: { value: Show; label: string }[] = [
 ];
 
 const descriptions: Record<Show, string> = {
-    placed: 'Waiting for the buyer to pay at the cashier and show the receipt and slip. First to pay, first served. Oldest first.',
+    paid: 'Paid at the cashier; the items are reserved. Hand them over, then release them. Earliest payment first.',
+    placed: 'Awaiting payment at the cashier. First to pay, first served. Oldest first.',
     picked_up: 'Paid and handed over. Newest first.',
     cancelled: 'Cancelled by the buyer. Newest first.',
     all: 'Every order, newest first.',
@@ -89,7 +91,7 @@ export default function OrdersIndex({
         router.get(
             OrderController.index().url,
             {
-                ...(show === 'placed' ? {} : { show }),
+                ...(show === 'paid' ? {} : { show }),
                 ...(term.trim() === '' ? {} : { search: term.trim() }),
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -256,7 +258,10 @@ export default function OrdersIndex({
                                                       : filters.show ===
                                                           'placed'
                                                         ? 'Waiting'
-                                                        : 'Date'}
+                                                        : filters.show ===
+                                                            'paid'
+                                                          ? 'Paid'
+                                                          : 'Date'}
                                             </TableHeading>
                                             <TableHeading>Status</TableHeading>
                                             <TableHeading align="right">
@@ -380,6 +385,18 @@ function OrderDate({ order }: { order: SpecialistOrder }) {
                 {days === 0
                     ? 'Today'
                     : `${days} ${days === 1 ? 'day' : 'days'}`}
+            </p>
+        );
+    }
+    if (order.status === 'paid') {
+        return (
+            <p className="text-sm whitespace-nowrap text-blue-700">
+                {formatDateOrdered(order.paid_at)}
+                {order.paid_to && (
+                    <span className="block text-xs text-slate-500">
+                        {order.paid_to}
+                    </span>
+                )}
             </p>
         );
     }

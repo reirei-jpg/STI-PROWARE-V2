@@ -26,6 +26,7 @@ function RootNavigator() {
     // Students and STI staff (teachers and employees) buy.
     const isStudent = user?.role === 'student' || user?.role === 'employee';
     const isSpecialist = user?.role === 'specialist';
+    const isCashier = user?.role === 'cashier';
 
     // A sign-in that expired opens the sign-in screen, which says why. It
     // waits until signing out has moved the app back to the store, which
@@ -51,7 +52,7 @@ function RootNavigator() {
                 contentStyle: { backgroundColor: '#F3F7FA' },
             }}
         >
-            <Stack.Protected guard={!isSpecialist}>
+            <Stack.Protected guard={!isSpecialist && !isCashier}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="product/[id]" />
             </Stack.Protected>
@@ -66,10 +67,19 @@ function RootNavigator() {
             <Stack.Protected guard={isSpecialist}>
                 <Stack.Screen name="(staff)" />
                 <Stack.Screen name="staff-order/[id]" />
-                <Stack.Screen name="scan-slip" />
                 <Stack.Screen name="slip-check" />
                 <Stack.Screen name="stock/[id]" />
                 <Stack.Screen name="record-delivery" />
+            </Stack.Protected>
+
+            {/* The cashier: Payments, and a scanned slip (panel revision, 20 Nov 2026). */}
+            <Stack.Protected guard={isCashier}>
+                <Stack.Screen name="cashier" />
+                <Stack.Screen name="cashier-slip" />
+            </Stack.Protected>
+
+            <Stack.Protected guard={isSpecialist || isCashier}>
+                <Stack.Screen name="scan-slip" />
             </Stack.Protected>
 
             <Stack.Protected guard={isSignedIn}>

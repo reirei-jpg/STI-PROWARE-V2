@@ -9,9 +9,11 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Notifications\OrderPaid;
 use App\Notifications\OrderReleased;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
@@ -58,7 +60,7 @@ test('an order does not hold stock, so another buyer can still order the same pi
         ->and(Order::sole()->pick_up_by)->toBeNull();
 });
 
-test('whoever pays first gets the stock, and a buyer who comes later gets what is left', function () {
+test('whoever pays first at the cashier gets the stock, and a buyer who pays later gets what is left', function () {
     $variant = lanyard(stock: 3);
     $juan = User::factory()->student()->create(['name' => 'Juan Dela Cruz']);
     $bea = User::factory()->student()->create(['name' => 'Bea Villareal']);
@@ -66,22 +68,26 @@ test('whoever pays first gets the stock, and a buyer who comes later gets what i
     orderLanyards($bea, $variant, 2)->assertSessionHasNoErrors();
     [$juansOrder, $beasOrder] = Order::query()->orderBy('id')->get()->all();
 
-    // Bea pays first: she gets both.
-    $this->actingAs($this->specialist)
-        ->post(route('orders.release', $beasOrder), ['paid' => true])
-        ->assertInertiaFlash('toast.message', "Order {$beasOrder->number} has been released to Bea Villareal. Paid at the cashier: ₱160.00.");
+    // Bea pays first: both are set aside for her.
+    expect(payAtCashier($beasOrder))->toBe("Order {$beasOrder->number}: payment of ₱160.00 from Bea Villareal has been recorded. The items are reserved for pickup at the PROWARE office.")
+        ->and($variant->refresh())->stock_on_hand->toBe(3)->held_pieces->toBe(2);
 
-    // Juan comes later: only 1 is left, so he gets 1 and the other is short.
-    $this->post(route('orders.release', $juansOrder), ['paid' => true])
-        ->assertInertiaFlash('toast.message', "Order {$juansOrder->number} has been released to Juan Dela Cruz. Paid at the cashier: ₱80.00. Short (already sold to buyers who paid first): 1 pc of STI Lanyard.");
+    // Juan pays later: only 1 is left, so he pays for 1 and the other is short.
+    expect(payAtCashier($juansOrder))->toBe("Order {$juansOrder->number}: payment of ₱80.00 from Juan Dela Cruz has been recorded. The items are reserved for pickup at the PROWARE office. Not charged (sold out before payment): 1 pc of STI Lanyard.");
+
+    $this->actingAs($this->specialist)
+        ->post(route('orders.release', $beasOrder))
+        ->assertInertiaFlash('toast.message', "Order {$beasOrder->number} has been released to Bea Villareal. Paid at the cashier: ₱160.00.");
+    $this->post(route('orders.release', $juansOrder))
+        ->assertInertiaFlash('toast.message', "Order {$juansOrder->number} has been released to Juan Dela Cruz. Paid at the cashier: ₱80.00.");
 
     expect($juansOrder->refresh())->status->toBe(OrderStatus::PickedUp)->total_centavos->toBe(8000)
         ->and($juansOrder->items->sole())->quantity->toBe(2)->quantity_short->toBe(1)->line_total_centavos->toBe(8000)
-        ->and($variant->refresh()->stock_on_hand)->toBe(0)
+        ->and($variant->refresh())->stock_on_hand->toBe(0)->held_pieces->toBe(0)
         ->and(StockMovement::query()->where('order_item_id', $juansOrder->items->sole()->id)->sole())->quantity->toBe(-1)->balance_after->toBe(0);
 });
 
-test('the release notice names what the buyer got and what was sold out before they paid', function () {
+test('the paid and release notices name what the buyer got and what was sold out before they paid', function () {
     Notification::fake();
     $lanyard = lanyard(stock: 1);
     $cap = lanyard(stock: 1);
@@ -92,32 +98,38 @@ test('the release notice names what the buyer got and what was sold out before t
     $juansOrder = Order::sole();
     // Bea pays first for the only cap.
     orderLanyards(User::factory()->student()->create(['name' => 'Bea Villareal']), $cap, 1);
-    $this->actingAs($this->specialist)->post(route('orders.release', Order::query()->latest('id')->first()), ['paid' => true]);
+    payAtCashier(Order::query()->latest('id')->first());
 
-    $this->post(route('orders.release', $juansOrder), ['paid' => true])->assertSessionHasNoErrors();
+    payAtCashier($juansOrder);
+    $this->actingAs($this->specialist)->post(route('orders.release', $juansOrder))->assertSessionHasNoErrors();
 
+    Notification::assertSentTo($juan, OrderPaid::class, function (OrderPaid $notice) use ($juan): bool {
+        expect($notice->toArray($juan))->items->toBe('STI Lanyard')->total_centavos->toBe(8000)->short->toBe('1 pc of STI Cap')
+            ->and($notice->toPush($juan))->title->toBe('Payment received: STI Lanyard')
+            ->body->toBe('₱80.00 has been received. Present your issuance slip at the PROWARE office to claim your items. Not charged (sold out before your payment): 1 pc of STI Cap.');
+
+        return true;
+    });
     Notification::assertSentTo($juan, OrderReleased::class, function (OrderReleased $notice) use ($juan): bool {
         expect($notice->toArray($juan))->items->toBe('STI Lanyard')->short->toBe('1 pc of STI Cap')
             ->and($notice->toPush($juan))->title->toBe('Released to you: STI Lanyard')
-            ->body->toBe('Sold out before you paid, so you were not charged for: 1 pc of STI Cap.');
+            ->body->toBe('Not charged (sold out before your payment): 1 pc of STI Cap.');
 
         return true;
     });
 });
 
-test('an order with nothing left in stock cannot be released', function () {
+test('an order with nothing left in stock cannot be paid', function () {
     $variant = lanyard(stock: 1);
     orderLanyards(User::factory()->student()->create(), $variant, 1);
     orderLanyards(User::factory()->student()->create(), $variant, 1);
     [$first, $second] = Order::query()->orderBy('id')->get()->all();
 
-    $this->actingAs($this->specialist)->post(route('orders.release', $second), ['paid' => true]);
-    $this->post(route('orders.release', $first), ['paid' => true])
-        ->assertInertiaFlash('toast.message', "Nothing of order {$first->number} is left in stock, so it cannot be released. Wait for a restock, or the buyer can cancel it.");
+    payAtCashier($second);
 
-    expect($first->refresh()->status)->toBe(OrderStatus::Placed);
+    expect(fn () => payAtCashier($first))->toThrow(ValidationException::class, "None of the items in order {$first->number} are in stock, so the payment cannot be accepted. The buyer may cancel the order and place it again once the items are restocked.")
+        ->and($first->refresh()->status)->toBe(OrderStatus::Placed);
 });
-
 test('a buyer can have several orders waiting at once', function () {
     $variant = lanyard(stock: 10);
     $student = User::factory()->student()->create();

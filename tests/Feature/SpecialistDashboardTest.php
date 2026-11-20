@@ -28,7 +28,7 @@ test('an empty to-do list is all clear, with empty order cards', function () {
             ->where('tasks.today', [])
             ->where('tasks.week', [])
             ->missing('tasks.cash')
-            ->where('orderCards', ['waiting' => ['count' => 0, 'orders' => []], 'released_today' => ['count' => 0, 'orders' => []]])
+            ->where('orderCards', ['waiting' => ['count' => 0, 'orders' => []], 'paid' => ['count' => 0, 'orders' => []], 'released_today' => ['count' => 0, 'orders' => []]])
         );
 });
 

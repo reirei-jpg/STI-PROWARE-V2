@@ -1,8 +1,9 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { Camera, FileText, QrCode, Search } from 'lucide-react';
 import { useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import CameraScanDialog from '@/components/camera-scan-dialog';
+import InputError from '@/components/input-error';
 import { cn } from '@/lib/utils';
 
 /**
@@ -15,16 +16,27 @@ import { cn } from '@/lib/utils';
 export default function SlipScanBox({
     initialCode = '',
     className,
+    openUrl = OrderController.slip().url,
+    placeholder = 'Type the order number, e.g. PW-0042',
+    title = 'Scan an issuance slip',
+    description = "Use Scan with camera to read the QR on the buyer's slip (on their phone or paper), or type the order number.",
 }: {
     initialCode?: string;
     className?: string;
+    /** The page that opens the slip (?code=): the Specialist's, or the cashier's. */
+    openUrl?: string;
+    placeholder?: string;
+    title?: string;
+    description?: string;
 }) {
     const [code, setCode] = useState(initialCode);
     const [scanning, setScanning] = useState(false);
+    // The server's reason when it refuses the code (e.g. a scanned QR that is too long).
+    const refusal = usePage().props.errors?.code;
 
     const open = (value: string) => {
         if (value.trim() !== '') {
-            router.get(OrderController.slip().url, { code: value.trim() });
+            router.get(openUrl, { code: value.trim() });
         }
     };
 
@@ -37,12 +49,9 @@ export default function SlipScanBox({
         >
             <h2 className="flex items-center gap-2 font-black text-slate-900">
                 <QrCode size={20} className="text-blue-600" />
-                Scan an issuance slip
+                {title}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-                Use Scan with camera to read the QR on the buyer's slip (on
-                their phone or paper), or type the order number.
-            </p>
+            <p className="mt-1 text-sm text-slate-500">{description}</p>
             <form
                 className="mt-3 flex flex-col gap-2 sm:flex-row"
                 onSubmit={(event) => {
@@ -58,7 +67,7 @@ export default function SlipScanBox({
                         // Ready for the scanner without a click.
                         autoFocus
                         maxLength={120}
-                        placeholder="Type the order number, e.g. PW-0042"
+                        placeholder={placeholder}
                         className="w-full min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400"
                         aria-label="Slip code or order number"
                     />
@@ -80,6 +89,7 @@ export default function SlipScanBox({
                     Scan with camera
                 </button>
             </form>
+            <InputError message={refusal} className="mt-2 font-semibold" />
 
             <CameraScanDialog
                 open={scanning}
