@@ -10,7 +10,8 @@ import { useEffect, useState } from 'react';
 import StorefrontController from '@/actions/App/Http/Controllers/StorefrontController';
 import { useAddToCart } from '@/components/add-to-cart-dialog';
 import { usePreorder } from '@/components/preorder-dialog';
-import { StockLeftList } from '@/components/stock-left';
+import OptionRow from '@/components/option-row';
+import { stockLeft } from '@/components/stock-left';
 import { PriceLines, saleEndsText } from '@/components/storefront-tile';
 import {
     Dialog,
@@ -20,9 +21,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
-import { choiceIsOpen } from '@/lib/option-picker';
+import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
+import type { Picked } from '@/lib/option-picker';
 import { cn } from '@/lib/utils';
 import type { StorefrontProductDetails, StorefrontTileProduct } from '@/types';
+
+const anyVariant = () => true;
+const isSoldOut = (variant: { availability: string }) =>
+    variant.availability === 'sold_out';
 
 /**
  * The view of one product, opened from its tile: all photos, the price per
@@ -87,6 +93,18 @@ export default function StorefrontProductDialog({
     const hasOptions =
         details !== null &&
         (details.variants.length > 1 || details.options.length > 0);
+    // The size or color clicked, to show how many of it are left.
+    const [picked, setPicked] = useState<Picked>({});
+    const pickedOne =
+        details === null
+            ? undefined
+            : pickedVariant(details.variants, details.options, picked);
+
+    useEffect(() => {
+        setPicked(
+            details === null ? {} : startingPicks(details.variants, anyVariant),
+        );
+    }, [details]);
 
     return (
         <Dialog
@@ -198,62 +216,67 @@ export default function StorefrontProductDialog({
                                         Loading...
                                     </p>
                                 ) : (
-                                    hasOptions && (
-                                        <div className="space-y-3">
-                                            {details.options.map((option) => (
-                                                <div key={option.name}>
-                                                    <p className="text-sm font-black text-slate-700">
-                                                        {option.name}
-                                                    </p>
-                                                    <div className="mt-1.5 flex flex-wrap gap-2">
-                                                        {option.choices.map(
-                                                            (choice) => {
-                                                                const inStock =
-                                                                    choiceIsOpen(
-                                                                        details.variants,
-                                                                        {},
-                                                                        option.name,
-                                                                        choice,
-                                                                        (
-                                                                            variant,
-                                                                        ) =>
-                                                                            variant.availability !==
-                                                                            'sold_out',
-                                                                    );
-
-                                                                return (
-                                                                    <span
-                                                                        key={
-                                                                            choice
-                                                                        }
-                                                                        className={cn(
-                                                                            'rounded-lg border px-3 py-1.5 text-sm font-semibold',
-                                                                            inStock
-                                                                                ? 'border-slate-200 bg-white text-slate-700'
-                                                                                : 'border-dashed border-slate-200 bg-slate-50 text-slate-400 line-through',
-                                                                        )}
-                                                                    >
-                                                                        {choice}
-                                                                    </span>
-                                                                );
-                                                            },
-                                                        )}
-                                                    </div>
-                                                </div>
+                                    <div className="space-y-3">
+                                        {hasOptions &&
+                                            details.options.map((option) => (
+                                                <OptionRow
+                                                    key={option.name}
+                                                    option={option}
+                                                    picked={picked}
+                                                    variants={details.variants}
+                                                    canPick={anyVariant}
+                                                    isOut={
+                                                        comingSoon
+                                                            ? undefined
+                                                            : isSoldOut
+                                                    }
+                                                    onPick={(choice) =>
+                                                        setPicked(
+                                                            pickChoice(
+                                                                details.variants,
+                                                                details.options,
+                                                                picked,
+                                                                option.name,
+                                                                choice,
+                                                                anyVariant,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
                                             ))}
+                                        {!comingSoon &&
+                                            (pickedOne ? (
+                                                <p
+                                                    data-test="view-stock-left"
+                                                    className={cn(
+                                                        'text-sm font-bold',
+                                                        stockLeft(pickedOne)
+                                                            .tone,
+                                                    )}
+                                                >
+                                                    {hasOptions &&
+                                                        `${pickedOne.label}: `}
+                                                    {stockLeft(pickedOne).text}
+                                                </p>
+                                            ) : (
+                                                <p className="text-sm text-slate-500">
+                                                    Click a{' '}
+                                                    {details.options
+                                                        .map((option) =>
+                                                            option.name.toLowerCase(),
+                                                        )
+                                                        .join(' and ')}{' '}
+                                                    to see how many are left.
+                                                </p>
+                                            ))}
+                                        {hasOptions && (
                                             <p className="text-xs text-slate-500">
                                                 {takesPreorders
                                                     ? 'Choose yours when you click Preorder.'
-                                                    : 'Choose yours when you click Add to Cart. Crossed out means none are left; you can preorder those there.'}
+                                                    : 'Crossed out means none are left; you can preorder those when you click Add to Cart.'}
                                             </p>
-                                        </div>
-                                    )
-                                )}
-
-                                {details && !comingSoon && (
-                                    <StockLeftList
-                                        variants={details.variants}
-                                    />
+                                        )}
+                                    </div>
                                 )}
 
                                 {comingSoon && shown.preorders_close_on && (

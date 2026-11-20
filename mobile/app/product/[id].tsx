@@ -23,14 +23,18 @@ import AddToCartSheet from '@/components/AddToCartSheet';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import PreorderSheet from '@/components/PreorderSheet';
+import OptionRow from '@/components/OptionRow';
 import PriceLines, { saleEndsText } from '@/components/PriceLines';
-import StockLeftList from '@/components/StockLeft';
 import { takesPreorders } from '@/components/ProductTile';
+import { stockLeft } from '@/components/StockLeft';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatPeso } from '@/lib/format';
-import { choiceIsOpen } from '@/lib/option-picker';
+import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
+
+const anyVariant = (): boolean => true;
+const isSoldOut = (variant: { availability: string }): boolean => variant.availability === 'sold_out';
 
 
 /**
@@ -95,6 +99,11 @@ export default function ProductScreen() {
                 : [];
     const hasOptions =
         product !== null && (product.variants.length > 1 || product.options.length > 0);
+    // The size or color tapped, to show how many of it are left (an option
+    // with one choice counts as tapped).
+    const [tapped, setTapped] = useState<Picked>({});
+    const picked: Picked = product === null ? {} : { ...startingPicks(product.variants, anyVariant), ...tapped };
+    const pickedOne = product === null ? undefined : pickedVariant(product.variants, product.options, picked);
 
     const onPhotoSwipe = (event: NativeSyntheticEvent<NativeScrollEvent>): void =>
         setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / width));
@@ -237,48 +246,51 @@ export default function ProductScreen() {
                                 </Text>
                             )}
 
-                            {hasOptions && (
-                                <View className="gap-3">
-                                    {product.options.map((option) => (
-                                        <View key={option.name} className="gap-1.5">
-                                            <Text className="font-sans-bold text-sm text-slate-700">
-                                                {option.name}
-                                            </Text>
-                                            <View className="flex-row flex-wrap gap-2">
-                                                {option.choices.map((choice) => {
-                                                    const inStock = choiceIsOpen(
+                            <View className="gap-3">
+                                {hasOptions &&
+                                    product.options.map((option) => (
+                                        <OptionRow
+                                            key={option.name}
+                                            option={option}
+                                            picked={picked}
+                                            variants={product.variants}
+                                            canPick={anyVariant}
+                                            isOut={comingSoon ? undefined : isSoldOut}
+                                            onPick={(choice) =>
+                                                setTapped(
+                                                    pickChoice(
                                                         product.variants,
-                                                        {},
+                                                        product.options,
+                                                        picked,
                                                         option.name,
                                                         choice,
-                                                        (variant) => variant.availability !== 'sold_out',
-                                                    );
-
-                                                    return (
-                                                        <View
-                                                            key={choice}
-                                                            className={`rounded-lg border px-3 py-1.5 ${inStock ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50'}`}
-                                                        >
-                                                            <Text
-                                                                className={`font-sans-semibold text-sm ${inStock ? 'text-slate-700' : 'text-slate-400 line-through'}`}
-                                                            >
-                                                                {choice}
-                                                            </Text>
-                                                        </View>
-                                                    );
-                                                })}
-                                            </View>
-                                        </View>
+                                                        anyVariant,
+                                                    ),
+                                                )
+                                            }
+                                        />
                                     ))}
+                                {!comingSoon &&
+                                    (pickedOne ? (
+                                        <Text className={`font-sans-bold text-sm ${stockLeft(pickedOne).tone}`}>
+                                            {hasOptions ? `${pickedOne.label}: ` : ''}
+                                            {stockLeft(pickedOne).text}
+                                        </Text>
+                                    ) : (
+                                        <Text className="font-sans text-sm text-slate-500">
+                                            Tap a{' '}
+                                            {product.options.map((option) => option.name.toLowerCase()).join(' and ')}{' '}
+                                            to see how many are left.
+                                        </Text>
+                                    ))}
+                                {hasOptions && (
                                     <Text className="font-sans text-xs text-slate-500">
                                         {preorderOnly
                                             ? 'Choose yours when you tap Preorder.'
-                                            : 'Choose yours when you tap Add to Cart. Crossed out means none are left; you can preorder those there.'}
+                                            : 'Crossed out means none are left; you can preorder those when you tap Add to Cart.'}
                                     </Text>
-                                </View>
-                            )}
-
-                            {!comingSoon && <StockLeftList variants={product.variants} />}
+                                )}
+                            </View>
                         </View>
                     </View>
                 )}
