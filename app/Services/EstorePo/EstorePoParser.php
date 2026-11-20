@@ -248,24 +248,24 @@ class EstorePoParser
         }
 
         if ($layout === null || $tableStart === null) {
-            throw new UnreadablePurchaseOrderException('PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.');
+            throw new UnreadablePurchaseOrderException($this->missingTableMessage($lines));
         }
 
         $warnings = [];
         $items = $this->readItems(array_slice($lines, $tableStart), $layout, $warnings);
 
         if ($items === []) {
-            $rowsSeen = array_filter($warnings, fn (array $warning): bool => $warning['row'] !== null) !== [];
+            $firstRowProblem = array_values(array_filter($warnings, fn (array $warning): bool => $warning['row'] !== null))[0] ?? null;
 
-            throw new UnreadablePurchaseOrderException($rowsSeen
-                ? 'PROWARE found the item table but could not read its rows. Each row needs: #, Item Code, Description, Stock on Hand, Qty Ordered, Unit Price, Amount.'
+            throw new UnreadablePurchaseOrderException($firstRowProblem !== null
+                ? sprintf('PROWARE found the item table but could not read its rows. Row %d: %s', $firstRowProblem['row'], $firstRowProblem['message'])
                 : 'The item table in this file has no items.');
         }
 
         $orderNumber = $this->filledOrNull($headerFields['order']);
 
         if ($orderNumber === null) {
-            $warnings[] = $this->warning(null, 'Order # was not found in the document.', blocking: true);
+            $warnings[] = $this->warning(null, 'Order # was not found. The email needs a line like "Order # : 30722".', blocking: true);
         }
 
         [$dateOrdered, $timeOrdered] = $this->readDateOrdered($headerFields['date'], $warnings);
@@ -349,7 +349,7 @@ class EstorePoParser
      * where blank cells matter) and one without blank cells (typed text,
      * where extra tabs are only used to line columns up).
      *
-     * @return array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}}|null
+     * @return array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}, names: list<string>}|null
      */
     private function itemTableLayout(string $line): ?array
     {
@@ -366,6 +366,7 @@ class EstorePoParser
         return [
             'exact' => $exact,
             'compact' => $this->columnLayout($this->splitCells($line, dropEmpty: true)),
+            'names' => $this->splitCells($line, dropEmpty: true),
         ];
     }
 
@@ -405,7 +406,7 @@ class EstorePoParser
      * with spaces instead of tabs (the paste box cannot type a tab).
      *
      * @param  list<string>  $lines
-     * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}}  $layout
+     * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}, names: list<string>}  $layout
      * @param  list<array{row: ?int, message: string, blocking: bool}>  $warnings
      * @return list<ScannedPurchaseOrderItem>
      */
@@ -447,14 +448,19 @@ class EstorePoParser
                 }
             }
 
-            if (count($cells) < 3) {
+            // A line that is not a row ends the table, unless it was typed
+            // with spaces and starts like one (a row number, then words): that
+            // row is pointed out instead of the table quietly ending there.
+            $typedLikeRow = ! str_contains($line, "\t") && preg_match('/^\d{1,4}\s+\S+\s+\S+/u', trim($line)) === 1;
+
+            if (count($cells) < 3 && ! $typedLikeRow) {
                 break;
             }
 
             $rowNumber++;
 
             if (! $matchesLayout) {
-                $warnings[] = $this->warning($rowNumber, sprintf('This row could not be read: expected %d columns but found %d.', $layout['compact']['width'], count($cells)), blocking: true);
+                $warnings[] = $this->warning($rowNumber, $this->unreadableRowMessage($line, $cells, $layout), blocking: true);
 
                 continue;
             }
@@ -481,10 +487,13 @@ class EstorePoParser
         $description = trim((string) preg_replace('/\s+/u', ' ', $values['description'] ?? ''));
 
         $rawStock = $values['stock_on_hand'] ?? '';
+        $rawQuantity = trim($values['quantity_ordered'] ?? '');
+        $rawUnitPrice = trim($values['unit_price'] ?? '');
+        $rawAmount = trim($values['amount'] ?? '');
         $stockOnHand = $this->parseWholeNumber($rawStock);
-        $quantityOrdered = $this->parseWholeNumber($values['quantity_ordered'] ?? '');
-        $unitPriceCentavos = $this->parseMoney($values['unit_price'] ?? '');
-        $amountCentavos = $this->parseMoney($values['amount'] ?? '');
+        $quantityOrdered = $this->parseWholeNumber($rawQuantity);
+        $unitPriceCentavos = $this->parseMoney($rawUnitPrice);
+        $amountCentavos = $this->parseMoney($rawAmount);
 
         $warn = function (string $message, bool $blocking = false) use ($rowNumber, &$warnings): void {
             $warnings[] = $this->warning($rowNumber, $message, $blocking);
@@ -503,7 +512,7 @@ class EstorePoParser
         }
 
         if ($quantityOrdered === null) {
-            $warn('Quantity ordered is missing or not a whole number.', blocking: true);
+            $warn($rawQuantity === '' ? 'Quantity ordered is missing.' : sprintf('Quantity ordered "%s" is not a whole number.', $rawQuantity), blocking: true);
         } elseif ($quantityOrdered === 0) {
             $warn('Quantity ordered is 0.');
         }
@@ -513,13 +522,13 @@ class EstorePoParser
         }
 
         if ($unitPriceCentavos === null) {
-            $warn('Unit price is missing or not a valid amount.', blocking: true);
+            $warn($rawUnitPrice === '' ? 'Unit price is missing.' : sprintf('Unit price "%s" is not a valid amount.', $rawUnitPrice), blocking: true);
         } elseif ($unitPriceCentavos > self::MAX_UNIT_PRICE_CENTAVOS) {
             $warn('Unit price ('.$this->formatMoney($unitPriceCentavos).') looks wrong: it is more than '.$this->formatMoney(self::MAX_UNIT_PRICE_CENTAVOS).'. Check the eStore email.', blocking: true);
         }
 
         if ($amountCentavos === null) {
-            $warn('Amount is missing or not a valid amount.');
+            $warn($rawAmount === '' ? 'Amount is missing.' : sprintf('Amount "%s" is not a valid amount.', $rawAmount));
         }
 
         if ($quantityOrdered !== null && $unitPriceCentavos !== null && $amountCentavos !== null
@@ -552,7 +561,7 @@ class EstorePoParser
     private function readDateOrdered(?string $value, array &$warnings): array
     {
         if ($value === null || $value === '') {
-            $warnings[] = $this->warning(null, 'Date Ordered was not found in the document.', blocking: true);
+            $warnings[] = $this->warning(null, 'Date Ordered was not found. The email needs a line like "Date Ordered : Sep 29, 2026 10:48 AM".', blocking: true);
 
             return [null, null];
         }
@@ -578,7 +587,7 @@ class EstorePoParser
             }
         }
 
-        $warnings[] = $this->warning(null, sprintf('Date Ordered "%s" could not be read as a date.', $value), blocking: true);
+        $warnings[] = $this->warning(null, sprintf('Date Ordered "%s" could not be read as a date. Write it like Sep 29, 2026 10:48 AM.', $value), blocking: true);
 
         return [null, null];
     }
@@ -673,7 +682,7 @@ class EstorePoParser
      * matter), or without blank cells (typed text, where extra tabs only
      * line the columns up).
      *
-     * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}}  $layout
+     * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}, names: list<string>}  $layout
      * @return array{0: list<string>, 1: array<int, string>, 2: bool}
      */
     private function rowCells(string $line, array $layout): array
@@ -741,6 +750,88 @@ class EstorePoParser
             implode(' ', array_slice($values, $descriptionAt, count($values) - $descriptionAt - $after)),
             ...$tail,
         ];
+    }
+
+    /**
+     * Why a row could not be read, with the row as it was pasted, so the
+     * Specialist can find it: e.g. 'This row could not be read: "2 PRCU01-02
+     * Chibi Keychain 20 21.00". It has 5 values; each row needs 7: #, Item
+     * Code, …'. A row typed with spaces says how many numbers come after the
+     * description instead, since its words cannot be counted as values.
+     *
+     * @param  list<string>  $cells
+     * @param  array{exact: array{width: int, columns: array<int, string>}, compact: array{width: int, columns: array<int, string>}, names: list<string>}  $layout
+     */
+    private function unreadableRowMessage(string $line, array $cells, array $layout): string
+    {
+        $shown = mb_strimwidth(trim((string) preg_replace('/\s+/u', ' ', $line)), 0, 90, '…');
+        $width = $layout['compact']['width'];
+        $descriptionAt = array_search('description', $layout['compact']['columns'], true);
+
+        if (! str_contains($line, "\t") && is_int($descriptionAt)) {
+            $after = array_slice($layout['names'], $descriptionAt + 1);
+            $numbersAtEnd = 0;
+
+            foreach (array_reverse(preg_split('/\s+/u', trim($line), -1, PREG_SPLIT_NO_EMPTY) ?: []) as $word) {
+                if (preg_match('/^(₱|PHP)$/iu', $word)) {
+                    continue;
+                }
+
+                if (! preg_match('/^(₱|PHP)?[\d,]+(\.\d+)?$/iu', $word)) {
+                    break;
+                }
+
+                $numbersAtEnd++;
+            }
+
+            if ($numbersAtEnd >= count($after)) {
+                return sprintf(
+                    'This row could not be read: "%s". Before the numbers it needs %s.',
+                    $shown,
+                    implode(', ', array_slice($layout['names'], 0, $descriptionAt + 1)),
+                );
+            }
+
+            return sprintf(
+                'This row could not be read: "%s". After the description it needs %d numbers (%s), but it has %d.',
+                $shown,
+                count($after),
+                implode(', ', $after),
+                $numbersAtEnd,
+            );
+        }
+
+        return sprintf(
+            'This row could not be read: "%s". It has %d %s; each row needs %d: %s.',
+            $shown,
+            count($cells),
+            count($cells) === 1 ? 'value' : 'values',
+            $width,
+            implode(', ', $layout['names']),
+        );
+    }
+
+    /**
+     * No item table: when its heading is there without tabs between the
+     * column names (typed by hand), say so; otherwise the whole email is
+     * probably not pasted.
+     *
+     * @param  list<string>  $lines
+     */
+    private function missingTableMessage(array $lines): string
+    {
+        foreach ($lines as $line) {
+            $key = $this->labelKey($line);
+
+            if (str_contains($key, 'itemcode') && (str_contains($key, 'qty') || str_contains($key, 'quantity'))) {
+                return sprintf(
+                    'The item table heading "%s" has no tabs between its column names, so PROWARE cannot tell the columns apart. Copy the item table from the eStore email again.',
+                    mb_strimwidth(trim((string) preg_replace('/\s+/u', ' ', $line)), 0, 90, '…'),
+                );
+            }
+        }
+
+        return 'PROWARE could not find the item table (the line that starts with "# Item Code Description"). Paste the whole order details email from the eStore, or upload a saved copy of it.';
     }
 
     /**

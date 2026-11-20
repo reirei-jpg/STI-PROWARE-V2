@@ -22,11 +22,13 @@ import { logout } from '@/routes';
  * you typed?") throws what was typed away, with its draft (`discardDraft`,
  * from useFormDraft), so the form opens empty next time (user's decision,
  * 20 Nov 2026). A draft is only kept when nobody was asked: the tab closed,
- * the sign-in expired or the internet dropped.
+ * the sign-in expired or the internet dropped. When `discardDraft` returns a
+ * promise (e.g. it also throws away work kept on the server), leaving waits
+ * for it, so the next page does not still show that work.
  */
 export function useUnsavedChanges(
     dirty: boolean,
-    { discardDraft }: { discardDraft?: () => void } = {},
+    { discardDraft }: { discardDraft?: () => void | Promise<unknown> } = {},
 ): {
     confirmLeave: (leave: () => void) => void;
     confirmDiscard: (discard: () => void) => void;
@@ -185,8 +187,15 @@ export function useUnsavedChanges(
                     const leave = pending;
                     setPending(null);
                     // Leaving throws the draft away too.
-                    discardDraft?.();
-                    leave?.();
+                    const discarded = discardDraft?.();
+
+                    if (discarded instanceof Promise) {
+                        void discarded
+                            .catch(() => undefined)
+                            .then(() => leave?.());
+                    } else {
+                        leave?.();
+                    }
                 }}
                 onClose={() => setPending(null)}
             />

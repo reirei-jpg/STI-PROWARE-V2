@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, useHttp } from '@inertiajs/react';
 import {
     ArrowLeft,
     ClipboardPaste,
@@ -11,13 +11,14 @@ import {
     Trash2,
     UploadCloud,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PurchaseOrderController from '@/actions/App/Http/Controllers/PurchaseOrderController';
 import PurchaseOrderScanController from '@/actions/App/Http/Controllers/PurchaseOrderScanController';
 import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
 import PageHeader from '@/components/page-header';
 import Panel, { TableHeading } from '@/components/panel';
+import RequiredLabel from '@/components/required-label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useFormDraft } from '@/hooks/use-form-draft';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
@@ -54,18 +55,59 @@ export default function ScanPurchaseOrder({
     );
     const hasBlockingProblems =
         scan?.warnings.some((warning) => warning.blocking) ?? false;
+    // "Must fix" first, so the reason it cannot be saved is seen at once.
+    const sortedWarnings = [...(scan?.warnings ?? [])].sort(
+        (a, b) => Number(b.blocking) - Number(a.blocking),
+    );
     const [inputMode, setInputMode] = useState<'paste' | 'file'>('paste');
     // The pasted email is kept until the order is saved or the scan
     // discarded, so an expired sign-in does not lose it.
     const [emailText, setEmailText] = useState('');
+    const [fileChosen, setFileChosen] = useState(false);
+    // The text the result below was read from: changing the email after
+    // scanning hides Save until it is scanned again.
+    const [scannedText, setScannedText] = useState<string | null>(null);
+    const submittedText = useRef('');
+    const emailBox = useRef<HTMLTextAreaElement>(null);
+    const scanAfterPaste = useRef(false);
+    const discardScan = useHttp({});
     const draft = useFormDraft('estore-scan', emailText, setEmailText, {
         announce: scan === null,
     });
-    // Leaving with a pasted email not scanned yet asks first (the draft keeps it).
+    const nothingToScan =
+        inputMode === 'paste' ? emailText.trim() === '' : !fileChosen;
+    const changedAfterScan =
+        scan !== null &&
+        inputMode === 'paste' &&
+        scannedText !== null &&
+        emailText !== scannedText;
+    // Leaving with a pasted email or a scan not saved yet asks first; Leave
+    // throws both away, so the page opens empty next time.
     const unsaved = useUnsavedChanges(
-        scan === null && emailText.trim() !== '',
-        { discardDraft: draft.discard },
+        scan !== null || emailText.trim() !== '' || fileChosen,
+        {
+            discardDraft: () => {
+                draft.discard();
+
+                if (scan !== null) {
+                    return discardScan.delete(
+                        PurchaseOrderScanController.destroy.url(),
+                    );
+                }
+            },
+        },
     );
+
+    // A pasted email is scanned at once, so a problem in it shows right away.
+    useEffect(() => {
+        if (scanAfterPaste.current) {
+            scanAfterPaste.current = false;
+
+            if (emailText.trim() !== '') {
+                emailBox.current?.form?.requestSubmit();
+            }
+        }
+    }, [emailText]);
 
     return (
         <>
@@ -125,6 +167,11 @@ export default function ScanPurchaseOrder({
                 >
                     <Form
                         {...PurchaseOrderScanController.store.form()}
+                        onBefore={() => {
+                            submittedText.current = emailText;
+                        }}
+                        onSuccess={() => setScannedText(submittedText.current)}
+                        onError={() => setScannedText(null)}
                         className="flex flex-col gap-4 p-6"
                     >
                         {({ processing, errors }) => (
@@ -137,27 +184,57 @@ export default function ScanPurchaseOrder({
                                 )}
                                 {inputMode === 'paste' ? (
                                     <div>
+                                        <label
+                                            htmlFor="email_text"
+                                            className="mb-2 block text-sm font-bold text-slate-700"
+                                        >
+                                            <RequiredLabel
+                                                required={
+                                                    emailText.trim() === ''
+                                                }
+                                            >
+                                                Order details email
+                                            </RequiredLabel>
+                                        </label>
                                         <textarea
+                                            ref={emailBox}
+                                            id="email_text"
                                             name="email_text"
                                             value={emailText}
                                             onChange={(event) =>
                                                 setEmailText(event.target.value)
                                             }
-                                            required
+                                            onPaste={() => {
+                                                scanAfterPaste.current = true;
+                                            }}
                                             rows={10}
                                             placeholder={
                                                 'Paste the whole email here, e.g.\n\nOrder #\t:\t30722\nSchool\t:\tSTI COLLEGE ORMOC\nOrdered by\t:\tManilyn Bioc\nDate Ordered\t:\tSep 29, 2026 10:48 AM\n…'
                                             }
-                                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 font-mono text-sm text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
-                                            aria-label="Order details email"
+                                            className={`w-full rounded-2xl border bg-slate-50 p-4 font-mono text-sm text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:bg-white focus:ring-2 ${
+                                                errors.email_text
+                                                    ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                                                    : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'
+                                            }`}
                                         />
-                                        <InputError
+                                        <ScanError
                                             message={errors.email_text}
-                                            className="mt-2"
                                         />
+                                        <p className="mt-2 text-xs text-slate-500">
+                                            It is scanned as soon as you paste
+                                            it. After typing a change, click
+                                            Scan.
+                                        </p>
                                     </div>
                                 ) : (
                                     <div>
+                                        <p className="mb-2 text-sm font-bold text-slate-700">
+                                            <RequiredLabel
+                                                required={!fileChosen}
+                                            >
+                                                Order file
+                                            </RequiredLabel>
+                                        </p>
                                         <label
                                             htmlFor="document"
                                             className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50/40"
@@ -170,7 +247,12 @@ export default function ScanPurchaseOrder({
                                                 id="document"
                                                 type="file"
                                                 name="document"
-                                                required
+                                                onChange={(event) =>
+                                                    setFileChosen(
+                                                        (event.target.files
+                                                            ?.length ?? 0) > 0,
+                                                    )
+                                                }
                                                 className="w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-blue-700"
                                             />
                                         </label>
@@ -178,17 +260,14 @@ export default function ScanPurchaseOrder({
                                             Word (.docx) or text file, up to 5
                                             MB.
                                         </p>
-                                        <InputError
-                                            message={errors.document}
-                                            className="mt-2"
-                                        />
+                                        <ScanError message={errors.document} />
                                     </div>
                                 )}
 
                                 <div>
                                     <button
                                         type="submit"
-                                        disabled={processing}
+                                        disabled={processing || nothingToScan}
                                         className={
                                             scan
                                                 ? secondaryButtonClasses
@@ -238,12 +317,14 @@ export default function ScanPurchaseOrder({
                             </Notice>
                         ) : (
                             <Notice
-                                tone="amber"
-                                icon={CircleAlert}
+                                tone={hasBlockingProblems ? 'red' : 'amber'}
+                                icon={
+                                    hasBlockingProblems ? CircleX : CircleAlert
+                                }
                                 title={`Check ${scan.warnings.length} ${scan.warnings.length === 1 ? 'thing' : 'things'}`}
                             >
                                 <ul className="mt-1 space-y-1.5">
-                                    {scan.warnings.map((warning, index) => (
+                                    {sortedWarnings.map((warning, index) => (
                                         <li
                                             key={index}
                                             className="flex flex-wrap items-center gap-2"
@@ -308,6 +389,7 @@ export default function ScanPurchaseOrder({
                                     onSuccess={(page) => {
                                         draft.clear(page);
                                         setEmailText('');
+                                        setScannedText(null);
                                     }}
                                 >
                                     {({ processing }) => (
@@ -421,7 +503,13 @@ export default function ScanPurchaseOrder({
                             </div>
 
                             <div className="border-t border-slate-100 p-6">
-                                {duplicate ? (
+                                {changedAfterScan ? (
+                                    <p className="text-sm font-semibold text-red-600">
+                                        The email was changed after it was
+                                        scanned. Click Scan to check it again
+                                        before saving.
+                                    </p>
+                                ) : duplicate ? (
                                     <p className="text-sm text-slate-500">
                                         This order is already in PROWARE, so
                                         there is nothing to save.
@@ -500,6 +588,23 @@ export default function ScanPurchaseOrder({
                 )}
             </div>
         </>
+    );
+}
+
+/** Why the email or file could not be scanned, in a red box under it. */
+function ScanError({ message }: { message?: string }) {
+    if (!message) {
+        return null;
+    }
+
+    return (
+        <div
+            role="alert"
+            className="mt-3 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 font-semibold text-red-700"
+        >
+            <CircleX size={18} className="mt-0.5 shrink-0 text-red-600" />
+            <p className="min-w-0 wrap-break-word">{message}</p>
+        </div>
     );
 }
 

@@ -86,7 +86,7 @@ test('pasting the order details email scans it and keeps it privately', function
 test('pasted text without an order is refused with an explanation', function () {
     $this->actingAs(User::factory()->specialist()->create())
         ->post(route('purchase-orders.scan.store'), ['email_text' => "Your request has been approved (Order #: 30720).\nYou may now create an Internal Request via ORACLE."])
-        ->assertSessionHasErrors(['email_text' => 'PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.']);
+        ->assertSessionHasErrors(['email_text' => 'PROWARE could not find the item table (the line that starts with "# Item Code Description"). Paste the whole order details email from the eStore, or upload a saved copy of it.']);
 
     expect(Storage::disk('local')->allFiles())->toBe([]);
 });
@@ -161,13 +161,35 @@ test('discarding a scan deletes the kept file', function () {
 
     $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()]);
 
-    $this->delete(route('purchase-orders.scan.destroy'))
+    $this->delete(route('purchase-orders.scan.destroy'), headers: ['X-Inertia' => 'true'])
         ->assertRedirect(route('purchase-orders.scan'));
 
     expect(Storage::disk('local')->allFiles('purchase-orders/pending'))->toBe([]);
 
     $this->get(route('purchase-orders.scan'))
         ->assertInertia(fn (Assert $page) => $page->where('scan', null));
+});
+
+test('leaving the page throws the pasted scan away, so the page opens empty next time', function () {
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->post(route('purchase-orders.scan.store'), ['email_text' => estoreOrderEmail()]);
+
+    // Leave sends the discard in the background, before going to the next page.
+    $this->delete(route('purchase-orders.scan.destroy'))->assertNoContent();
+
+    expect(Storage::disk('local')->allFiles('purchase-orders/pending'))->toBe([]);
+
+    $this->get(route('purchase-orders.scan'))
+        ->assertInertia(fn (Assert $page) => $page->where('scan', null)->where('fileName', null));
+});
+
+test('a pasted email with a row that cannot be read says which row and why', function () {
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('purchase-orders.scan.store'), ['email_text' => "Order #\t:\t30722\nDate Ordered:  Sep 29, 2026\n\n#\tItem Code\tDescription\tStock on Hand (School)\tQTY Ordered\tUnit Price\tAmount\n1 PRCU01-01 Chibi Keychain 0 20 21.00"])
+        ->assertSessionHasErrors(['email_text' => 'PROWARE found the item table but could not read its rows. Row 1: This row could not be read: "1 PRCU01-01 Chibi Keychain 0 20 21.00". After the description it needs 4 numbers (Stock on Hand (School), QTY Ordered, Unit Price, Amount), but it has 3.']);
+
+    expect(Storage::disk('local')->allFiles())->toBe([]);
 });
 
 test('the email must be pasted or a file chosen', function () {

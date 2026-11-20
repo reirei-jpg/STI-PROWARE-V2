@@ -127,12 +127,12 @@ test('only missing essentials block saving', function () {
 
     expect($blockingByMessage)->toBe([
         'Row 1: Item code is missing.' => true,
-        'Row 1: Quantity ordered is missing or not a whole number.' => true,
-        'Row 1: Unit price is missing or not a valid amount.' => true,
+        'Row 1: Quantity ordered "twenty" is not a whole number.' => true,
+        'Row 1: Unit price "abc" is not a valid amount.' => true,
         'Row 2: Quantity ordered is 0.' => false,
         'Row 2: 0 × ₱21.00 = ₱0.00, but the document says ₱400.00.' => false,
-        'Order # was not found in the document.' => true,
-        'Date Ordered was not found in the document.' => true,
+        'Order # was not found. The email needs a line like "Order # : 30722".' => true,
+        'Date Ordered was not found. The email needs a line like "Date Ordered : Sep 29, 2026 10:48 AM".' => true,
         'The Amounts add up to ₱820.00, but the Total Amount (Ordered) is ₱999.00.' => false,
     ])->and($scan->hasBlockingProblems())->toBeTrue();
 });
@@ -196,7 +196,7 @@ test('a missing Order # blocks saving', function () {
         header: "Date Ordered:  Sep 29, 2026\nCategory: PROWARE",
     ));
 
-    expect(warningMessages($scan))->toBe(['Order # was not found in the document.'])
+    expect(warningMessages($scan))->toBe(['Order # was not found. The email needs a line like "Order # : 30722".'])
         ->and($scan->hasBlockingProblems())->toBeTrue();
 });
 
@@ -245,8 +245,8 @@ test('it warns about values in a row that cannot be read', function () {
     expect(warningMessages($scan))->toBe([
         'Row 1: Item code is missing.',
         'Row 1: Stock on hand "none" is not a whole number.',
-        'Row 1: Quantity ordered is missing or not a whole number.',
-        'Row 1: Unit price is missing or not a valid amount.',
+        'Row 1: Quantity ordered "twenty" is not a whole number.',
+        'Row 1: Unit price "abc" is not a valid amount.',
         'Row 2: Quantity ordered is 0.',
     ]);
 });
@@ -257,7 +257,7 @@ test('it warns when a row has the wrong number of columns and skips it', functio
         "2\tPRCU01-02\tChibi Keychain\t20\t21.00",
     ]));
 
-    expect(warningMessages($scan))->toBe(['Row 2: This row could not be read: expected 7 columns but found 5.'])
+    expect(warningMessages($scan))->toBe(['Row 2: This row could not be read: "2 PRCU01-02 Chibi Keychain 20 21.00". It has 5 values; each row needs 7: #, Item Code, Description, Stock on Hand (School), QTY Ordered, Unit Price, Amount.'])
         ->and($scan->items)->toHaveCount(1);
 });
 
@@ -287,8 +287,8 @@ test('it warns about missing or unreadable header fields', function () {
     ));
 
     expect(warningMessages($scan))->toBe([
-        'Order # was not found in the document.',
-        'Date Ordered "sometime last week" could not be read as a date.',
+        'Order # was not found. The email needs a line like "Order # : 30722".',
+        'Date Ordered "sometime last week" could not be read as a date. Write it like Sep 29, 2026 10:48 AM.',
         'Category was not found in the document.',
         'Total Amount (Ordered) "four hundred" is not a valid amount.',
     ]);
@@ -303,7 +303,7 @@ test('it refuses a file it cannot scan', function (string $contents, string $mes
 })->with([
     'empty file' => ['', 'The uploaded file is empty or could not be opened.'],
     'binary file' => ["\x89PNG\r\n\x1a\n\0\0\0", 'PROWARE cannot read this file type. Paste the order details email instead, or upload it as a Word (.docx) or text file.'],
-    'text without an item table' => ["Hello,\nSee the attached order.", 'PROWARE could not find the item table. Paste the whole order details email from the eStore, or upload a saved copy of it.'],
+    'text without an item table' => ["Hello,\nSee the attached order.", 'PROWARE could not find the item table (the line that starts with "# Item Code Description"). Paste the whole order details email from the eStore, or upload a saved copy of it.'],
     'item table with no rows' => ["Category: PROWARE\n".ESTORE_TABLE_HEADER, 'The item table in this file has no items.'],
 ]);
 
@@ -354,5 +354,36 @@ test('it reads rows typed with spaces instead of tabs', function () {
 
 test('it says the rows could not be read when none of them fit the table', function () {
     expect(fn () => (new EstorePoParser)->parseText(estorePoText(["1\tPRCU01-01\tChibi Keychain\t20"])))
-        ->toThrow(UnreadablePurchaseOrderException::class, 'PROWARE found the item table but could not read its rows. Each row needs: #, Item Code, Description, Stock on Hand, Qty Ordered, Unit Price, Amount.');
+        ->toThrow(UnreadablePurchaseOrderException::class, 'PROWARE found the item table but could not read its rows. Row 1: This row could not be read: "1 PRCU01-01 Chibi Keychain 20". It has 4 values; each row needs 7: #, Item Code, Description, Stock on Hand (School), QTY Ordered, Unit Price, Amount.');
+});
+
+test('a row typed with spaces that is missing a number says how many numbers it has', function () {
+    $scan = (new EstorePoParser)->parseText(estorePoText([
+        "1\tPRCU01-01\tChibi Keychain\t0\t20\t21.00\t420.00",
+        '2 PRCU01-02 Chibi Keychain 0 20 21.00',
+    ]));
+
+    expect(warningMessages($scan))->toBe(['Row 2: This row could not be read: "2 PRCU01-02 Chibi Keychain 0 20 21.00". After the description it needs 4 numbers (Stock on Hand (School), QTY Ordered, Unit Price, Amount), but it has 3.'])
+        ->and($scan->hasBlockingProblems())->toBeTrue();
+});
+
+test('a row typed with spaces without its item code says what comes before the numbers', function () {
+    $scan = (new EstorePoParser)->parseText(estorePoText([
+        "1\tPRCU01-01\tChibi Keychain\t0\t20\t21.00\t420.00",
+        '2 Keychain 0 20 21.00 420.00',
+    ]));
+
+    expect(warningMessages($scan))->toBe(['Row 2: This row could not be read: "2 Keychain 0 20 21.00 420.00". Before the numbers it needs #, Item Code, Description.']);
+});
+
+test('a value that is not a number is named with what was typed', function () {
+    $scan = (new EstorePoParser)->parseText(estorePoText(["1\tPRCU01-01\tChibi Keychain\t0\t\t21.00\t420.00x"]));
+
+    expect(warningMessages($scan))->toContain('Row 1: Amount "420.00x" is not a valid amount.')
+        ->and($scan->hasBlockingProblems())->toBeTrue();
+});
+
+test('an item table heading typed without tabs is pointed out', function () {
+    expect(fn () => (new EstorePoParser)->parseText("Order #: 30722\n# Item Code Description Stock on Hand QTY Ordered Unit Price Amount\n1 PRCU01-01 Chibi Keychain 0 20 21.00 420.00"))
+        ->toThrow(UnreadablePurchaseOrderException::class, 'The item table heading "# Item Code Description Stock on Hand QTY Ordered Unit Price Amount" has no tabs between its column names, so PROWARE cannot tell the columns apart. Copy the item table from the eStore email again.');
 });

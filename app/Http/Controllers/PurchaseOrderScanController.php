@@ -13,6 +13,7 @@ use App\Services\EstorePo\ScannedPurchaseOrderItem;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -129,11 +130,16 @@ class PurchaseOrderScanController extends Controller
     }
 
     /**
-     * Throw away the scanned file without saving it.
+     * Throw away the scanned file without saving it: "Discard this scan", or
+     * leaving the page (Leave, sent in the background, answered with nothing).
      */
-    public function destroy(Request $request, PendingPurchaseOrderScan $pendingScans): RedirectResponse
+    public function destroy(Request $request, PendingPurchaseOrderScan $pendingScans): RedirectResponse|HttpResponse
     {
         $pendingScans->discard($request->session());
+
+        if (! $request->hasHeader('X-Inertia')) {
+            return response()->noContent();
+        }
 
         return to_route('purchase-orders.scan');
     }
