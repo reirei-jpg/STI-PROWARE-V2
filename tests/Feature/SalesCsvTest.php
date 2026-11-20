@@ -54,5 +54,5 @@ test('the CSV lists every sale of the chosen dates with its date, in the order t
         ->toContain("Purchases\n\"Total purchases\",₱0.00\n\"Sales minus purchases\",\"₱1,160.00\"")
         ->not->toContain('Not received')
         ->not->toContain('Loss on below-cost sales')
-        ->toContain('1 sold item has no Cost yet');
+        ->not->toContain('no Cost yet');
 });

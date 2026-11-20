@@ -16,7 +16,6 @@ use App\Models\Setting;
 use App\Models\StockMovement;
 use App\Models\UniformSet;
 use App\Models\User;
-use App\Services\Stock\StockCost;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -452,41 +451,9 @@ test('free uniforms are no longer a reason in Correct Stock, but old ones still 
         ->assertInertia(fn (Assert $page) => $page->where('summary.free_pieces', 1)->where('free.data.0.group_id', null)->where('free.data.0.items.0.recipient_name', 'Juan Dela Cruz'));
 });
 
-test('only the Specialist sees sales reports and sets eStore prices', function () {
-    $variant = costedJacket();
-
+test('only the Specialist sees sales reports', function () {
     foreach ([$this->student, User::factory()->schoolAdmin()->create()] as $user) {
         $this->actingAs($user)->get(route('sales-reports.index'))->assertForbidden();
-        $this->post(route('sales-reports.price', $variant), ['unit_cost' => '10'])->assertForbidden();
+        $this->get(route('sales-reports.export'))->assertForbidden();
     }
-});
-
-test('stock from before deliveries were recorded waits for its price, then its sales are costed', function () {
-    $variant = costedJacket();
-    $variant->forceFill(['stock_on_hand' => 4])->save();
-    StockCost::replay($variant->id);
-    expect($variant->refresh()->uncosted_pieces)->toBe(4);
-
-    $order = releasedJackets($variant, 3);
-    expect($order->items->sole()->refresh()->cost_centavos)->toBeNull()
-        ->and($variant->refresh()->uncosted_pieces)->toBe(1);
-
-    $this->actingAs($this->specialist)->get(route('sales-reports.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('sold.data.0.cost_total_centavos', null)
-            ->where('sold.data.0.profit_centavos', null)
-            ->where('sold.data.0.missing_cost_lines', 1)
-            ->where('summary.missing_cost_lines', 1)
-            // Profit is worked out only from sales that have a Cost.
-            ->where('summary.costed_price_centavos', 0));
-
-    $this->post(route('sales-reports.price', $variant), ['unit_cost' => ''])
-        ->assertSessionHasErrors(['unit_cost' => 'Enter the Cost per piece, e.g. 250 or 18.50.']);
-    $this->post(route('sales-reports.price', $variant), ['unit_cost' => '0'])
-        ->assertSessionHasErrors(['unit_cost' => 'The Cost per piece must be more than ₱0.']);
-    $this->post(route('sales-reports.price', $variant), ['unit_cost' => '180'])
-        ->assertInertiaFlash('toast.message', 'The cost of STI Jacket has been set to ₱180.00 per piece, and its sales have been recalculated.');
-
-    expect($order->items->sole()->refresh()->cost_centavos)->toBe(3 * 18000)
-        ->and($variant->refresh()->uncosted_pieces)->toBe(0);
 });

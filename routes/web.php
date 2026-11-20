@@ -84,8 +84,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('sales-reports', [SalesReportController::class, 'index'])->name('sales-reports.index');
         Route::get('sales-reports/export', [SalesReportController::class, 'export'])->name('sales-reports.export');
-        Route::post('sales-reports/variants/{variant}/price', [SalesReportController::class, 'setPrice'])->name('sales-reports.price');
-
         Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
         Route::patch('maintenance/follow-up-days', [MaintenanceController::class, 'updateFollowUpDays'])->name('maintenance.follow-up-days');
         Route::patch('maintenance/promo-group-size', [MaintenanceController::class, 'updatePromoGroupSize'])->name('maintenance.promo-group-size');

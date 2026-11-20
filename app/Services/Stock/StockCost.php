@@ -97,27 +97,6 @@ final class StockCost
     }
 
     /**
-     * The Specialist enters the eStore price per piece of stock that came
-     * in without one (stock from before deliveries were recorded, or a
-     * recount that added pieces); then every sale of it is costed again.
-     */
-    public static function setMissingPrice(ProductVariant $variant, int $centavosPerPiece): void
-    {
-        if ($variant->opening_unit_cost_centavos === null) {
-            $variant->forceFill(['opening_unit_cost_centavos' => $centavosPerPiece])->save();
-        }
-
-        $variant->stockMovements()
-            ->where('type', StockMovementType::Correction)
-            ->where('quantity', '>', 0)
-            ->whereNull('cost_centavos')
-            ->get()
-            ->each(fn (StockMovement $movement) => $movement->forceFill(['cost_centavos' => $centavosPerPiece * $movement->quantity])->save());
-
-        self::replay($variant->id);
-    }
-
-    /**
      * Cost every delivery already recorded from its purchase order, then
      * every sale. Used once when costs started being kept.
      */

@@ -3,13 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SalesReportRequest;
-use App\Http\Requests\SaveProductRequest;
-use App\Models\ProductVariant;
 use App\Services\FreeUniforms\FreeUniformScreens;
 use App\Services\Reports\SalesReport;
-use App\Services\Stock\StockCost;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -19,8 +14,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * orders, what was sold by product (Cost, Price, Profit, and Head Office's
  * price now; View Details has each size or color, every sale and every
  * eStore order of it), the best sellers, what was sold below cost, what
- * free uniforms (promo) were worth, by group; setting the Cost of items
- * that have none; and a CSV of the items sold.
+ * free uniforms (promo) were worth, by group; and a CSV of the items sold.
+ * Every piece comes in with its eStore price (Stock In, Correct stock), so
+ * every sale has a Cost.
  */
 class SalesReportController extends Controller
 {
@@ -133,38 +129,7 @@ class SalesReportController extends Controller
                 $row(['Not received (not included)', $money($summary['not_arrived_centavos'])]);
             }
             $row(['Sales minus purchases', $money($summary['price_centavos'] - $summary['spent_centavos'])]);
-
-            if ($summary['missing_cost_lines'] > 0) {
-                $row([]);
-                $row(['Note', "{$summary['missing_cost_lines']} sold ".($summary['missing_cost_lines'] === 1 ? 'item has' : 'items have').' no Cost yet, so Cost and Profit count only the items with a Cost. Set their Cost on Sales Reports.']);
-            }
             fclose($file);
         }, "sales-{$from->toDateString()}-to-{$to->toDateString()}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
-    }
-
-    /**
-     * Set the Cost per piece of stock that came in without one; its sales
-     * are recalculated.
-     */
-    public function setPrice(Request $request, ProductVariant $variant): RedirectResponse
-    {
-        $centavos = (int) round((float) $request->validate(
-            ['unit_cost' => ['required', 'numeric', 'min:0.01', 'max:'.SaveProductRequest::MAX_PRICE_PESOS]],
-            [
-                'unit_cost.max' => 'The Cost per piece cannot be more than ₱100,000.00.',
-                'unit_cost.required' => 'Enter the Cost per piece, e.g. 250 or 18.50.',
-                'unit_cost.numeric' => 'Enter the Cost per piece, e.g. 250 or 18.50.',
-                'unit_cost.min' => 'The Cost per piece must be more than ₱0.',
-            ],
-        )['unit_cost'] * 100);
-
-        StockCost::setMissingPrice($variant, $centavos);
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => "The cost of {$variant->displayName()} has been set to ₱".number_format($centavos / 100, 2).' per piece, and its sales have been recalculated.',
-        ]);
-
-        return back();
     }
 }

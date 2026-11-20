@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     CalendarDays,
@@ -33,7 +33,6 @@ import {
 import { monthBefore, todayIso } from '@/lib/dates';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { openCalendar } from '@/lib/open-calendar';
-import { priceInput } from '@/lib/number-input';
 import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
 import type {
@@ -209,11 +208,6 @@ export default function SalesReportsIndex({
                         label="Gross Profit"
                         value={formatPeso(summary.profit_centavos)}
                         detail={`Sales ${formatPeso(summary.costed_price_centavos)} − Cost ${formatPeso(summary.cost_centavos)}`}
-                        note={
-                            summary.missing_cost_lines > 0
-                                ? `${summary.missing_cost_lines} ${summary.missing_cost_lines === 1 ? 'sale' : 'sales'} without a cost · not included`
-                                : undefined
-                        }
                         onClick={() => show({ tab: 'sold', only: null })}
                     />
                     {/* A price set before a dearer eStore order arrived can still sell below Cost. */}
@@ -852,7 +846,6 @@ function SoldTable({
                         ? details
                         : undefined
                 }
-                onReload={() => viewingId !== null && view(viewingId)}
                 onClose={() => setViewingId(null)}
             />
             <TableScroll>
@@ -929,11 +922,6 @@ function SoldProductRow({
                     <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black text-red-700">
                         <TrendingDown size={12} />
                         Below cost · loss {formatPeso(row.loss_centavos)}
-                    </p>
-                )}
-                {row.missing_cost_lines > 0 && (
-                    <p className="mt-1 text-[11px] font-black text-amber-700">
-                        Cost missing · set it in View Details
                     </p>
                 )}
             </td>
@@ -1033,13 +1021,7 @@ function SoldProductRow({
     );
 }
 /** One size or color at one price, in a product's View Details. */
-function SoldTableRow({
-    row,
-    onCostSaved,
-}: {
-    row: SoldRow;
-    onCostSaved: () => void;
-}) {
+function SoldTableRow({ row }: { row: SoldRow }) {
     const unit = row.pieces_per_unit > 1 ? row.unit_name.toLowerCase() : 'pc';
 
     return (
@@ -1067,7 +1049,7 @@ function SoldTableRow({
             </td>
             <td className="px-5 py-4 text-right whitespace-nowrap">
                 {row.cost_each_centavos === null ? (
-                    <SetCost row={row} onSaved={onCostSaved} />
+                    <span className="text-slate-300">—</span>
                 ) : (
                     <Each value={row.cost_each_centavos} unit={unit} />
                 )}
@@ -1140,69 +1122,6 @@ function Each({
             {formatPeso(value)}
             <span className="font-normal text-slate-500"> / {unit}</span>
         </span>
-    );
-}
-
-/** A sale whose Cost is not set: enter the Cost per piece right here. */
-function SetCost({ row, onSaved }: { row: SoldRow; onSaved: () => void }) {
-    const form = useForm({ unit_cost: '' });
-    const [open, setOpen] = useState(false);
-
-    if (!open) {
-        return (
-            <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 transition hover:bg-amber-100"
-            >
-                Not set · Set cost
-            </button>
-        );
-    }
-
-    return (
-        <form
-            onSubmit={(event) => {
-                event.preventDefault();
-                form.post(SalesReportController.setPrice(row.variant_id).url, {
-                    preserveScroll: true,
-                    preserveState: true,
-                    onSuccess: onSaved,
-                });
-            }}
-            className="ml-auto flex max-w-48 flex-col items-end gap-1"
-        >
-            <span className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-500">₱</span>
-                <input
-                    value={form.data.unit_cost}
-                    onChange={(event) =>
-                        form.setData(
-                            'unit_cost',
-                            priceInput(event.target.value),
-                        )
-                    }
-                    inputMode="decimal"
-                    placeholder="per piece"
-                    autoFocus
-                    aria-label={`Cost per piece of ${row.product_name}`}
-                    className="h-9 w-24 rounded-lg border border-slate-200 bg-white px-2 text-right text-sm font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                />
-                <button
-                    type="submit"
-                    disabled={
-                        form.processing || !(Number(form.data.unit_cost) > 0)
-                    }
-                    className="inline-flex h-9 items-center gap-1 rounded-lg bg-[#0D6EFD] px-3 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-50"
-                >
-                    {form.processing && (
-                        <LoaderCircle size={13} className="animate-spin" />
-                    )}
-                    Save
-                </button>
-            </span>
-            <InputError message={form.errors.unit_cost} />
-        </form>
     );
 }
 
@@ -1536,13 +1455,11 @@ function PriceChange({
 function SoldDetailsDialog({
     open,
     details,
-    onReload,
     onClose,
 }: {
     open: boolean;
     /** Undefined while it loads. */
     details: SoldDetails | null | undefined;
-    onReload: () => void;
     onClose: () => void;
 }) {
     const sectionTitle =
@@ -1634,7 +1551,6 @@ function SoldDetailsDialog({
                                                 <SoldTableRow
                                                     key={row.key}
                                                     row={row}
-                                                    onCostSaved={onReload}
                                                 />
                                             ))}
                                         </tbody>
