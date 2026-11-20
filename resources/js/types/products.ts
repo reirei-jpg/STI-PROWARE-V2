@@ -62,6 +62,8 @@ export type ProductDetails = {
     sale_ends_at: string | null;
     /** Pieces at which the Specialist is warned, per variant. */
     low_stock_alert_at: number;
+    /** The most pieces one buyer can get, all sizes together; null: no limit. */
+    most_per_buyer: number | null;
     /** Only Available and On Sale products are watched for low stock. */
     watched_for_low_stock: boolean;
     updated_at: string | null;
@@ -173,6 +175,8 @@ export type EditableProduct = {
     early_bird_price: string;
     early_bird_pieces: string;
     low_stock_alert_at: string;
+    /** The most pieces one buyer can get, or empty for no limit. */
+    most_per_buyer: string;
     photos: { id: number; url: string; label: string }[];
     packs: ProductPackInput[];
     options: ProductOptionInput[];

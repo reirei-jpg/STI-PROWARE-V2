@@ -77,6 +77,7 @@ class SaveProduct
                     // on sale stays On Sale while it is edited.
                     'status' => $status,
                     'low_stock_alert_at' => $request->integer('low_stock_alert_at'),
+                    'most_per_buyer' => $request->filled('most_per_buyer') ? $request->integer('most_per_buyer') : null,
                     'preorders_close_on' => $status === ProductStatus::Preorder
                         ? $request->input('preorders_close_on')
                         : $product->preorders_close_on,

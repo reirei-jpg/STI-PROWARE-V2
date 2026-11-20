@@ -583,9 +583,11 @@ function CartLineRow({
             )}
             {tooMany && (
                 <Text className="font-sans-bold text-sm text-red-600">
-                    {line.stopped_by_limit
-                        ? buyerLimitMessage(line.most_allowed)
-                        : `Only ${set ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}` : formatUnits(line.most_allowed, line.unit_name)} left. Enter ${line.most_allowed} or fewer.`}
+                    {line.stopped_by_product
+                        ? `At most ${formatUnits(line.most_per_buyer ?? 0, 'Piece')} per buyer. Enter ${line.most_allowed} or fewer.`
+                        : line.stopped_by_limit
+                          ? buyerLimitMessage(line.most_allowed)
+                          : `Only ${set ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}` : formatUnits(line.most_allowed, line.unit_name)} left. Enter ${line.most_allowed} or fewer.`}
                 </Text>
             )}
 
@@ -604,7 +606,7 @@ function CartLineRow({
                             void save(quantity);
                         }}
                         most={Math.max(line.most_allowed, 1)}
-                        showLeft={!line.stopped_by_limit}
+                        showLeft={!line.stopped_by_limit && !line.stopped_by_product}
                         keepTyped
                         invalid={tooMany}
                         unitText={

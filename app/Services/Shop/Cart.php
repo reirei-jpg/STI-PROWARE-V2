@@ -17,8 +17,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * A student's cart: adding the same size or color by the same piece or pack
  * again adds to its quantity, and the pieces in the cart for a size or color
- * can never be more than its stock. Stock is only taken when the order is
- * placed.
+ * can never be more than its stock, nor the product's Most per buyer
+ * (ProductBuyerLimit). Stock is only taken when the order is placed.
  *
  * A uniform set is two lines (its top and its bottom) with one set key:
  * they always have the same quantity and tick, and are removed together.
@@ -40,6 +40,7 @@ final class Cart
         $newQuantity = ($line->quantity ?? 0) + $quantity;
         $this->ensureWithinLimit($student, $variant, $pack, $newQuantity, $line);
         $this->ensureInStock($student, $variant, $pack, $newQuantity, $line);
+        ProductBuyerLimit::ensure($student, $variant->product, $newQuantity * ($pack->pieces ?? 1), 'quantity', $line === null ? [] : [$line->id]);
 
         if ($line === null) {
             return $student->cartItems()->create([
@@ -237,6 +238,7 @@ final class Cart
         if ($line->set_key === null) {
             $this->ensureWithinLimit($line->student, $line->variant, $line->pack, $quantity, $line);
             $this->ensureInStock($line->student, $line->variant, $line->pack, $quantity, $line);
+            ProductBuyerLimit::ensure($line->student, $line->variant->product, $quantity * ($line->pack->pieces ?? 1), 'quantity', [$line->id]);
 
             $line->update(['quantity' => $quantity]);
 

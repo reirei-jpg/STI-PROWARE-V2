@@ -88,6 +88,10 @@ export type StorefrontProductDetails = StorefrontTileProduct & {
     buy_packs: StorefrontBuyPack[];
     /** The most of one item this buyer can get (the Maintenance setting, or more when the Specialist allowed them). */
     most_per_item: number;
+    /** The product's own most pieces per buyer, all sizes together; null: no limit. */
+    most_per_buyer: number | null;
+    /** How many more pieces this buyer can still get of it; null: no limit. */
+    per_buyer_left: number | null;
 };
 
 export type StorefrontBuyPack = {
@@ -154,6 +158,10 @@ export type CartLine = {
     most_allowed: number;
     /** The buyer's limit stops it before the stock does. */
     stopped_by_limit: boolean;
+    /** The product's own most pieces per buyer (null: none, or a uniform set). */
+    most_per_buyer: number | null;
+    /** The product's Most per buyer stops it first. */
+    stopped_by_product: boolean;
     unit_price_centavos: number | null;
     on_sale: boolean;
     line_total_centavos: number;

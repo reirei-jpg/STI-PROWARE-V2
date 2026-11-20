@@ -552,18 +552,27 @@ function CartLineRow({
                             {buyerLimitMessage(line.most_allowed)}
                         </p>
                     )}
-                    {tooMany && !line.stopped_by_limit && (
+                    {tooMany && line.stopped_by_product && (
                         <p className="max-w-44 text-center text-xs font-bold text-red-600">
-                            Only{' '}
-                            {set
-                                ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
-                                : formatUnits(
-                                      line.most_allowed,
-                                      line.unit_name,
-                                  )}{' '}
-                            left. Enter {line.most_allowed} or fewer.
+                            At most{' '}
+                            {formatUnits(line.most_per_buyer ?? 0, 'Piece')} per
+                            buyer. Enter {line.most_allowed} or fewer.
                         </p>
                     )}
+                    {tooMany &&
+                        !line.stopped_by_limit &&
+                        !line.stopped_by_product && (
+                            <p className="max-w-44 text-center text-xs font-bold text-red-600">
+                                Only{' '}
+                                {set
+                                    ? `${line.most_allowed} ${line.most_allowed === 1 ? 'set' : 'sets'}`
+                                    : formatUnits(
+                                          line.most_allowed,
+                                          line.unit_name,
+                                      )}{' '}
+                                left. Enter {line.most_allowed} or fewer.
+                            </p>
+                        )}
                     {current === line.most_allowed &&
                         line.most_allowed > 0 &&
                         line.stopped_by_limit && (
@@ -575,7 +584,17 @@ function CartLineRow({
                         )}
                     {current === line.most_allowed &&
                         line.most_allowed > 0 &&
-                        !line.stopped_by_limit && (
+                        line.stopped_by_product && (
+                            <p className="max-w-44 text-center text-xs font-bold text-amber-700">
+                                At most{' '}
+                                {formatUnits(line.most_per_buyer ?? 0, 'Piece')}{' '}
+                                per buyer
+                            </p>
+                        )}
+                    {current === line.most_allowed &&
+                        line.most_allowed > 0 &&
+                        !line.stopped_by_limit &&
+                        !line.stopped_by_product && (
                             <p className="text-center text-xs font-bold text-amber-700">
                                 Only{' '}
                                 {set

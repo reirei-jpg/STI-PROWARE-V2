@@ -260,13 +260,38 @@ function PickerForm({
         (packOf(line.product_pack_id)?.pieces ?? 1);
     // The most of one item this buyer can get (BuyerLimit on the server).
     const limit = details.most_per_item ?? MAX_PER_ITEM;
+    // The product's Most per buyer: pieces this buyer can still get, all
+    // sizes together, less what this list already has (null: no limit).
+    const perBuyerLeft = details.per_buyer_left ?? null;
+    const productMostFor = (
+        itemPack: StorefrontBuyPack | undefined,
+        except?: CartLine,
+    ) => {
+        if (perBuyerLeft === null) {
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const listed = data.items
+            .filter((line) => line !== except)
+            .reduce((sum, line) => sum + piecesOf(line), 0);
+
+        return Math.floor(
+            Math.max(0, perBuyerLeft - listed) / (itemPack?.pieces ?? 1),
+        );
+    };
     // The most of this size and unit: what still fits in its stock after
-    // the other lines of the same size, and at most the buyer's limit.
+    // the other lines of the same size, at most the buyer's limit and the
+    // product's Most per buyer.
     const mostFor = (
         item: PickerVariant | undefined,
         itemPack: StorefrontBuyPack | undefined,
         except?: CartLine,
-    ) => Math.min(limit, stockMostFor(item, itemPack, except));
+    ) =>
+        Math.min(
+            limit,
+            stockMostFor(item, itemPack, except),
+            productMostFor(itemPack, except),
+        );
     const stockMostFor = (
         item: PickerVariant | undefined,
         itemPack: StorefrontBuyPack | undefined,
@@ -305,12 +330,24 @@ function PickerForm({
             line.product_variant_id === String(variant.id) &&
             line.product_pack_id === unit,
     );
-    const most = preordering ? limit : mostFor(variant, pack);
+    const most = preordering
+        ? Math.min(limit, productMostFor(undefined))
+        : mostFor(variant, pack);
+    // The product's Most per buyer stops it before the stock and the limit.
+    const stoppedByProduct =
+        variant !== undefined &&
+        productMostFor(preordering ? undefined : pack) <
+            Math.min(limit, preordering ? limit : stockMostFor(variant, pack));
     // The buyer's limit stops it before the stock does.
     const stoppedByLimit =
         !preordering &&
+        !stoppedByProduct &&
         variant !== undefined &&
         stockMostFor(variant, pack) > limit;
+    const perBuyerText =
+        details.most_per_buyer === null
+            ? ''
+            : `Each buyer can get at most ${formatUnits(details.most_per_buyer, 'Piece')} of this item`;
     const quantity = typedQuantity(quantityText) ?? 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany =
@@ -481,6 +518,21 @@ function PickerForm({
                                     : stockLeft(variant).text}
                             </p>
                         )}
+                        {details.most_per_buyer !== null && (
+                            <p
+                                data-test="per-buyer-limit"
+                                className="text-xs font-bold text-slate-600"
+                            >
+                                Limit:{' '}
+                                {formatUnits(details.most_per_buyer, 'Piece')}{' '}
+                                per buyer
+                                {perBuyerLeft !== null &&
+                                    perBuyerLeft < details.most_per_buyer &&
+                                    (perBuyerLeft === 0
+                                        ? ' · you have reached it'
+                                        : ` · you can get ${formatUnits(perBuyerLeft, 'Piece')} more`)}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -604,10 +656,15 @@ function PickerForm({
                             )}
                         </div>
                         {tooMany ? (
-                            <p className="text-sm font-bold text-red-600">
-                                {stoppedByLimit
-                                    ? buyerLimitMessage(limit)
-                                    : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
+                            <p
+                                data-test="quantity-problem"
+                                className="text-sm font-bold text-red-600"
+                            >
+                                {stoppedByProduct
+                                    ? `${perBuyerText}.${most * piecesPerUnit < (details.most_per_buyer ?? 0) ? ` You can add ${formatUnits(most, unitName)} more.` : ''} Enter ${most} or fewer.`
+                                    : stoppedByLimit
+                                      ? buyerLimitMessage(limit)
+                                      : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
                             </p>
                         ) : (
                             !preordering &&
@@ -615,19 +672,28 @@ function PickerForm({
                             most > 0 &&
                             quantity === most && (
                                 <p className="text-sm font-bold text-amber-700">
-                                    {stoppedByLimit
-                                        ? `You can get at most ${limit.toLocaleString('en-PH')} of one item.`
-                                        : `Only ${formatUnits(most, unitName)} left to add.`}
+                                    {stoppedByProduct
+                                        ? `${perBuyerText}: ${formatUnits(most, unitName)} more is the most you can add.`
+                                        : stoppedByLimit
+                                          ? `You can get at most ${limit.toLocaleString('en-PH')} of one item.`
+                                          : `Only ${formatUnits(most, unitName)} left to add.`}
                                 </p>
                             )
                         )}
-                        {!preordering && variant && most === 0 && (
-                            <p className="text-sm font-bold text-amber-700">
-                                {existing || data.items.length > 0
-                                    ? 'Your list already has all that is left of this size.'
-                                    : `Not enough left for 1 ${unitName}.`}
-                            </p>
-                        )}
+                        {variant &&
+                            most === 0 &&
+                            (stoppedByProduct || !preordering) && (
+                                <p
+                                    data-test="quantity-problem"
+                                    className="text-sm font-bold text-amber-700"
+                                >
+                                    {stoppedByProduct
+                                        ? `${perBuyerText}. You have reached it with ${data.items.length > 0 ? 'this list, your cart, orders or preorders' : 'your cart, orders or preorders'}.`
+                                        : existing || data.items.length > 0
+                                          ? 'Your list already has all that is left of this size.'
+                                          : `Not enough left for 1 ${unitName}.`}
+                                </p>
+                            )}
                         <InputError
                             message={
                                 preorderForm.errors.product_variant_id ??
@@ -793,7 +859,11 @@ function PickerForm({
                     <button
                         type="button"
                         onClick={preorderChosen}
-                        disabled={preorderForm.processing || quantity < 1}
+                        disabled={
+                            preorderForm.processing ||
+                            quantity < 1 ||
+                            quantity > most
+                        }
                         className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {preorderForm.processing ? (

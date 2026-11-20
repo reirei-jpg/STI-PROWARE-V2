@@ -210,6 +210,7 @@ class ProductController extends Controller
             'status_label' => $product->status->label(),
             'sale_ends_at' => $onSale ? $product->sale_ends_at?->toIso8601String() : null,
             'low_stock_alert_at' => $product->low_stock_alert_at,
+            'most_per_buyer' => $product->most_per_buyer,
             'watched_for_low_stock' => LowStockAlerts::isSold($product),
             'updated_at' => $product->updated_at?->toIso8601String(),
             'variants' => $product->variants->map(fn (ProductVariant $variant): array => [
@@ -283,6 +284,7 @@ class ProductController extends Controller
                 'early_bird_price' => $product->early_bird_price_centavos === null ? '' : $this->pesos($product->early_bird_price_centavos),
                 'early_bird_pieces' => $product->early_bird_pieces === null ? '' : (string) $product->early_bird_pieces,
                 'low_stock_alert_at' => (string) $product->low_stock_alert_at,
+                'most_per_buyer' => $product->most_per_buyer === null ? '' : (string) $product->most_per_buyer,
                 'photos' => $product->photos->map(fn (ProductPhoto $photo): array => [
                     'id' => $photo->id,
                     'url' => $photo->url(),

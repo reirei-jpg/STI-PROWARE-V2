@@ -185,6 +185,13 @@ export default function ProductDetailsDialog({
                                         ? 'Not watched'
                                         : `at ${product.low_stock_alert_at.toLocaleString('en-PH')} pcs${hasOptions ? ' each' : ''}`}
                                 </Fact>
+                                <Fact label="Most per buyer">
+                                    {!details
+                                        ? '…'
+                                        : details.most_per_buyer === null
+                                          ? 'No limit'
+                                          : `${details.most_per_buyer.toLocaleString('en-PH')} pcs`}
+                                </Fact>
                                 <Fact label="Updated">
                                     {product.updated_at
                                         ? formatDateOrdered(product.updated_at)

@@ -29,7 +29,7 @@ import { takesPreorders } from '@/components/ProductTile';
 import { stockLeft } from '@/components/StockLeft';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDate, formatPeso } from '@/lib/format';
+import { formatDate, formatPeso, formatUnits } from '@/lib/format';
 import { pickChoice, pickedVariant, startingPicks, type Picked } from '@/lib/option-picker';
 import type { StorefrontProductDetails } from '@/lib/types';
 
@@ -283,6 +283,14 @@ export default function ProductScreen() {
                                             to see how many are left.
                                         </Text>
                                     ))}
+                                {product.most_per_buyer != null && (
+                                    <View className="self-start rounded-lg bg-slate-100 px-3 py-1.5">
+                                        <Text className="font-sans-bold text-sm text-slate-700">
+                                            Limit: {formatUnits(product.most_per_buyer, 'Piece')} per buyer, so more
+                                            buyers get one
+                                        </Text>
+                                    </View>
+                                )}
                                 {hasOptions && (
                                     <Text className="font-sans text-xs text-slate-500">
                                         {preorderOnly

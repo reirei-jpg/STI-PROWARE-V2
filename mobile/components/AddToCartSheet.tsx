@@ -104,10 +104,23 @@ export default function AddToCartSheet({
     };
     // The most of one item this buyer can get (BuyerLimit on the server).
     const limit = mostPerItem(product.most_per_item);
+    // The product's Most per buyer: pieces this buyer can still get, all sizes
+    // together, less what this list already has (null: no limit).
+    const perBuyerLeft = product.per_buyer_left ?? null;
+    const productMostFor = (itemPack: BuyPack | undefined, except?: CartLine): number => {
+        if (perBuyerLeft === null) {
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const listed = added.filter((line) => line !== except).reduce((sum, line) => sum + piecesOf(line), 0);
+
+        return Math.floor(Math.max(0, perBuyerLeft - listed) / (itemPack?.pieces ?? 1));
+    };
     // The most of this size and unit: what still fits in its stock after the
-    // other lines of the same size, and at most the buyer's limit.
+    // other lines of the same size, at most the buyer's limit and the
+    // product's Most per buyer.
     const mostFor = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined, except?: CartLine): number =>
-        Math.min(limit, stockMostFor(item, itemPack, except));
+        Math.min(limit, stockMostFor(item, itemPack, except), productMostFor(itemPack, except));
     const stockMostFor = (item: ProductVariantRow | undefined, itemPack: BuyPack | undefined, except?: CartLine): number => {
         if (item === undefined) {
             return 0;
@@ -132,9 +145,17 @@ export default function AddToCartSheet({
     const existing = added.find(
         (line) => variant !== undefined && line.variantId === variant.id && line.packId === packId,
     );
-    const most = preordering ? limit : mostFor(variant, pack);
+    const most = preordering ? Math.min(limit, productMostFor(undefined)) : mostFor(variant, pack);
+    // The product's Most per buyer stops it before the stock and the limit.
+    const stoppedByProduct =
+        variant !== undefined &&
+        productMostFor(preordering ? undefined : pack) < Math.min(limit, preordering ? limit : stockMostFor(variant, pack));
     // The buyer's limit stops it before the stock does.
-    const stoppedByLimit = !preordering && variant !== undefined && stockMostFor(variant, pack) > limit;
+    const stoppedByLimit = !preordering && !stoppedByProduct && variant !== undefined && stockMostFor(variant, pack) > limit;
+    const perBuyerText =
+        product.most_per_buyer == null
+            ? ''
+            : `Each buyer can get at most ${formatUnits(product.most_per_buyer, 'Piece')} of this item`;
     const quantity = typedQuantity(quantityText) ?? 0;
     // More typed than is left: kept as typed, flagged in red, not added.
     const tooMany = !preordering && variant !== undefined && most > 0 && quantity > most;
@@ -165,7 +186,7 @@ export default function AddToCartSheet({
 
             return typed >= 1 && typed <= mostFor(variantOf(line.variantId), packOf(line.packId), line);
         });
-    const canPreorder = preordering && !saving && variant.can_preorder && quantity >= 1 && quantity <= limit;
+    const canPreorder = preordering && !saving && variant.can_preorder && quantity >= 1 && quantity <= most;
 
     const addChosen = (): void => {
         if (!canAddChosen || variant === undefined) {
@@ -347,6 +368,16 @@ export default function AddToCartSheet({
                                 : stockLeft(variant).text}
                         </Text>
                     )}
+                    {product.most_per_buyer != null && (
+                        <Text className="font-sans-bold text-xs text-slate-600">
+                            Limit: {formatUnits(product.most_per_buyer, 'Piece')} per buyer
+                            {perBuyerLeft !== null && perBuyerLeft < product.most_per_buyer
+                                ? perBuyerLeft === 0
+                                    ? ' · you have reached it'
+                                    : ` · you can get ${formatUnits(perBuyerLeft, 'Piece')} more`
+                                : ''}
+                        </Text>
+                    )}
                 </View>
             </View>
 
@@ -438,8 +469,8 @@ export default function AddToCartSheet({
                         onChange={setQuantityText}
                         keepTyped={!preordering}
                         invalid={tooMany}
-                        showLeft={!preordering && !stoppedByLimit}
-                        most={variant ? most : limit}
+                        showLeft={!preordering && !stoppedByLimit && !stoppedByProduct}
+                        most={variant ? Math.max(preordering ? 1 : 0, most) : limit}
                         unitText={
                             preordering
                                 ? unitWord(quantity, 'Piece')
@@ -452,16 +483,25 @@ export default function AddToCartSheet({
                     />
                     {tooMany && (
                         <Text className="font-sans-semibold text-sm text-red-600">
-                            {stoppedByLimit
-                                ? buyerLimitMessage(limit)
-                                : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
+                            {stoppedByProduct
+                                ? `${perBuyerText}.${most * piecesPerUnit < (product.most_per_buyer ?? 0) ? ` You can add ${formatUnits(most, unitName)} more.` : ''} Enter ${most} or fewer.`
+                                : stoppedByLimit
+                                  ? buyerLimitMessage(limit)
+                                  : `Only ${formatUnits(most, unitName)} left. Enter ${most} or fewer.`}
                         </Text>
                     )}
-                    {!preordering && variant && most === 0 && (
+                    {!tooMany && stoppedByProduct && most > 0 && quantity === most && (
                         <Text className="font-sans-semibold text-sm text-amber-700">
-                            {added.length > 0
-                                ? 'Your list already has all that is left of this size.'
-                                : `Not enough left for 1 ${unitName}.`}
+                            {`${perBuyerText}: ${formatUnits(most, unitName)} more is the most you can add.`}
+                        </Text>
+                    )}
+                    {variant && most === 0 && (stoppedByProduct || !preordering) && (
+                        <Text className="font-sans-semibold text-sm text-amber-700">
+                            {stoppedByProduct
+                                ? `${perBuyerText}. You have reached it with ${added.length > 0 ? 'this list, your cart, orders or preorders' : 'your cart, orders or preorders'}.`
+                                : added.length > 0
+                                  ? 'Your list already has all that is left of this size.'
+                                  : `Not enough left for 1 ${unitName}.`}
                         </Text>
                     )}
                     {hasChoices && variant === undefined && (

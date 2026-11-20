@@ -74,6 +74,25 @@ export default function PreorderSheet({
     const chosen = pickedVariant(product.variants, product.options, picked);
     const variantId = chosen !== undefined && anyVariant(chosen) ? chosen.id : null;
     const quantity = typedQuantity(quantityText) ?? 0;
+    // The product's Most per buyer: pieces this buyer can still get, all sizes
+    // together, less what this preorder already lists (null: no limit).
+    const perBuyerLeft = product.per_buyer_left ?? null;
+    const productMost = (except?: PreorderLine): number =>
+        perBuyerLeft === null
+            ? most
+            : Math.min(
+                  most,
+                  Math.max(
+                      0,
+                      perBuyerLeft -
+                          added.filter((line) => line !== except).reduce((sum, line) => sum + (typedQuantity(line.quantity) ?? 0), 0),
+                  ),
+              );
+    // Adding to a size already listed adds to it, so all listed pieces count.
+    const chosenMost = productMost();
+    const stoppedByProduct = perBuyerLeft !== null && chosenMost < most;
+    const perBuyerText =
+        product.most_per_buyer == null ? '' : `Each buyer can get at most ${piecesText(product.most_per_buyer)} of this item`;
     const hasChoices = product.variants.length > 1;
     const labelOf = (id: number): string =>
         product.variants.find((variant) => variant.id === id)?.label ?? '';
@@ -81,24 +100,24 @@ export default function PreorderSheet({
     const lines: PreorderLine[] =
         added.length > 0
             ? added
-            : variantId !== null && quantity >= 1 && quantity <= most
+            : variantId !== null && quantity >= 1 && quantity <= chosenMost
               ? [{ variantId, quantity: String(quantity) }]
               : [];
     const totalPieces = lines.reduce((sum, line) => sum + (typedQuantity(line.quantity) ?? 0), 0);
     const chosenNotAdded =
         added.length > 0 && variantId !== null && !added.some((line) => line.variantId === variantId);
-    const canAdd = variantId !== null && quantity >= 1 && quantity <= most;
+    const canAdd = variantId !== null && quantity >= 1 && quantity <= chosenMost;
     const canPlace =
         !saving &&
         lines.length > 0 &&
         lines.every((line) => {
             const pieces = typedQuantity(line.quantity) ?? 0;
 
-            return pieces >= 1 && pieces <= most;
+            return pieces >= 1 && pieces <= (added.includes(line) ? productMost(line) : chosenMost);
         });
 
     const addChosen = (): void => {
-        if (variantId === null || quantity < 1) {
+        if (variantId === null || quantity < 1 || quantity > chosenMost) {
             return;
         }
 
@@ -209,6 +228,16 @@ export default function PreorderSheet({
                             Preorders close {formatDate(product.preorders_close_on)}
                         </Text>
                     )}
+                    {product.most_per_buyer != null && (
+                        <Text className="font-sans-bold text-xs text-slate-600">
+                            Limit: {piecesText(product.most_per_buyer)} per buyer
+                            {perBuyerLeft !== null && perBuyerLeft < product.most_per_buyer
+                                ? perBuyerLeft === 0
+                                    ? ' · you have reached it'
+                                    : ` · you can get ${piecesText(perBuyerLeft)} more`
+                                : ''}
+                        </Text>
+                    )}
                     {!restock && product.expected_arrival && (
                         <Text className="font-sans-semibold text-xs text-slate-600">
                             Expected to arrive {product.expected_arrival}
@@ -244,10 +273,19 @@ export default function PreorderSheet({
                 <QuantityStepper
                     value={quantityText}
                     onChange={setQuantityText}
-                    most={most}
+                    most={Math.max(1, chosenMost)}
                     showLeft={false}
                     unitText={unitWord(quantity, 'Piece')}
                 />
+                {stoppedByProduct && (
+                    <Text
+                        className={`font-sans-semibold text-sm ${chosenMost === 0 ? 'text-red-600' : 'text-amber-700'}`}
+                    >
+                        {chosenMost === 0
+                            ? `${perBuyerText}. You have reached it with ${added.length > 0 ? 'this preorder, your cart, orders or preorders' : 'your cart, orders or preorders'}.`
+                            : `${perBuyerText}. You can preorder ${piecesText(chosenMost)} more.`}
+                    </Text>
+                )}
                 {hasChoices && variantId === null && (
                     <Text className="font-sans text-sm text-slate-500">
                         {chooseFirstText(product, picked)}
@@ -298,7 +336,7 @@ export default function PreorderSheet({
                                 <QuantityStepper
                                     value={line.quantity}
                                     onChange={(value) => changeLine(line.variantId, value)}
-                                    most={most}
+                                    most={Math.max(1, productMost(line))}
                     showLeft={false}
                                     unitText={unitWord(typedQuantity(line.quantity) ?? 0, 'Piece')}
                                 />

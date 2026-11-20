@@ -11,6 +11,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Services\Preorders\EarlyBird;
 use App\Services\Shop\BuyerLimit;
+use App\Services\Shop\ProductBuyerLimit;
 use App\Services\Shop\ShopPrice;
 
 /**
@@ -81,6 +82,10 @@ final class StorefrontProduct
         return [
             ...self::details($product->load([...StorefrontFeed::RELATIONS, 'photos', 'options'])),
             'most_per_item' => BuyerLimit::for($buyer),
+            // The product's own Most per buyer (all sizes together) and how many
+            // more pieces this buyer can still get; null when it has none.
+            'most_per_buyer' => $product->most_per_buyer,
+            'per_buyer_left' => $buyer === null ? $product->most_per_buyer : ProductBuyerLimit::left($buyer, $product),
         ];
     }
 

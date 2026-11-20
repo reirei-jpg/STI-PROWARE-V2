@@ -60,6 +60,23 @@ function packInput(array $overrides = []): array
     ], $overrides);
 }
 
+test('the most per buyer is optional, and must be a whole number from 1 to 10,000', function () {
+    $this->actingAs(User::factory()->specialist()->create());
+
+    $this->post(route('products.store'), productForm(['most_per_buyer' => '0']))
+        ->assertSessionHasErrors(['most_per_buyer' => 'The most per buyer must be at least 1, or leave it empty for no limit.']);
+    $this->post(route('products.store'), productForm(['most_per_buyer' => '10001']))
+        ->assertSessionHasErrors(['most_per_buyer' => 'The most per buyer cannot be more than 10,000.']);
+    $this->post(route('products.store'), productForm(['most_per_buyer' => 'two']))
+        ->assertSessionHasErrors(['most_per_buyer' => 'Enter the most per buyer as a whole number, e.g. 2, or leave it empty for no limit.']);
+    expect(Product::count())->toBe(0);
+
+    $this->post(route('products.store'), productForm(['most_per_buyer' => '2']))->assertSessionHasNoErrors();
+    $this->post(route('products.store'), productForm(['name' => 'STI Lanyard', 'most_per_buyer' => '']))->assertSessionHasNoErrors();
+
+    expect(Product::query()->orderBy('id')->pluck('most_per_buyer')->all())->toBe([2, null]);
+});
+
 test('only the specialist can manage products', function () {
     $this->actingAs(User::factory()->schoolAdmin()->create());
 

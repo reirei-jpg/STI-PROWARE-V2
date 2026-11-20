@@ -23,6 +23,7 @@ import {
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { pickChoice, pickedVariant, startingPicks } from '@/lib/option-picker';
 import type { Picked } from '@/lib/option-picker';
+import { formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type { StorefrontProductDetails, StorefrontTileProduct } from '@/types';
 
@@ -269,6 +270,20 @@ export default function StorefrontProductDialog({
                                                     to see how many are left.
                                                 </p>
                                             ))}
+                                        {details.most_per_buyer !== null && (
+                                            <p
+                                                data-test="per-buyer-limit"
+                                                className="inline-flex rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-700"
+                                            >
+                                                Limit:{' '}
+                                                {formatUnits(
+                                                    details.most_per_buyer,
+                                                    'Piece',
+                                                )}{' '}
+                                                per buyer, so more buyers get
+                                                one
+                                            </p>
+                                        )}
                                         {hasOptions && (
                                             <p className="text-xs text-slate-500">
                                                 {takesPreorders
