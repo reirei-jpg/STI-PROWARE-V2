@@ -23,7 +23,7 @@ export type SessionUser = {
     name: string;
     email: string;
     /** Decides whether the app shows the shop or the Specialist's screens. */
-    role: 'student' | 'employee' | 'specialist';
+    role: 'student' | 'employee' | 'specialist' | 'cashier';
 };
 
 type LoginResponse = { token: string; user: SessionUser };

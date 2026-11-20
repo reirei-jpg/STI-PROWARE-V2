@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Signing in and out of the phone app, for students, STI staff and the
- * PROWARE Specialist (the School Admin uses the website). Each phone gets its own
+ * Signing in and out of the phone app, for students, STI staff, the
+ * PROWARE Specialist and the cashier (the School Admin uses the website). Each phone gets its own
  * token, which lasts 30 days.
  */
 class AuthController extends Controller
@@ -41,8 +41,8 @@ class AuthController extends Controller
 
         SignInLock::clear($user);
 
-        if (! $user->isBuyer() && ! $user->isSpecialist()) {
-            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students, STI staff and the PROWARE Specialist. Use the website.']);
+        if (! $user->isBuyer() && ! $user->isSpecialist() && ! $user->isCashier()) {
+            throw ValidationException::withMessages(['email' => 'The PROWARE app is for students, STI staff, the PROWARE Specialist and the cashier. Use the website.']);
         }
 
         if (! $user->hasVerifiedEmail()) {

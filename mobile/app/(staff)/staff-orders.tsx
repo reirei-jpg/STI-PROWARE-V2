@@ -20,9 +20,10 @@ import StaffOrderRow from '@/components/StaffOrderRow';
 import type { SpecialistOrder, SpecialistOrderCounts } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
-type Show = 'placed' | 'picked_up' | 'cancelled' | 'all';
+type Show = 'paid' | 'placed' | 'picked_up' | 'cancelled' | 'all';
 
 const TABS: { value: Show; label: string }[] = [
+    { value: 'paid', label: 'Paid · to release' },
     { value: 'placed', label: 'Waiting for payment' },
     { value: 'picked_up', label: 'Released' },
     { value: 'cancelled', label: 'Cancelled' },
@@ -37,7 +38,8 @@ const TABS: { value: Show; label: string }[] = [
  */
 export default function StaffOrdersScreen() {
     const insets = useSafeAreaInsets();
-    const [show, setShow] = useState<Show>('placed');
+    // Paid orders, to release, are the Specialist's work.
+    const [show, setShow] = useState<Show>('paid');
     const [searchText, setSearchText] = useState('');
     const [search, setSearch] = useState('');
     const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +81,7 @@ export default function StaffOrdersScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    Release an order when the buyer shows the cashier's receipt.
+                    Release an order once the cashier has marked it paid.
                 </Text>
             </View>
 
@@ -191,7 +193,7 @@ export default function StaffOrdersScreen() {
                 ) : (
                     <NoResults
                         icon={<Package size={40} color="#cbd5e1" />}
-                        title={show === 'placed' ? 'No new orders to prepare.' : 'No orders here.'}
+                        title={show === 'paid' ? 'No paid orders to release.' : show === 'placed' ? 'No orders waiting for payment.' : 'No orders here.'}
                         hint="New orders show here when buyers place them, and you get a notification."
                     />
                 )

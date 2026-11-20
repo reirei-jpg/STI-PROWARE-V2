@@ -5,13 +5,18 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/lib/auth';
+
 /**
- * The Specialist scans a student's issuance slip with the phone's camera
- * (on the student's phone or printed), or types its order number when there
- * is nothing to scan. Either opens the slip with its checks and Release.
+ * The Specialist (or the cashier) scans a buyer's issuance slip or preorder
+ * slip with the phone's camera (on the buyer's phone or printed), or types
+ * its number when there is nothing to scan. The Specialist gets the slip
+ * with Release; the cashier gets what to collect and Mark as paid.
  */
 export default function ScanSlipScreen() {
     const insets = useSafeAreaInsets();
+    const { user } = useAuth();
+    const isCashier = user?.role === 'cashier';
     const [permission, requestPermission] = useCameraPermissions();
     const [focused, setFocused] = useState(false);
     const [typed, setTyped] = useState('');
@@ -36,7 +41,8 @@ export default function ScanSlipScreen() {
         }
 
         opening.current = true;
-        router.push({ pathname: '/slip-check', params: { code: trimmed } });
+        // The cashier collects the payment; the Specialist releases.
+        router.push({ pathname: isCashier ? '/cashier-slip' : '/slip-check', params: { code: trimmed } });
     };
 
     return (
@@ -60,7 +66,7 @@ export default function ScanSlipScreen() {
             </Pressable>
 
             <View>
-                <Text className="font-sans-bold text-2xl text-slate-900">Scan Issuance Slip</Text>
+                <Text className="font-sans-bold text-2xl text-slate-900">{isCashier ? 'Scan a Slip' : 'Scan Issuance Slip'}</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
                     Point the camera at the QR on the buyer&apos;s slip.
                 </Text>

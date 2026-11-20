@@ -56,7 +56,7 @@ export default function OrderScreen() {
 
     // Up to date by itself while the order is open: once the office
     // releases it, Cancel goes away without reloading.
-    useLiveReload(load, order?.status === 'placed' && !cancelling);
+    useLiveReload(load, (order?.status === 'placed' || order?.status === 'paid') && !cancelling);
 
     // Cancel opens a sheet to pick why, like in online shops.
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -220,8 +220,22 @@ function NextStep({ order }: { order: StudentOrder }) {
                 <Banknote size={20} color="#b45309" />
                 <Text className="flex-1 font-sans text-sm leading-5 text-amber-900">
                     Pay <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> at the
-                    cashier, then show the receipt and the issuance slip at the PROWARE office. First to pay,
+                    cashier with your issuance slip, then get your items at the PROWARE office. First to pay,
                     first served.
+                </Text>
+            </View>
+        );
+    }
+    if (order.status === 'paid') {
+        return (
+            <View
+                style={{ borderLeftWidth: 5, borderLeftColor: orderStripeColors[order.status] }}
+                className="flex-row items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3"
+            >
+                <CircleCheck size={20} color="#1d4ed8" />
+                <Text className="flex-1 font-sans text-sm leading-5 text-blue-900">
+                    Paid <Text className="font-sans-bold">{formatPeso(order.total_centavos)}</Text> at the
+                    cashier. Your items are set aside: show your issuance slip at the PROWARE office to get them.
                 </Text>
             </View>
         );
