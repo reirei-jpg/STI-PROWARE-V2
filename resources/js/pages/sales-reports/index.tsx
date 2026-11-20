@@ -50,11 +50,11 @@ import type {
 } from '@/types';
 
 const periods: { value: SalesPeriod; label: string }[] = [
-    { value: 'all', label: 'All time' },
+    { value: 'all', label: 'All Time' },
     { value: 'today', label: 'Today' },
-    { value: 'week', label: 'This week' },
-    { value: 'month', label: 'This month' },
-    { value: 'custom', label: 'Pick dates' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'custom', label: 'Custom Range' },
 ];
 
 const tabs: { value: SalesTab; label: string }[] = [
@@ -181,77 +181,6 @@ export default function SalesReportsIndex({
                     description="Purchases from the eStore, sales and profit with our prices beside the eStore prices, top sellers, sales below cost, and what free uniforms were worth."
                 />
 
-                <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-wrap items-center gap-2">
-                        {periods.map((period) => {
-                            const chosen =
-                                period.value === 'custom'
-                                    ? pickingDates
-                                    : !pickingDates &&
-                                      filters.period === period.value;
-
-                            return (
-                                <button
-                                    key={period.value}
-                                    type="button"
-                                    onClick={() => {
-                                        if (period.value === 'custom') {
-                                            setPickingDates(true);
-
-                                            return;
-                                        }
-
-                                        setPickingDates(false);
-                                        show({ period: period.value });
-                                    }}
-                                    className={cn(
-                                        'rounded-xl px-4 py-2.5 text-sm font-black transition',
-                                        chosen
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                    )}
-                                >
-                                    {period.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <p className="text-base font-black text-slate-900">
-                        {periodText}
-                    </p>
-                </section>
-
-                {pickingDates && (
-                    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <DateRangeFilter
-                            label="From / To"
-                            dateFrom={pickedFrom}
-                            dateTo={pickedTo}
-                            serverError={errors.date_from ?? errors.date_to}
-                            onChange={(dateFrom, dateTo) => {
-                                setPickedFrom(dateFrom);
-                                setPickedTo(dateTo);
-
-                                // Clear filters goes back to All time.
-                                if (!dateFrom && !dateTo) {
-                                    setPickingDates(false);
-                                    show({ period: 'all' });
-
-                                    return;
-                                }
-
-                                if (dateFrom && dateTo) {
-                                    show({
-                                        period: 'custom',
-                                        date_from: dateFrom,
-                                        date_to: dateTo,
-                                    });
-                                }
-                            }}
-                        />
-                    </section>
-                )}
-
                 <section
                     className={cn(
                         'grid gap-4 sm:grid-cols-2',
@@ -265,10 +194,10 @@ export default function SalesReportsIndex({
                         tone="blue"
                         label="Total Purchases"
                         value={formatPeso(summary.spent_centavos)}
-                        detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} · by Date Ordered${summary.spent_for_preorders_centavos > 0 ? ` · Preorders ${formatPeso(summary.spent_for_preorders_centavos)}` : ''}`}
+                        detail={`${summary.purchase_orders} eStore ${summary.purchase_orders === 1 ? 'order' : 'orders'} (by order date)${summary.spent_for_preorders_centavos > 0 ? ` · ${formatPeso(summary.spent_for_preorders_centavos)} for preorders` : ''}`}
                         note={
                             summary.not_arrived_centavos > 0
-                                ? `${formatPeso(summary.not_arrived_centavos)} did not arrive (${summary.short_orders} ${summary.short_orders === 1 ? 'order' : 'orders'} closed short) · not counted`
+                                ? `${formatPeso(summary.not_arrived_centavos)} not received (${summary.short_orders} ${summary.short_orders === 1 ? 'order' : 'orders'} closed short) · not included`
                                 : undefined
                         }
                         onClick={() => show({ tab: 'spent' })}
@@ -280,12 +209,12 @@ export default function SalesReportsIndex({
                                 : TrendingUp
                         }
                         tone={summary.profit_centavos < 0 ? 'red' : 'green'}
-                        label="Profit"
+                        label="Gross Profit"
                         value={formatPeso(summary.profit_centavos)}
-                        detail={`Price ${formatPeso(summary.costed_price_centavos)} − Cost ${formatPeso(summary.cost_centavos)}`}
+                        detail={`Sales ${formatPeso(summary.costed_price_centavos)} − Cost ${formatPeso(summary.cost_centavos)}`}
                         note={
                             summary.missing_cost_lines > 0
-                                ? `${summary.missing_cost_lines} ${summary.missing_cost_lines === 1 ? 'sale' : 'sales'} with no Cost yet (${formatPeso(summary.price_centavos - summary.costed_price_centavos)}) not counted`
+                                ? `${summary.missing_cost_lines} ${summary.missing_cost_lines === 1 ? 'sale' : 'sales'} without a cost · not included`
                                 : undefined
                         }
                         onClick={() => show({ tab: 'sold' })}
@@ -295,9 +224,9 @@ export default function SalesReportsIndex({
                         <Card
                             icon={Tag}
                             tone="red"
-                            label="Lost on sales below cost"
+                            label="Loss on Below-Cost Sales"
                             value={formatPeso(summary.below_cost_loss_centavos)}
-                            detail={`${summary.below_cost_lines} ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} where the Price was lower than the Cost`}
+                            detail={`${summary.below_cost_lines} ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} sold below cost`}
                             onClick={() => show({ tab: 'sold' })}
                         />
                     )}
@@ -306,7 +235,7 @@ export default function SalesReportsIndex({
                         tone="amber"
                         label="Free Uniforms"
                         value={formatPeso(summary.free_cost_centavos)}
-                        detail={`${formatUnits(summary.free_pieces, 'Piece')} at Cost · ${formatPeso(summary.free_price_centavos)} at Price`}
+                        detail={`${formatUnits(summary.free_pieces, 'Piece')} at cost · ${formatPeso(summary.free_price_centavos)} at selling price`}
                         onClick={() => show({ tab: 'free' })}
                     />
                 </section>
@@ -355,11 +284,83 @@ export default function SalesReportsIndex({
                                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                                 >
                                     <Download size={16} />
-                                    Excel (CSV)
+                                    Export to Excel
                                 </a>
                             </div>
                         )}
                     </div>
+
+                    {/* The period, under the tabs: change it while reading a list. */}
+                    <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {periods.map((period) => {
+                                const chosen =
+                                    period.value === 'custom'
+                                        ? pickingDates
+                                        : !pickingDates &&
+                                          filters.period === period.value;
+
+                                return (
+                                    <button
+                                        key={period.value}
+                                        type="button"
+                                        onClick={() => {
+                                            if (period.value === 'custom') {
+                                                setPickingDates(true);
+
+                                                return;
+                                            }
+
+                                            setPickingDates(false);
+                                            show({ period: period.value });
+                                        }}
+                                        className={cn(
+                                            'rounded-xl px-4 py-2.5 text-sm font-black transition',
+                                            chosen
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                                        )}
+                                    >
+                                        {period.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-base font-black text-slate-900">
+                            {periodText}
+                        </p>
+                    </div>
+
+                    {pickingDates && (
+                        <div className="border-b border-slate-100 px-6 py-4">
+                            <DateRangeFilter
+                                label="From / To"
+                                dateFrom={pickedFrom}
+                                dateTo={pickedTo}
+                                serverError={errors.date_from ?? errors.date_to}
+                                onChange={(dateFrom, dateTo) => {
+                                    setPickedFrom(dateFrom);
+                                    setPickedTo(dateTo);
+
+                                    // Clear filters goes back to All time.
+                                    if (!dateFrom && !dateTo) {
+                                        setPickingDates(false);
+                                        show({ period: 'all' });
+
+                                        return;
+                                    }
+
+                                    if (dateFrom && dateTo) {
+                                        show({
+                                            period: 'custom',
+                                            date_from: dateFrom,
+                                            date_to: dateTo,
+                                        });
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
 
                     {spent && <SpentTable rows={spent} />}
                     {sold && (
@@ -582,7 +583,7 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                                                 {formatPeso(
                                                     row.not_arrived_centavos,
                                                 )}{' '}
-                                                did not arrive
+                                                not received
                                             </p>
                                         </>
                                     )}
@@ -610,9 +611,9 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
             </TableScroll>
             {rows.data.some((row) => row.not_arrived_centavos > 0) && (
                 <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-500">
-                    An order closed short (the rest will not arrive) counts only
-                    what arrived. What did not arrive is shown in red and is not
-                    counted.
+                    An order closed short (the rest will not arrive) includes
+                    only what was received. What was not received is shown in
+                    red and is not included.
                 </p>
             )}
             {rows.data.some((row) => row.preorder_quantity === null) && (

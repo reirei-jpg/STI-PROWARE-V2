@@ -99,7 +99,7 @@ test('Purchases counts only what arrived on an order closed short, and shows wha
             ->where('spent.data.1.not_arrived_centavos', 0));
 
     expect($this->get(route('sales-reports.export', $dates))->streamedContent())
-        ->toContain("Purchases\n\"Total purchases\",₱240.00\n\"Did not arrive (not counted)\",₱110.00\n");
+        ->toContain("Purchases\n\"Total purchases\",₱240.00\n\"Not received (not included)\",₱110.00\n");
 });
 
 test('Purchases shows the preorder part of each PO, and older POs as not tracked', function () {

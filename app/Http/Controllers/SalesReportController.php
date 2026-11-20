@@ -121,15 +121,15 @@ class SalesReportController extends Controller
             $row([]);
             $row(['Profit']);
             $row(['Cost of the items sold', $money($summary['cost_centavos'])]);
-            $row(['Profit', $money($summary['profit_centavos'])]);
+            $row(['Gross profit', $money($summary['profit_centavos'])]);
             if ($summary['below_cost_loss_centavos'] > 0) {
-                $row(['Lost on items sold below cost', $money($summary['below_cost_loss_centavos'])]);
+                $row(['Loss on below-cost sales', $money($summary['below_cost_loss_centavos'])]);
             }
             $row([]);
             $row(['Purchases']);
             $row(['Total purchases', $money($summary['spent_centavos'])]);
             if ($summary['not_arrived_centavos'] > 0) {
-                $row(['Did not arrive (not counted)', $money($summary['not_arrived_centavos'])]);
+                $row(['Not received (not included)', $money($summary['not_arrived_centavos'])]);
             }
             $row(['Sales minus purchases', $money($summary['price_centavos'] - $summary['spent_centavos'])]);
 
