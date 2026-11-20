@@ -32,7 +32,17 @@ class SalesReportRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:120'],
             'tab' => ['nullable', Rule::in(self::TABS)],
             'details' => ['nullable', 'integer'],
+            'only' => ['nullable', Rule::in(['below_cost'])],
         ];
+    }
+
+    /**
+     * Sales showing only the products sold below cost (the Loss on
+     * Below-Cost Sales card).
+     */
+    public function onlyBelowCost(): bool
+    {
+        return $this->input('only') === 'below_cost';
     }
 
     /**
@@ -57,6 +67,7 @@ class SalesReportRequest extends FormRequest
             'date_to.after_or_equal' => 'The "To" date cannot be before the "From" date.',
             // e.g. an old link to the Prices tab, now part of Sales.
             'tab.in' => 'Choose Purchases, Sales, Top Sellers or Free Uniforms. Prices are on Sales.',
+            'only.in' => 'That list does not exist. Sales is shown with all products.',
         ];
     }
 

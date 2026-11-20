@@ -172,7 +172,7 @@ final class SalesReport
      *
      * @return LengthAwarePaginator<int, SoldProduct>
      */
-    public static function soldProducts(CarbonImmutable $from, CarbonImmutable $to, ?string $search): LengthAwarePaginator
+    public static function soldProducts(CarbonImmutable $from, CarbonImmutable $to, ?string $search, bool $onlyBelowCost = false): LengthAwarePaginator
     {
         $lines = self::soldGroups($from, $to, $search)->get()->map(fn (object $row): array => self::soldRow($row));
         $byProduct = $lines->groupBy('product_id');
@@ -181,6 +181,8 @@ final class SalesReport
 
         $rows = $byProduct
             ->map(fn (Collection $variantLines, int|string $productId): array => self::soldProduct($variantLines, $estore[(int) $productId] ?? null))
+            // The Loss on Below-Cost Sales card: only the products sold below cost.
+            ->filter(fn (array $product): bool => ! $onlyBelowCost || $product['below_cost'])
             // Highest profit first (products with no Cost yet, no profit, last),
             // then the most pieces sold.
             ->sortBy([
@@ -190,7 +192,8 @@ final class SalesReport
             ])
             ->values();
 
-        $page = LengthAwarePaginator::resolveCurrentPage();
+        // A page past the end (an old link) shows the last page.
+        $page = min(LengthAwarePaginator::resolveCurrentPage(), max(1, (int) ceil($rows->count() / 20)));
 
         return new LengthAwarePaginator($rows->forPage($page, 20)->values(), $rows->count(), 20, $page, [
             'path' => LengthAwarePaginator::resolveCurrentPath(),
@@ -281,7 +284,6 @@ final class SalesReport
     {
         return array_values(self::soldLines($from, $to)
             ->join('users', 'users.id', '=', 'orders.user_id')
-            ->whereRaw('order_items.quantity > order_items.quantity_short')
             ->orderBy('orders.picked_up_at')
             ->orderBy('orders.id')
             ->orderBy('order_items.id')
@@ -405,7 +407,8 @@ final class SalesReport
             ->sortByDesc('given_at')
             ->values();
 
-        $page = LengthAwarePaginator::resolveCurrentPage();
+        // A page past the end (an old link) shows the last page.
+        $page = min(LengthAwarePaginator::resolveCurrentPage(), max(1, (int) ceil($rows->count() / 20)));
         $pageRows = $rows->forPage($page, 20)->values();
         $groups = FreeUniformGroup::query()
             ->with('students.uniformSet')
@@ -555,7 +558,9 @@ final class SalesReport
         return OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.status', OrderStatus::PickedUp)
-            ->whereBetween('orders.picked_up_at', [$from, $to]);
+            ->whereBetween('orders.picked_up_at', [$from, $to])
+            // A line whose pieces were all short at release was not sold.
+            ->whereColumn('order_items.quantity', '>', 'order_items.quantity_short');
     }
 
     /**
@@ -569,11 +574,14 @@ final class SalesReport
         // A lower price from before the reason was kept was a sale: it joins the sale's row.
         $reason = "case when {$normalPrice} > order_items.unit_price_centavos then coalesce(order_items.lower_price_reason, 'sale') end";
 
+        // "%" and "_" are searched as typed, not as "anything".
+        $pattern = $search === null ? '' : '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($search)).'%';
+
         return self::soldLines($from, $to)
             ->when($search !== null, fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
-                ->whereLike('order_items.product_name', "%{$search}%")
-                // or its eStore Item Code, e.g. UTMP01
-                ->orWhereIn('order_items.product_variant_id', ProductVariant::query()->select('id')->whereLike('estore_item_code', '%'.mb_strtoupper($search).'%'))))
+                ->whereRaw("lower(order_items.product_name) like ? escape '!'", [$pattern])
+                // or its Item Code, e.g. UTMP01
+                ->orWhereIn('order_items.product_variant_id', ProductVariant::query()->select('id')->whereRaw("lower(estore_item_code) like ? escape '!'", [$pattern]))))
             ->groupBy('order_items.product_variant_id', 'order_items.unit_name', 'order_items.pieces_per_unit', 'order_items.unit_price_centavos')
             ->groupByRaw($normalPrice)
             ->groupByRaw($reason)

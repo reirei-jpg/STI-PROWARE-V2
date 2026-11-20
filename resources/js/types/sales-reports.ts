@@ -147,6 +147,8 @@ export type SalesReportFilters = {
     date_from: string;
     date_to: string;
     search: string | null;
+    /** Sales showing only the products sold below cost. */
+    only: 'below_cost' | null;
 };
 
 /** Sales: one product, all its sizes, colors and prices together. */

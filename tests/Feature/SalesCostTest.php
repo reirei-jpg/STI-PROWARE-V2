@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
 use App\Enums\StockCorrectionReason;
 use App\Enums\StockMovementType;
@@ -230,6 +231,64 @@ test('an item put on sale below its Cost shows what was lost', function () {
         ->where('summary.profit_centavos', -10000)
         ->where('sold.data.0.below_cost', true)
         ->where('sold.data.0.loss_centavos', 10000));
+});
+
+/**
+ * A released order line of a new product: $quantity ordered, $short of them
+ * not handed over, sold for $lineTotal with this Cost.
+ */
+function releasedLine(string $name, int $quantity, int $short, int $lineTotal, ?int $cost): OrderItem
+{
+    $variant = ProductVariant::factory()->for(Product::factory()->create(['name' => $name]))->create();
+    $order = Order::factory()->create(['status' => OrderStatus::PickedUp, 'picked_up_at' => now()]);
+
+    return OrderItem::factory()->for($order)->create([
+        'product_variant_id' => $variant->id, 'product_name' => $name, 'quantity' => $quantity, 'quantity_short' => $short,
+        'unit_price_centavos' => intdiv($lineTotal, max(1, $quantity - $short)), 'line_total_centavos' => $lineTotal, 'cost_centavos' => $cost,
+    ]);
+}
+
+test('a line whose pieces were all short at release is not a sale', function () {
+    releasedLine('STI Department Shirt', quantity: 2, short: 2, lineTotal: 0, cost: null);
+    releasedLine('STI Lanyard', quantity: 1, short: 0, lineTotal: 8000, cost: 5000);
+
+    $this->actingAs($this->specialist)->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('summary.missing_cost_lines', 0)
+        ->where('summary.pieces', 1)
+        ->where('summary.orders', 1)
+        ->has('sold.data', 1)
+        ->where('sold.data.0.product_name', 'STI Lanyard'));
+
+    expect($this->get(route('sales-reports.export'))->streamedContent())->not->toContain('no Cost yet');
+});
+
+test('the Loss on Below-Cost Sales card lists only the products sold below cost', function () {
+    releasedLine('STI Lanyard', quantity: 1, short: 0, lineTotal: 8000, cost: 5000);
+    releasedLine('STI Jacket', quantity: 1, short: 0, lineTotal: 30000, cost: 75000);
+
+    $this->actingAs($this->specialist)->get(route('sales-reports.index', ['only' => 'below_cost']))->assertInertia(fn (Assert $page) => $page
+        ->where('filters.only', 'below_cost')
+        ->has('sold.data', 1)
+        ->where('sold.data.0.product_name', 'STI Jacket'));
+
+    $this->get(route('sales-reports.index', ['only' => 'everything']))
+        ->assertSessionHasErrors(['only' => 'That list does not exist. Sales is shown with all products.']);
+});
+
+test('Sales searches "%" and "_" as typed, and a page past the end shows the last page', function () {
+    releasedLine('Tote 50% Off', quantity: 1, short: 0, lineTotal: 10000, cost: 5000);
+    releasedLine('Tote 500', quantity: 1, short: 0, lineTotal: 10000, cost: 5000);
+    $this->actingAs($this->specialist);
+
+    $this->get(route('sales-reports.index', ['search' => '50%']))->assertInertia(fn (Assert $page) => $page
+        ->has('sold.data', 1)
+        ->where('sold.data.0.product_name', 'Tote 50% Off'));
+    $this->get(route('sales-reports.index', ['search' => '%']))->assertInertia(fn (Assert $page) => $page->has('sold.data', 1));
+    $this->get(route('sales-reports.index', ['search' => '_']))->assertInertia(fn (Assert $page) => $page->has('sold.data', 0));
+
+    $this->get(route('sales-reports.index', ['page' => 99]))->assertInertia(fn (Assert $page) => $page
+        ->where('sold.current_page', 1)
+        ->has('sold.data', 2));
 });
 
 test('a price set before a dearer eStore order arrived is flagged on Products and the dashboard', function () {

@@ -133,6 +133,10 @@ export default function SalesReportsIndex({
             query.search = merged.search;
         }
 
+        if (merged.tab === 'sold' && merged.only) {
+            query.only = merged.only;
+        }
+
         router.get(SalesReportController.index().url, query, {
             preserveState: true,
             preserveScroll: true,
@@ -217,7 +221,7 @@ export default function SalesReportsIndex({
                                 ? `${summary.missing_cost_lines} ${summary.missing_cost_lines === 1 ? 'sale' : 'sales'} without a cost · not included`
                                 : undefined
                         }
-                        onClick={() => show({ tab: 'sold' })}
+                        onClick={() => show({ tab: 'sold', only: null })}
                     />
                     {/* A price set before a dearer eStore order arrived can still sell below Cost. */}
                     {summary.below_cost_lines > 0 && (
@@ -227,7 +231,9 @@ export default function SalesReportsIndex({
                             label="Loss on Below-Cost Sales"
                             value={formatPeso(summary.below_cost_loss_centavos)}
                             detail={`${summary.below_cost_lines} ${summary.below_cost_lines === 1 ? 'sale' : 'sales'} sold below cost`}
-                            onClick={() => show({ tab: 'sold' })}
+                            onClick={() =>
+                                show({ tab: 'sold', only: 'below_cost' })
+                            }
                         />
                     )}
                     <Card
@@ -319,7 +325,9 @@ export default function SalesReportsIndex({
                                 <button
                                     key={tab.value}
                                     type="button"
-                                    onClick={() => show({ tab: tab.value })}
+                                    onClick={() =>
+                                        show({ tab: tab.value, only: null })
+                                    }
                                     className={cn(
                                         'rounded-xl px-4 py-2 text-sm font-black transition',
                                         filters.tab === tab.value
@@ -370,13 +378,32 @@ export default function SalesReportsIndex({
                         <>
                             <div className="border-b border-slate-100 px-6 py-3">
                                 <p className="text-xs text-slate-500">
-                                    One row per product, all its sizes and
-                                    colors, the highest profit first, then the
-                                    most pieces sold. eStore price: its latest
-                                    eStore order.
+                                    Sorted by highest gross profit, then
+                                    quantity sold. eStore Cost is from the
+                                    latest eStore order.
                                 </p>
                             </div>
-                            <SoldTable rows={sold} details={sold_details} />
+                            {filters.only === 'below_cost' && (
+                                <div className="flex flex-col gap-2 border-b border-red-100 bg-red-50/70 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="flex items-center gap-2 text-sm font-black text-red-700">
+                                        <TrendingDown size={16} />
+                                        Showing only products sold below cost
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => show({ only: null })}
+                                        className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                    >
+                                        Show all products
+                                    </button>
+                                </div>
+                            )}
+                            <SoldTable
+                                rows={sold}
+                                details={sold_details}
+                                onlyBelowCost={filters.only === 'below_cost'}
+                                search={filters.search}
+                            />
                         </>
                     )}
                     {best && <BestSellersTable rows={best} />}
@@ -741,14 +768,30 @@ function BestSellersTable({ rows }: { rows: Paginated<BestSellerRow> }) {
 function SoldTable({
     rows,
     details,
+    onlyBelowCost,
+    search,
 }: {
     rows: Paginated<SoldProduct>;
     details: SoldDetails | null | undefined;
+    onlyBelowCost: boolean;
+    /** The search typed, for the empty message. */
+    search: string | null;
 }) {
     const [viewingId, setViewingId] = useState<number | null>(null);
 
     if (rows.data.length === 0) {
-        return <Empty icon={TrendingUp} text="Nothing sold in this period" />;
+        return (
+            <Empty
+                icon={TrendingUp}
+                text={
+                    search
+                        ? `No sold product matches "${search}"`
+                        : onlyBelowCost
+                          ? 'No sales below cost in this period'
+                          : 'Nothing sold in this period'
+                }
+            />
+        );
     }
 
     const view = (productId: number) => {
@@ -775,19 +818,21 @@ function SoldTable({
                         <tr>
                             <TableHeading>Product</TableHeading>
                             <TableHeading align="right">
-                                eStore price
+                                eStore Cost
                             </TableHeading>
                             <TableHeading align="right">
-                                Selling price
+                                Selling Price
                             </TableHeading>
-                            <TableHeading align="right">Sold</TableHeading>
+                            <TableHeading align="right">Qty Sold</TableHeading>
                             <TableHeading align="right">
-                                Total Price
+                                Total Sales
                             </TableHeading>
                             <TableHeading align="right">
                                 Total Cost
                             </TableHeading>
-                            <TableHeading align="right">Profit</TableHeading>
+                            <TableHeading align="right">
+                                Gross Profit
+                            </TableHeading>
                             <TableHeading align="right">
                                 <span className="sr-only">Actions</span>
                             </TableHeading>
@@ -828,8 +873,8 @@ function SoldProductRow({
                 <p className="font-black text-slate-900">{row.product_name}</p>
                 <p className="text-xs text-slate-500">
                     {row.variants_count === 1
-                        ? '1 size or color'
-                        : `${row.variants_count} sizes or colors`}
+                        ? '1 variant'
+                        : `${row.variants_count} variants`}
                     {row.item_code && (
                         <span className="font-mono font-black text-blue-700">
                             {' '}
@@ -840,12 +885,12 @@ function SoldProductRow({
                 {row.below_cost && (
                     <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black text-red-700">
                         <TrendingDown size={12} />
-                        Sold below cost · lost {formatPeso(row.loss_centavos)}
+                        Below cost · loss {formatPeso(row.loss_centavos)}
                     </p>
                 )}
                 {row.missing_cost_lines > 0 && (
                     <p className="mt-1 text-[11px] font-black text-amber-700">
-                        Cost not set for some · open View Details
+                        Cost missing · set it in View Details
                     </p>
                 )}
             </td>
@@ -892,7 +937,14 @@ function SoldProductRow({
                 <span className="text-slate-500"> / pc</span>
                 {row.lower_price_labels.length > 0 && (
                     <span className="block text-[11px] font-black text-red-600">
-                        Some {row.lower_price_labels.join(', ').toLowerCase()}
+                        Includes{' '}
+                        {row.lower_price_labels
+                            .map((label) =>
+                                label === 'On sale'
+                                    ? 'sale price'
+                                    : label.toLowerCase(),
+                            )
+                            .join(', ')}
                     </span>
                 )}
             </td>
@@ -966,7 +1018,7 @@ function SoldTableRow({
                 {row.below_cost && (
                     <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black text-red-700">
                         <TrendingDown size={12} />
-                        Sold below cost · lost {formatPeso(row.loss_centavos)}
+                        Below cost · loss {formatPeso(row.loss_centavos)}
                     </p>
                 )}
             </td>
@@ -1409,13 +1461,15 @@ function PriceChange({
     change: number | null;
 }) {
     if (change === null) {
-        return <span className="text-xs text-slate-400">First order</span>;
+        return (
+            <span className="text-xs text-slate-400">First eStore order</span>
+        );
     }
 
     if (change === 0) {
         return (
             <span className="text-xs font-semibold text-slate-500">
-                Same price as before
+                No change
             </span>
         );
     }
@@ -1504,33 +1558,31 @@ function SoldDetailsDialog({
                         </div>
                         <div className="space-y-6 overflow-y-auto px-6 py-5">
                             <section className="space-y-2">
-                                <h3 className={sectionTitle}>
-                                    Sizes and colors sold
-                                </h3>
+                                <h3 className={sectionTitle}>Variants Sold</h3>
                                 <TableScroll>
                                     <table className="w-full min-w-240">
                                         <thead className="bg-slate-50">
                                             <tr>
                                                 <TableHeading>
-                                                    Size / Color
+                                                    Variant
                                                 </TableHeading>
                                                 <TableHeading align="right">
-                                                    Cost
+                                                    Unit Cost
                                                 </TableHeading>
                                                 <TableHeading align="right">
-                                                    Price
+                                                    Selling Price
                                                 </TableHeading>
                                                 <TableHeading align="right">
-                                                    Sold
+                                                    Qty Sold
                                                 </TableHeading>
                                                 <TableHeading align="right">
-                                                    Total Price
+                                                    Total Sales
                                                 </TableHeading>
                                                 <TableHeading align="right">
                                                     Total Cost
                                                 </TableHeading>
                                                 <TableHeading align="right">
-                                                    Profit
+                                                    Gross Profit
                                                 </TableHeading>
                                             </tr>
                                         </thead>
@@ -1549,8 +1601,7 @@ function SoldDetailsDialog({
 
                             <section className="space-y-2">
                                 <h3 className={sectionTitle}>
-                                    What Head Office charged us (eStore) ·
-                                    newest first
+                                    eStore Cost History (newest first)
                                 </h3>
                                 {!details.estore ||
                                 details.estore.orders.length === 0 ? (
