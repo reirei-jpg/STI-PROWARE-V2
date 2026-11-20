@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Orders\MarkOrderPaid;
+use App\Actions\Orders\UndoOrderPayment;
+use App\Actions\Preorders\UndoPreorderPayment;
+use App\Http\Requests\UndoPaymentRequest;
 use App\Models\Order;
 use App\Models\PreorderSlip;
 use App\Services\Preorders\PreorderPayment;
@@ -44,6 +47,22 @@ class CashierController extends Controller
     public function payPreorderSlip(Request $request, PreorderSlip $preorderSlip): RedirectResponse
     {
         return $this->respond(fn (): string => PreorderPayment::markPaid($preorderSlip, $request->user()));
+    }
+
+    /**
+     * Undo an order's payment recorded by mistake (the same day, before release).
+     */
+    public function undoOrderPayment(UndoPaymentRequest $request, Order $order, UndoOrderPayment $undo): RedirectResponse
+    {
+        return $this->respond(fn (): string => $undo->handle($order, $request->user(), $request->reasonText()));
+    }
+
+    /**
+     * Undo a preorder slip's payment recorded by mistake (the same day, before its items arrive).
+     */
+    public function undoPreorderPayment(UndoPaymentRequest $request, PreorderSlip $preorderSlip, UndoPreorderPayment $undo): RedirectResponse
+    {
+        return $this->respond(fn (): string => $undo->handle($preorderSlip, $request->user(), $request->reasonText()));
     }
 
     /**

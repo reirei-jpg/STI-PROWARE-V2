@@ -88,14 +88,14 @@ class SignInLock
 
     /**
      * Whether $staff may unlock $owner's account: the Specialist unlocks
-     * students and STI staff, the School Admin unlocks the Specialist.
-     * Nobody unlocks their own account.
+     * students and STI staff, the School Admin unlocks the Specialist and
+     * the cashier. Nobody unlocks their own account.
      */
     public static function canUnlock(User $staff, User $owner): bool
     {
         return $staff->id !== $owner->id && match ($staff->role) {
             UserRole::Specialist => $owner->isBuyer(),
-            UserRole::SchoolAdmin => $owner->isSpecialist(),
+            UserRole::SchoolAdmin => $owner->isSpecialist() || $owner->isCashier(),
             default => false,
         };
     }
@@ -132,7 +132,7 @@ class SignInLock
     {
         $roles = match ($staff->role) {
             UserRole::Specialist => [UserRole::Student, UserRole::Employee],
-            UserRole::SchoolAdmin => [UserRole::Specialist],
+            UserRole::SchoolAdmin => [UserRole::Specialist, UserRole::Cashier],
             default => [],
         };
 
@@ -178,7 +178,7 @@ class SignInLock
 
     /**
      * Who is told of the lock and may unlock it: the Specialist for a
-     * buyer, the School Admin for the Specialist.
+     * buyer, the School Admin for the Specialist and the cashier.
      *
      * @return list<User>
      */
@@ -186,7 +186,7 @@ class SignInLock
     {
         $role = match (true) {
             $owner->isBuyer() => UserRole::Specialist,
-            $owner->isSpecialist() => UserRole::SchoolAdmin,
+            $owner->isSpecialist(), $owner->isCashier() => UserRole::SchoolAdmin,
             default => null,
         };
 

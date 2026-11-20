@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import {
     Banknote,
     CheckCircle2,
@@ -6,14 +6,26 @@ import {
     ReceiptText,
     SearchX,
     ShieldAlert,
+    Undo2,
+    X,
 } from 'lucide-react';
 import { useState } from 'react';
 import CashierController from '@/actions/App/Http/Controllers/CashierController';
 import ConfirmDialog from '@/components/confirm-dialog';
+import InputError from '@/components/input-error';
 import IssuanceSlip from '@/components/issuance-slip';
 import PageHeader from '@/components/page-header';
 import SlipScanBox from '@/components/slip-scan-box';
 import StaffTag from '@/components/staff-tag';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { confirmLeave } from '@/lib/back-guard';
 import { formatDateTime, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
@@ -33,6 +45,8 @@ type CashierResult =
           to_collect_centavos: number | null;
           /** What is no longer left, so not charged. */
           short: string[];
+          /** Paid today and not released yet: the payment can be undone. */
+          can_undo: boolean;
       }
     | {
           kind: 'preorder';
@@ -41,6 +55,8 @@ type CashierResult =
           refusal: string | null;
           to_collect_centavos: number | null;
           short: string[];
+          /** Paid today and its items have not arrived: the payment can be undone. */
+          can_undo: boolean;
       };
 
 type PaidToday = {
@@ -50,6 +66,9 @@ type PaidToday = {
         buyer: string;
         amount_centavos: number;
         paid_at: string | null;
+        /** Recorded by mistake and undone: not in the total. */
+        undone: boolean;
+        reason: string | null;
     }[];
     total_centavos: number;
 };
@@ -59,7 +78,9 @@ type PaidToday = {
  * the buyer's issuance slip or preorder slip (or type its number), collect
  * the amount shown, and Mark as paid. For an order, only what is still left
  * is charged (first to pay, first served) and set aside for the buyer; the
- * Specialist then releases it. Below: what this cashier collected today.
+ * Specialist then releases it. A payment recorded by mistake can be undone
+ * the same day, before release, with a reason. Below: what this cashier
+ * collected today.
  */
 export default function CashierPayments({
     code,
@@ -250,8 +271,10 @@ function Payment({ result }: { result: CashierResult }) {
                             </button>
                             <p className="text-center text-xs font-semibold text-slate-500">
                                 {result.kind === 'order'
-                                    ? 'The items will be reserved for the buyer. Recorded payments cannot be undone.'
-                                    : 'The preorder can no longer be changed or cancelled. Recorded payments cannot be undone.'}
+                                    ? 'The items will be reserved for the buyer.'
+                                    : 'The preorder can no longer be changed or cancelled.'}{' '}
+                                A payment recorded by mistake can be undone
+                                today, before release.
                             </p>
                         </>
                     )}
@@ -268,6 +291,23 @@ function Payment({ result }: { result: CashierResult }) {
                             {result.refusal}
                         </p>
                     )}
+
+                    {result.can_undo && (
+                        <UndoPayment
+                            url={
+                                result.kind === 'order'
+                                    ? CashierController.undoOrderPayment(
+                                          result.order.id,
+                                      ).url
+                                    : CashierController.undoPreorderPayment(
+                                          result.slip.slip_id,
+                                      ).url
+                            }
+                            number={number}
+                            buyer={buyer}
+                            isOrder={result.kind === 'order'}
+                        />
+                    )}
                 </aside>
             </div>
 
@@ -278,13 +318,151 @@ function Payment({ result }: { result: CashierResult }) {
                     result.kind === 'order'
                         ? 'The items will be reserved for pickup at the PROWARE office.'
                         : 'The slip will be marked PAID, and the preorder can no longer be changed or cancelled.'
-                } This action cannot be undone.`}
+                } If it is recorded by mistake, it can be undone today with a reason.`}
                 cancelLabel="Cancel"
                 confirmLabel="Mark as Paid"
                 busy={busy}
                 onConfirm={markPaid}
                 onClose={() => setConfirming(false)}
             />
+        </>
+    );
+}
+
+/**
+ * Undo a payment recorded by mistake (the wrong slip was scanned, or the
+ * buyer did not pay): only today and before release. A reason is required;
+ * the buyer and the Specialist are told, and it stays on record.
+ */
+function UndoPayment({
+    url,
+    number,
+    buyer,
+    isOrder,
+}: {
+    url: string;
+    number: string | null;
+    buyer: string;
+    isOrder: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const form = useForm({ reason: '' });
+    const ready = form.data.reason.trim().length >= 5;
+
+    const close = () => {
+        setOpen(false);
+        form.reset();
+        form.clearErrors();
+    };
+    // Closing with a written reason asks first.
+    const unsaved = useUnsavedChanges(
+        open && form.data.reason.trim() !== '' && !form.processing,
+    );
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                data-test="undo-payment"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-black text-red-700 shadow-sm transition hover:bg-red-100"
+            >
+                <Undo2 size={17} />
+                Undo payment
+            </button>
+            <p className="text-center text-xs font-semibold text-slate-500">
+                Recorded by mistake? It can be undone today, before{' '}
+                {isOrder ? 'release' : 'the items arrive'}.
+            </p>
+
+            <Dialog
+                open={open}
+                onOpenChange={(isOpen) => !isOpen && confirmLeave(close)}
+            >
+                <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-3xl border-slate-200 p-0 sm:max-w-md [&>button:last-child]:hidden">
+                    <form
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            form.post(url, {
+                                preserveScroll: true,
+                                onSuccess: close,
+                            });
+                        }}
+                        className="flex min-h-0 flex-col"
+                    >
+                        {unsaved.prompt}
+                        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                            <div className="flex items-start gap-3">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
+                                    <Undo2 size={22} />
+                                </span>
+                                <div>
+                                    <DialogTitle className="text-lg font-black text-slate-900">
+                                        Undo the payment for {number}?
+                                    </DialogTitle>
+                                    <DialogDescription className="text-sm text-slate-500">
+                                        {isOrder
+                                            ? `The order goes back to waiting for payment, and its reserved items are for sale again. ${buyer} and the Specialist are notified.`
+                                            : `The slip goes back to waiting for payment. ${buyer} and the Specialist are notified.`}
+                                    </DialogDescription>
+                                </div>
+                            </div>
+                            <DialogClose className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                                <X size={20} />
+                                <span className="sr-only">Close</span>
+                            </DialogClose>
+                        </div>
+
+                        <div className="space-y-2 px-6 py-5">
+                            <label
+                                htmlFor="undo-reason"
+                                className="text-sm font-black text-slate-700"
+                            >
+                                Reason
+                            </label>
+                            <textarea
+                                id="undo-reason"
+                                value={form.data.reason}
+                                onChange={(event) =>
+                                    form.setData('reason', event.target.value)
+                                }
+                                maxLength={200}
+                                rows={3}
+                                placeholder="e.g. Scanned the wrong slip."
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            />
+                            <p className="text-xs text-slate-500">
+                                At least 5 characters. Kept on record with the
+                                payment.
+                            </p>
+                            <InputError
+                                message={form.errors.reason}
+                                className="font-semibold"
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                            <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                                Keep payment
+                            </DialogClose>
+                            <button
+                                type="submit"
+                                disabled={form.processing || !ready}
+                                data-test="confirm-undo-payment"
+                                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {form.processing && (
+                                    <LoaderCircle
+                                        size={17}
+                                        className="animate-spin"
+                                    />
+                                )}
+                                Undo payment
+                            </button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
@@ -305,6 +483,9 @@ function NotFound({ code }: { code: string }) {
 }
 
 function PaidTodayTable({ paidToday }: { paidToday: PaidToday }) {
+    const recorded = paidToday.rows.filter((row) => !row.undone).length;
+    const undone = paidToday.rows.length - recorded;
+
     return (
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 px-5 py-4">
@@ -313,8 +494,8 @@ function PaidTodayTable({ paidToday }: { paidToday: PaidToday }) {
                     Paid today
                 </h2>
                 <p className="text-sm font-bold text-slate-600">
-                    {paidToday.rows.length}{' '}
-                    {paidToday.rows.length === 1 ? 'payment' : 'payments'} ·{' '}
+                    {recorded} {recorded === 1 ? 'payment' : 'payments'}
+                    {undone > 0 && ` (${undone} undone)`} ·{' '}
                     <span
                         data-test="paid-today-total"
                         className="font-black text-slate-900"
@@ -340,7 +521,10 @@ function PaidTodayTable({ paidToday }: { paidToday: PaidToday }) {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {paidToday.rows.map((row) => (
-                                <tr key={`${row.kind}-${row.number}`}>
+                                <tr
+                                    key={`${row.kind}-${row.number}-${row.paid_at}-${row.undone}`}
+                                    className={cn(row.undone && 'bg-red-50/50')}
+                                >
                                     <td className="px-5 py-3 whitespace-nowrap text-slate-600">
                                         {formatDateTime(row.paid_at)}
                                     </td>
@@ -351,11 +535,28 @@ function PaidTodayTable({ paidToday }: { paidToday: PaidToday }) {
                                                 ? 'Order'
                                                 : 'Preorder'}
                                         </span>
+                                        {row.undone && (
+                                            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-black text-red-700">
+                                                Undone
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="px-5 py-3 text-slate-700">
                                         {row.buyer}
+                                        {row.undone && row.reason && (
+                                            <span className="block text-xs text-red-700">
+                                                {row.reason}
+                                            </span>
+                                        )}
                                     </td>
-                                    <td className="px-5 py-3 text-right font-black whitespace-nowrap text-slate-900">
+                                    <td
+                                        className={cn(
+                                            'px-5 py-3 text-right font-black whitespace-nowrap',
+                                            row.undone
+                                                ? 'text-slate-400 line-through'
+                                                : 'text-slate-900',
+                                        )}
+                                    >
                                         {formatPeso(row.amount_centavos)}
                                     </td>
                                 </tr>

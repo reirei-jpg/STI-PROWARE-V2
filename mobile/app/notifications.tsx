@@ -224,9 +224,30 @@ function describe(data: StudentNotificationData): {
         case 'order_placed':
             return {
                 title: `New order ${data.order_number}`,
-                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay at the cashier. Release it when they show the receipt.`,
+                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay at the cashier. It can be released once the payment is recorded.`,
                 titleClass: 'text-blue-800',
                 stripe: '#3b82f6',
+            };
+        case 'payment_recorded':
+            return {
+                title: `Paid: ${data.number} · ${data.buyer_name}`,
+                body: `${formatPeso(data.amount_centavos)} recorded by ${data.cashier}. ${data.order_id !== null ? 'Ready for release.' : 'The items are released once they arrive.'}`,
+                titleClass: 'text-blue-800',
+                stripe: '#3b82f6',
+            };
+        case 'payment_undone_staff':
+            return {
+                title: `Payment undone: ${data.number} · ${data.buyer_name}`,
+                body: `${formatPeso(data.amount_centavos)}${data.undone_by ? `, undone by ${data.undone_by}` : ' undone'}: ${data.reason} It is waiting for payment again.`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
+        case 'payment_undone':
+            return {
+                title: `Payment undone: ${data.items}`,
+                body: `The cashier undid your ${formatPeso(data.amount_centavos)} payment: ${data.reason} ${data.order_id !== null ? 'Pay at the cashier again to claim your items.' : 'Pay at the cashier again with your preorder slip.'}`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
             };
         case 'low_stock':
             return {

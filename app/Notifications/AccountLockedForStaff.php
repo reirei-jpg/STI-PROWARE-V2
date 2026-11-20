@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 /**
  * Tells the Specialist a buyer's account was locked (or the School Admin
- * that the Specialist's was), so they can unlock it once they are sure it
+ * that the Specialist's or the cashier's was), so they can unlock it once they are sure it
  * is the owner asking. A third lock in a day is called out: someone may be
  * guessing the password. Also pushed to their phones.
  */

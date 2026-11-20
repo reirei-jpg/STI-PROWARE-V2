@@ -79,6 +79,8 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('paid-today', [CashierController::class, 'paidToday'])->name('paid-today');
         Route::post('orders/{order}/paid', [CashierController::class, 'payOrder'])->name('orders.paid');
         Route::post('preorder-slips/{preorderSlip}/paid', [CashierController::class, 'payPreorderSlip'])->name('preorder-slips.paid');
+        Route::post('orders/{order}/undo-payment', [CashierController::class, 'undoOrderPayment'])->name('orders.undo-payment');
+        Route::post('preorder-slips/{preorderSlip}/undo-payment', [CashierController::class, 'undoPreorderPayment'])->name('preorder-slips.undo-payment');
     });
 
     Route::middleware(['auth:sanctum', 'role:specialist'])->prefix('specialist')->name('specialist.')->group(function () {

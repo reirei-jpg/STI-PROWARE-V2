@@ -250,8 +250,59 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.student_name} · {data.items_count}{' '}
                     {data.items_count === 1 ? 'item' : 'items'} ·{' '}
-                    {formatPeso(data.total_centavos)} to pay at the cashier.
-                    Release it when they show the receipt.
+                    {formatPeso(data.total_centavos)} to pay at the cashier. It
+                    can be released once the payment is recorded.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'payment_recorded') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-blue-800">
+                    Paid: {data.number} · {data.buyer_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {formatPeso(data.amount_centavos)} recorded by{' '}
+                    {data.cashier}.{' '}
+                    {data.order_id !== null
+                        ? 'Ready for release.'
+                        : 'The items are released once they arrive.'}
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'payment_undone_staff') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Payment undone: {data.number} · {data.buyer_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {formatPeso(data.amount_centavos)}
+                    {data.undone_by
+                        ? `, undone by ${data.undone_by}`
+                        : ' undone'}
+                    : {data.reason} It is waiting for payment again.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'payment_undone') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Payment undone: {data.items}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    The cashier undid your {formatPeso(data.amount_centavos)}{' '}
+                    payment: {data.reason}{' '}
+                    {data.order_id !== null
+                        ? 'Pay at the cashier again to claim your items.'
+                        : 'Pay at the cashier again with your preorder slip.'}
                 </span>
             </>
         );

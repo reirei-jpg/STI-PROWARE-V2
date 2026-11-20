@@ -3,13 +3,16 @@
 namespace App\Actions\Orders;
 
 use App\Enums\OrderStatus;
+use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPaid;
+use App\Notifications\PaymentRecorded;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\Units;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -17,8 +20,9 @@ use Illuminate\Validation\ValidationException;
  * from its issuance slip; panel revision, 20 Nov 2026). First to pay, first
  * served: what is still left of each item is set aside for the buyer now
  * (held pieces), and what is no longer left is marked short, so the buyer
- * pays only for what they get. Nothing left at all: it cannot be paid. A
- * payment is final; the Specialist then releases the items.
+ * pays only for what they get. Nothing left at all: it cannot be paid. The
+ * Specialist is told and releases the items; a payment recorded by mistake
+ * can be undone by the cashier the same day, before release (UndoOrderPayment).
  */
 class MarkOrderPaid
 {
@@ -118,6 +122,8 @@ class MarkOrderPaid
 
         $order->refresh();
         $order->student->notify(new OrderPaid($order, $short));
+        // The Specialist releases it next.
+        Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentRecorded($order, $cashier));
 
         return "Order {$order->number}: payment of ₱".number_format($order->total_centavos / 100, 2)." from {$order->student->name} has been recorded. The items are reserved for pickup at the PROWARE office."
             .($short === [] ? '' : ' Not charged (sold out before payment): '.implode(', ', $short).'.');

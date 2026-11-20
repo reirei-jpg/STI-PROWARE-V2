@@ -102,7 +102,7 @@ export default function Dashboard({
     orderCards: OrderCardsData | null;
     /** Low stock, best sellers and ready to order; null for the School Admin. */
     stockCards: StockCardsData | null;
-    /** For the School Admin: the Specialist's account when locked. */
+    /** For the School Admin: the Specialist's or the cashier's account when locked. */
     lockedAccounts: LockedAccount[];
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;

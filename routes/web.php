@@ -76,6 +76,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [CashierController::class, 'index'])->name('index');
         Route::post('orders/{order}/paid', [CashierController::class, 'payOrder'])->name('orders.paid');
         Route::post('preorder-slips/{preorderSlip}/paid', [CashierController::class, 'payPreorderSlip'])->name('preorder-slips.paid');
+        // A payment recorded by mistake: undone the same day, before release.
+        Route::post('orders/{order}/undo-payment', [CashierController::class, 'undoOrderPayment'])->name('orders.undo-payment');
+        Route::post('preorder-slips/{preorderSlip}/undo-payment', [CashierController::class, 'undoPreorderPayment'])->name('preorder-slips.undo-payment');
     });
 
     Route::middleware('role:school_admin')->group(function () {

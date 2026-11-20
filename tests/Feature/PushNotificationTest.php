@@ -317,7 +317,7 @@ test('the Specialist\'s notices are pushed with the bell\'s words', function (Cl
             return new OrderPlaced($order);
         },
         'New order PW-0007',
-        'Juan Dela Cruz · 1 item · ₱700.00 to pay at the cashier. Release it when they show the receipt.',
+        'Juan Dela Cruz · 1 item · ₱700.00 to pay at the cashier. It can be released once the payment is recorded.',
         'order_placed',
     ],
     'low stock' => [

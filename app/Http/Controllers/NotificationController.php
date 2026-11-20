@@ -37,6 +37,9 @@ class NotificationController extends Controller
             'preorder_paid', 'preorder_pay_by', 'preorder_ready' => to_route('my-preorders.slip', $notification->data['slip_id']),
             'preorder_not_paid' => to_route('my-preorders.index'),
             'preorder_placed' => to_route('preorders.index', ['stage' => 'sold_out', 'search' => $notification->data['product_name']]),
+            // The cashier recorded or undid a payment: the slip, with Release when it is paid.
+            'payment_recorded', 'payment_undone_staff' => to_route('orders.slip', ['code' => $notification->data['number']]),
+            'payment_undone' => isset($notification->data['slip_id']) ? to_route('my-preorders.slip', $notification->data['slip_id']) : to_route('my-orders.index'),
             'ordering_resumed' => to_route('home'),
             // Your own account: change the password if it was not you.
             'account_locked', 'phone_signed_in' => to_route('security.edit'),

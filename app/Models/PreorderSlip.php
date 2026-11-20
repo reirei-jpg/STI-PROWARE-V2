@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 /**
  * The slip of a batch of preorders (the sizes placed with one press of
  * Preorder), numbered PR-0001: the buyer pays its amount at the cashier and
- * the Specialist marks it Paid by scanning its QR. Once paid it is the
+ * the cashier marks it Paid by scanning its QR. Once paid it is the
  * buyer's proof of payment: the preorder can no longer be changed or
  * cancelled, and there is no refund.
  *

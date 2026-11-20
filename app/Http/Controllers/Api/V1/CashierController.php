@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Orders\MarkOrderPaid;
+use App\Actions\Orders\UndoOrderPayment;
+use App\Actions\Preorders\UndoPreorderPayment;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UndoPaymentRequest;
 use App\Models\Order;
 use App\Models\PreorderSlip;
 use App\Services\Preorders\PreorderPayment;
@@ -48,6 +51,22 @@ class CashierController extends Controller
     {
         return response()->json([
             'message' => PreorderPayment::markPaid($preorderSlip, $request->user()),
+            'result' => CashierDesk::lookup((string) $preorderSlip->number),
+        ]);
+    }
+
+    public function undoOrderPayment(UndoPaymentRequest $request, Order $order, UndoOrderPayment $undo): JsonResponse
+    {
+        return response()->json([
+            'message' => $undo->handle($order, $request->user(), $request->reasonText()),
+            'result' => CashierDesk::lookup((string) $order->number),
+        ]);
+    }
+
+    public function undoPreorderPayment(UndoPaymentRequest $request, PreorderSlip $preorderSlip, UndoPreorderPayment $undo): JsonResponse
+    {
+        return response()->json([
+            'message' => $undo->handle($preorderSlip, $request->user(), $request->reasonText()),
             'result' => CashierDesk::lookup((string) $preorderSlip->number),
         ]);
     }

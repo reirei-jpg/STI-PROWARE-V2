@@ -14,7 +14,7 @@ import type { PreorderSlipData } from '@/lib/types';
 
 /**
  * A batch's preorder slip, like the website's: show it at the cashier to
- * pay, then the PROWARE office marks it Paid. Once paid it is stamped PAID
+ * pay, and the cashier records the payment. Once paid it is stamped PAID
  * and is the buyer's proof of payment. There is no refund after paying.
  */
 export default function PreorderSlipScreen() {
@@ -42,7 +42,7 @@ export default function PreorderSlipScreen() {
         void load();
     }, [load]);
 
-    // After the office marks it paid, pulling down shows PAID.
+    // After the cashier records the payment, pulling down shows PAID.
     const pullToRefresh = async (): Promise<void> => {
         setRefreshing(true);
         await load();
@@ -102,8 +102,8 @@ export default function PreorderSlipScreen() {
                             ) : (
                                 <>
                                     Pay <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at
-                                    the cashier: show this slip there. Once you have paid, the PROWARE office marks
-                                    it Paid. There is no refund after paying.
+                                    the cashier: present this slip there. The cashier records your payment and the
+                                    slip is marked PAID. There is no refund after paying.
                                 </>
                             )}
                         </Text>

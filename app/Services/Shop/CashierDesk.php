@@ -3,9 +3,12 @@
 namespace App\Services\Shop;
 
 use App\Actions\Orders\MarkOrderPaid;
+use App\Actions\Orders\UndoOrderPayment;
+use App\Actions\Preorders\UndoPreorderPayment;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\PreorderSlip;
+use App\Models\UndonePayment;
 use App\Models\User;
 use App\Services\Preorders\PreorderPayment;
 
@@ -21,7 +24,7 @@ final class CashierDesk
      * A scanned or typed slip: an order's or a preorder's, or null when it
      * is not a PROWARE slip.
      *
-     * @return array{kind: string, order?: array<string, mixed>, slip: array<string, mixed>, can_mark_paid: bool, refusal: string|null, to_collect_centavos: int|null, short: list<string>}|null
+     * @return array{kind: string, order?: array<string, mixed>, slip: array<string, mixed>, can_mark_paid: bool, refusal: string|null, to_collect_centavos: int|null, short: list<string>, can_undo: bool}|null
      */
     public static function lookup(string $code): ?array
     {
@@ -37,6 +40,8 @@ final class CashierDesk
                 'kind' => 'order',
                 'order' => $found['order'],
                 'slip' => $found['slip'],
+                // Paid by mistake today and not released yet: Undo payment.
+                'can_undo' => $order->status === OrderStatus::Paid && UndoOrderPayment::refusal($order) === null,
                 'can_mark_paid' => $waiting && ! $nothingLeft,
                 'refusal' => match (true) {
                     ! $waiting => MarkOrderPaid::notWaiting($order),
@@ -50,14 +55,16 @@ final class CashierDesk
         }
 
         $preorder = PreorderPayment::bySlip($code);
+        $slip = $preorder === null ? null : PreorderSlip::query()->find($preorder['slip']['slip_id']);
 
-        if ($preorder === null) {
+        if ($preorder === null || $slip === null) {
             return null;
         }
 
         return [
             'kind' => 'preorder',
             'slip' => $preorder['slip'],
+            'can_undo' => $slip->isPaid() && UndoPreorderPayment::refusal($slip) === null,
             'can_mark_paid' => $preorder['can_mark_paid'],
             'refusal' => $preorder['refusal'],
             'to_collect_centavos' => $preorder['can_mark_paid'] ? $preorder['slip']['total_centavos'] : null,
@@ -66,9 +73,11 @@ final class CashierDesk
     }
 
     /**
-     * What this cashier marked paid today, the latest first, and the total.
+     * What this cashier marked paid today, the latest first, and the total;
+     * a payment undone since then is listed as Undone (with its reason) and
+     * left out of the total.
      *
-     * @return array{rows: list<array{kind: string, number: string|null, buyer: string, amount_centavos: int, paid_at: string|null}>, total_centavos: int}
+     * @return array{rows: list<array{kind: string, number: string|null, buyer: string, amount_centavos: int, paid_at: string|null, undone: bool, reason: string|null}>, total_centavos: int}
      */
     public static function paidToday(User $cashier): array
     {
@@ -85,6 +94,8 @@ final class CashierDesk
                 'buyer' => $order->student->name,
                 'amount_centavos' => $order->total_centavos,
                 'paid_at' => $order->paid_at?->toIso8601String(),
+                'undone' => false,
+                'reason' => null,
             ]);
 
         $slips = PreorderSlip::query()
@@ -98,13 +109,34 @@ final class CashierDesk
                 'buyer' => $slip->student->name,
                 'amount_centavos' => (int) $slip->paid_centavos,
                 'paid_at' => $slip->paid_at?->toIso8601String(),
+                'undone' => false,
+                'reason' => null,
             ]);
 
-        $rows = $orders->concat($slips)->sortByDesc('paid_at')->values();
+        $undone = UndonePayment::query()
+            ->with(['order.student', 'preorderSlip.student'])
+            ->where('paid_by', $cashier->id)
+            ->whereDate('paid_at', now()->toDateString())
+            ->get()
+            ->map(function (UndonePayment $payment): array {
+                $paid = $payment->order ?? $payment->preorderSlip;
+
+                return [
+                    'kind' => $payment->order_id !== null ? 'order' : 'preorder',
+                    'number' => $paid?->number,
+                    'buyer' => (string) $paid?->student->name,
+                    'amount_centavos' => $payment->amount_centavos,
+                    'paid_at' => $payment->paid_at->toIso8601String(),
+                    'undone' => true,
+                    'reason' => $payment->reason,
+                ];
+            });
+
+        $rows = $orders->concat($slips)->concat($undone)->sortByDesc('paid_at')->values();
 
         return [
             'rows' => array_values($rows->all()),
-            'total_centavos' => (int) $rows->sum('amount_centavos'),
+            'total_centavos' => (int) $rows->where('undone', false)->sum('amount_centavos'),
         ];
     }
 }

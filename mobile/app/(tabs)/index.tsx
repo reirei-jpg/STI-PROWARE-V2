@@ -337,7 +337,7 @@ export default function HomeScreen() {
                 </View>
                 <Text className="mt-1 font-sans text-sm leading-5 text-blue-50">
                     {user
-                        ? 'Official STI merchandise. Pay at the cashier, then get your items at the PROWARE office with your receipt.'
+                        ? 'Official STI merchandise. Pay at the cashier with your issuance slip, then claim your items at the PROWARE office.'
                         : 'Browse freely. Sign in with your STI email when you add something to your cart.'}
                 </Text>
             </View>

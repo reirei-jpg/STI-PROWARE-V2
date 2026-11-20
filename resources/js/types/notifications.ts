@@ -309,6 +309,41 @@ export type AccountLockedStaffData = {
     locks_today: number;
 };
 
+/** The cashier recorded a payment (to the Specialist): an order to release, or a preorder slip. */
+export type PaymentRecordedData = {
+    kind: 'payment_recorded';
+    order_id: number | null;
+    preorder_slip_id: number | null;
+    /** "PW-0042" or "PR-0003" */
+    number: string | null;
+    buyer_name: string;
+    amount_centavos: number;
+    cashier: string;
+};
+
+/** The cashier undid the buyer's payment recorded by mistake (to the buyer). */
+export type PaymentUndoneData = {
+    kind: 'payment_undone';
+    order_id: number | null;
+    slip_id: number | null;
+    /** The item names, never the PW-/PR- number. */
+    items: string;
+    amount_centavos: number;
+    reason: string;
+};
+
+/** The cashier undid a payment recorded by mistake (to the Specialist). */
+export type PaymentUndoneStaffData = {
+    kind: 'payment_undone_staff';
+    order_id: number | null;
+    preorder_slip_id: number | null;
+    number: string | null;
+    buyer_name: string;
+    amount_centavos: number;
+    reason: string;
+    undone_by: string | null;
+};
+
 /** Your account was signed in on a phone. */
 export type PhoneSignedInData = {
     kind: 'phone_signed_in';
@@ -360,6 +395,9 @@ export type StaffNotification = {
         | PurchaseOrderClosedShortData
         | AccountLockedData
         | AccountLockedStaffData
+        | PaymentRecordedData
+        | PaymentUndoneData
+        | PaymentUndoneStaffData
         | PhoneSignedInData;
     read: boolean;
     created_at: string | null;

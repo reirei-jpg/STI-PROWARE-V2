@@ -34,11 +34,10 @@ import { confirmLeave } from '@/lib/back-guard';
 
 /**
  * The order's own page, opened from My Orders or right after Place Order:
- * its issuance slip to show (on the phone or printed) at the PROWARE
- * office, where the Specialist scans its QR, the student pays, and the
- * items are released. Above it, what to do next in V1's colors: amber
- * waiting, green ready or released, red cancelled. Below it, Cancel while
- * the office has not prepared the order yet.
+ * its issuance slip to show (on the phone or printed) at the cashier, who
+ * records the payment, and at the PROWARE office, where the items are
+ * released. Above it, what to do next in V1's colors: amber waiting, blue
+ * paid, green released, red cancelled. Below it, Cancel until it is paid.
  */
 export default function StudentIssuanceSlip({
     slip,
@@ -129,7 +128,7 @@ export default function StudentIssuanceSlip({
 }
 
 /**
- * Cancel while the office has not prepared the order yet: Cancel order
+ * Cancel until the order is paid: Cancel order
  * opens a pop-up to pick why, like in online shops (Other asks to write
  * why), so the PROWARE office knows.
  */
@@ -150,8 +149,8 @@ function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
     return (
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-sm text-slate-600">
-                Changed your mind? You can cancel while the office has not
-                prepared it yet.
+                Changed your mind? You can cancel the order until you pay for
+                it.
             </p>
             <button
                 type="button"

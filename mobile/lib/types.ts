@@ -451,6 +451,36 @@ export type StudentNotificationData =
           total_centavos: number;
           items_count: number;
       }
+    // The cashier recorded a payment: an order to release, or a preorder slip.
+    | {
+          kind: 'payment_recorded';
+          order_id: number | null;
+          preorder_slip_id: number | null;
+          number: string | null;
+          buyer_name: string;
+          amount_centavos: number;
+          cashier: string;
+      }
+    // The cashier undid a payment recorded by mistake (to the Specialist).
+    | {
+          kind: 'payment_undone_staff';
+          order_id: number | null;
+          preorder_slip_id: number | null;
+          number: string | null;
+          buyer_name: string;
+          amount_centavos: number;
+          reason: string;
+          undone_by: string | null;
+      }
+    // The cashier undid the buyer's payment recorded by mistake (to the buyer).
+    | {
+          kind: 'payment_undone';
+          order_id: number | null;
+          slip_id: number | null;
+          items: string;
+          amount_centavos: number;
+          reason: string;
+      }
     | {
           kind: 'low_stock';
           product_id: number;
@@ -715,10 +745,20 @@ export type CashierLookup = {
     to_collect_centavos: number | null;
     /** What is no longer left, so not charged. */
     short: string[];
+    /** Paid today and not released (or its items not arrived): Undo payment. */
+    can_undo: boolean;
 };
 
-/** What this cashier collected today. */
+/** What this cashier collected today; an undone payment is listed but not in the total. */
 export type CashierPaidToday = {
-    rows: { kind: 'order' | 'preorder'; number: string | null; buyer: string; amount_centavos: number; paid_at: string | null }[];
+    rows: {
+        kind: 'order' | 'preorder';
+        number: string | null;
+        buyer: string;
+        amount_centavos: number;
+        paid_at: string | null;
+        undone: boolean;
+        reason: string | null;
+    }[];
     total_centavos: number;
 };

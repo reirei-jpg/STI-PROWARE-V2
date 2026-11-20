@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Banknote, LogOut, ReceiptText, ScanLine, Search } from 'lucide-react-native';
+import { Banknote, LogOut, ReceiptText, ScanLine, Search, Undo2 } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -140,21 +140,29 @@ export default function CashierScreen() {
                 ) : (
                     paidToday.rows.map((row, index) => (
                         <View
-                            key={`${row.kind}-${row.number}`}
-                            className={`flex-row items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-slate-100' : ''}`}
+                            key={`${row.kind}-${row.number}-${row.paid_at}-${row.undone}`}
+                            className={`flex-row items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-slate-100' : ''} ${row.undone ? 'bg-red-50/50' : ''}`}
                         >
-                            <View className="h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
-                                <Banknote size={17} color="#1d4ed8" />
+                            <View className={`h-9 w-9 items-center justify-center rounded-xl ${row.undone ? 'bg-red-50' : 'bg-blue-50'}`}>
+                                {row.undone ? <Undo2 size={17} color="#b91c1c" /> : <Banknote size={17} color="#1d4ed8" />}
                             </View>
                             <View className="flex-1">
                                 <Text className="font-sans-bold text-sm text-slate-900">
                                     {row.number} · {row.kind === 'order' ? 'Order' : 'Preorder'}
+                                    {row.undone ? <Text className="text-red-700"> · Undone</Text> : null}
                                 </Text>
                                 <Text className="font-sans text-xs text-slate-500">
                                     {row.buyer} · {formatDateTime(row.paid_at)}
                                 </Text>
+                                {row.undone && row.reason ? (
+                                    <Text className="font-sans text-xs text-red-700">{row.reason}</Text>
+                                ) : null}
                             </View>
-                            <Text className="font-sans-bold text-sm text-slate-900">{formatPeso(row.amount_centavos)}</Text>
+                            <Text
+                                className={`font-sans-bold text-sm ${row.undone ? 'text-slate-400 line-through' : 'text-slate-900'}`}
+                            >
+                                {formatPeso(row.amount_centavos)}
+                            </Text>
                         </View>
                     ))
                 )}

@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Banknote, CircleCheck, ScanLine, SearchX, ShieldAlert } from 'lucide-react-native';
+import { ArrowLeft, Banknote, CircleCheck, ScanLine, SearchX, ShieldAlert, Undo2 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import BottomSheet from '@/components/BottomSheet';
 import IssuanceSlipCard from '@/components/IssuanceSlipCard';
 import StaffTag from '@/components/StaffTag';
 import { ApiError } from '@/lib/api';
@@ -13,9 +14,11 @@ import type { CashierLookup } from '@/lib/types';
 
 /**
  * A slip the cashier scanned (or typed), like the website's Payments page:
- * first the answer (Collect ₱X, Already paid, or Do not collect), then the
- * amount, what is not charged (sold before the buyer paid), and Mark as paid
- * (asked first; a payment is final). After paying, Scan the next slip.
+ * first the answer (Amount due, Payment already recorded, or Payment cannot
+ * be accepted), then the amount, what is not charged (sold before the buyer
+ * paid), and Mark as Paid (asked first). A payment recorded by mistake can
+ * be undone the same day, before release, with a reason. After paying, Scan
+ * the next slip.
  */
 export default function CashierSlipScreen() {
     const { code } = useLocalSearchParams<{ code: string }>();
@@ -125,7 +128,7 @@ export default function CashierSlipScreen() {
                 isOrder
                     ? 'The items will be reserved for pickup at the PROWARE office.'
                     : 'The slip will be marked PAID, and the preorder can no longer be changed or cancelled.'
-            } This action cannot be undone.`,
+            } If it is recorded by mistake, it can be undone today with a reason.`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Mark as Paid', onPress: () => void markPaid() },
@@ -236,8 +239,143 @@ export default function CashierSlipScreen() {
                 showQr={false}
             />
 
+            {result.can_undo && (
+                <UndoPayment
+                    path={
+                        isOrder
+                            ? `/cashier/orders/${result.order?.id}/undo-payment`
+                            : `/cashier/preorder-slips/${result.slip.slip_id}/undo-payment`
+                    }
+                    number={number ?? ''}
+                    buyer={buyer}
+                    isOrder={isOrder}
+                    onUndone={(message, next) => {
+                        setDone(message);
+                        setError(null);
+
+                        if (next) {
+                            setResult(next);
+                        }
+                    }}
+                />
+            )}
+
             {!done && !result.can_mark_paid && <ScanButton main onPress={scanNext} label="Scan the next slip" />}
         </Screen>
+    );
+}
+
+/**
+ * Undo a payment recorded by mistake, like the website's: a reason is
+ * required (at least 5 characters); the buyer and the Specialist are told.
+ */
+function UndoPayment({
+    path,
+    number,
+    buyer,
+    isOrder,
+    onUndone,
+}: {
+    path: string;
+    number: string;
+    buyer: string;
+    isOrder: boolean;
+    onUndone: (message: string, next: CashierLookup | null) => void;
+}) {
+    const { request } = useAuth();
+    const [open, setOpen] = useState(false);
+    const [reason, setReason] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const ready = reason.trim().length >= 5;
+
+    const close = (): void => {
+        setOpen(false);
+        setReason('');
+        setError(null);
+    };
+
+    const undo = async (): Promise<void> => {
+        setBusy(true);
+        setError(null);
+
+        try {
+            const answer = await request<{ message: string; result: CashierLookup | null }>(path, {
+                method: 'POST',
+                body: { reason: reason.trim() },
+            });
+            close();
+            onUndone(answer.message, answer.result);
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : 'The payment could not be undone. Try again.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <>
+            <Pressable
+                onPress={() => setOpen(true)}
+                accessibilityRole="button"
+                className="flex-row items-center justify-center gap-2 rounded-2xl border border-red-300 bg-red-50 py-3.5"
+            >
+                <Undo2 size={18} color="#b91c1c" />
+                <Text className="font-sans-bold text-base text-red-700">Undo payment</Text>
+            </Pressable>
+            <Text className="-mt-2 text-center font-sans-semibold text-xs text-slate-500">
+                Recorded by mistake? It can be undone today, before {isOrder ? 'release' : 'the items arrive'}.
+            </Text>
+
+            <BottomSheet
+                open={open}
+                onClose={close}
+                unsaved={reason.trim() !== '' && !busy}
+                title={`Undo the payment for ${number}?`}
+                subtitle={
+                    isOrder
+                        ? `The order goes back to waiting for payment, and its reserved items are for sale again. ${buyer} and the Specialist are notified.`
+                        : `The slip goes back to waiting for payment. ${buyer} and the Specialist are notified.`
+                }
+                icon={<Undo2 size={20} color="#b91c1c" />}
+                footer={
+                    <View className="flex-row gap-3">
+                        <Pressable
+                            onPress={close}
+                            accessibilityRole="button"
+                            className="flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white py-3.5"
+                        >
+                            <Text className="font-sans-bold text-base text-slate-700">Keep payment</Text>
+                        </Pressable>
+                        <Pressable
+                            onPress={() => void undo()}
+                            disabled={busy || !ready}
+                            accessibilityRole="button"
+                            className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-red-600 py-3.5 ${busy || !ready ? 'opacity-50' : ''}`}
+                        >
+                            {busy && <ActivityIndicator color="#ffffff" />}
+                            <Text className="font-sans-bold text-base text-white">Undo payment</Text>
+                        </Pressable>
+                    </View>
+                }
+            >
+                <View className="gap-2">
+                    <Text className="font-sans-bold text-sm text-slate-700">Reason</Text>
+                    <TextInput
+                        value={reason}
+                        onChangeText={setReason}
+                        maxLength={200}
+                        multiline
+                        placeholder="e.g. Scanned the wrong slip."
+                        placeholderTextColor="#94a3b8"
+                        className="min-h-[80px] rounded-xl border border-slate-200 bg-white px-3 py-3 font-sans-medium text-sm text-slate-900"
+                        style={{ textAlignVertical: 'top' }}
+                    />
+                    <Text className="font-sans text-xs text-slate-500">At least 5 characters. Kept on record with the payment.</Text>
+                    {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
+                </View>
+            </BottomSheet>
+        </>
     );
 }
 

@@ -3,6 +3,7 @@ import {
     ArrowRight,
     Banknote,
     Crown,
+    FileText,
     LoaderCircle,
     Megaphone,
     TrendingUp,
@@ -162,7 +163,7 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                         value={data.preorder_slips.to_verify.toLocaleString(
                             'en-PH',
                         )}
-                        detail={`unpaid to verify · ${data.preorder_slips.all.toLocaleString('en-PH')} ${data.preorder_slips.all === 1 ? 'slip' : 'slips'} in all`}
+                        detail={`awaiting payment · ${data.preorder_slips.all.toLocaleString('en-PH')} ${data.preorder_slips.all === 1 ? 'slip' : 'slips'} in all`}
                         onOpen={() => setOpen('preorder_slips')}
                     />
                 </div>
@@ -689,16 +690,16 @@ type PreorderSlipPage = {
 };
 
 const slipTabs: { key: SlipTab; label: string }[] = [
-    { key: 'to_verify', label: 'To verify' },
+    { key: 'to_verify', label: 'Awaiting payment' },
     { key: 'paid', label: 'Paid' },
     { key: 'all', label: 'All' },
 ];
 
 /**
  * The Preorders card: a shortcut to the preorder slips still waiting for
- * their items, unpaid first. Check payment opens the slip, where the
- * Specialist checks the cashier's receipt and marks it paid (as when the
- * slip is scanned).
+ * their items, unpaid first. The cashier records the payments; View slip
+ * opens the slip (as when it is scanned), with Release once its items are
+ * here.
  */
 function PreorderSlipsList({
     counts: initialCounts,
@@ -748,7 +749,7 @@ function PreorderSlipsList({
         <>
             <ListHeader
                 title="Preorders"
-                description="Preorders waiting for their items, by buyer, unpaid first. Check payment opens the slip: check the cashier's receipt, then mark it paid."
+                description="Preorders waiting for their items, by buyer, unpaid first. The cashier records the payments; View slip opens the slip."
             />
             <div className="space-y-3 border-b border-slate-100 px-6 py-4">
                 <div className="flex flex-wrap gap-2">
@@ -875,8 +876,8 @@ function PreorderSlipsList({
                                                         <span className="font-bold text-amber-700">
                                                             {row.pay_until ===
                                                             null
-                                                                ? 'Not paid yet'
-                                                                : `Not paid yet · pay ${formatDateOrdered(row.pay_from)} to ${formatDateOrdered(row.pay_until)}`}
+                                                                ? 'Awaiting payment'
+                                                                : `Awaiting payment · pay ${formatDateOrdered(row.pay_from)} to ${formatDateOrdered(row.pay_until)}`}
                                                         </span>
                                                     )}
                                                 </p>
@@ -891,17 +892,10 @@ function PreorderSlipsList({
                                                         },
                                                     }).url
                                                 }
-                                                className={cn(
-                                                    'inline-flex h-9 shrink-0 items-center gap-1.5 self-start rounded-lg px-3.5 text-sm font-black transition sm:self-auto',
-                                                    row.paid
-                                                        ? 'border border-slate-200 bg-white text-blue-700 hover:bg-blue-50'
-                                                        : 'bg-[#0D6EFD] text-white hover:bg-blue-700',
-                                                )}
+                                                className="inline-flex h-9 shrink-0 items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-black text-blue-700 transition hover:bg-blue-50 sm:self-auto"
                                             >
-                                                <Banknote size={14} />
-                                                {row.paid
-                                                    ? 'View slip'
-                                                    : 'Check payment'}
+                                                <FileText size={14} />
+                                                View slip
                                             </Link>
                                         </li>
                                     ))}

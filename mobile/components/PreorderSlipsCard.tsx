@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Banknote } from 'lucide-react-native';
+import { Banknote, FileText } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 
@@ -42,16 +42,16 @@ type BuyerRow = {
 type SlipPage = { data: BuyerRow[]; current_page: number; last_page: number; total: number; counts: Counts };
 
 const TABS: { key: Tab; label: string }[] = [
-    { key: 'to_verify', label: 'To verify' },
+    { key: 'to_verify', label: 'Awaiting payment' },
     { key: 'paid', label: 'Paid' },
     { key: 'all', label: 'All' },
 ];
 
 /**
  * The website's Preorders card on the Specialist's phone To-do: a shortcut
- * to the preorder slips still waiting for their items, unpaid first. Check
- * payment opens the slip check, where the cashier's receipt is checked and
- * the slip is marked paid, as when it is scanned.
+ * to the preorder slips still waiting for their items, unpaid first. The
+ * cashier records the payments; View slip opens the slip check, as when it
+ * is scanned.
  */
 export default function PreorderSlipsCard({ counts: initialCounts }: { counts: Counts }) {
     const { request } = useAuth();
@@ -121,7 +121,7 @@ export default function PreorderSlipsCard({ counts: initialCounts }: { counts: C
                     <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-slate-500">Preorders</Text>
                     <Text className="font-sans-bold text-base text-slate-900">{initialCounts.to_verify}</Text>
                     <Text className="font-sans text-xs text-slate-500">
-                        unpaid to verify · {initialCounts.all} {initialCounts.all === 1 ? 'slip' : 'slips'} in all
+                        awaiting payment · {initialCounts.all} {initialCounts.all === 1 ? 'slip' : 'slips'} in all
                     </Text>
                 </View>
             </Pressable>
@@ -130,7 +130,7 @@ export default function PreorderSlipsCard({ counts: initialCounts }: { counts: C
                 open={open}
                 onClose={() => setOpen(false)}
                 title="Preorders"
-                subtitle="Preorders waiting for their items, by buyer, unpaid first. Check payment opens the slip: check the cashier's receipt, then mark it paid."
+                subtitle="Preorders waiting for their items, by buyer, unpaid first. The cashier records the payments; View slip opens the slip."
                 icon={<Banknote size={20} color="#b45309" />}
                 footer={
                     <Pressable
@@ -216,20 +216,18 @@ export default function PreorderSlipsCard({ counts: initialCounts }: { counts: C
                                                         {row.paid
                                                             ? `Paid ${formatDate(row.paid_on)}`
                                                             : row.pay_until === null
-                                                              ? 'Not paid yet'
-                                                              : `Not paid yet · pay ${formatDate(row.pay_from)} to ${formatDate(row.pay_until)}`}
+                                                              ? 'Awaiting payment'
+                                                              : `Awaiting payment · pay ${formatDate(row.pay_from)} to ${formatDate(row.pay_until)}`}
                                                     </Text>
                                                 </Text>
                                             </View>
                                             <Pressable
                                                 onPress={() => check(row)}
                                                 accessibilityRole="button"
-                                                className={`flex-row items-center justify-center gap-1.5 rounded-lg px-3 py-2 ${row.paid ? 'border border-slate-300 bg-white' : 'bg-brand'}`}
+                                                className="flex-row items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2"
                                             >
-                                                <Banknote size={15} color={row.paid ? '#1d4ed8' : '#ffffff'} />
-                                                <Text className={`font-sans-bold text-sm ${row.paid ? 'text-blue-700' : 'text-white'}`}>
-                                                    {row.paid ? 'View slip' : 'Check payment'}
-                                                </Text>
+                                                <FileText size={15} color="#1d4ed8" />
+                                                <Text className="font-sans-bold text-sm text-blue-700">View slip</Text>
                                             </Pressable>
                                         </View>
                                     ))}

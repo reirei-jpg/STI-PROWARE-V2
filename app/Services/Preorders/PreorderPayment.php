@@ -4,20 +4,24 @@ namespace App\Services\Preorders;
 
 use App\Actions\Preorders\ReleasePaidPreorder;
 use App\Enums\PreorderStatus;
+use App\Enums\UserRole;
 use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\User;
+use App\Notifications\PaymentRecorded;
 use App\Notifications\PreorderPaid;
 use App\Services\Shop\IssuanceSlip;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Paying for preorders: the buyer brings the preorder slip (PR-0001) to the
- * cashier and pays its amount; the Specialist scans the slip (website or
- * phone) and marks it Paid. The slip then says PAID: it is the buyer's
- * proof of payment. A paid preorder can no longer be changed or cancelled,
- * and there is no refund.
+ * cashier, pays its amount, and the cashier records it (website or phone);
+ * the Specialist is told. The slip then says PAID: it is the buyer's proof
+ * of payment. A paid preorder can no longer be changed or cancelled, and
+ * there is no refund. A payment recorded by mistake can be undone by the
+ * cashier the same day, before the items arrive (UndoPreorderPayment).
  *
  * @phpstan-type SlipView array{kind: string, school: string, address_lines: list<string>, slip_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, is_staff: bool, product_id: int, product_name: string, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, paid_on: string|null, received_by: string|null, qr_svg: string}
  */
@@ -156,6 +160,7 @@ final class PreorderPayment
 
         $slip->loadMissing(['student', 'product']);
         $slip->student->notify(new PreorderPaid($slip));
+        Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentRecorded($slip, $by));
 
         return $message;
     }

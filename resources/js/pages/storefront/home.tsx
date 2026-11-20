@@ -155,7 +155,7 @@ function WelcomeBanner() {
                 </h1>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-blue-50 md:text-base">
                     {firstName
-                        ? 'Order here, pay at the cashier, then pick up at the PROWARE office with your receipt and issuance slip.'
+                        ? 'Order here, pay at the cashier with your issuance slip, then claim your items at the PROWARE office.'
                         : isStaff
                           ? 'You are signed in with a PROWARE Specialist or School Admin account, so you can browse the store as buyers see it. Buying is for students and STI staff.'
                           : 'Browse freely. You only need to sign in with your STI Microsoft 365 account when you add something to your cart.'}

@@ -380,7 +380,7 @@ function currentStatus(order: MyOrder): { label: string; description: string } {
             return {
                 label: 'Waiting for payment',
                 description:
-                    'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office. First to pay, first served.',
+                    'Pay at the cashier with your issuance slip, then claim your items at the PROWARE office. First to pay, first served.',
             };
         case 'paid':
             return {

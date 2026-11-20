@@ -4,9 +4,9 @@ import { Text, View } from 'react-native';
 
 /**
  * What happens after Place Order, as three numbered steps (cart and the
- * "Order placed" screen): place it, pay at the cashier, then show the
- * receipt and the issuance slip at the PROWARE office. Nothing is set aside
- * for an order: whoever pays first gets the items.
+ * "Order placed" screen): place it, pay at the cashier with the issuance
+ * slip, then claim the items at the PROWARE office with it. Nothing is set
+ * aside before payment: whoever pays first gets the items.
  */
 export default function OrderSteps({ placed = false }: { placed?: boolean }) {
     return (
@@ -14,8 +14,8 @@ export default function OrderSteps({ placed = false }: { placed?: boolean }) {
             <Step number={1} done={placed}>
                 {placed ? 'Order placed' : 'Place your order'}
             </Step>
-            <Step number={2}>Pay at the cashier and keep the official receipt</Step>
-            <Step number={3}>Show the receipt and your issuance slip at the PROWARE office to get your items</Step>
+            <Step number={2}>Pay at the cashier with your issuance slip</Step>
+            <Step number={3}>Present your issuance slip at the PROWARE office to claim your items</Step>
             <Text className="ml-10 font-sans text-xs text-slate-500">
                 First to pay, first served.
             </Text>

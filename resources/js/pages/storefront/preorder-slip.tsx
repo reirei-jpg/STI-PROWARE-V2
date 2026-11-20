@@ -8,7 +8,7 @@ import type { IssuanceSlipData, PreorderSlipData } from '@/types';
 
 /**
  * A batch's preorder slip, opened from My Preorders: show it at the
- * cashier to pay, then the PROWARE office marks it Paid. Once paid it is
+ * cashier to pay, and the cashier records the payment. Once paid it is
  * stamped PAID and is the buyer's proof of payment. There is no refund
  * after paying.
  */
@@ -74,7 +74,7 @@ export default function PreorderSlip({ slip }: { slip: PreorderSlipData }) {
                                 ? 'All the items were given to you. Keep this slip as your receipt.'
                                 : paid
                                   ? 'Keep this slip: it is your proof of payment. Show it when you get your items.'
-                                  : 'Show this slip at the cashier. Once you have paid, the PROWARE office marks it Paid. There is no refund after paying.'}
+                                  : 'Present this slip at the cashier. The cashier records your payment and the slip is marked PAID. There is no refund after paying.'}
                         </p>
                     </div>
                 </div>
