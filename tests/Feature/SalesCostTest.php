@@ -290,6 +290,19 @@ test('Sales searches "%" and "_" as typed, and a page past the end shows the las
         ->has('sold.data', 2));
 });
 
+test('Top Sellers gives products that sold the same pieces the same rank', function () {
+    releasedLine('STI Tote Bag', quantity: 2, short: 0, lineTotal: 30000, cost: 24000);
+    releasedLine('STI Enamel Pin', quantity: 2, short: 0, lineTotal: 15000, cost: 8000);
+    releasedLine('STI Lanyard', quantity: 1, short: 0, lineTotal: 8000, cost: 5000);
+
+    $this->actingAs($this->specialist)->get(route('sales-reports.index', ['tab' => 'best']))->assertInertia(fn (Assert $page) => $page
+        ->where('best.data.0.product_name', 'STI Tote Bag')
+        ->where('best.data.0.rank', 1)
+        ->where('best.data.1.product_name', 'STI Enamel Pin')
+        ->where('best.data.1.rank', 1)
+        ->where('best.data.2.rank', 3));
+});
+
 test('the From and To days cannot be after today', function () {
     $this->actingAs($this->specialist);
 

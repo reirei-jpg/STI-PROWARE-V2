@@ -315,10 +315,10 @@ final class SalesReport
     }
 
     /**
-     * Best sellers: the products that sold the most pieces in the period
-     * (all sizes, colors and prices together), most pieces first, with what
-     * they sold for, the Profit of the part with a Cost, and the size or
-     * color that sold the most.
+     * Top Sellers: the products that sold the most pieces in the period
+     * (all sizes, colors and prices together), most pieces first (then the
+     * most sales), with what they sold for, the Profit, and the size or
+     * color that sold the most. Products with the same pieces share a rank.
      *
      * @return LengthAwarePaginator<int, array{rank: int, product_id: int, product_name: string, pieces: int, price_total_centavos: int, profit_centavos: int|null, top_variant_label: string|null, top_variant_pieces: int}>
      */
@@ -352,20 +352,27 @@ final class SalesReport
             ->groupBy('product_id')
             ->map(fn ($variants) => $variants->first());
 
-        $firstRank = ($page->currentPage() - 1) * $page->perPage() + 1;
+        // Products that sold the same pieces share a rank (1, 2, 2, 4).
+        $allPieces = self::soldLines($from, $to)
+            ->groupBy('order_items.product_id')
+            ->selectRaw("sum({$pieces}) as pieces")
+            ->toBase()
+            ->pluck('pieces')
+            ->map(fn (mixed $total): int => (int) $total);
 
-        return $page->through(function (OrderItem $row, int $index) use ($topVariants, $firstRank): array {
+        return $page->through(function (OrderItem $row) use ($topVariants, $allPieces): array {
             /** @var array<string, mixed> $values */
             $values = $row->getAttributes();
             $top = $topVariants->get($row->product_id);
             $topLabel = $top?->getAttribute('variant_label');
             $costed = (int) ($values['costed_lines'] ?? 0) > 0;
+            $soldPieces = (int) ($values['pieces'] ?? 0);
 
             return [
-                'rank' => $firstRank + $index,
+                'rank' => 1 + $allPieces->filter(fn (int $total): bool => $total > $soldPieces)->count(),
                 'product_id' => (int) $row->product_id,
                 'product_name' => (string) ($values['product_name'] ?? ''),
-                'pieces' => (int) ($values['pieces'] ?? 0),
+                'pieces' => $soldPieces,
                 'price_total_centavos' => (int) ($values['price_total'] ?? 0),
                 'profit_centavos' => $costed ? (int) ($values['costed_price'] ?? 0) - (int) ($values['cost_total'] ?? 0) : null,
                 'top_variant_label' => is_string($topLabel) ? $topLabel : null,

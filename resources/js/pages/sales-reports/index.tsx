@@ -443,7 +443,9 @@ export default function SalesReportsIndex({
                             />
                         </>
                     )}
-                    {best && <BestSellersTable rows={best} />}
+                    {best && (
+                        <BestSellersTable rows={best} details={sold_details} />
+                    )}
                     {free && (
                         <FreeTable rows={free} groupDetails={free_group} />
                     )}
@@ -714,37 +716,71 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
 }
 
 /**
- * The best sellers: products ranked by pieces sold in the period (all sizes,
- * colors and prices together), with their sales, profit and top size.
+ * Top Sellers: products ranked by pieces sold in the period (all sizes,
+ * colors and prices together; the same pieces share a rank), with their
+ * sales, profit and top variant. View Details is the same as on Sales.
  */
-function BestSellersTable({ rows }: { rows: Paginated<BestSellerRow> }) {
+function BestSellersTable({
+    rows,
+    details,
+}: {
+    rows: Paginated<BestSellerRow>;
+    details: SoldDetails | null | undefined;
+}) {
+    const [viewingId, setViewingId] = useState<number | null>(null);
+
     if (rows.data.length === 0) {
         return <Empty icon={Trophy} text="Nothing sold in this period" />;
     }
 
+    const view = (productId: number) => {
+        setViewingId(productId);
+        router.reload({ data: { details: productId }, only: ['sold_details'] });
+    };
+
     return (
         <>
+            <SoldDetailsDialog
+                open={viewingId !== null}
+                // Another product's details (from before) count as loading.
+                details={
+                    details === null || details?.product_id === viewingId
+                        ? details
+                        : undefined
+                }
+                onClose={() => setViewingId(null)}
+            />
+            <div className="border-b border-slate-100 px-6 py-3">
+                <p className="text-xs text-slate-500">
+                    Ranked by quantity sold, then total sales. Products with the
+                    same quantity share a rank.
+                </p>
+            </div>
             <TableScroll>
-                <table className="w-full min-w-200">
+                <table className="w-full min-w-220">
                     <thead className="bg-slate-50">
                         <tr>
                             <TableHeading>Rank</TableHeading>
-                            <TableHeading>Item</TableHeading>
+                            <TableHeading>Product</TableHeading>
+                            <TableHeading align="right">Qty Sold</TableHeading>
+                            <TableHeading>Top Variant</TableHeading>
                             <TableHeading align="right">
-                                Pieces Sold
+                                Total Sales
                             </TableHeading>
-                            <TableHeading>Sold the Most</TableHeading>
                             <TableHeading align="right">
-                                Total Price
+                                Gross Profit
                             </TableHeading>
-                            <TableHeading align="right">Profit</TableHeading>
+                            <TableHeading align="right">
+                                <span className="sr-only">Actions</span>
+                            </TableHeading>
                         </tr>
                     </thead>
                     <tbody>
                         {rows.data.map((row) => (
                             <tr
                                 key={row.product_id}
-                                className="border-t border-slate-100 text-sm"
+                                onClick={() => view(row.product_id)}
+                                className="cursor-pointer border-t border-slate-100 text-sm transition hover:bg-slate-50"
                             >
                                 <td className="px-5 py-4">
                                     <span
@@ -766,7 +802,7 @@ function BestSellersTable({ rows }: { rows: Paginated<BestSellerRow> }) {
                                 </td>
                                 <td className="px-5 py-4 whitespace-nowrap text-slate-700">
                                     {row.top_variant_label === null
-                                        ? '—'
+                                        ? 'One size'
                                         : `${row.top_variant_label} · ${formatUnits(row.top_variant_pieces, 'Piece')}`}
                                 </td>
                                 <td className="px-5 py-4 text-right font-black whitespace-nowrap text-slate-900">
@@ -783,8 +819,21 @@ function BestSellersTable({ rows }: { rows: Paginated<BestSellerRow> }) {
                                     )}
                                 >
                                     {row.profit_centavos === null
-                                        ? 'No Cost yet'
+                                        ? '—'
                                         : formatPeso(row.profit_centavos)}
+                                </td>
+                                <td className="px-5 py-4 text-right">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            view(row.product_id);
+                                        }}
+                                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                                    >
+                                        <Eye size={15} />
+                                        View Details
+                                    </button>
                                 </td>
                             </tr>
                         ))}
