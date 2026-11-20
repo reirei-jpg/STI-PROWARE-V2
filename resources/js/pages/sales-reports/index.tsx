@@ -500,7 +500,10 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                             <TableHeading>Date ordered</TableHeading>
                             <TableHeading>Items</TableHeading>
                             <TableHeading>Status</TableHeading>
-                            <TableHeading align="right">Preorders</TableHeading>
+                            <TableHeading align="right">Received</TableHeading>
+                            <TableHeading align="right">
+                                For preorders
+                            </TableHeading>
                             <TableHeading align="right">Amount</TableHeading>
                             <TableHeading>Uploaded by</TableHeading>
                             <TableHeading align="right">
@@ -538,6 +541,33 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                                         {row.delivery_status_label}
                                     </span>
                                 </td>
+                                {/* How much of the order arrived: green all, amber some, red closed short. */}
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                    <span
+                                        className={cn(
+                                            'font-black',
+                                            row.delivery_status ===
+                                                'completed_short'
+                                                ? 'text-red-600'
+                                                : row.quantity_received >=
+                                                    row.quantity_ordered
+                                                  ? 'text-emerald-700'
+                                                  : 'text-amber-700',
+                                        )}
+                                    >
+                                        {row.quantity_received.toLocaleString(
+                                            'en-PH',
+                                        )}
+                                    </span>
+                                    <span className="font-semibold text-slate-500">
+                                        {' '}
+                                        of{' '}
+                                        {row.quantity_ordered.toLocaleString(
+                                            'en-PH',
+                                        )}
+                                    </span>
+                                </td>
+                                {/* How many of the ordered items were for buyers' preorders. */}
                                 <td className="px-5 py-4 text-right whitespace-nowrap">
                                     {row.preorder_quantity === null ? (
                                         <span
@@ -546,25 +576,15 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
                                         >
                                             —
                                         </span>
-                                    ) : (
-                                        <span
-                                            className={cn(
-                                                'font-black',
-                                                row.preorder_quantity > 0
-                                                    ? 'text-blue-700'
-                                                    : 'text-slate-400',
-                                            )}
-                                        >
+                                    ) : row.preorder_quantity > 0 ? (
+                                        <span className="font-black text-blue-700">
                                             {row.preorder_quantity.toLocaleString(
                                                 'en-PH',
                                             )}
-                                            <span className="font-semibold text-slate-500">
-                                                {' '}
-                                                of{' '}
-                                                {row.quantity_ordered.toLocaleString(
-                                                    'en-PH',
-                                                )}
-                                            </span>
+                                        </span>
+                                    ) : (
+                                        <span className="font-semibold text-slate-400">
+                                            None
                                         </span>
                                     )}
                                 </td>
@@ -621,7 +641,7 @@ function SpentTable({ rows }: { rows: Paginated<SpentRow> }) {
             )}
             {rows.data.some((row) => row.preorder_quantity === null) && (
                 <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-500">
-                    Preorders "—": ordered before preorders were counted.
+                    For preorders "—": ordered before preorders were counted.
                 </p>
             )}
             <Pagination pagination={rows} itemName="orders" />
