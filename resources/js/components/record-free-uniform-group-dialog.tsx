@@ -6,6 +6,7 @@ import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformCon
 import ConfirmDialog from '@/components/confirm-dialog';
 import DraftRestoredNotice from '@/components/draft-restored-notice';
 import InputError from '@/components/input-error';
+import RequiredLabel, { RequiredNote } from '@/components/required-label';
 import {
     Dialog,
     DialogClose,
@@ -60,6 +61,95 @@ function bottomsFor(
         top === 'polo' ? ['pants'] : ['ladies_pants', 'skirt'];
 
     return kinds.filter((kind) => set[kind] !== null);
+}
+
+/** As on the server (RecordFreeUniformGroupRequest). */
+const NAME_PATTERN = /^(?=.*\p{L})[\p{L}\p{M} .'-]+$/u;
+const FORM_NUMBER_PATTERN = /^[A-Z0-9]+(-[A-Z0-9]+)*$/;
+
+/** Extra spaces out, as the server tidies it. */
+const tidy = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+/**
+ * What a box still needs: `wrong` (something typed that is not allowed)
+ * shows at once; a missing required box shows once Save is reached for.
+ */
+type Check = { key: string; message: string; wrong: boolean };
+
+/** Every check of one student card, as the server would refuse it. */
+function studentChecks(
+    student: StudentInput,
+    index: number,
+    sets: UniformSetOption[],
+    formNumberCounts: Map<string, number>,
+): Check[] {
+    const checks: Check[] = [];
+    const add = (field: string, message: string, wrong = false) =>
+        checks.push({ key: `students.${index}.${field}`, message, wrong });
+    const name = tidy(student.name);
+    const formNumber = tidy(student.enrollment_form_number).toUpperCase();
+
+    if (name === '') {
+        add('name', "Enter the student's name.");
+    } else if (!NAME_PATTERN.test(name)) {
+        add(
+            'name',
+            "Enter the student's name using letters, e.g. Juan Dela Cruz.",
+            true,
+        );
+    }
+
+    if (formNumber === '') {
+        add('enrollment_form_number', "Enter the student's Enrollment Form #.");
+    } else if (!FORM_NUMBER_PATTERN.test(formNumber)) {
+        add(
+            'enrollment_form_number',
+            'Use only letters, numbers and hyphens, e.g. 2026-01234.',
+            true,
+        );
+    } else if ((formNumberCounts.get(formNumber) ?? 0) > 1) {
+        add(
+            'enrollment_form_number',
+            'This Enrollment Form # is typed twice in this group.',
+            true,
+        );
+    }
+
+    const set = sets.find(
+        (option) => String(option.id) === student.uniform_set_id,
+    );
+
+    if (!set) {
+        add('uniform_set_id', 'Choose the uniform set, e.g. BSIT.');
+
+        return checks;
+    }
+
+    if (student.top_kind === '') {
+        add('top_kind', 'Choose Blouse or Polo.');
+
+        return checks;
+    }
+
+    if (student.top_variant_id === '') {
+        add('top_variant_id', 'Choose the size of the top.');
+    }
+
+    const bottoms = bottomsFor(set, student.top_kind);
+
+    if (bottoms.length === 0) {
+        add(
+            'bottom_kind',
+            `The ${set.name} set has no ${student.top_kind === 'polo' ? 'pants' : "ladies' pants or skirt"}. Add them in Uniform sets.`,
+            true,
+        );
+    } else if (student.bottom_kind === '') {
+        add('bottom_kind', "Choose Ladies' Pants or Skirt.");
+    } else if (student.pants_variant_id === '') {
+        add('pants_variant_id', 'Choose the size of the bottom.');
+    }
+
+    return checks;
 }
 
 type GroupForm = {
@@ -212,39 +302,40 @@ function GroupForm({
         );
     };
 
-    // The boxes the server refused, top of the popup first.
-    const problems = Object.entries(errors)
-        .filter((entry): entry is [string, string] => Boolean(entry[1]))
-        .map(([key, message]) => {
-            const [field, index, part] = key.split('.');
+    // The boxes with a problem (the server's or the screen's), top first.
+    const problemsIn = (source: Record<string, string | undefined>) =>
+        Object.entries(source)
+            .filter((entry): entry is [string, string] => Boolean(entry[1]))
+            .map(([key, message]) => {
+                const [field, index, part] = key.split('.');
 
-            if (field === 'students' && index !== undefined) {
-                return {
-                    key,
-                    message,
-                    order: Number(index) + 1,
-                    place: `Student ${Number(index) + 1} · ${STUDENT_FIELDS[part] ?? part}`,
-                    anchor: `free-uniform-student-${index}`,
-                };
-            }
+                if (field === 'students' && index !== undefined) {
+                    return {
+                        key,
+                        message,
+                        order: Number(index) + 1,
+                        place: `Student ${Number(index) + 1} · ${STUDENT_FIELDS[part] ?? part}`,
+                        anchor: `free-uniform-student-${index}`,
+                    };
+                }
 
-            return field === 'students'
-                ? {
-                      key,
-                      message,
-                      order: Infinity,
-                      place: 'Students',
-                      anchor: 'free-uniform-students',
-                  }
-                : {
-                      key,
-                      message,
-                      order: 0,
-                      place: field === 'note' ? 'Note' : 'Date enrolled',
-                      anchor: 'free-uniform-details',
-                  };
-        })
-        .sort((a, b) => a.order - b.order);
+                return field === 'students'
+                    ? {
+                          key,
+                          message,
+                          order: Infinity,
+                          place: 'Students',
+                          anchor: 'free-uniform-students',
+                      }
+                    : {
+                          key,
+                          message,
+                          order: 0,
+                          place: field === 'note' ? 'Note' : 'Date enrolled',
+                          anchor: 'free-uniform-details',
+                      };
+            })
+            .sort((a, b) => a.order - b.order);
 
     const jumpTo = (anchor: string) =>
         document
@@ -254,9 +345,11 @@ function GroupForm({
     // When saving is refused, go to the first card with a problem.
     const jumpToFirstProblem = useRef(false);
     useEffect(() => {
-        if (jumpToFirstProblem.current && problems.length > 0) {
+        const first = problemsIn(errors)[0];
+
+        if (jumpToFirstProblem.current && first) {
             jumpToFirstProblem.current = false;
-            jumpTo(problems[0].anchor);
+            jumpTo(first.anchor);
         }
     });
 
@@ -276,6 +369,56 @@ function GroupForm({
     }
 
     const tooFew = data.students.length < groupSize;
+
+    // The same checks as the server, so Save works only when all is right.
+    const formNumberCounts = new Map<string, number>();
+
+    for (const student of data.students) {
+        const formNumber = tidy(student.enrollment_form_number).toUpperCase();
+
+        if (formNumber !== '') {
+            formNumberCounts.set(
+                formNumber,
+                (formNumberCounts.get(formNumber) ?? 0) + 1,
+            );
+        }
+    }
+
+    const checks: Check[] = [
+        ...(data.enrolled_on === ''
+            ? [
+                  {
+                      key: 'enrolled_on',
+                      message: 'Enter the date they enrolled.',
+                      wrong: false,
+                  },
+              ]
+            : data.enrolled_on > today
+              ? [
+                    {
+                        key: 'enrolled_on',
+                        message: 'The enrollment date cannot be in the future.',
+                        wrong: true,
+                    },
+                ]
+              : []),
+        ...data.students.flatMap((student, index) =>
+            studentChecks(student, index, sets, formNumberCounts),
+        ),
+    ];
+    // Reaching for the greyed-out Save shows every message.
+    const [showAllChecks, setShowAllChecks] = useState(false);
+    // A server message first; then what the screen found.
+    const shownErrors: Record<string, string | undefined> = { ...errors };
+
+    for (const check of checks) {
+        if (!shownErrors[check.key] && (check.wrong || showAllChecks)) {
+            shownErrors[check.key] = check.message;
+        }
+    }
+
+    const problems = problemsIn(shownErrors);
+    const canSave = !tooFew && checks.length === 0;
     // Recording gives the pieces at once and a group cannot be taken back,
     // so the Specialist answers first.
     const [confirming, setConfirming] = useState(false);
@@ -312,7 +455,7 @@ function GroupForm({
     const outOfStock =
         stillToGive === 0
             ? ''
-            : ` ${stillToGive} ${stillToGive === 1 ? 'piece is' : 'pieces are'} out of stock and marked Still to give.`;
+            : ` ${stillToGive} ${stillToGive === 1 ? 'piece is' : 'pieces are'} out of stock and saved as pending.`;
 
     const record = () => {
         setConfirming(false);
@@ -339,6 +482,14 @@ function GroupForm({
         <form
             onSubmit={(event) => {
                 event.preventDefault();
+
+                // Pressing Enter in a box: say what is still needed instead.
+                if (!canSave) {
+                    setShowAllChecks(true);
+
+                    return;
+                }
+
                 setConfirming(true);
             }}
             className="flex min-h-0 flex-col"
@@ -382,13 +533,14 @@ function GroupForm({
                         onDismiss={draft.dismiss}
                     />
                 )}
+                <RequiredNote saveLabel="Save and give the sets" />
                 <div
                     id="free-uniform-details"
                     className="grid scroll-mt-4 gap-4 sm:grid-cols-[14rem_1fr]"
                 >
                     <label className="grid gap-1.5">
                         <span className="text-sm font-black text-slate-700">
-                            Date enrolled
+                            <RequiredLabel>Date enrolled</RequiredLabel>
                         </span>
                         <input
                             type="date"
@@ -398,10 +550,10 @@ function GroupForm({
                                 clear(['enrolled_on']);
                                 setData('enrolled_on', event.target.value);
                             }}
-                            aria-invalid={Boolean(errors.enrolled_on)}
+                            aria-invalid={Boolean(shownErrors.enrolled_on)}
                             className={inputClasses}
                         />
-                        <InputError message={errors.enrolled_on} />
+                        <InputError message={shownErrors.enrolled_on} />
                     </label>
                     <label className="grid gap-1.5">
                         <span className="text-sm font-black text-slate-700">
@@ -429,7 +581,7 @@ function GroupForm({
                         student={student}
                         sets={sets}
                         takenBefore={takenBefore[index]}
-                        errors={errors}
+                        errors={shownErrors}
                         index={index}
                         canRemove={data.students.length > 1}
                         onChange={(changes) =>
@@ -498,23 +650,47 @@ function GroupForm({
                     {data.students.length}{' '}
                     {data.students.length === 1 ? 'set' : 'sets'}
                     {tooFew && ` · add at least ${groupSize}`}
+                    {!tooFew && checks.length > 0 && (
+                        <span className="block text-xs font-bold text-amber-700">
+                            Save works once{' '}
+                            {checks.length === 1
+                                ? '1 field is'
+                                : `${checks.length} fields are`}{' '}
+                            filled in correctly.
+                        </span>
+                    )}
                 </p>
                 <div className="flex justify-end gap-3">
                     <DialogClose className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
                         Cancel
                     </DialogClose>
-                    <button
-                        type="submit"
-                        disabled={processing || tooFew}
-                        className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {processing ? (
-                            <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                            <Gift size={17} />
+                    {/* Reaching for the greyed-out Save shows every message
+                        and the list of what is still needed. */}
+                    <span
+                        className={cn(
+                            'inline-flex',
+                            !canSave && 'cursor-not-allowed',
                         )}
-                        Save and give the sets
-                    </button>
+                        onMouseEnter={() => !canSave && setShowAllChecks(true)}
+                        onClick={() => !canSave && setShowAllChecks(true)}
+                    >
+                        <button
+                            type="submit"
+                            disabled={processing || !canSave}
+                            className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-60"
+                            data-test="save-free-uniform-group"
+                        >
+                            {processing ? (
+                                <LoaderCircle
+                                    size={17}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <Gift size={17} />
+                            )}
+                            Save and give the sets
+                        </button>
+                    </span>
                 </div>
             </div>
         </form>
@@ -589,7 +765,7 @@ function StudentCard({
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-                <Field label="Name" error={error('name')}>
+                <Field label="Name" error={error('name')} required>
                     <input
                         value={student.name}
                         onChange={(event) =>
@@ -604,6 +780,7 @@ function StudentCard({
                 <Field
                     label="Enrollment Form #"
                     error={error('enrollment_form_number')}
+                    required
                 >
                     <input
                         value={student.enrollment_form_number}
@@ -636,7 +813,7 @@ function StudentCard({
             </div>
 
             <div className="mt-3 grid gap-3 md:grid-cols-[10rem_12rem_1fr_1fr]">
-                <Field label="Set" error={error('uniform_set_id')}>
+                <Field label="Set" error={error('uniform_set_id')} required>
                     <select
                         value={student.uniform_set_id}
                         onChange={(event) =>
@@ -659,7 +836,7 @@ function StudentCard({
                         ))}
                     </select>
                 </Field>
-                <Field label="Top" error={error('top_kind')} isGroup>
+                <Field label="Top" error={error('top_kind')} isGroup required>
                     <div className="grid grid-cols-2 gap-1.5">
                         {(['blouse', 'polo'] as const).map((kind) => (
                             <button
@@ -703,6 +880,7 @@ function StudentCard({
                             label="Bottom"
                             error={error('bottom_kind')}
                             isGroup
+                            required
                         >
                             <div className="grid grid-cols-2 gap-1.5">
                                 {bottoms.map((kind) => (
@@ -789,7 +967,7 @@ function SizeField({
     const chosen = piece?.sizes.find((size) => String(size.id) === value);
 
     return (
-        <Field label={label} error={error}>
+        <Field label={label} error={error} required>
             <select
                 value={value}
                 disabled={piece === null}
@@ -805,13 +983,13 @@ function SizeField({
                         {size.label} —{' '}
                         {left(size) > 0
                             ? `${left(size)} left`
-                            : 'out of stock (still to give)'}
+                            : 'out of stock (pending)'}
                     </option>
                 ))}
             </select>
             {chosen && left(chosen) === 0 && (
                 <span className="text-xs font-bold text-amber-700">
-                    Out of stock: saved as still to give.
+                    Out of stock: saved as pending.
                 </span>
             )}
         </Field>
@@ -826,11 +1004,14 @@ function Field({
     label,
     error,
     isGroup = false,
+    required = false,
     children,
 }: {
     label: string;
     error?: string;
     isGroup?: boolean;
+    /** Shown as "*Name required". */
+    required?: boolean;
     children: ReactNode;
 }) {
     const Wrapper = isGroup ? 'div' : 'label';
@@ -838,7 +1019,7 @@ function Field({
     return (
         <Wrapper className="grid content-start gap-1.5">
             <span className="text-xs font-black tracking-wide text-slate-500 uppercase">
-                {label}
+                <RequiredLabel required={required}>{label}</RequiredLabel>
             </span>
             {children}
             <InputError message={error} />

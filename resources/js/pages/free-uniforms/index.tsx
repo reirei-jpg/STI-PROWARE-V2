@@ -161,7 +161,7 @@ export default function FreeUniformsIndex({
                                 className={`${secondaryButtonClasses} whitespace-nowrap`}
                             >
                                 <Download size={17} />
-                                Download for Excel
+                                Export to Excel
                             </a>
                         </div>
                     }
@@ -185,7 +185,7 @@ export default function FreeUniformsIndex({
                     <SummaryCard
                         icon={Hourglass}
                         tone="amber"
-                        label="Still to give"
+                        label="Pending"
                         value={summary.still_to_give}
                         detail={
                             summary.still_to_give === 1
@@ -222,7 +222,7 @@ export default function FreeUniformsIndex({
                                 count={summary.still_to_give}
                                 onClick={() => showTab('still_to_give')}
                             >
-                                Still to give
+                                Pending
                             </TabButton>
                         </div>
 
@@ -231,12 +231,12 @@ export default function FreeUniformsIndex({
                                 <h2 className="font-black text-slate-900">
                                     {filters.show === 'all'
                                         ? 'Groups'
-                                        : 'Groups with a piece still to give'}
+                                        : 'Groups with a pending piece'}
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500">
                                     {filters.show === 'all'
                                         ? 'Newest enrollment date first. Open View Details to see each student, their set and sizes.'
-                                        : 'A piece was out of stock when the group was recorded. Open View Details to give it now.'}
+                                        : 'A piece was out of stock when the group was recorded. Open View Details to give it once it is in stock.'}
                                 </p>
                             </div>
                             <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 lg:max-w-sm">
@@ -348,8 +348,7 @@ function GroupsTable({
                     <thead className="bg-slate-50">
                         <tr>
                             <TableHeading>Group</TableHeading>
-                            <TableHeading>Students</TableHeading>
-                            <TableHeading>Sets</TableHeading>
+                            <TableHeading>Recipients</TableHeading>
                             <TableHeading>Status</TableHeading>
                             <TableHeading>Recorded By</TableHeading>
                             <TableHeading align="right">Actions</TableHeading>
@@ -370,18 +369,17 @@ function GroupsTable({
                                         {formatDateOrdered(group.enrolled_on)}
                                     </p>
                                 </td>
+                                {/* As on Sales Reports: the count, the sets under it; names in View Details. */}
                                 <td className="px-5 py-4">
                                     <p className="font-black text-slate-900">
-                                        {group.students_count} students
+                                        {group.students_count}{' '}
+                                        {group.students_count === 1
+                                            ? 'student'
+                                            : 'students'}
                                     </p>
-                                    <p className="mt-0.5 max-w-64 truncate text-xs text-slate-500">
-                                        {group.names.join(', ')}
-                                        {group.more_names > 0 &&
-                                            ` +${group.more_names} more`}
+                                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                                        {group.sets}
                                     </p>
-                                </td>
-                                <td className="px-5 py-4 font-bold text-slate-700">
-                                    {group.sets}
                                 </td>
                                 <td className="px-5 py-4">
                                     <span
@@ -393,7 +391,7 @@ function GroupsTable({
                                         )}
                                     >
                                         {group.still_to_give > 0
-                                            ? `${group.still_to_give} still to give`
+                                            ? `${group.still_to_give} pending`
                                             : 'All given'}
                                     </span>
                                 </td>

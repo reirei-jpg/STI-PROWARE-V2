@@ -27,6 +27,12 @@ class RecordFreeUniformGroupRequest extends FormRequest
     /** The most students in one group; a bigger group is recorded as two. */
     public const MAX_STUDENTS = 30;
 
+    /** A name: letters (ñ too), spaces, . ' and -, with at least one letter. */
+    public const NAME_PATTERN = "/^(?=.*\\p{L})[\\p{L}\\p{M} .'\\-]+$/u";
+
+    /** An Enrollment Form #: letters, numbers and single hyphens between them. */
+    public const FORM_NUMBER_PATTERN = '/^[A-Z0-9]+(-[A-Z0-9]+)*$/';
+
     /**
      * Tidy what was typed: names without extra spaces, and the Enrollment
      * Form # in capitals, so "ef-123 " and "EF-123" are the same form.
@@ -84,8 +90,10 @@ class RecordFreeUniformGroupRequest extends FormRequest
             'enrolled_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'note' => ['nullable', 'string', 'max:200'],
             'students' => ['required', 'array', 'min:'.PromoRules::groupSize(), 'max:'.self::MAX_STUDENTS],
-            'students.*.name' => ['required', 'string', 'max:120'],
-            'students.*.enrollment_form_number' => ['required', 'string', 'max:40', 'distinct', Rule::unique('free_uniform_students', 'enrollment_form_number')],
+            // Letters (ñ too), spaces, . ' and -, with at least one letter.
+            'students.*.name' => ['required', 'string', 'max:120', 'regex:'.self::NAME_PATTERN],
+            // Letters, numbers and hyphens, e.g. 2026-01234 or EF-2026-1105.
+            'students.*.enrollment_form_number' => ['required', 'string', 'max:40', 'regex:'.self::FORM_NUMBER_PATTERN, 'distinct', Rule::unique('free_uniform_students', 'enrollment_form_number')],
             'students.*.course_section' => ['nullable', 'string', 'max:60'],
             'students.*.uniform_set_id' => ['required', 'integer', Rule::exists('uniform_sets', 'id')],
             'students.*.top_kind' => ['required', Rule::enum(UniformTop::class)],
@@ -113,13 +121,18 @@ class RecordFreeUniformGroupRequest extends FormRequest
             'students.max' => 'A group can have at most '.self::MAX_STUDENTS.' students. Record a bigger group as two groups.',
             'students.*.name.required' => 'Enter the student\'s name.',
             'students.*.name.max' => 'The name may not be longer than 120 characters.',
+            'students.*.name.regex' => 'Enter the student\'s name using letters, e.g. Juan Dela Cruz.',
             'students.*.enrollment_form_number.required' => 'Enter the student\'s Enrollment Form #.',
+            'students.*.enrollment_form_number.regex' => 'Use only letters, numbers and hyphens, e.g. 2026-01234.',
             'students.*.enrollment_form_number.max' => 'The Enrollment Form # may not be longer than 40 characters.',
             'students.*.enrollment_form_number.distinct' => 'This Enrollment Form # is typed twice in this group.',
             'students.*.enrollment_form_number.unique' => 'Enrollment Form # :input already got a free set.',
             'students.*.course_section.max' => 'The course / section may not be longer than 60 characters.',
             'students.*.uniform_set_id.required' => 'Choose the uniform set, e.g. BSIT.',
             'students.*.uniform_set_id.exists' => 'Choose one of the uniform sets.',
+            'students.*.uniform_set_id.integer' => 'Choose one of the uniform sets.',
+            'students.*.top_variant_id.integer' => 'Choose the size of the top.',
+            'students.*.pants_variant_id.integer' => 'Choose the size of the bottom.',
             'students.*.top_kind.required' => 'Choose Blouse or Polo.',
             'students.*.top_kind.enum' => 'Choose Blouse or Polo.',
             'students.*.top_variant_id.required' => 'Choose the size of the top.',

@@ -33,9 +33,7 @@ final class FreeUniformScreens
             ->with(['recorder', 'students.uniformSet'])
             ->withCount(['students', 'students as still_to_give_count' => fn (Builder $query) => self::whereStillOwed($query)])
             ->when($show === 'still_to_give', fn (Builder $query) => $query->whereHas('students', fn (Builder $students) => self::whereStillOwed($students)))
-            ->when($search, fn (Builder $query, string $term) => $query->whereHas('students', fn (Builder $students) => $students
-                ->whereLike('name', "%{$term}%")
-                ->orWhereLike('enrollment_form_number', '%'.mb_strtoupper($term).'%')))
+            ->when($search, fn (Builder $query, string $term) => $query->whereHas('students', fn (Builder $students) => self::whereNameOrFormNumber($students, $term)))
             ->latest('enrolled_on')
             ->latest('id')
             ->paginate(20)
@@ -176,9 +174,7 @@ final class FreeUniformScreens
     {
         return array_values(FreeUniformStudent::query()
             ->with(['group.recorder', 'uniformSet', 'topVariant', 'pantsVariant'])
-            ->when($search, fn (Builder $query, string $term) => $query->where(fn (Builder $inner) => $inner
-                ->whereLike('name', "%{$term}%")
-                ->orWhereLike('enrollment_form_number', '%'.mb_strtoupper($term).'%')))
+            ->when($search, fn (Builder $query, string $term) => self::whereNameOrFormNumber($query, $term))
             ->join('free_uniform_groups', 'free_uniform_groups.id', '=', 'free_uniform_students.free_uniform_group_id')
             ->orderByDesc('free_uniform_groups.enrolled_on')
             ->orderByDesc('free_uniform_students.free_uniform_group_id')
@@ -199,6 +195,24 @@ final class FreeUniformScreens
                 'recorded_by' => $student->group->recorder->name,
             ])
             ->all());
+    }
+
+    /**
+     * Students whose name or Enrollment Form # has the search in it, any
+     * case; "%" and "_" are searched as typed, not as "anything".
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $students
+     * @return Builder<TModel>
+     */
+    private static function whereNameOrFormNumber(Builder $students, string $term): Builder
+    {
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term)).'%';
+
+        return $students->where(fn (Builder $inner) => $inner
+            ->whereRaw("lower(free_uniform_students.name) like ? escape '!'", [$pattern])
+            ->orWhereRaw("lower(free_uniform_students.enrollment_form_number) like ? escape '!'", [$pattern]));
     }
 
     /**

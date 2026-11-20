@@ -52,7 +52,7 @@ class FreeUniformController extends Controller
         $message = "The group of {$students} students has been recorded. ".self::givenWords($result['given']).'.';
 
         if ($result['still_to_give'] !== []) {
-            $message .= ' Still to give (out of stock): '.implode('; ', $result['still_to_give']).'. Give them from the group\'s details when they arrive.';
+            $message .= ' Pending (out of stock): '.implode('; ', $result['still_to_give']).'. Give them from the group\'s details after Stock In.';
         }
 
         Inertia::flash('toast', ['type' => $result['still_to_give'] === [] ? 'success' : 'warning', 'message' => $message]);
@@ -106,9 +106,9 @@ class FreeUniformController extends Controller
                     $row['course_section'] ?? '',
                     $row['set_name'],
                     $row['top'],
-                    $row['top_given'] ? 'Given' : 'Still to give',
+                    $row['top_given'] ? 'Given' : 'Pending',
                     $row['pants'],
-                    $row['pants_given'] ? 'Given' : 'Still to give',
+                    $row['pants_given'] ? 'Given' : 'Pending',
                     $row['recorded_by'],
                 ], escape: '');
             }

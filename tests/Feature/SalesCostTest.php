@@ -413,7 +413,7 @@ test('free uniform sets count in Given free at Cost and at Price, never as a sal
 
     $this->post(route('free-uniforms.store'), [
         'enrolled_on' => now()->toDateString(),
-        'students' => collect(['Student 1' => '2026-01234', 'Juan Dela Cruz' => '2026-01235'])->map(fn (string $form, string $name): array => [
+        'students' => collect(['Student A' => '2026-01234', 'Juan Dela Cruz' => '2026-01235'])->map(fn (string $form, string $name): array => [
             'name' => $name, 'enrollment_form_number' => $form, 'uniform_set_id' => $set->id,
             'top_kind' => 'polo', 'top_variant_id' => $variant->id, 'bottom_kind' => 'pants', 'pants_variant_id' => $variant->id,
         ])->values()->all(),
@@ -430,7 +430,7 @@ test('free uniform sets count in Given free at Cost and at Price, never as a sal
         ->has('free.data', 1)
         ->where('free.data.0.group_id', FreeUniformGroup::sole()->id)
         ->where('free.data.0.students_count', 2)
-        ->where('free.data.0.names', ['Student 1', 'Juan Dela Cruz'])
+        ->where('free.data.0.names', ['Student A', 'Juan Dela Cruz'])
         ->where('free.data.0.sets', 'BSIT × 2')
         ->where('free.data.0.pieces', 4)
         ->where('free.data.0.cost_centavos', 4 * 20000)

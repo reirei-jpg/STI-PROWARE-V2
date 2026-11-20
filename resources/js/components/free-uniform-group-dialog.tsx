@@ -167,7 +167,7 @@ function GroupStatus({ students }: { students: Student[] }) {
     ) : (
         <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-800 ring-1 ring-amber-200">
             <Hourglass size={13} />
-            {waiting} {waiting === 1 ? 'student' : 'students'} still to give
+            {waiting} {waiting === 1 ? 'student' : 'students'} pending
         </span>
     );
 }
@@ -243,7 +243,7 @@ function PieceStatus({ piece }: { piece: FreeUniformPiece }) {
                 )}
             >
                 <Hourglass size={13} />
-                Still to give
+                Pending
             </p>
         </div>
     );
@@ -338,7 +338,7 @@ function GiveRest({ student }: { student: Student }) {
             <ConfirmDialog
                 open={confirming}
                 title={`Give ${student.name} the rest of the free set?`}
-                description={`${leaving.map((piece) => piece.label).join(' and ')} ${leaving.length === 1 ? 'leaves' : 'leave'} the stock now, as Free (promo).${stayingOwed.length > 0 ? ` ${stayingOwed.map((piece) => piece.label).join(' and ')} ${stayingOwed.length === 1 ? 'is' : 'are'} out of stock and ${stayingOwed.length === 1 ? 'stays' : 'stay'} Still to give.` : ''} This cannot be undone.`}
+                description={`${leaving.map((piece) => piece.label).join(' and ')} ${leaving.length === 1 ? 'leaves' : 'leave'} the stock now, as Free (promo).${stayingOwed.length > 0 ? ` ${stayingOwed.map((piece) => piece.label).join(' and ')} ${stayingOwed.length === 1 ? 'is' : 'are'} out of stock and ${stayingOwed.length === 1 ? 'stays' : 'stay'} pending.` : ''} This cannot be undone.`}
                 cancelLabel="Check again"
                 confirmLabel="Give now"
                 busy={form.processing}

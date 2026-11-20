@@ -72,7 +72,7 @@ function uniformSize(?int $productId, string $size): ProductVariant
 function freeStudents(UniformSet $set, int $count, array $overrides = []): array
 {
     return array_map(fn (int $number): array => array_merge([
-        'name' => "Student {$number}",
+        'name' => 'Student '.chr(64 + $number),
         'enrollment_form_number' => "2026-0{$number}",
         'course_section' => 'BSIT 1A',
         'uniform_set_id' => $set->id,
@@ -162,10 +162,10 @@ test('a piece out of stock is still to give, and is given in its recorded size w
 
     $this->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5)])
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'The group of 5 students has been recorded. 9 pieces have been given. Still to give (out of stock): Student 5: Polo M. Give them from the group\'s details when they arrive.']);
+        ->assertInertiaFlash('toast', ['type' => 'warning', 'message' => 'The group of 5 students has been recorded. 9 pieces have been given. Pending (out of stock): Student E: Polo M. Give them from the group\'s details after Stock In.']);
 
     $owed = FreeUniformStudent::query()->stillOwed()->sole();
-    expect($owed->name)->toBe('Student 5')
+    expect($owed->name)->toBe('Student E')
         ->and($owed->pants_movement_id)->not->toBeNull();
 
     $this->post(route('free-uniforms.give', $owed))
@@ -174,17 +174,17 @@ test('a piece out of stock is still to give, and is given in its recorded size w
     // Another size is refused, even one in stock; so is anything not a size.
     uniformSize($set->polo_product_id, 'S')->forceFill(['stock_on_hand' => 3])->save();
     $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => uniformSize($set->polo_product_id, 'S')->id])
-        ->assertSessionHasErrors(['top_variant_id' => 'Only the size recorded for Student 5 can be given.']);
+        ->assertSessionHasErrors(['top_variant_id' => 'Only the size recorded for Student E can be given.']);
     foreach (['abc', '0.5', '-1'] as $wrong) {
         $this->post(route('free-uniforms.give', $owed), ['top_variant_id' => $wrong])
-            ->assertSessionHasErrors(['top_variant_id' => 'Only the size recorded for Student 5 can be given.']);
+            ->assertSessionHasErrors(['top_variant_id' => 'Only the size recorded for Student E can be given.']);
     }
     expect($owed->refresh()->isStillOwed())->toBeTrue();
 
     uniformSize($set->polo_product_id, 'M')->forceFill(['stock_on_hand' => 3])->save();
     $this->post(route('free-uniforms.give', $owed))
         ->assertSessionHasNoErrors()
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => '1 piece has been given to Student 5.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => '1 piece has been given to Student E.']);
 
     expect($owed->refresh()->isStillOwed())->toBeFalse()
         ->and($owed->topVariant->label())->toBe('M')
@@ -192,7 +192,7 @@ test('a piece out of stock is still to give, and is given in its recorded size w
         ->and(uniformSize($set->polo_product_id, 'S')->stock_on_hand)->toBe(3);
 
     $this->post(route('free-uniforms.give', $owed))
-        ->assertSessionHasErrors(['pieces' => 'Student 5 already got the whole set.']);
+        ->assertSessionHasErrors(['pieces' => 'Student E already got the whole set.']);
 });
 
 test('Give now answers with the group details, so a refusal shows in the open pop-up and a success says what was given', function () {
@@ -221,7 +221,7 @@ test('Give now answers with the group details, so a refusal shows in the open po
         ->assertOk()
         ->assertJsonPath('props.details.id', $owed->free_uniform_group_id)
         ->assertJsonPath('props.summary.still_to_give', 0)
-        ->assertJsonPath('flash.toast.message', '1 piece has been given to Student 5.');
+        ->assertJsonPath('flash.toast.message', '1 piece has been given to Student E.');
 });
 
 test('pieces held for students\' orders are not given away', function () {
@@ -271,7 +271,41 @@ test('the group form explains what is wrong', function (Closure $payload, string
         fn (UniformSet $set) => ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5, ['name' => ''])],
         'students.0.name', 'Enter the student\'s name.',
     ],
+    'a name of numbers' => [
+        fn (UniformSet $set) => ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5, ['name' => '123'])],
+        'students.0.name', 'Enter the student\'s name using letters, e.g. Juan Dela Cruz.',
+    ],
+    'a name with symbols' => [
+        fn (UniformSet $set) => ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5, ['name' => 'Juan @ Cruz!'])],
+        'students.0.name', 'Enter the student\'s name using letters, e.g. Juan Dela Cruz.',
+    ],
+    'a form # with symbols' => [
+        function (UniformSet $set) {
+            $students = freeStudents($set, 5);
+            $students[0]['enrollment_form_number'] = '2026/01#';
+
+            return ['enrolled_on' => '2026-10-10', 'students' => $students];
+        },
+        'students.0.enrollment_form_number', 'Use only letters, numbers and hyphens, e.g. 2026-01234.',
+    ],
+    'a set that is not a number' => [
+        fn (UniformSet $set) => ['enrolled_on' => '2026-10-10', 'students' => freeStudents($set, 5, ['uniform_set_id' => 'abc'])],
+        'students.0.uniform_set_id', 'Choose one of the uniform sets.',
+    ],
 ]);
+
+test('names with ñ, a period, an apostrophe or a hyphen are accepted', function () {
+    $set = bsitSet();
+    $students = freeStudents($set, 5);
+    $students[0]['name'] = 'José Peña-Santos Jr.';
+    $students[1]['name'] = "Ma. Cristina O'Neil";
+
+    $this->actingAs($this->specialist)
+        ->post(route('free-uniforms.store'), ['enrolled_on' => '2026-10-10', 'students' => $students])
+        ->assertSessionHasNoErrors();
+
+    expect(FreeUniformStudent::query()->pluck('name')->all())->toContain('José Peña-Santos Jr.', "Ma. Cristina O'Neil");
+});
 
 test('one free set per Enrollment Form #', function () {
     $set = bsitSet();
@@ -354,7 +388,7 @@ test('the page lists groups, finds a student, shows who is still owed, and a gro
         ->component('free-uniforms/index')
         ->has('groups.data', 2)
         ->where('groups.data.0.enrolled_on', '2026-10-08')
-        ->where('groups.data.0.names', ['Juan Dela Cruz', 'Student 2'])
+        ->where('groups.data.0.names', ['Juan Dela Cruz', 'Student B'])
         ->where('groups.data.0.more_names', 3)
         ->where('groups.data.0.sets', 'BSIT × 5')
         ->where('groups.data.1.still_to_give', 1)
@@ -370,7 +404,7 @@ test('the page lists groups, finds a student, shows who is still owed, and a gro
     $this->get(route('free-uniforms.index', ['details' => $owedGroup->id]))->assertInertia(fn (Assert $page) => $page
         ->missing('details')
         ->reloadOnly('details', fn (Assert $reload) => $reload
-            ->where('details.students.4.name', 'Student 5')
+            ->where('details.students.4.name', 'Student E')
             ->where('details.students.4.top.size', 'M')
             ->where('details.students.4.top.given', false)
             ->has('details.students.4.top.sizes', 2)
@@ -385,7 +419,7 @@ test('the list downloads as a CSV for Excel', function () {
     $csv = $this->get(route('free-uniforms.export'))->assertOk()->streamedContent();
 
     expect($csv)->toContain('"Group #","Date Enrolled",Student,"Enrollment Form #","Course / Section",Set,Top,"Top Given",Bottom,"Bottom Given","Recorded By"')
-        ->toContain('"Oct 9, 2026","Student 1",2026-01,"BSIT 1A",BSIT,"Polo M",Given,"Pants 30",Given,"Carlo Mendoza"');
+        ->toContain('"Oct 9, 2026","Student A",2026-01,"BSIT 1A",BSIT,"Polo M",Given,"Pants 30",Given,"Carlo Mendoza"');
 });
 
 test('only the Specialist records free uniforms', function () {
