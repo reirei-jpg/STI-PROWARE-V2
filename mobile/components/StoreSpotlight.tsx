@@ -216,9 +216,11 @@ function SoftPrice({ price }: { price: StorefrontPrice }) {
         <View className="mt-1 flex-row flex-wrap items-baseline gap-x-2">
             {price.piece_from && <Text className="font-sans text-xs text-slate-400">From</Text>}
             {sale !== null && (
-                <Text className="font-sans text-sm text-slate-400 line-through">{formatPeso(normal)}</Text>
+                <Text className="font-sans text-sm text-red-600 line-through">{formatPeso(normal)}</Text>
             )}
-            <Text className="font-sans-bold text-xl text-blue-600">{formatPeso(sale ?? normal)}</Text>
+            <Text className={`font-sans-bold text-xl ${sale !== null ? 'text-slate-900' : 'text-blue-600'}`}>
+                {formatPeso(sale ?? normal)}
+            </Text>
             <Text className="font-sans text-xs text-slate-400">{unit}</Text>
         </View>
     );

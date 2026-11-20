@@ -440,12 +440,12 @@ function PickerForm({
                                 pieceOnSale ||
                                     (pack !== undefined &&
                                         details.status === 'on_sale')
-                                    ? 'text-red-600'
+                                    ? 'text-slate-900'
                                     : 'text-blue-700',
                             )}
                         >
                             {pieceOnSale && variant?.price_centavos && (
-                                <span className="mr-2 text-sm font-normal text-slate-400 line-through">
+                                <span className="mr-2 text-sm font-normal text-red-600 line-through">
                                     {formatPeso(variant.price_centavos)}
                                 </span>
                             )}
@@ -676,7 +676,7 @@ function PickerForm({
                                                 <p className="text-xs text-slate-500">
                                                     {onSale &&
                                                         lineVariant?.price_centavos && (
-                                                            <span className="mr-1 line-through">
+                                                            <span className="mr-1 text-red-600 line-through">
                                                                 {formatPeso(
                                                                     lineVariant.price_centavos,
                                                                 )}
@@ -685,7 +685,7 @@ function PickerForm({
                                                     <span
                                                         className={cn(
                                                             onSale &&
-                                                                'font-bold text-red-600',
+                                                                'font-bold text-slate-900',
                                                         )}
                                                     >
                                                         {formatPeso(

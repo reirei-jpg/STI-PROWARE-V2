@@ -320,12 +320,12 @@ export default function AddToCartSheet({
                 <View className="flex-1 justify-center gap-1">
                     <View className="flex-row flex-wrap items-baseline gap-x-2">
                         {pieceOnSale && variant?.price_centavos != null && (
-                            <Text className="font-sans text-sm text-slate-400 line-through">
+                            <Text className="font-sans text-sm text-red-600 line-through">
                                 {formatPeso(variant.price_centavos)}
                             </Text>
                         )}
                         <Text
-                            className={`font-sans-bold text-2xl ${priceIsSale ? 'text-red-600' : 'text-blue-700'}`}
+                            className={`font-sans-bold text-2xl ${priceIsSale ? 'text-slate-900' : 'text-blue-700'}`}
                         >
                             {unitPrice !== null ? formatPeso(unitPrice) : 'Choose below'}
                         </Text>
@@ -512,11 +512,11 @@ export default function AddToCartSheet({
                                             </Text>
                                             <Text className="font-sans text-xs text-slate-500">
                                                 {onSale && lineVariant?.price_centavos != null && (
-                                                    <Text className="line-through">
+                                                    <Text className="text-red-600 line-through">
                                                         {formatPeso(lineVariant.price_centavos)}{' '}
                                                     </Text>
                                                 )}
-                                                <Text className={onSale ? 'font-sans-bold text-red-600' : ''}>
+                                                <Text className={onSale ? 'font-sans-bold text-slate-900' : ''}>
                                                     {formatPeso(linePrice ?? 0)}
                                                 </Text>{' '}
                                                 each

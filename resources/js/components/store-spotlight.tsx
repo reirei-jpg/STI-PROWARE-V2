@@ -298,11 +298,16 @@ function SoftPrice({ price }: { price: StorefrontPrice }) {
                 <span className="text-xs text-slate-400">From</span>
             )}
             {sale !== null && (
-                <span className="text-sm text-slate-400 line-through">
+                <span className="text-sm text-red-600 line-through">
                     {formatPeso(normal)}
                 </span>
             )}
-            <span className="text-xl font-bold text-[#0D6EFD]">
+            <span
+                className={cn(
+                    'text-xl font-bold',
+                    sale !== null ? 'text-slate-900' : 'text-[#0D6EFD]',
+                )}
+            >
                 {formatPeso(sale ?? normal)}
             </span>
             <span className="text-xs text-slate-400">{unit}</span>

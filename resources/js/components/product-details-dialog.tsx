@@ -383,12 +383,12 @@ export default function ProductDetailsDialog({
                                                                     ) : variant.sale_price_centavos !==
                                                                       null ? (
                                                                         <>
-                                                                            <span className="mr-1.5 text-xs text-slate-400 line-through">
+                                                                            <span className="mr-1.5 text-xs text-red-600 line-through">
                                                                                 {formatPeso(
                                                                                     variant.price_centavos,
                                                                                 )}
                                                                             </span>
-                                                                            <span className="font-black text-red-600">
+                                                                            <span className="font-black text-slate-900">
                                                                                 {formatPeso(
                                                                                     variant.sale_price_centavos,
                                                                                 )}
@@ -436,11 +436,11 @@ function Price({ product }: { product: ProductListItem }) {
                         from
                     </span>
                 ) : (
-                    <span className="mr-1.5 text-xs text-slate-400 line-through">
+                    <span className="mr-1.5 text-xs text-red-600 line-through">
                         {formatPeso(product.price_centavos)}
                     </span>
                 )}
-                <span className="text-red-600">
+                <span className="text-slate-900">
                     {formatPeso(product.sale_price_centavos)}
                 </span>
                 <span className="text-xs font-semibold text-slate-500">

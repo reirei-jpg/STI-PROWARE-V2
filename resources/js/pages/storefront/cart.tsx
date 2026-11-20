@@ -458,7 +458,9 @@ function CartLineRow({
                         <p
                             className={cn(
                                 'text-sm font-bold',
-                                line.on_sale ? 'text-red-600' : 'text-blue-700',
+                                line.on_sale
+                                    ? 'text-slate-900'
+                                    : 'text-blue-700',
                             )}
                         >
                             {formatPeso(line.unit_price_centavos)}
@@ -468,8 +470,13 @@ function CartLineRow({
                                 {line.pieces_per_unit > 1
                                     ? line.unit_name
                                     : 'pc'}
-                                {line.on_sale && ' · On sale'}
                             </span>
+                            {line.on_sale && (
+                                <span className="font-bold text-red-600">
+                                    {' '}
+                                    · On sale
+                                </span>
+                            )}
                         </p>
                     )}
                     {line.problem && (

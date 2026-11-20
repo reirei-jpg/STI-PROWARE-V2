@@ -547,14 +547,14 @@ function CartLineRow({
                     )}
                     {!set && line.unit_price_centavos !== null && (
                         <Text
-                            className={`font-sans-bold text-sm ${line.on_sale ? 'text-red-600' : 'text-blue-700'}`}
+                            className={`font-sans-bold text-sm ${line.on_sale ? 'text-slate-900' : 'text-blue-700'}`}
                         >
                             {formatPeso(line.unit_price_centavos)}
                             <Text className="font-sans text-slate-500">
                                 {' '}
                                 / {line.pieces_per_unit > 1 ? line.unit_name : 'pc'}
-                                {line.on_sale ? ' · On sale' : ''}
                             </Text>
+                            {line.on_sale ? <Text className="font-sans-bold text-red-600"> · On sale</Text> : null}
                         </Text>
                     )}
                 </View>
