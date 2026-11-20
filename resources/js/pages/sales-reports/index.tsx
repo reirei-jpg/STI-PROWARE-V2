@@ -1297,11 +1297,7 @@ function FreeTable({
                                             </span>
                                         )}
                                     </p>
-                                    <p className="text-xs text-slate-500">
-                                        {row.names.join(', ')}
-                                        {row.more_names > 0 &&
-                                            ` +${row.more_names} more`}
-                                    </p>
+                                    {/* The students' names are in View Details. */}
                                 </td>
                                 <td className="px-5 py-4 text-right whitespace-nowrap">
                                     <p className="font-black text-slate-800">
