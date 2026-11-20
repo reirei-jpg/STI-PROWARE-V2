@@ -1019,6 +1019,10 @@ export default function ProductForm({
         } => typeof item === 'object' && item !== null,
     );
 
+    /** "*… required" shows while the box is empty or wrong, and goes once it is right. */
+    const stillNeeded = (...keys: string[]) =>
+        missing.some((item) => keys.includes(item.key));
+
     // A required box shows its message once it was left empty, or for every
     // box once the Specialist reaches for the greyed-out Save Product.
     const [touched, setTouched] = useState<string[]>([]);
@@ -1033,9 +1037,17 @@ export default function ProductForm({
             : undefined;
     // Save Product first asks "Save this product?".
     const [confirming, setConfirming] = useState(false);
+    /** Every message under its box, and the first box still to fill in. */
+    const showWhatIsNeeded = () => {
+        setShowAllMissing(true);
+
+        if (missing[0]) {
+            jumpTo(missing[0].section);
+        }
+    };
     const askToSave = () => {
         if (missing.length > 0) {
-            setShowAllMissing(true);
+            showWhatIsNeeded();
 
             return;
         }
@@ -1122,7 +1134,7 @@ export default function ProductForm({
                     id="product-photos"
                     className="scroll-mt-24"
                     title={
-                        <RequiredLabel required={status !== 'draft'}>
+                        <RequiredLabel required={stillNeeded('photos')}>
                             Photos
                         </RequiredLabel>
                     }
@@ -1269,7 +1281,7 @@ export default function ProductForm({
                     <div className="grid gap-5 p-6 md:grid-cols-2">
                         <Field
                             label="Product name"
-                            required
+                            required={stillNeeded('name')}
                             error={errors.name ?? requiredMessage('name')}
                         >
                             <input
@@ -1362,7 +1374,7 @@ export default function ProductForm({
                                     </TableHeading>
                                     <TableHeading>
                                         <RequiredLabel
-                                            required={data.sold_by_piece}
+                                            required={stillNeeded('price')}
                                         >
                                             Selling Price (set by Head Office)
                                         </RequiredLabel>
@@ -1657,7 +1669,9 @@ export default function ProductForm({
                     <div className="border-t border-slate-100 bg-amber-50/40 px-6 py-5">
                         <label className="grid gap-1.5">
                             <span className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
-                                <RequiredLabel>
+                                <RequiredLabel
+                                    required={stillNeeded('low_stock_alert_at')}
+                                >
                                     Notify me when stock falls to
                                 </RequiredLabel>
                                 <input
@@ -2260,7 +2274,10 @@ export default function ProductForm({
                             <div className="max-w-md space-y-4">
                                 <Field
                                     label="Preorders close on"
-                                    required
+                                    required={
+                                        stillNeeded('preorders_close_on') ||
+                                        closeDateInPast
+                                    }
                                     hint="The last day students can preorder. You can move it later on the Preorders page to collect more."
                                     error={
                                         closeDateInPast
@@ -2295,7 +2312,11 @@ export default function ProductForm({
                                 </Field>
                                 <Field
                                     label="Expected arrival"
-                                    required
+                                    required={
+                                        stillNeeded('expected_arrival') ||
+                                        arrivalProblem !== undefined ||
+                                        arrivalEndProblem !== undefined
+                                    }
                                     hint="Filled in as 2 to 3 weeks after the close date. Change it when Head Office says otherwise; students who preordered are notified."
                                     error={
                                         arrivalProblem ??
@@ -2462,43 +2483,19 @@ export default function ProductForm({
                     {summary}
                 </p>
 
+                {/* No list of what is missing: each box shows its own red
+                    "*… required" and message (user's decision, 20 Nov). */}
                 {missing.length > 0 && (
-                    <section
-                        className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900"
+                    <p
+                        className="text-right text-xs font-bold text-amber-700"
                         data-test="save-product-missing"
                     >
-                        <p className="font-black">
-                            Save Product works once{' '}
-                            {missing.length === 1
-                                ? 'this is filled in:'
-                                : `these ${missing.length} are filled in:`}
-                        </p>
-                        <ul className="mt-3 space-y-2">
-                            {missing.map((item) => (
-                                <li
-                                    key={item.key}
-                                    className="flex flex-col gap-2 rounded-2xl border border-amber-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <span>
-                                        <span className="font-black">
-                                            {item.label}:
-                                        </span>{' '}
-                                        {item.message}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowAllMissing(true);
-                                            jumpTo(item.section);
-                                        }}
-                                        className="shrink-0 self-start rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-sm font-black text-amber-800 transition hover:bg-amber-50 sm:self-auto"
-                                    >
-                                        Go to field
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
+                        Save Product works once{' '}
+                        {missing.length === 1
+                            ? '1 field is'
+                            : `${missing.length} fields are`}{' '}
+                        filled in correctly.
+                    </p>
                 )}
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -2526,9 +2523,8 @@ export default function ProductForm({
                         onMouseEnter={() =>
                             missing.length > 0 && setShowAllMissing(true)
                         }
-                        onClick={() =>
-                            missing.length > 0 && setShowAllMissing(true)
-                        }
+                        // Clicking it goes to the first box still to fill in.
+                        onClick={() => missing.length > 0 && showWhatIsNeeded()}
                     >
                         <button
                             type="submit"

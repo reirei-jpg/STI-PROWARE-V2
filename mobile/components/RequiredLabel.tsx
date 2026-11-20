@@ -5,7 +5,12 @@ import { Text } from 'react-native';
  * a red star before it and "required" after it, both in red (as on the
  * website, resources/js/components/required-label.tsx).
  */
-export default function RequiredLabel({ children }: { children: string }) {
+export default function RequiredLabel({ children, required = true }: { children: string; required?: boolean }) {
+    // Once the box is filled in correctly, only the name shows.
+    if (!required) {
+        return <Text className="font-sans-bold text-sm text-slate-700">{children}</Text>;
+    }
+
     return (
         <Text className="font-sans-bold text-sm text-slate-700">
             <Text className="text-red-600">*</Text>

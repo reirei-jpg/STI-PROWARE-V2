@@ -269,9 +269,12 @@ export default function RecordDeliveryScreen() {
 
                         <View className="gap-2">
                             <Text className="font-sans-bold text-sm text-slate-900">WHAT ARRIVED</Text>
-                            <Text className="font-sans text-sm text-slate-600">
-                                Type at least one <RequiredLabel>How many arrived</RequiredLabel> before Stock In can be pressed.
-                            </Text>
+                            {/* Goes once at least one item is filled in correctly. */}
+                            {(receiving.length === 0 || problems.length > 0) && (
+                                <Text className="font-sans text-sm text-slate-600">
+                                    Type at least one <RequiredLabel>How many arrived</RequiredLabel> before Stock In can be pressed.
+                                </Text>
+                            )}
                             <Pressable
                                 onPress={fillShown}
                                 disabled={visible.length === 0 || everythingShownTyped}
@@ -315,6 +318,8 @@ export default function RecordDeliveryScreen() {
                                 units={unitsFor(group) ?? 0}
                                 shares={sharesFor(group)}
                                 problem={problemOf(group)}
+                                // "*… required" stays on a wrong box, or on all while none is filled in.
+                                needed={problemOf(group) !== null || receiving.length === 0}
                             />
                         ))}
                     </>
@@ -377,6 +382,7 @@ function GroupCard({
     units,
     shares,
     problem,
+    needed,
 }: {
     group: WaitingDeliveryGroup;
     total: string;
@@ -384,6 +390,7 @@ function GroupCard({
     units: number;
     shares: Map<number, number>;
     problem: string | null;
+    needed: boolean;
 }) {
     const target = group.stock_target;
     const remaining = remainingOf(group);
@@ -424,7 +431,7 @@ function GroupCard({
             )}
 
             <View className="gap-1">
-                    <RequiredLabel>How many arrived</RequiredLabel>
+                    <RequiredLabel required={needed}>How many arrived</RequiredLabel>
                     <View className="flex-row items-center gap-3">
                         <TextInput
                             value={total}

@@ -233,6 +233,8 @@ function DeliveryForm({
 
             return `${formatUnits(groupReceivedNow(group) * target.pieces_per_unit, 'Piece')} to ${name}`;
         });
+    // "*Received now required" stays until one item is filled in correctly.
+    const receivedNeeded = totalReceived === 0 || hasProblems;
     const stillToCome = rows.filter(
         (row) => row.quantity_remaining - receivedNowOf(row) > 0,
     ).length;
@@ -350,11 +352,14 @@ function DeliveryForm({
                             <h3 className="text-sm font-black tracking-wide text-slate-900 uppercase">
                                 What arrived
                             </h3>
-                            <p className="mt-0.5 text-sm text-slate-600">
-                                <RequiredLabel>Received now</RequiredLabel> (at
-                                least one item) before Save delivery can be
-                                clicked.
-                            </p>
+                            {/* Goes once at least one item is filled in correctly. */}
+                            {receivedNeeded && (
+                                <p className="mt-0.5 text-sm text-slate-600">
+                                    <RequiredLabel>Received now</RequiredLabel>{' '}
+                                    (at least one item) before Save delivery can
+                                    be clicked.
+                                </p>
+                            )}
                         </div>
                         <button
                             type="button"
@@ -374,7 +379,9 @@ function DeliveryForm({
                                     <Heading>Item</Heading>
                                     <Heading right>Left to receive</Heading>
                                     <Heading right>
-                                        <RequiredLabel>
+                                        <RequiredLabel
+                                            required={receivedNeeded}
+                                        >
                                             Received now
                                         </RequiredLabel>
                                     </Heading>
