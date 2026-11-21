@@ -75,7 +75,6 @@ export function ReleaseBox({
             {order.paid_at ? (
                 <Text className="font-sans-semibold text-xs text-emerald-900">
                     {formatDateTime(order.paid_at)}
-                    {order.paid_to ? ` · ${order.paid_to}` : ''}
                 </Text>
             ) : null}
             {short.length > 0 && (

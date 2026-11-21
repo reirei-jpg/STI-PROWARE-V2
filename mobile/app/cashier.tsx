@@ -1,40 +1,44 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Banknote, LogOut, ReceiptText, ScanLine, Search, Undo2 } from 'lucide-react-native';
+import { ChevronRight, Clock, LogOut, ReceiptText, ScanLine, Search, Wallet, XCircle } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
+import PaymentRowItem from '@/components/PaymentRowItem';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime, formatPeso } from '@/lib/format';
-import type { CashierPaidToday } from '@/lib/types';
+import { formatPeso } from '@/lib/format';
+import type { CashierDashboard } from '@/lib/types';
 
 /**
- * The cashier's home on the phone, like the website's Payments page (panel
- * revision, 20 Nov 2026): Scan a slip with the camera (or type its number)
- * to see what to collect and Mark as paid; below, what was collected today.
+ * The cashier's Dashboard on the phone, like the website's (panel revision,
+ * 20 Nov 2026): today's collections (Cash and GCash), what is awaiting
+ * payment, today's void payments, Scan a slip or enter its number, the
+ * cashier's records (Awaiting Payment, Payment History, Collections) and
+ * the latest payments.
  */
 export default function CashierScreen() {
     const insets = useSafeAreaInsets();
     const { user, request, signOut } = useAuth();
     const [typed, setTyped] = useState('');
-    const [paidToday, setPaidToday] = useState<CashierPaidToday | null>(null);
+    const [dashboard, setDashboard] = useState<CashierDashboard | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(
         () =>
-            request<CashierPaidToday>('/cashier/paid-today')
+            request<CashierDashboard>('/cashier/dashboard')
                 .then((answer) => {
-                    setPaidToday(answer);
+                    setDashboard(answer);
                     setError(null);
                 })
-                .catch((caught) => setError(loadErrorMessage(caught, "Today's payments could not be loaded."))),
+                .catch((caught) => setError(loadErrorMessage(caught, 'The dashboard could not be loaded.'))),
         [request],
     );
 
-    // Fresh every time the cashier comes back from a slip.
+    // Fresh every time the cashier comes back from a slip or a receipt.
     useFocusEffect(
         useCallback(() => {
             void load();
@@ -60,6 +64,9 @@ export default function CashierScreen() {
             { text: 'Log out', style: 'destructive', onPress: () => void signOut() },
         ]);
 
+    const today = dashboard?.today;
+    const awaiting = dashboard?.awaiting;
+
     return (
         <ScrollView
             className="flex-1 bg-page"
@@ -70,10 +77,8 @@ export default function CashierScreen() {
             <View className="rounded-3xl bg-brand px-5 py-6">
                 <View className="flex-row items-start justify-between gap-3">
                     <View className="flex-1">
-                        <Text className="font-sans-semibold text-xs uppercase tracking-wide text-blue-100">
-                            STI PROWARE · Cashier
-                        </Text>
-                        <Text className="mt-1 font-sans-bold text-2xl text-white">Payments</Text>
+                        <Text className="font-sans-semibold text-xs uppercase tracking-wide text-blue-100">STI PROWARE · Cashier</Text>
+                        <Text className="mt-1 font-sans-bold text-2xl text-white">Dashboard</Text>
                         <Text className="mt-1 font-sans text-sm leading-5 text-blue-50">
                             Hi, {user?.name}. Scan the buyer&apos;s slip, collect the amount due, and record the payment.
                         </Text>
@@ -88,6 +93,25 @@ export default function CashierScreen() {
                     </Pressable>
                 </View>
             </View>
+
+            {error && <LoadError message={error} onRetry={load} className="" />}
+
+            <View className="flex-row gap-3">
+                <Card label="Collected today" value={formatPeso(today?.total_centavos ?? 0)}>
+                    Cash {formatPeso(today?.cash_centavos ?? 0)} · GCash {formatPeso(today?.gcash_centavos ?? 0)}
+                </Card>
+                <Card label="Awaiting payment" value={String((awaiting?.orders ?? 0) + (awaiting?.slips ?? 0))}>
+                    {formatPeso(awaiting?.total_centavos ?? 0)} in all
+                </Card>
+            </View>
+            {(today?.void_count ?? 0) > 0 && (
+                <View className="flex-row items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                    <XCircle size={18} color="#b91c1c" />
+                    <Text className="flex-1 font-sans-semibold text-sm text-red-800">
+                        {today?.void_count} void {today?.void_count === 1 ? 'payment' : 'payments'} today ({formatPeso(today?.void_centavos ?? 0)}), not counted.
+                    </Text>
+                </View>
+            )}
 
             <Pressable
                 onPress={() => router.push('/scan-slip')}
@@ -106,6 +130,7 @@ export default function CashierScreen() {
                         onChangeText={setTyped}
                         onSubmitEditing={openTyped}
                         placeholder="e.g. PW-0042 or PR-0003"
+                        placeholderTextColor="#94a3b8"
                         autoCapitalize="characters"
                         returnKeyType="search"
                         maxLength={120}
@@ -123,50 +148,61 @@ export default function CashierScreen() {
                 </View>
             </View>
 
-            {error && <LoadError message={error} onRetry={load} className="" />}
+            <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                <MenuLink icon={<Clock size={18} color="#1d4ed8" />} label="Awaiting Payment" detail="Who still has to pay; search by name or ID" href="/cashier-awaiting" first />
+                <MenuLink icon={<ReceiptText size={18} color="#1d4ed8" />} label="Payment History" detail="Every Payment Receipt, with filters" href="/cashier-history" />
+                <MenuLink icon={<Wallet size={18} color="#1d4ed8" />} label="Collections" detail="The money collected by day or month" href="/cashier-collections" />
+            </View>
 
             <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
                 <View className="flex-row items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-                    <View className="flex-row items-center gap-2">
-                        <ReceiptText size={18} color="#2563eb" />
-                        <Text className="font-sans-bold text-base text-slate-900">Paid today</Text>
-                    </View>
-                    <Text className="font-sans-bold text-base text-slate-900">
-                        {formatPeso(paidToday?.total_centavos ?? 0)}
-                    </Text>
+                    <Text className="font-sans-bold text-base text-slate-900">Latest payments today</Text>
                 </View>
-                {paidToday === null ? null : paidToday.rows.length === 0 ? (
+                {dashboard === null ? null : dashboard.latest.length === 0 ? (
                     <Text className="px-4 py-6 text-center font-sans text-sm text-slate-500">No payments have been recorded today.</Text>
                 ) : (
-                    paidToday.rows.map((row, index) => (
-                        <View
-                            key={`${row.kind}-${row.number}-${row.paid_at}-${row.undone}`}
-                            className={`flex-row items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-slate-100' : ''} ${row.undone ? 'bg-red-50/50' : ''}`}
-                        >
-                            <View className={`h-9 w-9 items-center justify-center rounded-xl ${row.undone ? 'bg-red-50' : 'bg-blue-50'}`}>
-                                {row.undone ? <Undo2 size={17} color="#b91c1c" /> : <Banknote size={17} color="#1d4ed8" />}
-                            </View>
-                            <View className="flex-1">
-                                <Text className="font-sans-bold text-sm text-slate-900">
-                                    {row.number} · {row.kind === 'order' ? 'Order' : 'Preorder'}
-                                    {row.undone ? <Text className="text-red-700"> · Undone</Text> : null}
-                                </Text>
-                                <Text className="font-sans text-xs text-slate-500">
-                                    {row.buyer} · {formatDateTime(row.paid_at)}
-                                </Text>
-                                {row.undone && row.reason ? (
-                                    <Text className="font-sans text-xs text-red-700">{row.reason}</Text>
-                                ) : null}
-                            </View>
-                            <Text
-                                className={`font-sans-bold text-sm ${row.undone ? 'text-slate-400 line-through' : 'text-slate-900'}`}
-                            >
-                                {formatPeso(row.amount_centavos)}
-                            </Text>
-                        </View>
-                    ))
+                    dashboard.latest.map((row, index) => <PaymentRowItem key={row.id} row={row} first={index === 0} />)
                 )}
             </View>
         </ScrollView>
+    );
+}
+
+function Card({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+    return (
+        <View className="flex-1 rounded-3xl border border-slate-200 bg-white p-4">
+            <Text className="font-sans-bold text-xs text-slate-500">{label}</Text>
+            <Text className="mt-1 font-sans-bold text-xl text-slate-900">{value}</Text>
+            <Text className="mt-1 font-sans text-[11px] leading-4 text-slate-500">{children}</Text>
+        </View>
+    );
+}
+
+function MenuLink({
+    icon,
+    label,
+    detail,
+    href,
+    first = false,
+}: {
+    icon: ReactNode;
+    label: string;
+    detail: string;
+    href: '/cashier-awaiting' | '/cashier-history' | '/cashier-collections';
+    first?: boolean;
+}) {
+    return (
+        <Pressable
+            onPress={() => router.push(href)}
+            accessibilityRole="button"
+            className={`flex-row items-center gap-3 px-4 py-3.5 ${first ? '' : 'border-t border-slate-100'}`}
+        >
+            <View className="h-9 w-9 items-center justify-center rounded-xl bg-blue-50">{icon}</View>
+            <View className="flex-1">
+                <Text className="font-sans-bold text-sm text-slate-900">{label}</Text>
+                <Text className="font-sans text-xs text-slate-500">{detail}</Text>
+            </View>
+            <ChevronRight size={18} color="#94a3b8" />
+        </Pressable>
     );
 }

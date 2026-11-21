@@ -178,7 +178,7 @@ function StatusBox({ order }: { order: SpecialistOrder }) {
         order.status === 'placed'
             ? `Awaiting payment: ${order.student_name} must pay ${formatPeso(order.total_centavos)} at the cashier. The items can be released once the payment is recorded.`
             : order.status === 'paid'
-              ? `Paid at the cashier on ${formatDateTime(order.paid_at ?? null)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand over the items, then tap Release.`
+              ? `Paid at the cashier on ${formatDateTime(order.paid_at ?? null)}. Hand over the items, then tap Release.`
               : order.status === 'picked_up'
               ? `Released ${formatDateTime(order.picked_up_at)}.`
               : order.expired

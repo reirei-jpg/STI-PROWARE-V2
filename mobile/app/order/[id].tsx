@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Banknote, CircleCheck, QrCode, XCircle } from 'lucide-react-native';
+import { ArrowLeft, Banknote, CircleCheck, QrCode, ReceiptText, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { ApiError, loadErrorMessage } from '@/lib/api';
 import { STUDENT_CANCEL_REASONS, cancelReasonReady } from '@/lib/cancel-reasons';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatPeso } from '@/lib/format';
-import type { StudentOrder } from '@/lib/types';
+import type { ReceiptLink, StudentOrder } from '@/lib/types';
 import { useBackFromOrder } from '@/lib/use-back-from-order';
 import { useLiveReload } from '@/lib/use-live-reload';
 
@@ -27,7 +27,7 @@ export default function OrderScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const insets = useSafeAreaInsets();
     const { request } = useAuth();
-    const [order, setOrder] = useState<StudentOrder | null>(null);
+    const [order, setOrder] = useState<(StudentOrder & { receipt?: ReceiptLink | null }) | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -149,6 +149,20 @@ export default function OrderScreen() {
                             <QrCode size={19} color="#ffffff" />
                             <Text className="font-sans-bold text-base text-white">
                                 Show issuance slip
+                            </Text>
+                        </Pressable>
+                    )}
+
+                    {order.receipt && (
+                        <Pressable
+                            onPress={() => router.push(`/receipt/${order.receipt?.id}`)}
+                            accessibilityRole="button"
+                            className="flex-row items-center justify-center gap-2 rounded-2xl border border-blue-300 bg-blue-50 py-3.5"
+                        >
+                            <ReceiptText size={18} color="#1d4ed8" />
+                            <Text className="font-sans-bold text-base text-blue-700">
+                                Payment Receipt {order.receipt.receipt_number}
+                                {order.receipt.void ? ' (VOID)' : ''}
                             </Text>
                         </Pressable>
                     )}

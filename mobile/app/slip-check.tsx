@@ -308,7 +308,7 @@ function ReleaseVerdict({ order }: { order: SpecialistOrder }) {
             : 'Do not release: cancelled';
     const text =
         ok
-            ? `Paid at the cashier on ${formatDateTime(order.paid_at ?? null)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand over the items, then tap Release.`
+            ? `Paid at the cashier on ${formatDateTime(order.paid_at ?? null)}. Hand over the items, then tap Release.`
             : waiting
               ? 'Direct the buyer to the cashier. The items can be released once the payment is recorded.'
               : order.status === 'picked_up'
