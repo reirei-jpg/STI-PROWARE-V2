@@ -11,6 +11,7 @@ use App\Models\PreorderSlip;
 use App\Models\UndonePayment;
 use App\Models\User;
 use App\Services\Preorders\PreorderPayment;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * The cashier's screen, the same on the website and the phone (panel
@@ -85,8 +86,9 @@ final class CashierDesk
             ->with('student')
             ->where('paid_to', $cashier->id)
             ->whereDate('paid_at', now()->toDateString())
-            // A released paid preorder's order was collected on its slip.
-            ->whereDoesntHave('preorders')
+            // A released paid preorder's order was collected on its slip (Order::holdsItems);
+            // an order of an older held preorder was paid here like any order.
+            ->whereDoesntHave('preorders', fn (Builder $preorders) => $preorders->whereNull('held_until'))
             ->get()
             ->map(fn (Order $order): array => [
                 'kind' => 'order',

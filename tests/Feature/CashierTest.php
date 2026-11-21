@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\OrderStatus;
+use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
 use App\Models\CartItem;
 use App\Models\Order;
+use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
@@ -155,6 +157,19 @@ test('the cashier pays an order on the phone too', function () {
     $this->postJson(route('api.v1.cashier.orders.paid', $order))->assertUnprocessable()
         ->assertJsonValidationErrors(['order' => "Order {$order->number} has already been paid."]);
     $this->getJson(route('api.v1.cashier.paid-today'))->assertOk()->assertJsonPath('total_centavos', 8000);
+});
+
+test('an order of an older held preorder, paid at the cashier, is in today\'s payments', function () {
+    $order = lanyardOrder($this->juan, 1);
+    // Before 14 Nov an arrived preorder was held 24 hours and then ordered like any order.
+    Preorder::factory()->forVariant($this->lanyard)->create([
+        'user_id' => $this->juan->id, 'status' => PreorderStatus::Ordered, 'order_id' => $order->id, 'held_until' => now()->subDays(7),
+    ]);
+    payAtCashier($order, $this->cashier);
+
+    $this->actingAs($this->cashier)->get(route('cashier.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('paidToday.total_centavos', 8000)
+        ->where('paidToday.rows.0.number', $order->number));
 });
 
 test('the Specialist is told when the cashier records a payment, ready for release', function () {
