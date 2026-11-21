@@ -6,6 +6,7 @@ use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Services\Shop\PaymentTender;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -248,5 +249,18 @@ function preorderPayLine(): string
  */
 function payAtCashier(Order $order, ?User $cashier = null): string
 {
-    return app(MarkOrderPaid::class)->handle($order, $cashier ?? User::factory()->cashier()->create(['name' => 'Cashier 1']));
+    // Exact cash for what is left (first to pay, first served).
+    $due = max(1, MarkOrderPaid::preview($order->refresh())['total_centavos']);
+
+    return app(MarkOrderPaid::class)->handle($order, $cashier ?? User::factory()->cashier()->create(['name' => 'Cashier 1']), PaymentTender::cash($due));
+}
+
+/**
+ * The Mark as Paid form filled in for cash, with enough received for any test order.
+ *
+ * @return array{method: string, amount_received: string}
+ */
+function paidInCash(string $received = '100000'): array
+{
+    return ['method' => 'cash', 'amount_received' => $received];
 }

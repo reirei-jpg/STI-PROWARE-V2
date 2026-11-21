@@ -11,6 +11,7 @@ use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\Product;
 use App\Services\Preorders\PreorderPayment;
+use App\Services\Shop\CashierRecords;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -42,6 +43,7 @@ class StudentPreorderController extends Controller
 
         return Inertia::render('storefront/preorder-slip', [
             'slip' => PreorderPayment::view($preorderSlip),
+            'receipt' => CashierRecords::receiptLinkFor($preorderSlip),
         ]);
     }
 

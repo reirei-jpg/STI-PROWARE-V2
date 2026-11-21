@@ -2,19 +2,21 @@
 
 namespace App\Notifications;
 
-use App\Models\UndonePayment;
+use App\Models\Order;
+use App\Models\PreorderSlip;
 use App\Notifications\Channels\PushChannel;
 use App\Notifications\Channels\PushesToPhones;
 use Illuminate\Notifications\Notification;
 
 /**
- * Tells the Specialist the cashier undid a payment recorded by mistake, with
- * the reason, so a paid order they were told about is not released: it is
- * waiting for payment again. Also pushed to their phones.
+ * Tells the Specialist that an order or preorder slip they were told was
+ * paid is waiting for payment again, so it is not released. Nothing of the
+ * cashier's record (reason, receipt, who undid it). Also pushed to their
+ * phones.
  */
 class PaymentUndoneForStaff extends Notification implements PushesToPhones
 {
-    public function __construct(public UndonePayment $undone) {}
+    public function __construct(public Order|PreorderSlip $unpaid) {}
 
     /**
      * @return array<int, string>
@@ -25,26 +27,23 @@ class PaymentUndoneForStaff extends Notification implements PushesToPhones
     }
 
     /**
-     * @return array{kind: string, order_id: int|null, preorder_slip_id: int|null, number: string|null, buyer_name: string, amount_centavos: int, reason: string, undone_by: string|null}
+     * @return array{kind: string, order_id: int|null, preorder_slip_id: int|null, number: string|null, buyer_name: string}
      */
     public function toArray(object $notifiable): array
     {
-        $paid = $this->undone->order ?? $this->undone->preorderSlip;
+        $isOrder = $this->unpaid instanceof Order;
 
         return [
             'kind' => 'payment_undone_staff',
-            'order_id' => $this->undone->order_id,
-            'preorder_slip_id' => $this->undone->preorder_slip_id,
-            'number' => $paid?->number,
-            'buyer_name' => (string) $paid?->student->name,
-            'amount_centavos' => $this->undone->amount_centavos,
-            'reason' => $this->undone->reason,
-            'undone_by' => $this->undone->undoer?->name,
+            'order_id' => $isOrder ? $this->unpaid->id : null,
+            'preorder_slip_id' => $isOrder ? null : $this->unpaid->id,
+            'number' => $this->unpaid->number,
+            'buyer_name' => $this->unpaid->student->name,
         ];
     }
 
     /**
-     * "Payment undone: PW-0042 · Juan Dela Cruz".
+     * "Awaiting payment again: PW-0042 · Juan Dela Cruz".
      *
      * @return array{title: string, body: string, data: array<string, scalar|null>}
      */
@@ -53,21 +52,14 @@ class PaymentUndoneForStaff extends Notification implements PushesToPhones
         $data = $this->toArray($notifiable);
 
         return [
-            'title' => "Payment undone: {$data['number']} · {$data['buyer_name']}",
-            'body' => self::body($data),
+            'title' => "Awaiting payment again: {$data['number']} · {$data['buyer_name']}",
+            'body' => self::body(),
             'data' => ['kind' => 'payment_undone_staff', 'order_id' => $data['order_id'], 'preorder_slip_id' => $data['preorder_slip_id'], 'number' => $data['number']],
         ];
     }
 
-    /**
-     * "₱100.00, undone by Cashier 1: Scanned the wrong slip. It is waiting for payment again."
-     *
-     * @param  array{amount_centavos: int, reason: string, undone_by: string|null}  $data
-     */
-    public static function body(array $data): string
+    public static function body(): string
     {
-        return '₱'.number_format($data['amount_centavos'] / 100, 2)
-            .($data['undone_by'] ? ", undone by {$data['undone_by']}" : ' undone')
-            .": {$data['reason']} It is waiting for payment again.";
+        return 'Its payment was undone at the cashier. Release it only once it is paid.';
     }
 }

@@ -12,6 +12,7 @@ use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\Product;
 use App\Services\Preorders\PreorderPayment;
+use App\Services\Shop\CashierRecords;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -37,7 +38,7 @@ class PreorderController extends Controller
     {
         abort_unless($preorderSlip->user_id === $request->user()->id, 404);
 
-        return response()->json(PreorderPayment::view($preorderSlip));
+        return response()->json([...PreorderPayment::view($preorderSlip), 'receipt' => CashierRecords::receiptLinkFor($preorderSlip)]);
     }
 
     public function store(PlacePreorderRequest $request, Product $product, PlacePreorder $placePreorder): JsonResponse

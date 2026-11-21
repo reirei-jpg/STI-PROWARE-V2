@@ -106,7 +106,7 @@ test('the paid and release notices name what the buyer got and what was sold out
     Notification::assertSentTo($juan, OrderPaid::class, function (OrderPaid $notice) use ($juan): bool {
         expect($notice->toArray($juan))->items->toBe('STI Lanyard')->total_centavos->toBe(8000)->short->toBe('1 pc of STI Cap')
             ->and($notice->toPush($juan))->title->toBe('Payment received: STI Lanyard')
-            ->body->toBe('₱80.00 has been received. Present your issuance slip at the PROWARE office to claim your items. Not charged (sold out before your payment): 1 pc of STI Cap.');
+            ->body->toBe('₱80.00 has been received (Payment Receipt '.$notice->payment?->receipt_number.'). Present your issuance slip at the PROWARE office to claim your items. Not charged (sold out before your payment): 1 pc of STI Cap.');
 
         return true;
     });

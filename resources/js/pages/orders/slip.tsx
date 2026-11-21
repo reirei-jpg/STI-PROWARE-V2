@@ -321,7 +321,7 @@ function ReleaseVerdict({ order }: { order: SpecialistOrderRow }) {
                     tone: 'green' as const,
                     icon: <CheckCircle2 size={30} />,
                     title: 'Ready for release',
-                    text: `Paid at the cashier on ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}. Hand over the items, then select Release.`,
+                    text: `Paid at the cashier on ${formatDateTime(order.paid_at)}. Hand over the items, then select Release.`,
                 };
             case 'placed':
                 return {
@@ -470,7 +470,6 @@ function ReleaseCard({ result }: { result: SlipResult }) {
                         </p>
                         <p className="text-xs font-semibold text-emerald-900">
                             {formatDateTime(order.paid_at)}
-                            {order.paid_to && ` · ${order.paid_to}`}
                         </p>
                     </div>
                     {shortLines.length > 0 && (

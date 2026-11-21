@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\UndonePayment;
+use App\Models\Payment;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -43,6 +43,6 @@ class UndoPaymentRequest extends FormRequest
     /** The reason as a sentence, as the record and the notices keep it. */
     public function reasonText(): string
     {
-        return UndonePayment::sentence((string) $this->input('reason'));
+        return Payment::sentence((string) $this->input('reason'));
     }
 }

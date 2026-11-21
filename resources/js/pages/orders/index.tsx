@@ -392,11 +392,6 @@ function OrderDate({ order }: { order: SpecialistOrder }) {
         return (
             <p className="text-sm whitespace-nowrap text-blue-700">
                 {formatDateOrdered(order.paid_at)}
-                {order.paid_to && (
-                    <span className="block text-xs text-slate-500">
-                        {order.paid_to}
-                    </span>
-                )}
             </p>
         );
     }

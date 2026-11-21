@@ -5,12 +5,15 @@ namespace App\Services\Preorders;
 use App\Actions\Preorders\ReleasePaidPreorder;
 use App\Enums\PreorderStatus;
 use App\Enums\UserRole;
+use App\Models\Payment;
 use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\User;
 use App\Notifications\PaymentRecorded;
 use App\Notifications\PreorderPaid;
 use App\Services\Shop\IssuanceSlip;
+use App\Services\Shop\PaymentRecorder;
+use App\Services\Shop\PaymentTender;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -132,14 +135,14 @@ final class PreorderPayment
     }
 
     /**
-     * Mark the slip Paid: the amount is kept as it is today, and the buyer
-     * is told.
+     * Mark the slip Paid and issue its Payment Receipt: the amount is kept
+     * as it is today, and the buyer and the Specialist are told.
      *
-     * @throws ValidationException when it is already paid or has nothing to pay
+     * @throws ValidationException when it is already paid, has nothing to pay, the cash does not cover it, or the GCash reference was used
      */
-    public static function markPaid(PreorderSlip $slip, User $by): string
+    public static function markPaid(PreorderSlip $slip, User $by, PaymentTender $tender): Payment
     {
-        $message = DB::transaction(function () use ($slip, $by): string {
+        $payment = DB::transaction(function () use ($slip, $by, $tender): Payment {
             $locked = PreorderSlip::query()->lockForUpdate()->findOrFail($slip->id);
             $refusal = self::refusal($locked);
 
@@ -147,22 +150,34 @@ final class PreorderPayment
                 throw ValidationException::withMessages(['slip' => $refusal]);
             }
 
+            $payment = PaymentRecorder::record($locked, $locked->amountDue(), $tender, $by);
+
             $locked->forceFill([
-                'paid_at' => now(),
+                'paid_at' => $payment->paid_at,
                 'paid_by' => $by->id,
-                'paid_centavos' => $locked->amountDue(),
+                'paid_centavos' => $payment->amount_centavos,
             ])->save();
 
             $slip->setRawAttributes($locked->getAttributes(), true);
 
-            return "Preorder slip {$locked->number}: payment of ₱".number_format((int) $locked->paid_centavos / 100, 2)." from {$locked->student->name} has been recorded.";
+            return $payment;
         });
 
         $slip->loadMissing(['student', 'product']);
-        $slip->student->notify(new PreorderPaid($slip));
-        Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentRecorded($slip, $by));
+        $slip->student->notify(new PreorderPaid($slip, $payment));
+        Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentRecorded($slip));
 
-        return $message;
+        return $payment;
+    }
+
+    /**
+     * "Preorder slip PR-0003: payment of ₱260.00 from Juan Dela Cruz has been recorded."
+     */
+    public static function paidMessage(PreorderSlip $slip): string
+    {
+        $slip->loadMissing('student');
+
+        return "Preorder slip {$slip->number}: payment of ₱".number_format((int) $slip->paid_centavos / 100, 2)." from {$slip->student->name} has been recorded.";
     }
 
     /**

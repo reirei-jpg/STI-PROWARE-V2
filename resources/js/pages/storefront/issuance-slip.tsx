@@ -6,6 +6,7 @@ import {
     Clock,
     LoaderCircle,
     Printer,
+    ReceiptText,
     X,
     XCircle,
 } from 'lucide-react';
@@ -28,7 +29,7 @@ import {
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
-import type { IssuanceSlipData } from '@/types';
+import type { IssuanceSlipData, ReceiptLink } from '@/types';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { confirmLeave } from '@/lib/back-guard';
 
@@ -42,10 +43,13 @@ import { confirmLeave } from '@/lib/back-guard';
 export default function StudentIssuanceSlip({
     slip,
     canCancel,
+    receipt,
 }: {
     slip: IssuanceSlipData;
     /** True while the order is not released or cancelled yet. */
     canCancel: boolean;
+    /** The cashier's Payment Receipt, once paid. */
+    receipt: ReceiptLink | null;
 }) {
     // While the order is open the page checks it every 10 seconds, so once
     // the office releases it the Cancel button is gone by itself, without
@@ -99,6 +103,18 @@ export default function StudentIssuanceSlip({
                                 ? 'Back to the store'
                                 : 'Back to My Orders'}
                         </Link>
+                        {receipt && (
+                            <Link
+                                href={StudentOrderController.receipt(
+                                    receipt.id,
+                                )}
+                                className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100"
+                            >
+                                <ReceiptText size={17} />
+                                Payment Receipt
+                                {receipt.void ? ' (VOID)' : ''}
+                            </Link>
+                        )}
                         {slip.status !== 'cancelled' && (
                             <a
                                 href={

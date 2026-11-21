@@ -62,6 +62,9 @@ export type OrderPaidData = {
     total_centavos: number;
     /** What was sold out before they paid (not charged). */
     short?: string | null;
+    /** The Payment Receipt (missing on older notices). */
+    payment_id?: number | null;
+    receipt_number?: string | null;
 };
 
 /** The order was released to the student at the PROWARE office. */
@@ -139,6 +142,9 @@ export type PreorderPaidData = {
     product_id: number;
     product_name: string;
     paid_centavos: number | null;
+    /** The Payment Receipt (missing on older notices). */
+    payment_id?: number | null;
+    receipt_number?: string | null;
 };
 
 /** The Specialist told the top buyers that a product is in the store now. */
@@ -318,7 +324,6 @@ export type PaymentRecordedData = {
     number: string | null;
     buyer_name: string;
     amount_centavos: number;
-    cashier: string;
 };
 
 /** The cashier undid the buyer's payment recorded by mistake (to the buyer). */
@@ -330,18 +335,17 @@ export type PaymentUndoneData = {
     items: string;
     amount_centavos: number;
     reason: string;
+    /** The Payment Receipt made void (missing on older notices). */
+    receipt_number?: string | null;
 };
 
-/** The cashier undid a payment recorded by mistake (to the Specialist). */
+/** A paid order or preorder slip is awaiting payment again (to the Specialist; no cashier details). */
 export type PaymentUndoneStaffData = {
     kind: 'payment_undone_staff';
     order_id: number | null;
     preorder_slip_id: number | null;
     number: string | null;
     buyer_name: string;
-    amount_centavos: number;
-    reason: string;
-    undone_by: string | null;
 };
 
 /** Your account was signed in on a phone. */

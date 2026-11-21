@@ -232,8 +232,6 @@ export type OrderRow = {
 /** An order on the Specialist's Orders page and slip screen. */
 export type SpecialistOrderRow = OrderRow & {
     handled_by: string | null;
-    /** The cashier who took the payment. */
-    paid_to: string | null;
 };
 
 /** An order's issuance slip, as on STI College-Ormoc's paper form. */

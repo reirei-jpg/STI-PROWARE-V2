@@ -15,7 +15,7 @@ use Illuminate\Notifications\Notification;
  */
 class PaymentUndone extends Notification implements PushesToPhones
 {
-    public function __construct(public Order|PreorderSlip $undone, public int $amountCentavos, public string $reason) {}
+    public function __construct(public Order|PreorderSlip $undone, public int $amountCentavos, public string $reason, public ?string $receiptNumber = null) {}
 
     /**
      * @return array<int, string>
@@ -26,7 +26,7 @@ class PaymentUndone extends Notification implements PushesToPhones
     }
 
     /**
-     * @return array{kind: string, order_id: int|null, slip_id: int|null, items: string, amount_centavos: int, reason: string}
+     * @return array{kind: string, order_id: int|null, slip_id: int|null, items: string, amount_centavos: int, reason: string, receipt_number: string|null}
      */
     public function toArray(object $notifiable): array
     {
@@ -39,6 +39,7 @@ class PaymentUndone extends Notification implements PushesToPhones
             'items' => $isOrder ? $this->undone->itemsText() : $this->undone->product->name,
             'amount_centavos' => $this->amountCentavos,
             'reason' => $this->reason,
+            'receipt_number' => $this->receiptNumber,
         ];
     }
 
@@ -59,13 +60,15 @@ class PaymentUndone extends Notification implements PushesToPhones
     }
 
     /**
-     * "The cashier undid your ₱100.00 payment: Scanned the wrong slip. Pay at the cashier again to claim your items."
+     * "The cashier undid your ₱100.00 payment (Payment Receipt RCT-2026-000001 is void): Scanned the wrong slip. Pay at the cashier again to claim your items."
      *
-     * @param  array{order_id: int|null, amount_centavos: int, reason: string}  $data
+     * @param  array{order_id: int|null, amount_centavos: int, reason: string, receipt_number?: string|null}  $data
      */
     public static function body(array $data): string
     {
-        return 'The cashier undid your ₱'.number_format($data['amount_centavos'] / 100, 2)." payment: {$data['reason']} "
+        return 'The cashier undid your ₱'.number_format($data['amount_centavos'] / 100, 2).' payment'
+            .(($data['receipt_number'] ?? null) ? " (Payment Receipt {$data['receipt_number']} is void)" : '')
+            .": {$data['reason']} "
             .($data['order_id'] !== null
                 ? 'Pay at the cashier again to claim your items.'
                 : 'Pay at the cashier again with your preorder slip.');

@@ -5,23 +5,26 @@ namespace App\Actions\Orders;
 use App\Enums\OrderStatus;
 use App\Enums\UserRole;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\ProductVariant;
-use App\Models\UndonePayment;
 use App\Models\User;
 use App\Notifications\PaymentUndone;
 use App\Notifications\PaymentUndoneForStaff;
+use App\Services\Shop\PaymentRecorder;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\RestockedPreorders;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 /**
  * The cashier undoes an order's payment recorded by mistake (the wrong slip
  * was scanned, or the buyer did not pay): only the same day and before the
  * items are released, with a reason. The pieces set aside are for sale again,
- * the order is waiting for payment again at its full amount, and the payment
- * is kept on record (UndonePayment). The buyer and the Specialist are told.
+ * the order is waiting for payment again at its full amount, and its Payment
+ * Receipt stays on record as VOID with the reason. The buyer is told; the
+ * Specialist only that it is waiting for payment again.
  */
 class UndoOrderPayment
 {
@@ -40,7 +43,8 @@ class UndoOrderPayment
             $order->status === OrderStatus::PickedUp => "Order {$order->number} has already been released, so its payment can no longer be undone.",
             $order->status === OrderStatus::Cancelled => "Order {$order->number} has been cancelled, so there is no payment to undo.",
             $order->holdsItems() => "Order {$order->number} was paid with its preorder slip, so its payment cannot be undone here.",
-            default => UndonePayment::notToday("order {$order->number}", $order->paid_at),
+            PaymentRecorder::standing($order) === null => "Order {$order->number} has no Payment Receipt to void, so its payment cannot be undone here.",
+            default => Payment::notToday("order {$order->number}", $order->paid_at),
         };
     }
 
@@ -49,7 +53,7 @@ class UndoOrderPayment
      */
     public function handle(Order $order, User $cashier, string $reason): string
     {
-        $undone = DB::transaction(function () use ($order, $cashier, $reason): UndonePayment {
+        $voided = DB::transaction(function () use ($order, $cashier, $reason): Payment {
             $order = Order::query()->with('items')->lockForUpdate()->findOrFail($order->id);
             $refusal = self::refusal($order);
 
@@ -57,16 +61,8 @@ class UndoOrderPayment
                 throw ValidationException::withMessages(['order' => $refusal]);
             }
 
-            $undone = UndonePayment::query()->create([
-                'order_id' => $order->id,
-                'amount_centavos' => $order->total_centavos,
-                'paid_at' => $order->paid_at,
-                'paid_by' => $order->paid_to,
-                'undone_by' => $cashier->id,
-                'reason' => $reason,
-            ]);
-
-            $total = 0;
+            $payment = PaymentRecorder::standing($order);
+            $payment?->void($cashier, $reason);
 
             foreach ($order->items as $item) {
                 // What was set aside at payment is for sale again.
@@ -81,23 +77,22 @@ class UndoOrderPayment
                     'quantity_short' => 0,
                     'line_total_centavos' => $item->unit_price_centavos * $item->quantity,
                 ])->save();
-                $total += $item->line_total_centavos;
             }
 
             $order->forceFill([
                 'status' => OrderStatus::Placed,
-                'total_centavos' => $total,
+                'total_centavos' => (int) $order->items->sum('line_total_centavos'),
                 'paid_at' => null,
                 'paid_to' => null,
             ])->save();
 
-            return $undone;
+            return $payment ?? throw new LogicException('A standing payment was checked above.');
         });
 
         $order->refresh();
-        $order->student->notify(new PaymentUndone($order, $undone->amount_centavos, $reason));
-        Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentUndoneForStaff($undone->load(['order.student', 'undoer'])));
+        $order->student->notify(new PaymentUndone($order, $voided->amount_centavos, $reason, $voided->receipt_number));
+        Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentUndoneForStaff($order));
 
-        return "The payment for order {$order->number} (₱".number_format($undone->amount_centavos / 100, 2)." from {$order->student->name}) has been undone. The order is waiting for payment again.";
+        return "The payment for order {$order->number} (₱".number_format($voided->amount_centavos / 100, 2)." from {$order->student->name}) has been undone. Payment Receipt {$voided->receipt_number} is now VOID, and the order is waiting for payment again.";
     }
 }

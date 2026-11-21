@@ -43,7 +43,7 @@ final class SpecialistOrders
     public static function page(string $show, ?string $search): LengthAwarePaginator
     {
         return Order::query()
-            ->with(['items', 'student', 'handler', 'cashier'])
+            ->with(['items', 'student', 'handler'])
             ->when($show !== 'all', fn (Builder $query) => $query->where('status', $show))
             ->when($search !== null, fn (Builder $query) => $query->where(fn (Builder $matches) => $matches
                 ->whereLike('number', "%{$search}%")
@@ -65,7 +65,7 @@ final class SpecialistOrders
      */
     public static function one(int $orderId): ?array
     {
-        $order = Order::query()->with(['items', 'student', 'handler', 'cashier'])->find($orderId);
+        $order = Order::query()->with(['items', 'student', 'handler'])->find($orderId);
 
         return $order === null ? null : self::row($order);
     }
@@ -82,8 +82,7 @@ final class SpecialistOrders
             ...OrderRow::of($order),
             'status_label' => $order->status->staffLabel(),
             'handled_by' => $order->handler?->name,
-            // The cashier who took the payment.
-            'paid_to' => $order->cashier?->name,
+            // Only that it is paid (paid_at); who took the payment and how is the cashier's record.
         ];
     }
 
@@ -129,7 +128,7 @@ final class SpecialistOrders
         }
 
         return Order::query()
-            ->with(['items', 'student', 'handler', 'cashier'])
+            ->with(['items', 'student', 'handler'])
             ->where('slip_code', $code)
             ->orWhere('number', strtoupper($code))
             ->first();
@@ -157,7 +156,7 @@ final class SpecialistOrders
         return array_map(fn (callable $orders): array => [
             'count' => $orders()->count(),
             'orders' => array_values($orders()
-                ->with(['items', 'student', 'handler', 'cashier'])
+                ->with(['items', 'student', 'handler'])
                 ->limit(self::SHOWN_ON_DASHBOARD)
                 ->get()
                 ->map(self::row(...))

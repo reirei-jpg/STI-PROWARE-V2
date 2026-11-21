@@ -1,10 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, ReceiptText } from 'lucide-react';
+import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import IssuanceSlip from '@/components/issuance-slip';
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { IssuanceSlipData, PreorderSlipData } from '@/types';
+import type { IssuanceSlipData, PreorderSlipData, ReceiptLink } from '@/types';
 
 /**
  * A batch's preorder slip, opened from My Preorders: show it at the
@@ -12,7 +13,14 @@ import type { IssuanceSlipData, PreorderSlipData } from '@/types';
  * stamped PAID and is the buyer's proof of payment. There is no refund
  * after paying.
  */
-export default function PreorderSlip({ slip }: { slip: PreorderSlipData }) {
+export default function PreorderSlip({
+    slip,
+    receipt,
+}: {
+    slip: PreorderSlipData;
+    /** The cashier's Payment Receipt, once paid. */
+    receipt: ReceiptLink | null;
+}) {
     const released = slip.status === 'released';
     const paid = slip.status === 'paid' || released;
     // Laid out like the issuance slip; stamped RELEASED once all was given.
@@ -39,13 +47,27 @@ export default function PreorderSlip({ slip }: { slip: PreorderSlipData }) {
                             Slip {slip.number} for {slip.product_name}.
                         </p>
                     </div>
-                    <Link
-                        href={StudentPreorderController.index()}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm hover:bg-slate-50"
-                    >
-                        <ArrowLeft size={17} />
-                        Back to My Preorders
-                    </Link>
+                    <div className="flex flex-wrap gap-2">
+                        <Link
+                            href={StudentPreorderController.index()}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                            <ArrowLeft size={17} />
+                            Back to My Preorders
+                        </Link>
+                        {receipt && (
+                            <Link
+                                href={StudentOrderController.receipt(
+                                    receipt.id,
+                                )}
+                                className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100"
+                            >
+                                <ReceiptText size={17} />
+                                Payment Receipt
+                                {receipt.void ? ' (VOID)' : ''}
+                            </Link>
+                        )}
+                    </div>
                 </div>
 
                 <div

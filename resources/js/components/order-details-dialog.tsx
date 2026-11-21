@@ -135,7 +135,7 @@ export default function OrderDetailsDialog({
                                             done={order.paid_at !== null}
                                         >
                                             {order.paid_at !== null
-                                                ? `Paid at the cashier on ${formatDateTime(order.paid_at)}${order.paid_to ? ` (${order.paid_to})` : ''}: ${formatPeso(order.total_centavos)}`
+                                                ? `Paid at the cashier on ${formatDateTime(order.paid_at)}: ${formatPeso(order.total_centavos)}`
                                                 : `Payment pending: ${formatPeso(order.total_centavos)} to be paid at the cashier`}
                                         </HistoryStep>
                                     )}
