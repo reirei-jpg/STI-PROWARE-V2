@@ -29,7 +29,7 @@ export default function CashierReceipt({
                     title="Payment Receipt"
                     description={
                         receipt.row.void
-                            ? 'This receipt is VOID. It stays on record but is not counted in the collections.'
+                            ? 'This receipt has been voided. It stays on record but is not counted in the collections.'
                             : canPrint
                               ? 'Print the receipt and give it to the buyer. Each print after the first is marked REPRINT.'
                               : 'View only.'

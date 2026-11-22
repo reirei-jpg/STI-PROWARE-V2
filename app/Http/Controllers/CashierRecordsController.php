@@ -93,7 +93,7 @@ class CashierRecordsController extends Controller
                     // As text, so Excel keeps all 13 digits.
                     $row['gcash_reference'] === null ? '' : "=\"{$row['gcash_reference']}\"",
                     $row['cashier'],
-                    $row['void'] ? 'VOID' : 'Paid',
+                    $row['void'] ? 'Voided' : 'Paid',
                     $row['void_reason'],
                 ];
             }
@@ -127,7 +127,7 @@ class CashierRecordsController extends Controller
     public function daily(Request $request): Response
     {
         $date = $request->validate(
-            ['date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today']],
+            ['date' => ['bail', 'nullable', 'date_format:Y-m-d', 'before_or_equal:today']],
             ['date.date_format' => 'Choose a valid date.', 'date.before_or_equal' => 'The date cannot be after today.'],
         )['date'] ?? null;
 

@@ -84,7 +84,7 @@ export default function PaymentReceiptCard({ receipt }: { receipt: PaymentReceip
 
             {row.void && (
                 <Text className="mt-3 rounded-xl bg-red-50 px-3 py-2 font-sans-semibold text-xs leading-5 text-red-800">
-                    VOID on {formatDateTime(row.voided_at)}
+                    Voided on {formatDateTime(row.voided_at)}
                     {row.voided_by ? ` by ${row.voided_by}` : ''}: {row.void_reason}
                 </Text>
             )}

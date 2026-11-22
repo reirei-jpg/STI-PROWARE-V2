@@ -6,6 +6,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
+import { receiptsLink } from '@/components/PaymentPeriodPicker';
 import PaymentRowItem from '@/components/PaymentRowItem';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -65,6 +66,8 @@ export default function CashierScreen() {
         ]);
 
     const today = dashboard?.today;
+    const todayPeriod = { period: 'today' as const, date_from: '', date_to: '' };
+    const openReceipts = (method: '' | 'cash' | 'gcash', status: '' | 'paid' | 'void'): void => router.push(receiptsLink(todayPeriod, method, status));
     const awaiting = dashboard?.awaiting;
 
     return (
@@ -98,28 +101,33 @@ export default function CashierScreen() {
 
             {/* Until the figures arrive, a dash: never a ₱0.00 that looks real. */}
             <View className="flex-row gap-3">
-                <Card label="Total Collected Today" value={today ? formatPeso(today.total_centavos) : '—'}>
+                <Card label="Total Collected Today" value={today ? formatPeso(today.total_centavos) : '—'} action="View receipts" onPress={() => openReceipts('', 'paid')}>
                     {today ? `${receiptCount(today.count)} issued today` : 'Loading…'}
                 </Card>
-                <Card label="Awaiting Payment" value={awaiting ? String(awaiting.orders + awaiting.slips) : '—'}>
+                <Card label="Awaiting Payment" value={awaiting ? String(awaiting.orders + awaiting.slips) : '—'} action="View list" onPress={() => router.push('/cashier-awaiting')}>
                     {awaiting ? `${formatPeso(awaiting.total_centavos)} in total` : 'Loading…'}
                 </Card>
             </View>
             <View className="flex-row gap-3">
-                <Card label="Cash Payments" value={today ? formatPeso(today.cash_centavos) : '—'}>
+                <Card label="Cash Payments" value={today ? formatPeso(today.cash_centavos) : '—'} action="View Cash" onPress={() => openReceipts('cash', 'paid')}>
                     {today ? `${receiptCount(today.cash_count)} today` : 'Loading…'}
                 </Card>
-                <Card label="GCash Payments" value={today ? formatPeso(today.gcash_centavos) : '—'}>
+                <Card label="GCash Payments" value={today ? formatPeso(today.gcash_centavos) : '—'} action="View GCash" onPress={() => openReceipts('gcash', 'paid')}>
                     {today ? `${receiptCount(today.gcash_count)} today` : 'Loading…'}
                 </Card>
             </View>
             {(today?.void_count ?? 0) > 0 && (
-                <View className="flex-row items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                <Pressable
+                    onPress={() => openReceipts('', 'void')}
+                    accessibilityRole="button"
+                    className="flex-row items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3"
+                >
                     <XCircle size={18} color="#b91c1c" />
                     <Text className="flex-1 font-sans-semibold text-sm text-red-800">
                         {today?.void_count} {today?.void_count === 1 ? 'voided payment' : 'voided payments'} today ({formatPeso(today?.void_centavos ?? 0)}), not counted in the total.
                     </Text>
-                </View>
+                    <Text className="font-sans-bold text-sm text-red-800">View</Text>
+                </Pressable>
             )}
 
             <Pressable
@@ -177,13 +185,17 @@ export default function CashierScreen() {
     );
 }
 
-function Card({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+function Card({ label, value, action, onPress, children }: { label: string; value: string; action: string; onPress: () => void; children: ReactNode }) {
     return (
-        <View className="flex-1 rounded-3xl border border-slate-200 bg-white p-4">
+        <Pressable onPress={onPress} accessibilityRole="button" className="flex-1 rounded-3xl border border-slate-200 bg-white p-4 active:bg-blue-50">
             <Text className="font-sans-bold text-xs text-slate-500">{label}</Text>
             <Text className="mt-1 font-sans-bold text-xl text-slate-900">{value}</Text>
             <Text className="mt-1 font-sans text-[11px] leading-4 text-slate-500">{children}</Text>
-        </View>
+            <View className="mt-2 flex-row items-center gap-0.5">
+                <Text className="font-sans-bold text-xs text-blue-700">{action}</Text>
+                <ChevronRight size={14} color="#1d4ed8" />
+            </View>
+        </Pressable>
     );
 }
 

@@ -153,7 +153,7 @@ test('the Specialist is told of a preorder payment, and the cashier can undo it 
     $receipt = Payment::sole()->receipt_number;
     $this->get(route('cashier.record', ['code' => $slip->number]))->assertInertia(fn (Assert $page) => $page->where('result.can_undo', true));
     $this->post(route('cashier.preorder-slips.undo-payment', $slip), ['reason' => 'Recorded on the wrong slip.'])
-        ->assertInertiaFlash('toast.message', "The payment for preorder slip {$slip->number} (₱2,050.00 from Juan Dela Cruz) has been undone. Payment Receipt {$receipt} is now VOID, and the slip is waiting for payment again.");
+        ->assertInertiaFlash('toast.message', "The payment for preorder slip {$slip->number} (₱2,050.00 from Juan Dela Cruz) has been undone. Payment Receipt {$receipt} has been voided, and the slip is waiting for payment again.");
 
     expect($slip->refresh())->paid_at->toBeNull()->paid_by->toBeNull()->paid_centavos->toBeNull()
         ->and(Payment::sole())->preorder_slip_id->toBe($slip->id)->amount_centavos->toBe(205000)->isVoid()->toBeTrue();

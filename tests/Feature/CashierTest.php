@@ -165,6 +165,9 @@ test('the payment method and the cash received are required and checked; nothing
     $this->post(route('cashier.orders.paid', $order), ['method' => 'card'])->assertSessionHasErrors(['method' => 'Select Cash or GCash as the payment method.']);
     $this->post(route('cashier.orders.paid', $order), ['method' => 'cash'])->assertSessionHasErrors(['amount_received' => 'Enter the amount received.']);
     $this->post(route('cashier.orders.paid', $order), paidInCash('abc'))->assertSessionHasErrors(['amount_received' => 'Enter the amount received as a number, e.g. 500 or 500.50.']);
+    // One reason at a time: letters are not also told about decimal places.
+    $this->postJson(route('api.v1.cashier.orders.paid', $order), paidInCash('abc'))
+        ->assertJsonPath('errors.amount_received', ['Enter the amount received as a number, e.g. 500 or 500.50.']);
     $this->post(route('cashier.orders.paid', $order), paidInCash('160.555'))->assertSessionHasErrors(['amount_received' => 'Enter the amount received with up to 2 decimal places, e.g. 500.50.']);
     $this->post(route('cashier.orders.paid', $order), paidInCash('0'))->assertSessionHasErrors(['amount_received' => 'The amount received must be more than ₱0.00.']);
     $this->post(route('cashier.orders.paid', $order), paidInCash('100000.01'))->assertSessionHasErrors(['amount_received' => 'The amount received cannot be more than ₱100,000.00.']);
@@ -286,7 +289,7 @@ test('the cashier undoes a payment recorded by mistake: the receipt becomes VOID
 
     $this->get(route('cashier.record', ['code' => $order->number]))->assertInertia(fn (Assert $page) => $page->where('result.can_undo', true));
     $this->post(route('cashier.orders.undo-payment', $order), ['reason' => 'Scanned the wrong slip'])
-        ->assertInertiaFlash('toast.message', "The payment for order {$order->number} (₱80.00 from Juan Dela Cruz) has been undone. Payment Receipt {$payment->receipt_number} is now VOID, and the order is waiting for payment again.");
+        ->assertInertiaFlash('toast.message', "The payment for order {$order->number} (₱80.00 from Juan Dela Cruz) has been undone. Payment Receipt {$payment->receipt_number} has been voided, and the order is waiting for payment again.");
 
     expect($order->refresh())->status->toBe(OrderStatus::Placed)->total_centavos->toBe(16000)->paid_at->toBeNull()->paid_to->toBeNull()
         ->and($order->items->sole())->quantity_short->toBe(0)->line_total_centavos->toBe(16000)
@@ -411,6 +414,10 @@ test('Payment History filters by period, method, Order or Preorder, Paid or Void
         ->assertInertiaFlash('toast.message', 'Choose Cash or GCash as the payment method. The list is shown without its filters.');
     $this->get(route('cashier.payments.index', ['period' => 'custom']))
         ->assertInertiaFlash('toast.message', 'Choose the "From" date. The list is shown without its filters.');
+    // A day that does not exist is not also reported as "To before From".
+    $this->getJson(route('api.v1.cashier.payments', ['period' => 'custom', 'date_from' => '2026-02-30', 'date_to' => '2026-03-01']))
+        ->assertUnprocessable()
+        ->assertJsonPath('errors', ['date_from' => ['Choose a valid "From" date.']]);
 });
 
 test('Collections add up the money by day or by month (void payments apart), and both lists download for Excel', function () {
@@ -457,6 +464,8 @@ test('the daily collection report lists the day\'s receipts and totals by method
         ->has('voided', 1)
         ->where('preparedBy', 'Cashier 1'));
     $this->get(route('cashier.collections.daily', ['date' => '2026-11-21']))->assertSessionHasErrors(['date' => 'The date cannot be after today.']);
+    $this->get(route('cashier.collections.daily', ['date' => 'hello']))->assertSessionHasErrors(['date' => 'Choose a valid date.']);
+    expect(session('errors')->get('date'))->toBe(['Choose a valid date.']);
 });
 
 test('the School Admin views Payment History, Collections and receipts read-only; recording, printing and downloads are the cashier\'s', function () {

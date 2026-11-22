@@ -93,6 +93,6 @@ class UndoOrderPayment
         $order->student->notify(new PaymentUndone($order, $voided->amount_centavos, $reason, $voided->receipt_number));
         Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentUndoneForStaff($order));
 
-        return "The payment for order {$order->number} (₱".number_format($voided->amount_centavos / 100, 2)." from {$order->student->name}) has been undone. Payment Receipt {$voided->receipt_number} is now VOID, and the order is waiting for payment again.";
+        return "The payment for order {$order->number} (₱".number_format($voided->amount_centavos / 100, 2)." from {$order->student->name}) has been undone. Payment Receipt {$voided->receipt_number} has been voided, and the order is waiting for payment again.";
     }
 }

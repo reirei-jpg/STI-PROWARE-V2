@@ -582,8 +582,8 @@ function UndoPayment({
                                     </DialogTitle>
                                     <DialogDescription className="text-sm text-slate-500">
                                         {isOrder
-                                            ? `The Payment Receipt becomes VOID, the order goes back to waiting for payment, and its reserved items are for sale again. ${buyer} and the Specialist are notified.`
-                                            : `The Payment Receipt becomes VOID and the slip goes back to waiting for payment. ${buyer} and the Specialist are notified.`}
+                                            ? `The Payment Receipt will be voided, the order goes back to waiting for payment, and its reserved items are for sale again. ${buyer} and the Specialist are notified.`
+                                            : `The Payment Receipt will be voided and the slip goes back to waiting for payment. ${buyer} and the Specialist are notified.`}
                                     </DialogDescription>
                                 </div>
                             </div>
@@ -718,7 +718,7 @@ function PaidTodayTable({ paidToday }: { paidToday: PaidToday }) {
                                         </Link>
                                         {row.void && (
                                             <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-black text-red-700">
-                                                VOID
+                                                Voided
                                             </span>
                                         )}
                                     </td>

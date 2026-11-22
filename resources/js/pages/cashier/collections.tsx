@@ -61,6 +61,25 @@ export default function Collections({
         );
     };
 
+    /** The receipts behind a card: Payment History for this same period. */
+    const receiptsUrl = (
+        method: PaymentFilters['method'],
+        status: PaymentFilters['status'],
+    ): string =>
+        CashierRecordsController.history({
+            query: paymentQuery(
+                {
+                    ...filters,
+                    method,
+                    status,
+                    type: '',
+                    search: '',
+                    group: 'day',
+                },
+                'today',
+            ),
+        }).url;
+
     const exportUrl = CashierRecordsController.collectionsCsv({
         query: paymentQuery(filters, 'month'),
     }).url;
@@ -97,24 +116,36 @@ export default function Collections({
                         value={formatPeso(totals.total_centavos)}
                         description={`${receiptCount(totals.count)} in this period`}
                         icon={ReceiptText}
+                        href={receiptsUrl('', 'paid')}
+                        actionLabel="View receipts"
+                        testId="card-total"
                     />
                     <SummaryCard
                         label="Cash Payments"
                         value={formatPeso(totals.cash_centavos)}
                         description={receiptCount(totals.cash_count)}
                         icon={Banknote}
+                        href={receiptsUrl('cash', 'paid')}
+                        actionLabel="View Cash payments"
+                        testId="card-cash"
                     />
                     <SummaryCard
                         label="GCash Payments"
                         value={formatPeso(totals.gcash_centavos)}
                         description={receiptCount(totals.gcash_count)}
                         icon={Smartphone}
+                        href={receiptsUrl('gcash', 'paid')}
+                        actionLabel="View GCash payments"
+                        testId="card-gcash"
                     />
                     <SummaryCard
                         label="Voided Payments"
                         value={formatPeso(totals.void_centavos)}
                         description={`${receiptCount(totals.void_count)}, not counted in the total`}
                         icon={XCircle}
+                        href={receiptsUrl('', 'void')}
+                        actionLabel="View voided payments"
+                        testId="card-void"
                     />
                 </section>
 

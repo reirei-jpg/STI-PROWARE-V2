@@ -27,7 +27,7 @@ export default function BuyerPaymentReceipt({
                         </h1>
                         <p className="mt-1 text-sm text-slate-500">
                             {receipt.row.void
-                                ? 'This receipt is VOID: the cashier undid the payment.'
+                                ? 'This receipt has been voided: the cashier undid the payment.'
                                 : 'Issued by the cashier. Keep it as proof of your payment.'}
                         </p>
                     </div>

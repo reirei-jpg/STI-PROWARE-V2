@@ -45,7 +45,7 @@ class RecordPaymentRequest extends FormRequest
     {
         return [
             'method' => ['required', Rule::enum(PaymentMethod::class)],
-            'amount_received' => ['exclude_unless:method,cash', 'required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:'.(Payment::MAX_RECEIVED_CENTAVOS / 100)],
+            'amount_received' => ['exclude_unless:method,cash', 'bail', 'required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:'.(Payment::MAX_RECEIVED_CENTAVOS / 100)],
             'gcash_reference' => ['exclude_unless:method,gcash', 'required', 'string', 'regex:/^\d{13}$/'],
         ];
     }

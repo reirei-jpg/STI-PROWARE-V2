@@ -31,8 +31,8 @@ class FilterPaymentsRequest extends FormRequest
     {
         return [
             'period' => ['nullable', Rule::in(self::PERIODS)],
-            'date_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', Rule::requiredIf($this->input('period') === 'custom')],
-            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from', 'before_or_equal:today', Rule::requiredIf($this->input('period') === 'custom')],
+            'date_from' => ['bail', Rule::requiredIf($this->input('period') === 'custom'), 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'date_to' => ['bail', Rule::requiredIf($this->input('period') === 'custom'), 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
             'method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'type' => ['nullable', Rule::in(['order', 'preorder'])],
             'status' => ['nullable', Rule::in(['paid', 'void'])],
@@ -55,6 +55,14 @@ class FilterPaymentsRequest extends FormRequest
 
                 [$from, $to] = $this->range();
 
+                // Checked only once both days are valid, so a wrong "From"
+                // day is not also reported as "To before From".
+                if ($to->lessThan($from)) {
+                    $validator->errors()->add('date_to', 'The "To" date cannot be before the "From" date.');
+
+                    return;
+                }
+
                 if ((int) round($from->diffInDays($to->startOfDay())) + 1 > self::MAX_DAYS) {
                     $validator->errors()->add('date_to', 'Choose a period of at most one year.');
                 }
@@ -73,12 +81,11 @@ class FilterPaymentsRequest extends FormRequest
             'date_to.required' => 'Choose the "To" date.',
             'date_from.date_format' => 'Choose a valid "From" date.',
             'date_to.date_format' => 'Choose a valid "To" date.',
-            'date_to.after_or_equal' => 'The "To" date cannot be before the "From" date.',
             'date_from.before_or_equal' => 'The "From" date cannot be after today.',
             'date_to.before_or_equal' => 'The "To" date cannot be after today.',
             'method.enum' => 'Choose Cash or GCash as the payment method.',
             'type.in' => 'Choose Orders or Preorders.',
-            'status.in' => 'Choose Paid or Void.',
+            'status.in' => 'Choose Paid or Voided.',
             'search.max' => 'The search may not be longer than 100 characters.',
             'group.in' => 'Choose By day or By month.',
             'page.integer' => 'Choose a valid page.',

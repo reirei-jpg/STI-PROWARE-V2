@@ -1,11 +1,11 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Search } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
-import PaymentPeriodPicker, { paymentQuery } from '@/components/PaymentPeriodPicker';
+import PaymentPeriodPicker, { filtersFromLink, paymentQuery } from '@/components/PaymentPeriodPicker';
 import PaymentRowItem from '@/components/PaymentRowItem';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -19,14 +19,17 @@ const START: PaymentFilters = { period: 'today', date_from: '', date_to: '', met
 /**
  * Payment History on the phone, like the website's: every Payment Receipt,
  * today first by default. Filter by period, method, Order or Preorder, Paid
- * or Void, and search by receipt, slip number, buyer name or ID, or GCash
- * reference. The totals are of everything that matches; a receipt opens
- * when tapped.
+ * or Voided, and search by receipt, slip number, buyer name or ID, or GCash
+ * reference. The totals are of everything that matches; tapping a total
+ * shows only its receipts (tapping it again shows all), and a dashboard or
+ * Collections card opens it already filtered. A receipt opens when tapped.
  */
 export default function CashierHistoryScreen() {
     const insets = useSafeAreaInsets();
     const { request } = useAuth();
-    const [filters, setFilters] = useState<PaymentFilters>(START);
+    const params = useLocalSearchParams<{ period?: string; date_from?: string; date_to?: string; method?: string; status?: string }>();
+    const [first] = useState<PaymentFilters>(() => filtersFromLink(START, params));
+    const [filters, setFilters] = useState<PaymentFilters>(first);
     const [search, setSearch] = useState('');
     const [rows, setRows] = useState<PaymentRow[] | null>(null);
     const [totals, setTotals] = useState<PaymentTotals | null>(null);
@@ -66,8 +69,8 @@ export default function CashierHistoryScreen() {
     );
 
     useEffect(() => {
-        void load(START, 1);
-    }, [load]);
+        void load(first, 1);
+    }, [load, first]);
 
     // Search as the cashier types, after a short pause.
     useEffect(() => {
@@ -83,6 +86,13 @@ export default function CashierHistoryScreen() {
     }, [search]);
 
     const show = (next: Partial<PaymentFilters>): void => void load({ ...filters, ...next, search: search.trim() }, 1);
+
+    /** A total shows only its receipts; tapped again while chosen, it shows all. */
+    const totalFilter = (method: PaymentFilters['method'], status: PaymentFilters['status']) => {
+        const active = filters.method === method && filters.status === status;
+
+        return { active, onPress: () => show(active ? { method: '', status: '' } : { method, status }) };
+    };
 
     return (
         <ScrollView
@@ -149,15 +159,23 @@ export default function CashierHistoryScreen() {
 
             {totals && (
                 <View className="flex-row gap-2">
-                    <Total label="Total" value={formatPeso(totals.total_centavos)} detail={receiptCount(totals.count)} />
-                    <Total label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} />
-                    <Total label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} />
+                    <Total label="Total" value={formatPeso(totals.total_centavos)} detail={receiptCount(totals.count)} {...totalFilter('', 'paid')} />
+                    <Total label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} {...totalFilter('cash', 'paid')} />
+                    <Total label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} {...totalFilter('gcash', 'paid')} />
                 </View>
             )}
             {totals && totals.void_count > 0 && (
-                <Text className="font-sans-semibold text-xs text-red-700">
-                    {totals.void_count} {totals.void_count === 1 ? 'voided payment' : 'voided payments'} ({formatPeso(totals.void_centavos)}), not counted in the total.
-                </Text>
+                <Pressable
+                    onPress={totalFilter('', 'void').onPress}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: totalFilter('', 'void').active }}
+                    className={`flex-row items-center justify-between gap-2 rounded-2xl border px-3 py-2.5 ${totalFilter('', 'void').active ? 'border-red-400 bg-red-100' : 'border-red-200 bg-red-50'}`}
+                >
+                    <Text className="flex-1 font-sans-semibold text-xs text-red-700">
+                        {totals.void_count} {totals.void_count === 1 ? 'voided payment' : 'voided payments'} ({formatPeso(totals.void_centavos)}), not counted in the total.
+                    </Text>
+                    <Text className="font-sans-bold text-xs text-red-700">{totalFilter('', 'void').active ? 'Show all' : 'View'}</Text>
+                </Pressable>
             )}
 
             {error ? (
@@ -166,7 +184,11 @@ export default function CashierHistoryScreen() {
                 <ActivityIndicator color="#0D6EFD" />
             ) : rows.length === 0 ? (
                 <Text className="rounded-3xl border border-slate-200 bg-white px-4 py-8 text-center font-sans text-sm text-slate-500">
-                    {filters.search !== '' ? `No payment in this period matches "${filters.search}".` : 'No payments were recorded in this period.'}
+                    {filters.search !== ''
+                        ? `No payment in this period matches "${filters.search}".`
+                        : filters.method !== '' || filters.type !== '' || filters.status !== ''
+                          ? 'No payments in this period match the chosen filters.'
+                          : 'No payments were recorded in this period.'}
                 </Text>
             ) : (
                 <View className={`overflow-hidden rounded-3xl border border-slate-200 bg-white ${loading ? 'opacity-60' : ''}`}>
@@ -208,12 +230,18 @@ function ChipRow({ options, value, onPick }: { options: [string, string][]; valu
     );
 }
 
-function Total({ label, value, detail }: { label: string; value: string; detail?: string }) {
+function Total({ label, value, detail, active, onPress }: { label: string; value: string; detail?: string; active: boolean; onPress: () => void }) {
     return (
-        <View className="flex-1 rounded-2xl border border-slate-200 bg-white p-3">
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            className={`flex-1 rounded-2xl border p-3 ${active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'}`}
+        >
             <Text className="font-sans-bold text-[11px] text-slate-500">{label}</Text>
             <Text className="font-sans-bold text-sm text-slate-900">{value}</Text>
             {detail ? <Text className="font-sans text-[11px] text-slate-500">{detail}</Text> : null}
-        </View>
+            <Text className="mt-1 font-sans-bold text-[11px] text-blue-700">{active ? 'Show all' : 'View'}</Text>
+        </Pressable>
     );
 }

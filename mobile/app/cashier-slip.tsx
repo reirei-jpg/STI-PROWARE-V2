@@ -469,8 +469,8 @@ function UndoPayment({
                 title={`Undo the payment for ${number}?`}
                 subtitle={
                     isOrder
-                        ? `The Payment Receipt becomes VOID, the order goes back to waiting for payment, and its reserved items are for sale again. ${buyer} and the Specialist are notified.`
-                        : `The Payment Receipt becomes VOID and the slip goes back to waiting for payment. ${buyer} and the Specialist are notified.`
+                        ? `The Payment Receipt will be voided, the order goes back to waiting for payment, and its reserved items are for sale again. ${buyer} and the Specialist are notified.`
+                        : `The Payment Receipt will be voided and the slip goes back to waiting for payment. ${buyer} and the Specialist are notified.`
                 }
                 icon={<Undo2 size={20} color="#b91c1c" />}
                 footer={

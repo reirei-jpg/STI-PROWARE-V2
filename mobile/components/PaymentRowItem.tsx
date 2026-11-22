@@ -26,7 +26,7 @@ export default function PaymentRowItem({ row, first = false }: { row: PaymentRow
             <View className="flex-1">
                 <Text className="font-sans-bold text-sm text-slate-900">
                     {row.receipt_number}
-                    {row.void ? <Text className="text-red-700"> · VOID</Text> : null}
+                    {row.void ? <Text className="text-red-700"> · Voided</Text> : null}
                 </Text>
                 <Text className="font-sans text-xs text-slate-500">
                     {row.number} · {row.buyer_name} · {row.method_label}

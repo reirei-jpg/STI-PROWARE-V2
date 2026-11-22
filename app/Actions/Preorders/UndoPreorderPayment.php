@@ -77,6 +77,6 @@ class UndoPreorderPayment
         $slip->student->notify(new PaymentUndone($slip, $voided->amount_centavos, $reason, $voided->receipt_number));
         Notification::send(User::query()->where('role', UserRole::Specialist)->get(), new PaymentUndoneForStaff($slip));
 
-        return "The payment for preorder slip {$slip->number} (₱".number_format($voided->amount_centavos / 100, 2)." from {$slip->student->name}) has been undone. Payment Receipt {$voided->receipt_number} is now VOID, and the slip is waiting for payment again.";
+        return "The payment for preorder slip {$slip->number} (₱".number_format($voided->amount_centavos / 100, 2)." from {$slip->student->name}) has been undone. Payment Receipt {$voided->receipt_number} has been voided, and the slip is waiting for payment again.";
     }
 }

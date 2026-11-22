@@ -73,6 +73,25 @@ export default function PaymentHistory({
         );
     };
 
+    /**
+     * A summary card shows only its receipts; clicking it again while it is
+     * the chosen one shows every receipt of the period again.
+     */
+    const cardFilter = (
+        method: PaymentFilters['method'],
+        status: PaymentFilters['status'],
+        label: string,
+    ) => {
+        const active = filters.method === method && filters.status === status;
+
+        return {
+            active,
+            actionLabel: active ? 'Show all receipts' : label,
+            onClick: () =>
+                show(active ? { method: '', status: '' } : { method, status }),
+        };
+    };
+
     // Search as the cashier types, after a short pause.
     useEffect(() => {
         if (firstRender.current) {
@@ -131,24 +150,32 @@ export default function PaymentHistory({
                         value={formatPeso(totals.total_centavos)}
                         description={`${receiptCount(totals.count)} in this list`}
                         icon={ReceiptText}
+                        {...cardFilter('', 'paid', 'Show paid receipts')}
+                        testId="card-total"
                     />
                     <SummaryCard
                         label="Cash Payments"
                         value={formatPeso(totals.cash_centavos)}
                         description={receiptCount(totals.cash_count)}
                         icon={Banknote}
+                        {...cardFilter('cash', 'paid', 'Show Cash only')}
+                        testId="card-cash"
                     />
                     <SummaryCard
                         label="GCash Payments"
                         value={formatPeso(totals.gcash_centavos)}
                         description={receiptCount(totals.gcash_count)}
                         icon={Smartphone}
+                        {...cardFilter('gcash', 'paid', 'Show GCash only')}
+                        testId="card-gcash"
                     />
                     <SummaryCard
                         label="Voided Payments"
                         value={formatPeso(totals.void_centavos)}
                         description={`${receiptCount(totals.void_count)}, not counted in the total`}
                         icon={XCircle}
+                        {...cardFilter('', 'void', 'Show voided only')}
+                        testId="card-void"
                     />
                 </section>
 
@@ -226,7 +253,11 @@ export default function PaymentHistory({
                         <p className="px-6 py-12 text-center text-sm text-slate-500">
                             {filters.search !== ''
                                 ? `No payment in this period matches "${filters.search}".`
-                                : 'No payments were recorded in this period.'}
+                                : filters.method !== '' ||
+                                    filters.type !== '' ||
+                                    filters.status !== ''
+                                  ? 'No payments in this period match the chosen filters.'
+                                  : 'No payments were recorded in this period.'}
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
@@ -340,7 +371,7 @@ export default function PaymentHistory({
 
 function StatusPill({ row }: { row: PaymentRow }) {
     const [label, classes] = row.void
-        ? ['VOID', 'bg-red-100 text-red-700']
+        ? ['Voided', 'bg-red-100 text-red-700']
         : row.released
           ? ['Paid · Released', 'bg-emerald-100 text-emerald-700']
           : ['Paid', 'bg-blue-100 text-blue-700'];

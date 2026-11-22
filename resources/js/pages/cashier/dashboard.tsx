@@ -56,40 +56,75 @@ export default function CashierDashboard({
                         value={formatPeso(today.total_centavos)}
                         description={`${receiptCount(today.count)} issued today`}
                         icon={Wallet}
+                        href={
+                            CashierRecordsController.history({
+                                query: { status: 'paid' },
+                            }).url
+                        }
+                        actionLabel="View receipts"
+                        testId="card-total"
                     />
                     <SummaryCard
                         label="Cash Payments"
                         value={formatPeso(today.cash_centavos)}
                         description={`${receiptCount(today.cash_count)} today`}
                         icon={Banknote}
+                        href={
+                            CashierRecordsController.history({
+                                query: { method: 'cash', status: 'paid' },
+                            }).url
+                        }
+                        actionLabel="View Cash payments"
+                        testId="card-cash"
                     />
                     <SummaryCard
                         label="GCash Payments"
                         value={formatPeso(today.gcash_centavos)}
                         description={`${receiptCount(today.gcash_count)} today`}
                         icon={Smartphone}
+                        href={
+                            CashierRecordsController.history({
+                                query: { method: 'gcash', status: 'paid' },
+                            }).url
+                        }
+                        actionLabel="View GCash payments"
+                        testId="card-gcash"
                     />
                     <SummaryCard
                         label="Awaiting Payment"
                         value={String(waiting)}
                         description={`${awaiting.orders} ${awaiting.orders === 1 ? 'order' : 'orders'} · ${awaiting.slips} preorder ${awaiting.slips === 1 ? 'slip' : 'slips'} · ${formatPeso(awaiting.total_centavos)} in total`}
                         icon={Clock}
+                        href={CashierRecordsController.awaiting().url}
+                        actionLabel="View awaiting payment"
+                        testId="card-awaiting"
                     />
                 </section>
 
                 {today.void_count > 0 && (
-                    <p
+                    <Link
+                        href={
+                            CashierRecordsController.history({
+                                query: { status: 'void' },
+                            }).url
+                        }
                         data-test="void-today"
-                        className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+                        className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 transition hover:border-red-300 hover:bg-red-100"
                     >
                         <XCircle size={18} className="shrink-0" />
-                        {today.void_count}{' '}
-                        {today.void_count === 1
-                            ? 'voided payment'
-                            : 'voided payments'}{' '}
-                        today ({formatPeso(today.void_centavos)}), not counted
-                        in the total.
-                    </p>
+                        <span className="flex-1">
+                            {today.void_count}{' '}
+                            {today.void_count === 1
+                                ? 'voided payment'
+                                : 'voided payments'}{' '}
+                            today ({formatPeso(today.void_centavos)}), not
+                            counted in the total.
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-black whitespace-nowrap">
+                            View
+                            <ArrowRight size={15} />
+                        </span>
+                    </Link>
                 )}
 
                 <SlipScanBox
@@ -132,7 +167,7 @@ export default function CashierDashboard({
                                                     {row.receipt_number}
                                                     {row.void && (
                                                         <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                                                            VOID
+                                                            Voided
                                                         </span>
                                                     )}
                                                 </span>

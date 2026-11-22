@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
-import PaymentPeriodPicker, { paymentQuery } from '@/components/PaymentPeriodPicker';
+import PaymentPeriodPicker, { paymentQuery, receiptsLink } from '@/components/PaymentPeriodPicker';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatPeso } from '@/lib/format';
+import { formatPeso, receiptCount } from '@/lib/format';
 import type { CollectionRow, PaymentFilters, PaymentTotals } from '@/lib/types';
 
 type CollectionsAnswer = { totals: PaymentTotals; rows: CollectionRow[]; filters: PaymentFilters };
@@ -18,8 +18,10 @@ const START: PaymentFilters = { period: 'month', date_from: '', date_to: '', met
 /**
  * Collections on the phone, like the website's: the money collected in a
  * period (this month by default, or any From / To days, e.g. January to
- * February), by day or by month, in Cash and GCash; void payments are not
- * counted. The daily report and the Excel download are on the website.
+ * February), by day or by month, in Cash and GCash; voided payments are not
+ * counted. Tapping a total opens Payment History for the same period with
+ * only those receipts. The daily report and the Excel download are on the
+ * website.
  */
 export default function CashierCollectionsScreen() {
     const insets = useSafeAreaInsets();
@@ -53,6 +55,7 @@ export default function CashierCollectionsScreen() {
 
     const show = (next: Partial<PaymentFilters>): void => void load({ ...filters, ...next });
     const totals = answer?.totals;
+    const openReceipts = (method: PaymentFilters['method'], status: PaymentFilters['status']): void => router.push(receiptsLink(filters, method, status));
 
     return (
         <ScrollView
@@ -98,19 +101,24 @@ export default function CashierCollectionsScreen() {
             </View>
 
             {totals && (
-                <View className="gap-1 rounded-3xl bg-brand p-4">
-                    <Text className="font-sans-semibold text-xs uppercase text-blue-100">Total collected</Text>
-                    <Text className="font-sans-bold text-3xl text-white">{formatPeso(totals.total_centavos)}</Text>
-                    <Text className="font-sans text-sm text-blue-50">
-                        {totals.count} {totals.count === 1 ? 'payment' : 'payments'} · Cash {formatPeso(totals.cash_centavos)} · GCash{' '}
-                        {formatPeso(totals.gcash_centavos)}
-                    </Text>
-                    {totals.void_count > 0 && (
-                        <Text className="font-sans text-xs text-blue-100">
-                            {totals.void_count} voided ({formatPeso(totals.void_centavos)}), not counted in the total.
-                        </Text>
-                    )}
-                </View>
+                <>
+                    <Pressable onPress={() => openReceipts('', 'paid')} accessibilityRole="button" className="gap-1 rounded-3xl bg-brand p-4">
+                        <Text className="font-sans-semibold text-xs uppercase text-blue-100">Total collected</Text>
+                        <Text className="font-sans-bold text-3xl text-white">{formatPeso(totals.total_centavos)}</Text>
+                        <View className="flex-row items-center justify-between gap-2">
+                            <Text className="font-sans text-sm text-blue-50">{receiptCount(totals.count)} in this period</Text>
+                            <View className="flex-row items-center gap-0.5">
+                                <Text className="font-sans-bold text-xs text-white">View receipts</Text>
+                                <ChevronRight size={14} color="#ffffff" />
+                            </View>
+                        </View>
+                    </Pressable>
+                    <View className="flex-row gap-2">
+                        <Tile label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} onPress={() => openReceipts('cash', 'paid')} />
+                        <Tile label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} onPress={() => openReceipts('gcash', 'paid')} />
+                        <Tile label="Voided" value={formatPeso(totals.void_centavos)} detail={`${receiptCount(totals.void_count)}, not counted`} onPress={() => openReceipts('', 'void')} />
+                    </View>
+                </>
             )}
 
             {error ? (
@@ -139,5 +147,16 @@ export default function CashierCollectionsScreen() {
                 </View>
             )}
         </ScrollView>
+    );
+}
+
+function Tile({ label, value, detail, onPress }: { label: string; value: string; detail: string; onPress: () => void }) {
+    return (
+        <Pressable onPress={onPress} accessibilityRole="button" className="flex-1 rounded-2xl border border-slate-200 bg-white p-3 active:bg-blue-50">
+            <Text className="font-sans-bold text-[11px] text-slate-500">{label}</Text>
+            <Text className="font-sans-bold text-sm text-slate-900">{value}</Text>
+            <Text className="font-sans text-[11px] text-slate-500">{detail}</Text>
+            <Text className="mt-1 font-sans-bold text-[11px] text-blue-700">View</Text>
+        </Pressable>
     );
 }

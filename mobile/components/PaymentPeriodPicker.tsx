@@ -96,7 +96,9 @@ export default function PaymentPeriodPicker({
                             accessibilityState={{ selected: chosen }}
                             className={`rounded-xl px-3.5 py-2 ${chosen ? 'bg-brand' : 'bg-slate-100'}`}
                         >
-                            <Text className={`font-sans-bold text-sm ${chosen ? 'text-white' : 'text-slate-600'}`}>{period.label}</Text>
+                            <Text numberOfLines={1} className={`font-sans-bold text-sm ${chosen ? 'text-white' : 'text-slate-600'}`}>
+                                {period.label}
+                            </Text>
                         </Pressable>
                     );
                 })}
@@ -140,6 +142,46 @@ export default function PaymentPeriodPicker({
 }
 
 /** The filters as the address query the server reads. */
+/**
+ * What a summary card opens: Payment History for a period, showing only
+ * Cash, GCash, paid or voided receipts (the receipts behind the card).
+ */
+export function receiptsLink(
+    period: Pick<PaymentFilters, 'period' | 'date_from' | 'date_to'>,
+    method: PaymentFilters['method'],
+    status: PaymentFilters['status'],
+): { pathname: '/cashier-history'; params: Record<string, string> } {
+    const params: Record<string, string> = { period: period.period, method, status };
+
+    if (period.period === 'custom') {
+        params.date_from = period.date_from;
+        params.date_to = period.date_to;
+    }
+
+    return { pathname: '/cashier-history', params };
+}
+
+/** The filters a card sent to Payment History; anything unknown is left out. */
+export function filtersFromLink(
+    start: PaymentFilters,
+    params: { period?: string | string[]; date_from?: string | string[]; date_to?: string | string[]; method?: string | string[]; status?: string | string[] },
+): PaymentFilters {
+    const read = (value: string | string[] | undefined): string => (Array.isArray(value) ? (value[0] ?? '') : (value ?? ''));
+    const period = read(params.period);
+    const method = read(params.method);
+    const status = read(params.status);
+    const custom = period === 'custom' && isRealDay(read(params.date_from)) && isRealDay(read(params.date_to));
+
+    return {
+        ...start,
+        period: PERIODS.some((option) => option.value === period) && (period !== 'custom' || custom) ? (period as PaymentFilters['period']) : start.period,
+        date_from: custom ? read(params.date_from) : '',
+        date_to: custom ? read(params.date_to) : '',
+        method: method === 'cash' || method === 'gcash' ? method : '',
+        status: status === 'paid' || status === 'void' ? status : '',
+    };
+}
+
 export function paymentQuery(filters: PaymentFilters, page = 1): string {
     const query = new URLSearchParams({ period: filters.period });
 
