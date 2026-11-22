@@ -97,11 +97,12 @@ export default function CashierScreen() {
             {error && <LoadError message={error} onRetry={load} className="" />}
 
             <View className="flex-row gap-3">
-                <Card label="Collected today" value={formatPeso(today?.total_centavos ?? 0)}>
-                    Cash {formatPeso(today?.cash_centavos ?? 0)} · GCash {formatPeso(today?.gcash_centavos ?? 0)}
+                {/* Until the figures arrive, a dash: never a ₱0.00 that looks real. */}
+                <Card label="Collected today" value={today ? formatPeso(today.total_centavos) : '—'}>
+                    {today ? `Cash ${formatPeso(today.cash_centavos)} · GCash ${formatPeso(today.gcash_centavos)}` : 'Loading…'}
                 </Card>
-                <Card label="Awaiting payment" value={String((awaiting?.orders ?? 0) + (awaiting?.slips ?? 0))}>
-                    {formatPeso(awaiting?.total_centavos ?? 0)} in all
+                <Card label="Awaiting payment" value={awaiting ? String(awaiting.orders + awaiting.slips) : '—'}>
+                    {awaiting ? `${formatPeso(awaiting.total_centavos)} in all` : 'Loading…'}
                 </Card>
             </View>
             {(today?.void_count ?? 0) > 0 && (

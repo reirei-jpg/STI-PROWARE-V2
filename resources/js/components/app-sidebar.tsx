@@ -32,6 +32,9 @@ import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { Auth, NavItem, UserRole } from '@/types';
 
+/** Payment Receipts (/cashier/receipts/{id}) open under Payment History. */
+const RECEIPTS_PATH = CashierController.receipt.url(0).replace(/\/0$/, '');
+
 const workspaceNames: Record<UserRole, string> = {
     specialist: 'Specialist Workspace',
     school_admin: 'School Admin Workspace',
@@ -74,6 +77,7 @@ function useStaffMenuItems(): NavItem[] {
                 title: 'Payment History',
                 href: CashierRecordsController.history(),
                 icon: ReceiptText,
+                alsoActiveOn: [RECEIPTS_PATH],
             },
             {
                 title: 'Collections',
@@ -104,6 +108,7 @@ function useStaffMenuItems(): NavItem[] {
                 title: 'Payment History',
                 href: CashierRecordsController.history(),
                 icon: ReceiptText,
+                alsoActiveOn: [RECEIPTS_PATH],
             },
             {
                 title: 'Collections',
@@ -171,12 +176,18 @@ export function StaffMenu({ onNavigate }: { onNavigate?: () => void }) {
     const items = useStaffMenuItems();
     const { currentUrl } = useCurrentUrl();
 
+    const matches = (path: string): boolean =>
+        currentUrl === path || currentUrl.startsWith(`${path}/`);
+
     const activePath = items
-        .map((item) => toUrl(item.href))
-        .filter(
-            (path) => currentUrl === path || currentUrl.startsWith(`${path}/`),
+        .flatMap((item) =>
+            [toUrl(item.href), ...(item.alsoActiveOn ?? [])].map((path) => ({
+                path,
+                href: toUrl(item.href),
+            })),
         )
-        .sort((a, b) => b.length - a.length)[0];
+        .filter(({ path }) => matches(path))
+        .sort((a, b) => b.path.length - a.path.length)[0]?.href;
 
     return (
         <nav className="space-y-1.5">

@@ -82,10 +82,10 @@ export default function PaymentReceipt({
                 <Field label="Date">{formatDateTime(row.paid_at)}</Field>
                 <Field label="Received from">{row.buyer_name}</Field>
                 <Field label={row.is_staff ? 'Employee ID' : 'Student ID'}>
-                    {row.buyer_id ?? ''}
+                    {row.buyer_id || '—'}
                 </Field>
                 <Field label={row.is_staff ? 'Office/Department' : 'Section'}>
-                    {receipt.section ?? ''}
+                    {receipt.section || '—'}
                 </Field>
                 <Field label="For">{receipt.for_label}</Field>
             </dl>
