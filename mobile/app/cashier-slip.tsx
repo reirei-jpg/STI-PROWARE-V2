@@ -5,8 +5,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheet from '@/components/BottomSheet';
-import IssuanceSlipCard from '@/components/IssuanceSlipCard';
-import StaffTag from '@/components/StaffTag';
+import PaymentTicket from '@/components/PaymentTicket';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatPeso } from '@/lib/format';
@@ -238,15 +237,20 @@ export default function CashierSlipScreen() {
                 </View>
             )}
 
-            <View className="gap-1 rounded-3xl border border-slate-200 bg-white p-4">
-                <View className="flex-row items-center gap-2">
-                    <Text className="shrink font-sans-bold text-base text-slate-900">{buyer}</Text>
-                    {result.slip.is_staff && <StaffTag />}
-                </View>
-                <Text className="font-sans text-sm text-slate-500">
-                    {isOrder ? 'Order' : 'Preorder'} <Text className="font-sans-bold text-slate-700">{number}</Text>
-                </Text>
-            </View>
+            {/* A small order ticket, like at a fast-food counter: the full issuance slip is not needed to take a payment. */}
+            <PaymentTicket
+                kind={result.kind}
+                number={number ?? null}
+                date={result.slip.date}
+                buyerName={buyer}
+                buyerId={result.slip.student_id}
+                section={result.slip.section}
+                isStaff={result.slip.is_staff}
+                items={result.slip.items}
+                totalCentavos={result.slip.total_centavos}
+                amountDueCentavos={result.can_mark_paid ? amount : null}
+                paid={alreadyPaid}
+            />
 
             {result.can_mark_paid && !done && (
                 <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
@@ -369,24 +373,6 @@ export default function CashierSlipScreen() {
                     <Text className="font-sans-bold text-base text-blue-700">View Payment Receipt {result.receipt.receipt_number}</Text>
                 </Pressable>
             )}
-
-            <IssuanceSlipCard
-                slip={
-                    isOrder
-                        ? { ...result.slip, status: result.order?.status ?? 'placed' }
-                        : {
-                              ...result.slip,
-                              order_id: result.slip.slip_id ?? 0,
-                              status: result.slip.status === 'released' ? 'picked_up' : 'placed',
-                              pick_up_by: null,
-                              released_on: null,
-                              issued_by: null,
-                          }
-                }
-                title={isOrder ? undefined : 'PREORDER SLIP'}
-                paid={!isOrder && result.slip.status === 'paid'}
-                showQr={false}
-            />
 
             {result.can_undo && (
                 <UndoPayment

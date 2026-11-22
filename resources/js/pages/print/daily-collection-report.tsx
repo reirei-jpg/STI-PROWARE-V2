@@ -90,7 +90,7 @@ export default function DailyCollectionReport({
                                 strong
                             />
                             <SumRow
-                                label={`Void receipts, not counted (${totals.void_count})`}
+                                label={`Voided receipts, not counted (${totals.void_count})`}
                                 value={formatPeso(totals.void_centavos)}
                             />
                         </tbody>
@@ -110,7 +110,7 @@ export default function DailyCollectionReport({
                     {voided.length > 0 && (
                         <>
                             <h2 className="mt-6 text-sm font-black tracking-wide text-red-700 uppercase">
-                                Void receipts (not counted)
+                                Voided receipts (not counted)
                             </h2>
                             <ReceiptTable rows={voided} showReason />
                         </>

@@ -11,6 +11,13 @@ export function formatPeso(centavos: number | null): string {
 }
 
 /**
+ * A number of Payment Receipts in words: "1 receipt", "3 receipts".
+ */
+export function receiptCount(count: number): string {
+    return `${count} ${count === 1 ? 'receipt' : 'receipts'}`;
+}
+
+/**
  * Show a date ("2026-09-29") and optional time ("10:14") as written by the
  * eStore, without shifting it between time zones. Only the date part of a
  * longer value ("2026-09-29T23:59:59+08:00") is used.

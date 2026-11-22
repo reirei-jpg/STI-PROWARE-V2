@@ -102,3 +102,8 @@ export function isoDate(date: Date): string {
 
     return `${date.getFullYear()}-${month}-${day}`;
 }
+
+/** A number of Payment Receipts in words: "1 receipt", "3 receipts". */
+export function receiptCount(count: number): string {
+    return `${count} ${count === 1 ? 'receipt' : 'receipts'}`;
+}

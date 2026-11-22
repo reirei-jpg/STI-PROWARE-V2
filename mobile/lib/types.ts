@@ -807,7 +807,9 @@ export type ReceiptLink = { id: number; receipt_number: string | null; void?: bo
 export type PaymentTotals = {
     count: number;
     total_centavos: number;
+    cash_count: number;
     cash_centavos: number;
+    gcash_count: number;
     gcash_centavos: number;
     void_count: number;
     void_centavos: number;

@@ -9,13 +9,13 @@ import LoadError from '@/components/LoadError';
 import PaymentRowItem from '@/components/PaymentRowItem';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatPeso } from '@/lib/format';
+import { formatPeso, receiptCount } from '@/lib/format';
 import type { CashierDashboard } from '@/lib/types';
 
 /**
  * The cashier's Dashboard on the phone, like the website's (panel revision,
- * 20 Nov 2026): today's collections (Cash and GCash), what is awaiting
- * payment, today's void payments, Scan a slip or enter its number, the
+ * 20 Nov 2026): today's total, Cash and GCash payments, what is awaiting
+ * payment, today's voided payments, Scan a slip or enter its number, the
  * cashier's records (Awaiting Payment, Payment History, Collections) and
  * the latest payments.
  */
@@ -96,20 +96,28 @@ export default function CashierScreen() {
 
             {error && <LoadError message={error} onRetry={load} className="" />}
 
+            {/* Until the figures arrive, a dash: never a ₱0.00 that looks real. */}
             <View className="flex-row gap-3">
-                {/* Until the figures arrive, a dash: never a ₱0.00 that looks real. */}
-                <Card label="Collected today" value={today ? formatPeso(today.total_centavos) : '—'}>
-                    {today ? `Cash ${formatPeso(today.cash_centavos)} · GCash ${formatPeso(today.gcash_centavos)}` : 'Loading…'}
+                <Card label="Total Collected Today" value={today ? formatPeso(today.total_centavos) : '—'}>
+                    {today ? `${receiptCount(today.count)} issued today` : 'Loading…'}
                 </Card>
-                <Card label="Awaiting payment" value={awaiting ? String(awaiting.orders + awaiting.slips) : '—'}>
-                    {awaiting ? `${formatPeso(awaiting.total_centavos)} in all` : 'Loading…'}
+                <Card label="Awaiting Payment" value={awaiting ? String(awaiting.orders + awaiting.slips) : '—'}>
+                    {awaiting ? `${formatPeso(awaiting.total_centavos)} in total` : 'Loading…'}
+                </Card>
+            </View>
+            <View className="flex-row gap-3">
+                <Card label="Cash Payments" value={today ? formatPeso(today.cash_centavos) : '—'}>
+                    {today ? `${receiptCount(today.cash_count)} today` : 'Loading…'}
+                </Card>
+                <Card label="GCash Payments" value={today ? formatPeso(today.gcash_centavos) : '—'}>
+                    {today ? `${receiptCount(today.gcash_count)} today` : 'Loading…'}
                 </Card>
             </View>
             {(today?.void_count ?? 0) > 0 && (
                 <View className="flex-row items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
                     <XCircle size={18} color="#b91c1c" />
                     <Text className="flex-1 font-sans-semibold text-sm text-red-800">
-                        {today?.void_count} void {today?.void_count === 1 ? 'payment' : 'payments'} today ({formatPeso(today?.void_centavos ?? 0)}), not counted.
+                        {today?.void_count} {today?.void_count === 1 ? 'voided payment' : 'voided payments'} today ({formatPeso(today?.void_centavos ?? 0)}), not counted in the total.
                     </Text>
                 </View>
             )}

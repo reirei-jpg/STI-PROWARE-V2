@@ -17,7 +17,7 @@ import PaymentPeriodFilter, {
 } from '@/components/payment-period-filter';
 import SummaryCard from '@/components/summary-card';
 import { todayIso } from '@/lib/dates';
-import { formatPeso } from '@/lib/format';
+import { formatPeso, receiptCount } from '@/lib/format';
 import { openCalendar } from '@/lib/open-calendar';
 import { cn } from '@/lib/utils';
 import type { PaymentFilters, PaymentTotals } from '@/types';
@@ -91,29 +91,29 @@ export default function Collections({
                     }
                 />
 
-                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
                     <SummaryCard
-                        label="Total collected"
+                        label="Total Collected"
                         value={formatPeso(totals.total_centavos)}
-                        description={`${totals.count} ${totals.count === 1 ? 'payment' : 'payments'} in this period`}
+                        description={`${receiptCount(totals.count)} in this period`}
                         icon={ReceiptText}
                     />
                     <SummaryCard
-                        label="Cash"
+                        label="Cash Payments"
                         value={formatPeso(totals.cash_centavos)}
-                        description="Paid in cash"
+                        description={receiptCount(totals.cash_count)}
                         icon={Banknote}
                     />
                     <SummaryCard
-                        label="GCash"
+                        label="GCash Payments"
                         value={formatPeso(totals.gcash_centavos)}
-                        description="Paid by GCash"
+                        description={receiptCount(totals.gcash_count)}
                         icon={Smartphone}
                     />
                     <SummaryCard
-                        label="Void"
+                        label="Voided Payments"
                         value={formatPeso(totals.void_centavos)}
-                        description={`${totals.void_count} void ${totals.void_count === 1 ? 'payment' : 'payments'}, not counted`}
+                        description={`${receiptCount(totals.void_count)}, not counted in the total`}
                         icon={XCircle}
                     />
                 </section>

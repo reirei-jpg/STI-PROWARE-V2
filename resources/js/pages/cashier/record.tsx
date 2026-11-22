@@ -14,10 +14,9 @@ import { useState } from 'react';
 import CashierController from '@/actions/App/Http/Controllers/CashierController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
-import IssuanceSlip from '@/components/issuance-slip';
 import PageHeader from '@/components/page-header';
+import PaymentTicket from '@/components/payment-ticket';
 import SlipScanBox from '@/components/slip-scan-box';
-import StaffTag from '@/components/staff-tag';
 import {
     Dialog,
     DialogClose,
@@ -139,20 +138,6 @@ function Payment({ result }: { result: CashierResult }) {
         amount_received: string;
         gcash_reference: string;
     }>({ method: '', amount_received: '', gcash_reference: '' });
-    const slip: IssuanceSlipData =
-        result.kind === 'order'
-            ? result.slip
-            : {
-                  ...result.slip,
-                  order_id: result.slip.slip_id,
-                  status:
-                      result.slip.status === 'released'
-                          ? 'picked_up'
-                          : 'placed',
-                  pick_up_by: null,
-                  released_on: null,
-                  issued_by: null,
-              };
     const number =
         result.kind === 'order' ? result.order.number : result.slip.number;
     const buyer =
@@ -256,30 +241,27 @@ function Payment({ result }: { result: CashierResult }) {
                 </div>
             </section>
 
-            <div className="grid items-start gap-6 lg:grid-cols-[1fr_26rem]">
-                <IssuanceSlip
-                    slip={slip}
-                    title={
-                        result.kind === 'preorder' ? 'PREORDER SLIP' : undefined
-                    }
-                    paid={
-                        result.kind === 'preorder' &&
-                        result.slip.status === 'paid'
-                    }
-                    className="rounded-2xl shadow-sm"
+            {/* A small order ticket, like at a fast-food counter: the full issuance slip is not needed to take a payment. */}
+            <div className="grid max-w-5xl items-start gap-6 md:grid-cols-2">
+                <PaymentTicket
+                    kind={result.kind}
+                    number={number}
+                    date={result.slip.date}
+                    buyerName={buyer}
+                    buyerId={result.slip.student_id}
+                    section={result.slip.section}
+                    isStaff={isStaff}
+                    items={result.slip.items}
+                    totalCentavos={result.slip.total_centavos}
+                    amountDueCentavos={result.can_mark_paid ? amount : null}
+                    paid={alreadyPaid}
+                    className="md:justify-self-end"
                 />
 
-                <aside className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
-                    <div>
-                        <p className="flex items-center gap-2 font-black text-slate-900">
-                            {buyer}
-                            {isStaff && <StaffTag />}
-                        </p>
-                        <p className="text-sm font-bold text-slate-500">
-                            {result.kind === 'order' ? 'Order' : 'Preorder'}{' '}
-                            {number}
-                        </p>
-                    </div>
+                <aside className="w-full max-w-md space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:sticky md:top-24">
+                    <p className="text-xs font-black tracking-[0.2em] text-slate-500 uppercase">
+                        Payment
+                    </p>
 
                     {result.can_mark_paid && (
                         <form
@@ -693,7 +675,7 @@ function PaidTodayTable({ paidToday }: { paidToday: PaidToday }) {
                 </h2>
                 <p className="text-sm font-bold text-slate-600">
                     {recorded} {recorded === 1 ? 'payment' : 'payments'}
-                    {voided > 0 && ` (${voided} void)`} ·{' '}
+                    {voided > 0 && ` (${voided} voided)`} ·{' '}
                     <span
                         data-test="paid-today-total"
                         className="font-black text-slate-900"

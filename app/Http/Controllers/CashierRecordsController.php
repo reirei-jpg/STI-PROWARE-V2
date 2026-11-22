@@ -74,7 +74,7 @@ class CashierRecordsController extends Controller
         $payments = CashierRecords::query($filters)->with(['cashier', 'voider', 'buyer', 'order', 'preorderSlip.preorders'])->orderBy('paid_at')->orderBy('id');
 
         return $this->csv("payment-history-{$filters['date_from']}-to-{$filters['date_to']}.csv", [
-            'Receipt No.', 'Date and time', 'For', 'Slip No.', 'Buyer', 'ID', 'Method', 'Amount', 'Amount received', 'Change', 'GCash reference', 'Received by', 'Status', 'Void reason',
+            'Receipt No.', 'Date and time', 'For', 'Slip No.', 'Buyer', 'ID', 'Method', 'Amount', 'Amount received', 'Change', 'GCash reference', 'Received by', 'Status', 'Reason for voiding',
         ], function () use ($payments): iterable {
             foreach ($payments->lazy() as $payment) {
                 $row = CashierRecords::row($payment);
@@ -109,7 +109,7 @@ class CashierRecordsController extends Controller
         $collections = CashierRecords::collections($filters);
 
         return $this->csv("collections-{$filters['date_from']}-to-{$filters['date_to']}.csv", [
-            $filters['group'] === 'month' ? 'Month' : 'Day', 'Payments', 'Cash', 'GCash', 'Total collected', 'Void payments',
+            $filters['group'] === 'month' ? 'Month' : 'Day', 'Payments', 'Cash', 'GCash', 'Total collected', 'Voided payments',
         ], function () use ($collections): iterable {
             foreach (array_reverse($collections['rows']) as $row) {
                 yield [$row['label'], $row['count'], self::amount($row['cash_centavos']), self::amount($row['gcash_centavos']), self::amount($row['total_centavos']), $row['void_count']];

@@ -5,6 +5,7 @@ import {
     Clock,
     ReceiptText,
     Smartphone,
+    Wallet,
     XCircle,
 } from 'lucide-react';
 import CashierController from '@/actions/App/Http/Controllers/CashierController';
@@ -14,14 +15,15 @@ import Panel from '@/components/panel';
 import SlipScanBox from '@/components/slip-scan-box';
 import StaffTag from '@/components/staff-tag';
 import SummaryCard from '@/components/summary-card';
-import { formatDateTime, formatPeso } from '@/lib/format';
+import { formatDateTime, formatPeso, receiptCount } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Auth, AwaitingRow, PaymentRow, PaymentTotals } from '@/types';
 
 /**
- * What the cashier sees on opening the account: today's collections (Cash
- * and GCash), what is awaiting payment, today's void payments, the slip
- * scanner, the latest payments and the slips waiting the longest.
+ * What the cashier sees on opening the account: today's total, Cash and
+ * GCash payments, what is awaiting payment, today's voided payments (only
+ * when there are some), the slip scanner, the latest payments and the
+ * slips waiting the longest.
  */
 export default function CashierDashboard({
     today,
@@ -48,36 +50,47 @@ export default function CashierDashboard({
                     description={`${new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date())} · Today's collections and the slips awaiting payment.`}
                 />
 
-                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
                     <SummaryCard
-                        label="Collected today"
+                        label="Total Collected Today"
                         value={formatPeso(today.total_centavos)}
-                        description={`${today.count} ${today.count === 1 ? 'payment' : 'payments'} · Cash ${formatPeso(today.cash_centavos)} · GCash ${formatPeso(today.gcash_centavos)}`}
+                        description={`${receiptCount(today.count)} issued today`}
+                        icon={Wallet}
+                    />
+                    <SummaryCard
+                        label="Cash Payments"
+                        value={formatPeso(today.cash_centavos)}
+                        description={`${receiptCount(today.cash_count)} today`}
                         icon={Banknote}
                     />
                     <SummaryCard
-                        label="Awaiting payment"
-                        value={String(waiting)}
-                        description={`${awaiting.orders} ${awaiting.orders === 1 ? 'order' : 'orders'} · ${awaiting.slips} preorder ${awaiting.slips === 1 ? 'slip' : 'slips'} · ${formatPeso(awaiting.total_centavos)} in all`}
-                        icon={Clock}
-                    />
-                    <SummaryCard
-                        label="GCash today"
+                        label="GCash Payments"
                         value={formatPeso(today.gcash_centavos)}
-                        description="Check each reference against the buyer's GCash receipt"
+                        description={`${receiptCount(today.gcash_count)} today`}
                         icon={Smartphone}
                     />
                     <SummaryCard
-                        label="Void today"
-                        value={String(today.void_count)}
-                        description={
-                            today.void_count === 0
-                                ? 'No payments were undone today'
-                                : `${formatPeso(today.void_centavos)} undone, not counted`
-                        }
-                        icon={XCircle}
+                        label="Awaiting Payment"
+                        value={String(waiting)}
+                        description={`${awaiting.orders} ${awaiting.orders === 1 ? 'order' : 'orders'} · ${awaiting.slips} preorder ${awaiting.slips === 1 ? 'slip' : 'slips'} · ${formatPeso(awaiting.total_centavos)} in total`}
+                        icon={Clock}
                     />
                 </section>
+
+                {today.void_count > 0 && (
+                    <p
+                        data-test="void-today"
+                        className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+                    >
+                        <XCircle size={18} className="shrink-0" />
+                        {today.void_count}{' '}
+                        {today.void_count === 1
+                            ? 'voided payment'
+                            : 'voided payments'}{' '}
+                        today ({formatPeso(today.void_centavos)}), not counted
+                        in the total.
+                    </p>
+                )}
 
                 <SlipScanBox
                     openUrl={CashierController.record().url}

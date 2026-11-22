@@ -24,6 +24,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
  *
  * @phpstan-type PaymentRow array{id: int, receipt_number: string|null, kind: string, number: string|null, buyer_name: string, buyer_id: string|null, is_staff: bool, amount_centavos: int, method: string, method_label: string, amount_received_centavos: int|null, change_centavos: int|null, gcash_reference: string|null, paid_at: string, cashier: string|null, void: bool, voided_at: string|null, voided_by: string|null, void_reason: string|null, released: bool}
  * @phpstan-type AwaitingRow array{kind: string, id: int, number: string|null, buyer_name: string, buyer_id: string|null, is_staff: bool, for: string, amount_centavos: int, since: string|null, pay_until: string|null}
+ * @phpstan-type Totals array{count: int, total_centavos: int, cash_count: int, cash_centavos: int, gcash_count: int, gcash_centavos: int, void_count: int, void_centavos: int}
  * @phpstan-type Filters array{period: string, date_from: string, date_to: string, method: string, type: string, status: string, search: string, group: string}
  */
 final class CashierRecords
@@ -154,7 +155,7 @@ final class CashierRecords
      * payment matching the filters (not only this page).
      *
      * @param  Filters  $filters
-     * @return array{payments: LengthAwarePaginator<int, PaymentRow>, totals: array{count: int, total_centavos: int, cash_centavos: int, gcash_centavos: int, void_count: int, void_centavos: int}}
+     * @return array{payments: LengthAwarePaginator<int, PaymentRow>, totals: Totals}
      */
     public static function history(array $filters): array
     {
@@ -173,14 +174,16 @@ final class CashierRecords
      * What the payments add up to: the standing ones by method, the void ones apart.
      *
      * @param  Builder<Payment>  $payments
-     * @return array{count: int, total_centavos: int, cash_centavos: int, gcash_centavos: int, void_count: int, void_centavos: int}
+     * @return Totals
      */
     public static function totals(Builder $payments): array
     {
         $sums = $payments->toBase()
             ->selectRaw('coalesce(sum(case when voided_at is null then 1 else 0 end), 0) as count')
             ->selectRaw('coalesce(sum(case when voided_at is null then amount_centavos else 0 end), 0) as total')
+            ->selectRaw("coalesce(sum(case when voided_at is null and method = 'cash' then 1 else 0 end), 0) as cash_count")
             ->selectRaw("coalesce(sum(case when voided_at is null and method = 'cash' then amount_centavos else 0 end), 0) as cash")
+            ->selectRaw("coalesce(sum(case when voided_at is null and method = 'gcash' then 1 else 0 end), 0) as gcash_count")
             ->selectRaw("coalesce(sum(case when voided_at is null and method = 'gcash' then amount_centavos else 0 end), 0) as gcash")
             ->selectRaw('coalesce(sum(case when voided_at is not null then 1 else 0 end), 0) as void_count')
             ->selectRaw('coalesce(sum(case when voided_at is not null then amount_centavos else 0 end), 0) as void_total')
@@ -189,7 +192,9 @@ final class CashierRecords
         return [
             'count' => (int) ($sums->count ?? 0),
             'total_centavos' => (int) ($sums->total ?? 0),
+            'cash_count' => (int) ($sums->cash_count ?? 0),
             'cash_centavos' => (int) ($sums->cash ?? 0),
+            'gcash_count' => (int) ($sums->gcash_count ?? 0),
             'gcash_centavos' => (int) ($sums->gcash ?? 0),
             'void_count' => (int) ($sums->void_count ?? 0),
             'void_centavos' => (int) ($sums->void_total ?? 0),
@@ -201,7 +206,7 @@ final class CashierRecords
      * (only days or months with payments), the latest first.
      *
      * @param  Filters  $filters
-     * @return array{totals: array{count: int, total_centavos: int, cash_centavos: int, gcash_centavos: int, void_count: int, void_centavos: int}, rows: list<array{period: string, label: string, count: int, total_centavos: int, cash_centavos: int, gcash_centavos: int, void_count: int}>}
+     * @return array{totals: Totals, rows: list<array{period: string, label: string, count: int, total_centavos: int, cash_centavos: int, gcash_centavos: int, void_count: int}>}
      */
     public static function collections(array $filters): array
     {
@@ -234,7 +239,7 @@ final class CashierRecords
      * The daily collection report: the day's totals by method, every
      * standing receipt (the earliest first) and the void ones apart.
      *
-     * @return array{date: string, totals: array{count: int, total_centavos: int, cash_centavos: int, gcash_centavos: int, void_count: int, void_centavos: int}, receipts: list<PaymentRow>, voided: list<PaymentRow>}
+     * @return array{date: string, totals: Totals, receipts: list<PaymentRow>, voided: list<PaymentRow>}
      */
     public static function daily(CarbonImmutable $day): array
     {
@@ -254,7 +259,7 @@ final class CashierRecords
      * method, what is awaiting payment, today's void payments, the latest
      * payments and the slips waiting the longest.
      *
-     * @return array{today: array{count: int, total_centavos: int, cash_centavos: int, gcash_centavos: int, void_count: int, void_centavos: int}, awaiting: array{orders: int, slips: int, total_centavos: int}, latest: list<PaymentRow>, oldest_awaiting: list<AwaitingRow>}
+     * @return array{today: Totals, awaiting: array{orders: int, slips: int, total_centavos: int}, latest: list<PaymentRow>, oldest_awaiting: list<AwaitingRow>}
      */
     public static function dashboard(): array
     {

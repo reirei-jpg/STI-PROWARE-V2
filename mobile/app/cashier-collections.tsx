@@ -107,7 +107,7 @@ export default function CashierCollectionsScreen() {
                     </Text>
                     {totals.void_count > 0 && (
                         <Text className="font-sans text-xs text-blue-100">
-                            {totals.void_count} void ({formatPeso(totals.void_centavos)}), not counted.
+                            {totals.void_count} voided ({formatPeso(totals.void_centavos)}), not counted in the total.
                         </Text>
                     )}
                 </View>
@@ -132,7 +132,7 @@ export default function CashierCollectionsScreen() {
                             <Text className="font-sans text-xs text-slate-500">
                                 {row.count} {row.count === 1 ? 'payment' : 'payments'} · Cash {formatPeso(row.cash_centavos)} · GCash{' '}
                                 {formatPeso(row.gcash_centavos)}
-                                {row.void_count > 0 ? ` · ${row.void_count} void` : ''}
+                                {row.void_count > 0 ? ` · ${row.void_count} voided` : ''}
                             </Text>
                         </View>
                     ))}

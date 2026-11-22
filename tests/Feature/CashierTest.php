@@ -388,7 +388,10 @@ test('Payment History filters by period, method, Order or Preorder, Paid or Void
     $this->get(route('cashier.payments.index', $week))->assertInertia(fn (Assert $page) => $page
         ->where('payments.total', 3)
         ->where('totals.total_centavos', 16000)
+        ->where('totals.count', 2)
+        ->where('totals.cash_count', 1)
         ->where('totals.cash_centavos', 8000)
+        ->where('totals.gcash_count', 1)
         ->where('totals.gcash_centavos', 8000));
     $this->get(route('cashier.payments.index', [...$week, 'method' => 'gcash']))->assertInertia(fn (Assert $page) => $page->where('payments.total', 1)->where('payments.data.0.gcash_reference', '9876543210123'));
     $this->get(route('cashier.payments.index', [...$week, 'status' => 'void']))->assertInertia(fn (Assert $page) => $page->where('payments.total', 1));
@@ -435,7 +438,8 @@ test('Collections add up the money by day or by month (void payments apart), and
         ->toContain('GCash,80.00,,,"=""1111222233334"""')
         ->toContain('"Cashier 1",Paid');
     $csv = $this->get(route('cashier.collections.export', [...$range, 'group' => 'month']))->assertOk()->streamedContent();
-    expect($csv)->toContain('"October 2026",1,80.00,0.00,80.00,0')->toContain('Total,2,80.00,80.00,160.00,0');
+    expect($csv)->toContain('"Total collected","Voided payments"')
+        ->toContain('"October 2026",1,80.00,0.00,80.00,0')->toContain('Total,2,80.00,80.00,160.00,0');
 });
 
 test('the daily collection report lists the day\'s receipts and totals by method, the void ones apart, for paper', function () {

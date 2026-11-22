@@ -9,7 +9,7 @@ import PaymentPeriodPicker, { paymentQuery } from '@/components/PaymentPeriodPic
 import PaymentRowItem from '@/components/PaymentRowItem';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatPeso } from '@/lib/format';
+import { formatPeso, receiptCount } from '@/lib/format';
 import type { Page, PaymentFilters, PaymentRow, PaymentTotals } from '@/lib/types';
 
 type HistoryPage = { payments: Page<PaymentRow>; totals: PaymentTotals; filters: PaymentFilters };
@@ -139,9 +139,9 @@ export default function CashierHistoryScreen() {
             />
             <ChipRow
                 options={[
-                    ['', 'Paid and void'],
+                    ['', 'Paid and voided'],
                     ['paid', 'Paid'],
-                    ['void', 'Void'],
+                    ['void', 'Voided'],
                 ]}
                 value={filters.status}
                 onPick={(value) => show({ status: value as PaymentFilters['status'] })}
@@ -149,14 +149,14 @@ export default function CashierHistoryScreen() {
 
             {totals && (
                 <View className="flex-row gap-2">
-                    <Total label="Collected" value={formatPeso(totals.total_centavos)} detail={`${totals.count} paid`} />
-                    <Total label="Cash" value={formatPeso(totals.cash_centavos)} />
-                    <Total label="GCash" value={formatPeso(totals.gcash_centavos)} />
+                    <Total label="Total" value={formatPeso(totals.total_centavos)} detail={receiptCount(totals.count)} />
+                    <Total label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} />
+                    <Total label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} />
                 </View>
             )}
             {totals && totals.void_count > 0 && (
                 <Text className="font-sans-semibold text-xs text-red-700">
-                    {totals.void_count} void {totals.void_count === 1 ? 'payment' : 'payments'} ({formatPeso(totals.void_centavos)}), not counted.
+                    {totals.void_count} {totals.void_count === 1 ? 'voided payment' : 'voided payments'} ({formatPeso(totals.void_centavos)}), not counted in the total.
                 </Text>
             )}
 

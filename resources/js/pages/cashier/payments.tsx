@@ -29,7 +29,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { formatDateTime, formatPeso } from '@/lib/format';
+import { formatDateTime, formatPeso, receiptCount } from '@/lib/format';
 import { cn, isSameSearch } from '@/lib/utils';
 import type {
     Paginated,
@@ -125,29 +125,29 @@ export default function PaymentHistory({
                     }
                 />
 
-                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
                     <SummaryCard
-                        label="Total collected"
+                        label="Total Collected"
                         value={formatPeso(totals.total_centavos)}
-                        description={`${totals.count} ${totals.count === 1 ? 'payment' : 'payments'} in this list`}
+                        description={`${receiptCount(totals.count)} in this list`}
                         icon={ReceiptText}
                     />
                     <SummaryCard
-                        label="Cash"
+                        label="Cash Payments"
                         value={formatPeso(totals.cash_centavos)}
-                        description="Paid in cash"
+                        description={receiptCount(totals.cash_count)}
                         icon={Banknote}
                     />
                     <SummaryCard
-                        label="GCash"
+                        label="GCash Payments"
                         value={formatPeso(totals.gcash_centavos)}
-                        description="Paid by GCash"
+                        description={receiptCount(totals.gcash_count)}
                         icon={Smartphone}
                     />
                     <SummaryCard
-                        label="Void"
+                        label="Voided Payments"
                         value={formatPeso(totals.void_centavos)}
-                        description={`${totals.void_count} void ${totals.void_count === 1 ? 'payment' : 'payments'}, not counted`}
+                        description={`${receiptCount(totals.void_count)}, not counted in the total`}
                         icon={XCircle}
                     />
                 </section>
@@ -215,9 +215,9 @@ export default function PaymentHistory({
                                 className={selectClasses}
                                 aria-label="Status"
                             >
-                                <option value="">Paid and void</option>
+                                <option value="">Paid and voided</option>
                                 <option value="paid">Paid</option>
-                                <option value="void">Void</option>
+                                <option value="void">Voided</option>
                             </select>
                         </div>
                     </div>
