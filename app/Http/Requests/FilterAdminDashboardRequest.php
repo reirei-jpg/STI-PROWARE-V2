@@ -33,7 +33,7 @@ class FilterAdminDashboardRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tab' => 'Choose Coming, Ongoing or Completed.',
+            'tab' => 'Choose Awaiting Delivery, Partially Received or Completed.',
             'search' => 'Type an Order # of up to 40 characters.',
             'period' => 'Choose All time, This week, This month or This year.',
         ];

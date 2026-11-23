@@ -113,22 +113,22 @@ const tabs: {
 }[] = [
     {
         value: 'coming',
-        label: 'Coming',
-        hint: 'Uploaded, nothing arrived yet',
+        label: 'Awaiting Delivery',
+        hint: 'Uploaded by the Specialist; nothing has arrived yet',
         selectedClasses: 'border-amber-400 bg-amber-50',
         countClasses: 'bg-amber-100 text-amber-800',
     },
     {
         value: 'ongoing',
-        label: 'Ongoing',
-        hint: 'Some items arrived, the rest still to come',
+        label: 'Partially Received',
+        hint: 'Some items have arrived; the rest are still coming',
         selectedClasses: 'border-[#0D6EFD] bg-blue-50',
         countClasses: 'bg-blue-100 text-blue-800',
     },
     {
         value: 'completed',
         label: 'Completed',
-        hint: 'Everything arrived, or closed with some missing',
+        hint: 'Everything arrived, or the Specialist closed it with some items missing',
         selectedClasses: 'border-emerald-500 bg-emerald-50',
         countClasses: 'bg-emerald-100 text-emerald-800',
     },
@@ -149,11 +149,11 @@ const barClasses: Record<DeliveryStatus, string> = {
 };
 
 const emptyText: Record<AdminDeliveryTab, string> = {
-    coming: 'No order is waiting for its first delivery. An order shows here as soon as the Specialist uploads it, until its first items arrive.',
+    coming: 'No order is awaiting delivery. An order shows here as soon as the Specialist uploads it, until its first items arrive.',
     ongoing:
-        'No order is partly delivered right now. An order shows here once its first items arrive, until the rest arrive.',
+        'No order is partially received right now. An order shows here once its first items arrive, until the rest arrive.',
     completed:
-        'No order is complete yet. An order shows here once everything arrived, or when the Specialist closes it with some missing.',
+        'No order is completed yet. An order shows here once everything arrived, or when the Specialist closes it with some items missing.',
 };
 
 /**
@@ -186,8 +186,9 @@ export default function SchoolAdminOverview({
     const firstRender = useRef(true);
     const today = new Intl.DateTimeFormat('en-PH', {
         weekday: 'long',
-        month: 'short',
+        month: 'long',
         day: 'numeric',
+        year: 'numeric',
     }).format(new Date());
 
     const period = overview.sales.period;
@@ -254,7 +255,7 @@ export default function SchoolAdminOverview({
             <div className="space-y-7">
                 <PageHeader
                     title={`Welcome, ${firstName}`}
-                    description={`${today} · the eStore orders the Specialist uploaded and what has arrived. View only.`}
+                    description={`${today} · eStore orders, deliveries and sales. View only.`}
                 />
 
                 {lockedAccounts.length > 0 && (
@@ -279,8 +280,8 @@ export default function SchoolAdminOverview({
                     </section>
                 )}
                 <Panel
-                    title="Stock In"
-                    description="Every eStore order the Specialist uploaded, by what has arrived. Open one for its items and Delivery History."
+                    title="eStore Orders"
+                    description="Every eStore order the Specialist uploaded, by how much has arrived. Open one to see its items and Delivery History."
                     actions={
                         <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 sm:w-72">
                             <Search size={18} className="shrink-0" />
@@ -345,7 +346,8 @@ export default function SchoolAdminOverview({
                                         {late > 0 && (
                                             <span className="font-black text-red-700">
                                                 {' '}
-                                                · {late} late
+                                                · {late} late (not complete
+                                                after {lateDays} days)
                                             </span>
                                         )}
                                     </span>
@@ -543,13 +545,13 @@ function SalesLists({
     const listTabs = [
         {
             value: 'top' as const,
-            label: 'Top sellers',
+            label: 'Best Sellers',
             count: sales.top_sellers.total,
             countClasses: 'bg-blue-100 text-blue-800',
         },
         {
             value: 'slow' as const,
-            label: 'Not selling',
+            label: 'Not Selling',
             count: sales.not_selling.total,
             countClasses: 'bg-amber-100 text-amber-800',
         },
@@ -558,7 +560,7 @@ function SalesLists({
     return (
         <Panel
             title="Sales"
-            description={`What students and STI staff are buying, and what is sitting in stock · ${formatDateOrdered(sales.from)} to ${formatDateOrdered(sales.to)}.`}
+            description={`What students and STI staff bought (counted once their items are released to them), and what is not selling · ${formatDateOrdered(sales.from)} to ${formatDateOrdered(sales.to)}.`}
             actions={
                 <div
                     role="group"
@@ -586,30 +588,30 @@ function SalesLists({
         >
             <div className="grid gap-3 px-6 pt-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
                 <SalesNumber
-                    label="Pieces sold"
+                    label="Pieces Sold"
                     value={totals.pieces.toLocaleString('en-PH')}
-                    note={`released to buyers ${periodWords}`}
+                    note={`Pieces released to buyers ${periodWords}`}
                 />
                 <SalesNumber
-                    label="Sold for"
+                    label="Total Sales"
                     value={formatPeso(totals.price_centavos)}
-                    note="paid at the cashier"
+                    note="What buyers paid at the cashier for those pieces"
                 />
                 <SalesNumber
-                    label="Top seller"
+                    label="Best Seller"
                     value={totals.best?.product_name ?? 'None yet'}
                     note={
                         totals.best
-                            ? `${totals.best.pieces.toLocaleString('en-PH')} ${totals.best.pieces === 1 ? 'pc' : 'pcs'}${totals.best.top_variant_label ? ` · most sold: ${totals.best.top_variant_label}` : ''}`
-                            : `nothing released ${periodWords}`
+                            ? `${totals.best.pieces.toLocaleString('en-PH')} ${totals.best.pieces === 1 ? 'pc' : 'pcs'} sold${totals.best.top_variant_label ? ` · most sold size/color: ${totals.best.top_variant_label}` : ''}`
+                            : `Nothing was released to buyers ${periodWords}`
                     }
                     tone="green"
                     small
                 />
                 <SalesNumber
-                    label="Not selling"
+                    label="Not Selling"
                     value={`${sales.not_selling.total} ${sales.not_selling.total === 1 ? 'product' : 'products'}`}
-                    note={`${totals.not_selling_pieces.toLocaleString('en-PH')} pcs in stock, no sale in ${sales.slow_days} days`}
+                    note={`${totals.not_selling_pieces.toLocaleString('en-PH')} pcs in stock with no sale in the last ${sales.slow_days} days`}
                     tone="amber"
                 />
             </div>
@@ -674,9 +676,9 @@ function SalesLists({
                                     </p>
                                     <p className="text-xs text-slate-500">
                                         {formatPeso(row.price_total_centavos)}{' '}
-                                        sold
+                                        in sales
                                         {row.top_variant_label &&
-                                            ` · most sold: ${row.top_variant_label} (${row.top_variant_pieces})`}
+                                            ` · most sold size/color: ${row.top_variant_label} (${row.top_variant_pieces} ${row.top_variant_pieces === 1 ? 'pc' : 'pcs'})`}
                                     </p>
                                 </div>
                                 <p className="shrink-0 text-right">
@@ -684,7 +686,7 @@ function SalesLists({
                                         {row.pieces.toLocaleString('en-PH')}
                                     </span>{' '}
                                     <span className="text-xs font-bold text-slate-500">
-                                        {row.pieces === 1 ? 'pc' : 'pcs'}
+                                        {row.pieces === 1 ? 'pc' : 'pcs'} sold
                                     </span>
                                 </p>
                             </li>
@@ -736,7 +738,7 @@ function SalesLists({
                                 </div>
                                 <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-black whitespace-nowrap text-amber-800">
                                     {row.last_sold_at
-                                        ? `${row.days_without_sale} days, no sale`
+                                        ? `No sale for ${row.days_without_sale} days`
                                         : 'Never sold'}
                                 </span>
                             </li>
@@ -803,7 +805,7 @@ function SalesNumber({
             </p>
             <p
                 className={cn(
-                    'mt-0.5 truncate text-xs',
+                    'mt-0.5 text-xs leading-5',
                     tone === 'green'
                         ? 'text-emerald-700'
                         : tone === 'amber'

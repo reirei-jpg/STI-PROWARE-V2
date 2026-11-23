@@ -373,7 +373,7 @@ test('the school admin sees the top sellers of the week, month or year and what 
         ->assertInertiaFlash('toast.message', 'Choose All time, This week, This month or This year. The list is shown without its filters.');
     $this->get(route('dashboard', ['tab' => 'xyz']))
         ->assertRedirect(route('dashboard'))
-        ->assertInertiaFlash('toast.message', 'Choose Coming, Ongoing or Completed. The list is shown without its filters.');
+        ->assertInertiaFlash('toast.message', 'Choose Awaiting Delivery, Partially Received or Completed. The list is shown without its filters.');
 });
 
 test('the top sellers show 5 products a page', function () {

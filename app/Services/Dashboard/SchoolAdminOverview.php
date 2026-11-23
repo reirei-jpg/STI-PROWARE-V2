@@ -18,7 +18,7 @@ use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 
 /**
  * What the School Admin monitors (view only): every eStore order the
- * Specialist uploaded, in three tabs by what has arrived (Coming, Ongoing,
+ * Specialist uploaded, in three tabs by what has arrived (Awaiting Delivery, Partially Received,
  * Completed), with the dates and times of each step. 5 orders a page. A
  * search by Order # narrows the list and the tab counts alike, so the
  * counts show which tab the order is in. Below: what sells (Top sellers of

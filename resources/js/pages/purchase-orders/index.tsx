@@ -241,7 +241,7 @@ export default function PurchaseOrdersIndex({
                     description={
                         isSpecialist
                             ? 'eStore orders approved by the School Admin and uploaded to PROWARE.'
-                            : 'The eStore orders you approved, uploaded by the Specialist. View only.'
+                            : 'The eStore orders the Specialist uploaded. View only.'
                     }
                     actions={
                         isSpecialist && (

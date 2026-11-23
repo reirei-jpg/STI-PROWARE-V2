@@ -562,7 +562,7 @@ function ReceivedTable({
                                         </div>
                                     ) : (
                                         <span className="text-xs text-slate-400">
-                                            No receipt no.
+                                            No SI # or DR #
                                         </span>
                                     )}
                                 </td>

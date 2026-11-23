@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { BellRing, LoaderCircle, X } from 'lucide-react';
 import { useState } from 'react';
 import PurchaseOrderReminderController from '@/actions/App/Http/Controllers/PurchaseOrderReminderController';
@@ -42,6 +42,7 @@ export default function RemindSpecialist({
     onSent?: () => void;
     className?: string;
 }) {
+    const { auth } = usePage().props;
     const [open, setOpen] = useState(false);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -94,10 +95,12 @@ export default function RemindSpecialist({
             )}
             {order.reminded_at && (
                 <p className="max-w-56 text-right text-xs text-slate-500">
-                    Reminded {formatDateTime(order.reminded_at)}
-                    {order.reminded_by && ` by ${order.reminded_by}`}
+                    {order.reminded_by === auth.user.name
+                        ? 'You reminded'
+                        : `${order.reminded_by ?? 'A School Admin'} reminded`}{' '}
+                    the Specialist on {formatDateTime(order.reminded_at)}.
                     {order.remind_again_on &&
-                        ` · can remind again ${formatDateOrdered(order.remind_again_on)}`}
+                        ` You can remind again on ${formatDateOrdered(order.remind_again_on)}.`}
                 </p>
             )}
 
