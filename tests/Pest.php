@@ -85,6 +85,20 @@ function orderWith(array $items, array $attributes = []): PurchaseOrder
 }
 
 /**
+ * A delivery's papers: an SI # and DR # (required), different for every
+ * delivery so a second delivery of an order is not taken for the first.
+ *
+ * @return array{sales_invoice_number: string, delivery_receipt_number: string}
+ */
+function papers(): array
+{
+    static $number = 0;
+    $number++;
+
+    return ['sales_invoice_number' => "SI-T{$number}", 'delivery_receipt_number' => "DR-T{$number}"];
+}
+
+/**
  * The id of the ordered item with this code on the order.
  */
 function itemOf(PurchaseOrder $order, string $code): int

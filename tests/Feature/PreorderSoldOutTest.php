@@ -101,7 +101,7 @@ test('students waiting for a size are notified when a delivery puts it back in s
     $order = orderWith(['UTMP01-01' => 10]);
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP01-01'), 'quantity_received' => 6]],
         ])
@@ -194,7 +194,7 @@ test('the Specialist can allow preorders again, and stock coming in clears the m
 
     $extraSmall->forceFill(['not_restocked_at' => now()])->save();
     $order = orderWith(['UTMP01-01' => 3]);
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP01-01'), 'quantity_received' => 3]],
     ]);

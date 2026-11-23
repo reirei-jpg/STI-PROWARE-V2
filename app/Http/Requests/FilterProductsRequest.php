@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * The search, status filter and the "Low stock" / "Slow-moving" filters on
@@ -29,8 +30,8 @@ class FilterProductsRequest extends FormRequest
             'slow_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             // Slow-moving: the last week, month or year, or From – To days picked on the calendar,
             'slow' => ['nullable', 'in:week,month,year,range'],
-            'slow_from' => ['nullable', 'required_if:slow,range', 'date_format:Y-m-d', 'before_or_equal:today'],
-            'slow_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:slow_from', 'before_or_equal:today'],
+            'slow_from' => ['bail', 'required_if:slow,range', 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'slow_to' => ['bail', 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
             // and how slow: all slow (5 sold or fewer), no sales, 1–2 sold, or 3–5 sold.
             'sold' => ['nullable', 'in:all,none,few,some'],
         ];
@@ -49,8 +50,28 @@ class FilterProductsRequest extends FormRequest
             'slow_from.date_format' => 'Pick a valid From day.',
             'slow_from.before_or_equal' => 'The From day cannot be in the future.',
             'slow_to.date_format' => 'Pick a valid To day.',
-            'slow_to.after_or_equal' => 'The To day cannot be before the From day.',
             'slow_to.before_or_equal' => 'The To day cannot be in the future.',
+        ];
+    }
+
+    /**
+     * "To before From" is checked only once both days are valid, so a wrong
+     * day is not also reported as "To before From".
+     *
+     * @return array<int, \Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->has('slow_from') || $validator->errors()->has('slow_to') || ! $this->filled('slow_from') || ! $this->filled('slow_to')) {
+                    return;
+                }
+
+                if ((string) $this->input('slow_to') < (string) $this->input('slow_from')) {
+                    $validator->errors()->add('slow_to', 'The To day cannot be before the From day.');
+                }
+            },
         ];
     }
 

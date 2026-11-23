@@ -6,6 +6,7 @@ use App\Models\PurchaseOrder;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->specialist = User::factory()->specialist()->create(['name' => 'Carlo Mendoza']);
@@ -15,10 +16,10 @@ test('recording part of an order marks it partially received', function () {
     $order = orderWith(['UTMP02-03' => 10, 'UTMS02-03' => 30], ['order_number' => '30650']);
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'sales_invoice_number' => '1210000031492',
-            'delivery_receipt_number' => '',
+            'delivery_receipt_number' => ' DR-04567 ',
             'items' => [
                 ['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 10],
                 ['purchase_order_item_id' => itemOf($order, 'UTMS02-03'), 'quantity_received' => 20],
@@ -37,15 +38,56 @@ test('recording part of an order marks it partially received', function () {
         ->and($order->items()->pluck('quantity_delivered', 'item_code')->all())->toBe(['UTMP02-03' => 10, 'UTMS02-03' => 20])
         ->and(Delivery::sole())
         ->sales_invoice_number->toBe('1210000031492')
-        ->delivery_receipt_number->toBeNull()
+        ->delivery_receipt_number->toBe('DR-04567')
         ->recorded_by->toBe($this->specialist->id);
+});
+
+test('the SI # and DR # are required and checked, and the same papers on the same order are refused', function () {
+    $order = orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
+    $other = orderWith(['UTMP02-03' => 10], ['order_number' => '30722']);
+    $delivery = fn (PurchaseOrder $for, array $papers): array => [
+        ...$papers,
+        'items' => [['purchase_order_item_id' => itemOf($for, 'UTMP02-03'), 'quantity_received' => 2]],
+    ];
+    $this->actingAs($this->specialist);
+
+    $this->post(route('deliveries.store'), $delivery($order, ['sales_invoice_number' => '', 'delivery_receipt_number' => ' ']))
+        ->assertSessionHasErrors([
+            'sales_invoice_number' => 'Enter the SI # (Sales Invoice number) from Head Office\'s papers.',
+            'delivery_receipt_number' => 'Enter the DR # (Delivery Receipt number) from Head Office\'s papers.',
+        ]);
+    $this->post(route('deliveries.store'), $delivery($order, ['sales_invoice_number' => 'SI#001', 'delivery_receipt_number' => 'DR-01-']))
+        ->assertSessionHasErrors([
+            'sales_invoice_number' => 'The SI # may have only letters, numbers, spaces, hyphens and slashes, e.g. SI-00123.',
+            'delivery_receipt_number' => 'The DR # may have only letters, numbers, spaces, hyphens and slashes, e.g. DR-04567.',
+        ]);
+    expect(Delivery::count())->toBe(0);
+
+    $this->post(route('deliveries.store'), $delivery($order, ['sales_invoice_number' => 'SI-00123', 'delivery_receipt_number' => 'DR 4567/26']))->assertSessionHasNoErrors();
+
+    // The same papers again on the same order: recorded before, so refused (capitals do not matter).
+    $this->post(route('deliveries.store'), $delivery($order, ['sales_invoice_number' => 'si-00123', 'delivery_receipt_number' => 'DR-NEW']))
+        ->assertSessionHasErrors(['sales_invoice_number' => 'SI # SI-00123 was already recorded for Order #30650 on '.now()->format('M j, Y').'. Check the papers: this delivery may have been recorded before.']);
+    // One invoice can cover another order.
+    $this->post(route('deliveries.store'), $delivery($other, ['sales_invoice_number' => 'SI-00123', 'delivery_receipt_number' => 'DR 4567/26']))->assertSessionHasNoErrors();
+    expect(Delivery::count())->toBe(2);
+
+    // The phone app gets the same reasons.
+    Sanctum::actingAs($this->specialist);
+    $this->postJson(route('api.v1.specialist.deliveries.store'), $delivery($order, ['sales_invoice_number' => '', 'delivery_receipt_number' => 'DR-NEW']))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['sales_invoice_number' => 'Enter the SI # (Sales Invoice number) from Head Office\'s papers.']);
+    $this->postJson(route('api.v1.specialist.deliveries.store'), $delivery($order, ['sales_invoice_number' => 'SI-NEW', 'delivery_receipt_number' => 'dr 4567/26']))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['delivery_receipt_number' => 'DR # DR 4567/26 was already recorded for Order #30650 on '.now()->format('M j, Y').'. Check the papers: this delivery may have been recorded before.']);
+    expect(Delivery::count())->toBe(2);
 });
 
 test('one delivery can cover several orders, and a fully received order is completed', function () {
     $older = orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
     $newer = orderWith(['UTMP02-03' => 10], ['order_number' => '30722']);
 
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [
             ['purchase_order_item_id' => itemOf($older, 'UTMP02-03'), 'quantity_received' => 10],
@@ -64,7 +106,7 @@ test('receiving more than what is left of an item is refused', function () {
     $order->refreshDeliveryProgress();
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 7]],
         ])
@@ -78,12 +120,12 @@ test('a delivery is received on the day it is recorded, even when an older app s
     $order = orderWith(['UTMP02-03' => 10]);
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 5]],
         ])
         ->assertSessionHasNoErrors();
 
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-11-05',
         'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 5]],
     ])->assertSessionHasNoErrors();
@@ -95,7 +137,7 @@ test('a delivery with nothing received is refused', function () {
     $order = orderWith(['UTMP02-03' => 10]);
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 0]],
         ])
@@ -161,7 +203,7 @@ test('a delivery recorded from an order\'s popup stays on the page it came from'
 
     $this->actingAs($this->specialist)
         ->from(route('purchase-orders.index'))
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'stay_on_page' => true,
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 10]],
@@ -176,7 +218,7 @@ test('a received quantity that is not a whole number is refused with a plain mes
     $order = orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => $typed]],
         ])
@@ -244,7 +286,7 @@ test('an order can be closed short with a reason', function () {
         ->closed_reason->toBe('Head Office said the M/L polos are out of stock.')
         ->closed_by->toBe($this->specialist->id);
 
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-04'), 'quantity_received' => 1]],
     ])->assertSessionHasErrors(['items.0.quantity_received' => 'Order #30650 is already Completed (some missing).']);
@@ -284,7 +326,7 @@ test('the list puts orders still waiting first, the oldest at the top, and can b
 
 test('the details window shows what arrived, what is left and the delivery history', function () {
     $order = orderWith(['UTMP02-03' => 10], ['order_number' => '30650']);
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'sales_invoice_number' => '1210000031492',
         'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 6]],
@@ -306,12 +348,12 @@ test('deliveries can be searched by SI # or Order #', function () {
     $other = orderWith(['UTMS02-03' => 10], ['order_number' => '30722']);
     $this->actingAs($this->specialist);
 
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'sales_invoice_number' => '1210000031492',
         'items' => [['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 1]],
     ]);
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'sales_invoice_number' => '1210000039999',
         'items' => [['purchase_order_item_id' => itemOf($other, 'UTMS02-03'), 'quantity_received' => 1]],
@@ -336,7 +378,7 @@ test('the deliveries page shows what arrived, what is still to come, and a deliv
     $arrived = orderWith(['UTMS04-01' => 5], ['order_number' => '30801']);
     $this->actingAs($this->specialist);
 
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'sales_invoice_number' => '1210000031492',
         'items' => [['purchase_order_item_id' => itemOf($arrived, 'UTMS04-01'), 'quantity_received' => 5]],
@@ -415,7 +457,7 @@ test('the school admin can only watch deliveries, not record them', function () 
 
     $this->get(route('deliveries.index'))->assertOk();
     $this->get(route('deliveries.create'))->assertForbidden();
-    $this->post(route('deliveries.store'), [])->assertForbidden();
+    $this->post(route('deliveries.store'), [...papers()])->assertForbidden();
     $this->post(route('purchase-orders.close', $order), [])->assertForbidden();
     $this->getJson(route('purchase-orders.show', $order))->assertOk()->assertJsonPath('delivery_status', 'awaiting');
 });

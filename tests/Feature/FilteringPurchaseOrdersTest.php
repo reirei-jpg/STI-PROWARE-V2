@@ -182,3 +182,31 @@ test('a date that is not a real date is refused', function () {
         ->get(route('purchase-orders.index', ['date_from' => 'yesterday']))
         ->assertSessionHasErrors(['date_from' => 'Choose a valid "From" date.']);
 });
+
+test('a day after today is refused, and a day that does not exist is not also called "To before From"', function () {
+    $tomorrow = now()->addDay()->toDateString();
+
+    foreach (['purchase-orders.index', 'deliveries.index'] as $list) {
+        $this->from(route($list))->get(route($list, ['date_from' => $tomorrow]))
+            ->assertSessionHasErrors(['date_from' => 'The "From" date cannot be after today.']);
+        $this->from(route($list))->get(route($list, ['date_to' => $tomorrow]))
+            ->assertSessionHasErrors(['date_to' => 'The "To" date cannot be after today.']);
+        $this->from(route($list))->get(route($list, ['date_from' => '2026-02-30', 'date_to' => '2026-03-01']))
+            ->assertSessionHasErrors(['date_from' => 'Choose a valid "From" date.']);
+        expect(session('errors')->keys())->toBe(['date_from']);
+        $this->from(route($list))->get(route($list, ['date_from' => '2026-09-30', 'date_to' => '2026-09-01']))
+            ->assertSessionHasErrors(['date_to' => 'The "To" date cannot be before the "From" date.']);
+    }
+
+    $this->from(route('sales-reports.index'))->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-02-30', 'date_to' => '2026-03-01']))
+        ->assertSessionHasErrors(['date_from' => 'Choose a valid "From" date.']);
+    expect(session('errors')->keys())->toBe(['date_from']);
+    $this->from(route('sales-reports.index'))->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-09-30', 'date_to' => '2026-09-01']))
+        ->assertSessionHasErrors(['date_to' => 'The "To" date cannot be before the "From" date.']);
+
+    $this->from(route('products.index'))->get(route('products.index', ['stock' => 'slow', 'slow' => 'range', 'slow_from' => '2026-02-30', 'slow_to' => '2026-03-01']))
+        ->assertSessionHasErrors(['slow_from' => 'Pick a valid From day.']);
+    expect(session('errors')->keys())->toBe(['slow_from']);
+    $this->from(route('products.index'))->get(route('products.index', ['stock' => 'slow', 'slow' => 'range', 'slow_from' => '2026-09-30', 'slow_to' => '2026-09-01']))
+        ->assertSessionHasErrors(['slow_to' => 'The To day cannot be before the From day.']);
+});

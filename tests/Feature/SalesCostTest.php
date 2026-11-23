@@ -46,7 +46,7 @@ function receivedJacketOrder(int $packs, int $pricePerPack): PurchaseOrder
         'unit_price_centavos' => $pricePerPack, 'amount_centavos' => $packs * $pricePerPack,
     ]])->create(['date_ordered' => now()->toDateString(), 'total_amount_centavos' => $packs * $pricePerPack]);
 
-    test()->actingAs(test()->specialist)->post(route('deliveries.store'), [
+    test()->actingAs(test()->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'UJKT01-02'), 'quantity_received' => $packs]],
     ])->assertSessionHasNoErrors();

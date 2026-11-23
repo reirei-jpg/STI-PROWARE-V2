@@ -22,6 +22,9 @@ import { formatConversion, formatUnits, unitWord } from '@/lib/format';
 import type { WaitingDeliveryGroup } from '@/lib/types';
 import { useDraft, useUnsavedChanges } from '@/lib/unsaved-changes';
 
+/** An SI # or DR #: letters, numbers, spaces, hyphens and slashes (as the server checks). */
+const PAPER_NUMBER = /^[A-Za-z0-9](?:[A-Za-z0-9 /-]*[A-Za-z0-9])?$/;
+
 /** '' counts as 0; anything but digits is not a number (null). */
 function wholeNumber(text: string | undefined): number | null {
     const trimmed = (text ?? '').trim();
@@ -38,7 +41,7 @@ const remainingOf = (group: WaitingDeliveryGroup): number =>
 
 /**
  * Record Delivery on the Specialist's phone, with the website's rules: SI #
- * and DR #, and how many of each waiting item arrived (it is received on the
+ * and DR # (required: they confirm the delivery), and how many of each waiting item arrived (it is received on the
  * day it is recorded). A total fills the oldest order first. Each Item Code is
  * one size or color, so a linked item goes into that one; the others are
  * recorded and wait to be linked on the website.
@@ -113,7 +116,16 @@ export default function RecordDeliveryScreen() {
         0,
     );
     const notLinked = receiving.filter((group) => group.stock_target === null).length;
-    const canSave = !saving && receiving.length > 0 && problems.length === 0;
+    // The SI # and DR # confirm the delivery: both required, in the website's words.
+    const paperProblem = (typed: string, label: 'SI #' | 'DR #', example: string): string | null =>
+        typed.trim() === '' || PAPER_NUMBER.test(typed.trim())
+            ? null
+            : `The ${label} may have only letters, numbers, spaces, hyphens and slashes, e.g. ${example}.`;
+    const salesInvoiceProblem = paperProblem(salesInvoice, 'SI #', 'SI-00123');
+    const deliveryReceiptProblem = paperProblem(deliveryReceipt, 'DR #', 'DR-04567');
+    const papersMissing = salesInvoice.trim() === '' || deliveryReceipt.trim() === '';
+    const papersWrong = salesInvoiceProblem !== null || deliveryReceiptProblem !== null;
+    const canSave = !saving && receiving.length > 0 && problems.length === 0 && !papersMissing && !papersWrong;
 
     const term = searchText.trim().toLowerCase().replace(/^#/, '');
     const visible = all.filter(
@@ -253,12 +265,34 @@ export default function RecordDeliveryScreen() {
                         <View className="gap-3 rounded-3xl border border-slate-200 bg-white p-4">
                             <View className="flex-row gap-2">
                                 <View className="flex-1 gap-1">
-                                    <Text className="font-sans-bold text-xs text-slate-600">SI # (Sales Invoice)</Text>
-                                    <Field value={salesInvoice} onChangeText={setSalesInvoice} maxLength={40} />
+                                    <Text className="font-sans-bold text-xs text-slate-600">
+                                        <RequiredLabel required={salesInvoice.trim() === ''}>SI # (Sales Invoice)</RequiredLabel>
+                                    </Text>
+                                    <Field
+                                        value={salesInvoice}
+                                        onChangeText={(value) => {
+                                            setSalesInvoice(value);
+                                            setError(null);
+                                        }}
+                                        maxLength={40}
+                                        autoCapitalize="characters"
+                                    />
+                                    {salesInvoiceProblem && <Text className="font-sans-semibold text-xs text-red-600">{salesInvoiceProblem}</Text>}
                                 </View>
                                 <View className="flex-1 gap-1">
-                                    <Text className="font-sans-bold text-xs text-slate-600">DR # (Delivery Receipt)</Text>
-                                    <Field value={deliveryReceipt} onChangeText={setDeliveryReceipt} maxLength={40} />
+                                    <Text className="font-sans-bold text-xs text-slate-600">
+                                        <RequiredLabel required={deliveryReceipt.trim() === ''}>DR # (Delivery Receipt)</RequiredLabel>
+                                    </Text>
+                                    <Field
+                                        value={deliveryReceipt}
+                                        onChangeText={(value) => {
+                                            setDeliveryReceipt(value);
+                                            setError(null);
+                                        }}
+                                        maxLength={40}
+                                        autoCapitalize="characters"
+                                    />
+                                    {deliveryReceiptProblem && <Text className="font-sans-semibold text-xs text-red-600">{deliveryReceiptProblem}</Text>}
                                 </View>
                             </View>
                             <View className="gap-1">
@@ -332,8 +366,10 @@ export default function RecordDeliveryScreen() {
                     className="gap-2 border-t border-slate-200 bg-white px-4 pt-3"
                 >
                     {error && <Text className="font-sans-semibold text-sm text-red-600">{error}</Text>}
-                    {problems.length > 0 ? (
+                    {problems.length > 0 || papersWrong ? (
                         <Text className="font-sans-bold text-xs text-red-600">Fix the boxes marked in red first.</Text>
+                    ) : papersMissing ? (
+                        <Text className="font-sans-bold text-xs text-amber-800">Enter the SI # and DR # from Head Office&apos;s papers.</Text>
                     ) : (
                         receiving.length === 0 && (
                             <Text className="font-sans-bold text-xs text-amber-800">

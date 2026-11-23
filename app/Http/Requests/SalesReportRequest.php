@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * The Sales Reports filters, read from the page address: the period
@@ -27,8 +28,8 @@ class SalesReportRequest extends FormRequest
     {
         return [
             'period' => ['nullable', Rule::in(self::PERIODS)],
-            'date_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', Rule::requiredIf($this->input('period') === 'custom')],
-            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from', 'before_or_equal:today', Rule::requiredIf($this->input('period') === 'custom')],
+            'date_from' => ['bail', Rule::requiredIf($this->input('period') === 'custom'), 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'date_to' => ['bail', Rule::requiredIf($this->input('period') === 'custom'), 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
             'search' => ['nullable', 'string', 'max:120'],
             'tab' => ['nullable', Rule::in(self::TABS)],
             'details' => ['nullable', 'integer'],
@@ -64,12 +65,32 @@ class SalesReportRequest extends FormRequest
             'date_to.required' => 'Choose the "To" date.',
             'date_from.date_format' => 'Choose a valid "From" date.',
             'date_to.date_format' => 'Choose a valid "To" date.',
-            'date_to.after_or_equal' => 'The "To" date cannot be before the "From" date.',
             'date_from.before_or_equal' => 'The "From" date cannot be after today.',
             'date_to.before_or_equal' => 'The "To" date cannot be after today.',
             // e.g. an old link to the Prices tab, now part of Sales.
             'tab.in' => 'Choose Purchases, Sales, Top Sellers or Free Uniforms. Prices are on Sales.',
             'only.in' => 'That list does not exist. Sales is shown with all products.',
+        ];
+    }
+
+    /**
+     * "To before From" is checked only once both days are valid, so a wrong
+     * day is not also reported as "To before From".
+     *
+     * @return array<int, \Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->has('date_from') || $validator->errors()->has('date_to') || ! $this->filled('date_from') || ! $this->filled('date_to')) {
+                    return;
+                }
+
+                if ((string) $this->input('date_to') < (string) $this->input('date_from')) {
+                    $validator->errors()->add('date_to', 'The "To" date cannot be before the "From" date.');
+                }
+            },
         ];
     }
 

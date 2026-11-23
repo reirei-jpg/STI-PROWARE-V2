@@ -12,6 +12,9 @@ type DeliveryForm = {
     quantities: Record<number, string>;
 };
 
+/** An SI # or DR #: letters, numbers, spaces, hyphens and slashes (as the server checks). */
+const PAPER_NUMBER = /^[A-Za-z0-9](?:[A-Za-z0-9 /-]*[A-Za-z0-9])?$/;
+
 /**
  * "" → 0, "12" → 12, anything that is not a whole number → null.
  */
@@ -104,6 +107,39 @@ export function useRecordDelivery(
 
     const hasProblems = rows.some((row) => rowProblem(row) !== null);
 
+    /**
+     * The SI # and DR # confirm the delivery, so both are required: empty
+     * keeps Save off (with "* required"); a wrong character is said at once.
+     */
+    const paperProblem = (
+        field: 'sales_invoice_number' | 'delivery_receipt_number',
+    ): string | null => {
+        const typed = data[field].trim();
+
+        if (typed === '' || PAPER_NUMBER.test(typed)) {
+            return null;
+        }
+
+        return field === 'sales_invoice_number'
+            ? 'The SI # may have only letters, numbers, spaces, hyphens and slashes, e.g. SI-00123.'
+            : 'The DR # may have only letters, numbers, spaces, hyphens and slashes, e.g. DR-04567.';
+    };
+    const papersMissing =
+        data.sales_invoice_number.trim() === '' ||
+        data.delivery_receipt_number.trim() === '';
+    const papersWrong =
+        paperProblem('sales_invoice_number') !== null ||
+        paperProblem('delivery_receipt_number') !== null;
+
+    /** Typing a paper number again clears the server's refusal of the old one. */
+    const setPaper = (
+        field: 'sales_invoice_number' | 'delivery_receipt_number',
+        value: string,
+    ) => {
+        setData(field, value);
+        form.clearErrors(field);
+    };
+
     // What saving adds to stock, in pieces, and how many typed items are
     // not linked to a product (recorded, but not added to stock).
     const piecesIntoStock = groups.reduce(
@@ -183,6 +219,10 @@ export function useRecordDelivery(
         groupReceivedNow,
         remainingOf,
         hasProblems,
+        paperProblem,
+        papersMissing,
+        papersWrong,
+        setPaper,
         piecesIntoStock,
         notLinkedReceived,
         setRowQuantity,

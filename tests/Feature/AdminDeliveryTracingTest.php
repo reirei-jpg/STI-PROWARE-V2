@@ -31,7 +31,7 @@ test('the school admin is told when a delivery completes an order, not about eve
     Notification::fake();
     $order = orderWith(['PRUM01-01' => 20, 'PRHD01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-10-05']);
 
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [
             ['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 20],
@@ -41,7 +41,7 @@ test('the school admin is told when a delivery completes an order, not about eve
 
     Notification::assertNothingSent();
 
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRHD01-01'), 'quantity_received' => 8]],
     ])->assertSessionHasNoErrors();
@@ -64,7 +64,7 @@ test('the school admin is told once when an order is not complete after the foll
     Notification::fake();
     $late = orderWith(['PRUM01-01' => 20], ['order_number' => '30801', 'date_ordered' => '2026-09-08']);
     orderWith(['PRHD01-01' => 20], ['order_number' => '30802', 'date_ordered' => '2026-09-09']);
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [['purchase_order_item_id' => itemOf($late, 'PRUM01-01'), 'quantity_received' => 5]],
     ]);
@@ -108,7 +108,7 @@ test('the school admin is told when an order is closed short, with the reason', 
 
 test('opening an order completed notice opens that purchase order', function () {
     $order = orderWith(['PRUM01-01' => 20]);
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 20]],
     ]);
@@ -126,7 +126,7 @@ test('the school admin dashboard shows the orders in Coming, Ongoing and Complet
 
     $this->actingAs($this->specialist);
     $this->travelTo(CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila'));
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [
             ['purchase_order_item_id' => itemOf($ongoing, 'PRHD01-01'), 'quantity_received' => 12],
@@ -198,7 +198,7 @@ test('the school admin searches by Order #, and the tab counts show which tab it
     orderWith(['PRUM01-01' => 20], ['order_number' => '30801']);
     $partial = orderWith(['PRHD01-01' => 20], ['order_number' => '30802']);
     orderWith(['PRJK01-01' => 20], ['order_number' => '30912']);
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [['purchase_order_item_id' => itemOf($partial, 'PRHD01-01'), 'quantity_received' => 5]],
     ]);
@@ -227,7 +227,7 @@ test('an order\'s details give the date and time of each delivery and of its com
     $this->actingAs($this->specialist);
 
     $this->travelTo(CarbonImmutable::parse('2026-10-08 09:00', 'Asia/Manila'));
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 20]],
     ])->assertSessionHasNoErrors();
@@ -239,7 +239,7 @@ test('an order\'s details give the date and time of each delivery and of its com
         ->assertJsonPath('completed_at', null);
 
     $this->travelTo(CarbonImmutable::parse('2026-10-09 14:30', 'Asia/Manila'));
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-09',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRHD01-01'), 'quantity_received' => 10]],
     ])->assertSessionHasNoErrors();
@@ -418,7 +418,7 @@ test('a page the account cannot open shows PROWARE\'s error page with a way back
 
 test('the school admin sees every delivery, but cannot record one', function () {
     $order = orderWith(['PRUM01-01' => 20], ['order_number' => '30801']);
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 5]],
     ]);

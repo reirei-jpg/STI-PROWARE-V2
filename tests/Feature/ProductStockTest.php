@@ -26,6 +26,7 @@ beforeEach(function () {
 function deliveryOf(PurchaseOrder $order, string $code, int $quantity): array
 {
     return [
+        ...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, $code), 'quantity_received' => $quantity]],
     ];
@@ -114,7 +115,7 @@ test('the message after saving lists what went into stock and what did not', fun
     $order = orderWith(['UTMP02-03' => 10, 'SSIF001-001' => 3000, 'SSRF001-001' => 500]);
 
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'items' => [
                 ['purchase_order_item_id' => itemOf($order, 'UTMP02-03'), 'quantity_received' => 3],
@@ -132,7 +133,7 @@ test('the deliveries list shows the pieces each delivery added to stock', functi
     ProductVariant::factory()->for($product)->create(['estore_item_code' => 'PRLY01-01', 'estore_pack_id' => $pack->id]);
     $order = orderWith(['PRLY01-01' => 5, 'SSIF001-001' => 3000]);
 
-    $this->actingAs($this->specialist)->post(route('deliveries.store'), [
+    $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [
             ['purchase_order_item_id' => itemOf($order, 'PRLY01-01'), 'quantity_received' => 2],

@@ -168,7 +168,7 @@ test('a delivery to a sold-out product makes it NEW again, but not one to a prod
     $lanyard->variants()->sole()->forceFill(['estore_item_code' => 'PRLY01-01'])->save();
     $order = orderWith(['PRUM01-01' => 10, 'PRLY01-01' => 10]);
 
-    $this->actingAs(User::factory()->specialist()->create())->post(route('deliveries.store'), [
+    $this->actingAs(User::factory()->specialist()->create())->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [
             ['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 10],

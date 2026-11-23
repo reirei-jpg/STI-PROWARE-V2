@@ -148,7 +148,7 @@ test('the stock history lists every change, newest first, with how it happened',
     $order = orderWith(['PRCU01-01' => 50], ['order_number' => '30722']);
     $this->actingAs($this->specialist);
 
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'sales_invoice_number' => '1210000031492',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRCU01-01'), 'quantity_received' => 45]],

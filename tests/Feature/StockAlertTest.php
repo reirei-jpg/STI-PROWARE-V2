@@ -65,7 +65,7 @@ test('a Coming Soon product that arrives at or below the low-stock number warns 
     $order = orderWith(['PRIS26-01' => 20]);
     $this->actingAs($this->specialist);
 
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRIS26-01'), 'quantity_received' => 2]],
     ])->assertSessionHasNoErrors();
@@ -83,7 +83,7 @@ test('pieces set aside for paid preorders at a delivery count as gone for the lo
     $this->actingAs($this->specialist);
 
     // 8 arrive, 4 are held for the preorder: 4 free, at or below 5.
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRCU01-01'), 'quantity_received' => 8]],
     ])->assertSessionHasNoErrors();
@@ -98,7 +98,7 @@ test('after a delivery brings the stock back up, the next drop warns again', fun
     $this->actingAs($this->specialist);
 
     takeOut($variant, 2);
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRCU01-01'), 'quantity_received' => 10]],
     ]);
@@ -121,7 +121,7 @@ test('after the warned pieces were sold, a smaller delivery still lets the next 
     $variant->refresh()->forceFill(['stock_on_hand' => 4, 'held_pieces' => 0])->save();
 
     // 5 arrive: 9 on the shelf, fewer than the 10 when it was warned.
-    $this->post(route('deliveries.store'), [
+    $this->post(route('deliveries.store'), [...papers(),
         'received_on' => now()->toDateString(),
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRCU01-01'), 'quantity_received' => 5]],
     ])->assertSessionHasNoErrors();

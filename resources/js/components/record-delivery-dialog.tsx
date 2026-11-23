@@ -67,7 +67,7 @@ function orderSummary(waiting: WaitingItems): string {
 
 /**
  * Stock In for one purchase order, as a popup over the page it was opened
- * from: what arrived first, then the optional delivery papers, and a live
+ * from: the delivery papers (SI # and DR #, required), what arrived, and a live
  * line saying what saving will do.
  */
 export default function RecordDeliveryDialog({
@@ -182,7 +182,7 @@ export default function RecordDeliveryDialog({
 }
 
 /**
- * On top: SI #, DR # and a note, all optional.
+ * On top: SI # and DR # (required: they confirm the delivery) and a note.
  * What arrived: this order's items with a Received now box each.
  * Then the live summary with Save.
  */
@@ -216,6 +216,10 @@ function DeliveryForm({
         totalReceived,
         groupReceivedNow,
         hasProblems,
+        paperProblem,
+        papersMissing,
+        papersWrong,
+        setPaper,
         notLinkedReceived,
         setRowQuantity,
         fillAll,
@@ -294,19 +298,31 @@ function DeliveryForm({
                 <section className="border-b border-slate-200 bg-slate-50/60 px-6 py-5">
                     <div className="grid gap-4 sm:grid-cols-3">
                         <Field
-                            label="SI # (Sales Invoice)"
-                            error={errors.sales_invoice_number}
+                            label={
+                                <RequiredLabel
+                                    required={
+                                        data.sales_invoice_number.trim() === ''
+                                    }
+                                >
+                                    SI # (Sales Invoice)
+                                </RequiredLabel>
+                            }
+                            error={
+                                paperProblem('sales_invoice_number') ??
+                                errors.sales_invoice_number
+                            }
                         >
                             <input
                                 value={data.sales_invoice_number}
                                 onChange={(event) =>
-                                    setData(
+                                    setPaper(
                                         'sales_invoice_number',
                                         event.target.value,
                                     )
                                 }
                                 maxLength={40}
                                 placeholder="e.g. 1210000031492"
+                                data-test="sales-invoice-number"
                                 className={cn(
                                     deliveryInputClasses,
                                     'font-mono',
@@ -314,18 +330,32 @@ function DeliveryForm({
                             />
                         </Field>
                         <Field
-                            label="DR # (Delivery Receipt)"
-                            error={errors.delivery_receipt_number}
+                            label={
+                                <RequiredLabel
+                                    required={
+                                        data.delivery_receipt_number.trim() ===
+                                        ''
+                                    }
+                                >
+                                    DR # (Delivery Receipt)
+                                </RequiredLabel>
+                            }
+                            error={
+                                paperProblem('delivery_receipt_number') ??
+                                errors.delivery_receipt_number
+                            }
                         >
                             <input
                                 value={data.delivery_receipt_number}
                                 onChange={(event) =>
-                                    setData(
+                                    setPaper(
                                         'delivery_receipt_number',
                                         event.target.value,
                                     )
                                 }
                                 maxLength={40}
+                                placeholder="e.g. 0000045671"
+                                data-test="delivery-receipt-number"
                                 className={cn(
                                     deliveryInputClasses,
                                     'font-mono',
@@ -426,9 +456,17 @@ function DeliveryForm({
             <footer className="flex flex-col gap-3 border-t border-slate-200 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 space-y-1 text-sm">
                     {/* What saving adds shows only once the numbers can be saved. */}
-                    {hasProblems ? (
+                    {hasProblems || papersWrong ? (
                         <p className="font-bold text-red-600">
                             Fix the boxes marked in red first.
+                        </p>
+                    ) : papersMissing ? (
+                        <p
+                            data-test="papers-missing"
+                            className="font-bold text-amber-800"
+                        >
+                            Enter the SI # and DR # from Head Office&apos;s
+                            papers.
                         </p>
                     ) : totalReceived === 0 ? (
                         <p className="font-bold text-amber-800">
@@ -491,7 +529,11 @@ function DeliveryForm({
                     <button
                         type="submit"
                         disabled={
-                            processing || totalReceived === 0 || hasProblems
+                            processing ||
+                            totalReceived === 0 ||
+                            hasProblems ||
+                            papersMissing ||
+                            papersWrong
                         }
                         className="inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         data-test="save-delivery-popup-button"
@@ -626,7 +668,7 @@ function Field({
     error,
     children,
 }: {
-    label: string;
+    label: ReactNode;
     error?: string;
     children: ReactNode;
 }) {

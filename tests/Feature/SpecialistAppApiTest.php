@@ -144,7 +144,7 @@ test('the Specialist records a delivery on the app and the stock and order follo
         ->create(['estore_item_code' => 'PRUM01-01', 'stock_on_hand' => 0]);
     Sanctum::actingAs(User::factory()->specialist()->create());
 
-    $this->postJson(route('api.v1.specialist.deliveries.store'), [
+    $this->postJson(route('api.v1.specialist.deliveries.store'), [...papers(),
         'received_on' => '2026-10-04',
         'sales_invoice_number' => 'SI-1001',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 6]],
@@ -161,7 +161,7 @@ test('recording a delivery on the app refuses more than what is left, in the web
     $order = orderWith(['PRUM01-01' => 10], ['order_number' => '30801']);
     Sanctum::actingAs(User::factory()->specialist()->create());
 
-    $this->postJson(route('api.v1.specialist.deliveries.store'), [
+    $this->postJson(route('api.v1.specialist.deliveries.store'), [...papers(),
         'received_on' => '2026-10-04',
         'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 11]],
     ])->assertJsonValidationErrors(['items.0.quantity_received' => 'Only 10 left to receive for Order #30801.']);

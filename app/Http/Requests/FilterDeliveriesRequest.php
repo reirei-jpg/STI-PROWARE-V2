@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * The filters on the Deliveries page, read from the page address: which
@@ -30,8 +31,8 @@ class FilterDeliveriesRequest extends FormRequest
         return [
             'show' => ['nullable', Rule::in([...self::RECEIVED, ...self::WAITING])],
             'search' => ['nullable', 'string', 'max:40'],
-            'date_from' => ['nullable', 'date_format:Y-m-d'],
-            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'date_from' => ['bail', 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'date_to' => ['bail', 'nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
             'details' => ['nullable', 'integer'],
         ];
     }
@@ -57,7 +58,29 @@ class FilterDeliveriesRequest extends FormRequest
         return [
             'date_from.date_format' => 'Choose a valid "From" date.',
             'date_to.date_format' => 'Choose a valid "To" date.',
-            'date_to.after_or_equal' => 'The "To" date cannot be before the "From" date.',
+            'date_from.before_or_equal' => 'The "From" date cannot be after today.',
+            'date_to.before_or_equal' => 'The "To" date cannot be after today.',
+        ];
+    }
+
+    /**
+     * "To before From" is checked only once both days are valid, so a wrong
+     * day is not also reported as "To before From".
+     *
+     * @return array<int, \Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->has('date_from') || $validator->errors()->has('date_to') || ! $this->filled('date_from') || ! $this->filled('date_to')) {
+                    return;
+                }
+
+                if ((string) $this->input('date_to') < (string) $this->input('date_from')) {
+                    $validator->errors()->add('date_to', 'The "To" date cannot be before the "From" date.');
+                }
+            },
         ];
     }
 

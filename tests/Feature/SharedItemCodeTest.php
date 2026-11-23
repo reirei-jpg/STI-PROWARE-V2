@@ -39,7 +39,7 @@ test('a code is linked to one color only, and what already arrived goes into tha
     [$black, $red, $navy] = $colors->all();
     $order = orderWith(['PRUM01-01' => 20]);
     $this->actingAs($this->specialist)
-        ->post(route('deliveries.store'), [
+        ->post(route('deliveries.store'), [...papers(),
             'received_on' => now()->toDateString(),
             'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 12]],
         ])
