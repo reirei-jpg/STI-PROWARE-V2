@@ -2,11 +2,15 @@
 
 use App\Enums\PreorderStatus;
 use App\Enums\ProductStatus;
+use App\Models\Payment;
 use App\Models\Preorder;
 use App\Models\PreorderSlip;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Notifications\PaymentRecorded;
+use App\Notifications\PaymentUndone;
+use App\Notifications\PaymentUndoneForStaff;
 use App\Notifications\PreorderPaid;
 use App\Services\Preorders\EarlyBird;
 use Carbon\CarbonImmutable;
@@ -66,24 +70,24 @@ test('the cashier scans the slip and marks it paid; the buyer is told and the sl
     $cashier = User::factory()->cashier()->create(['name' => 'Cashier 1']);
     $this->actingAs($cashier);
 
-    $this->get(route('cashier.index', ['code' => $slip->code]))->assertInertia(fn (Assert $page) => $page
-        ->component('cashier/index')
+    $this->get(route('cashier.record', ['code' => $slip->code]))->assertInertia(fn (Assert $page) => $page
+        ->component('cashier/record')
         ->where('result.kind', 'preorder')
         ->where('result.slip.number', $slip->number)
         ->where('result.to_collect_centavos', 205000)
         ->where('result.can_mark_paid', true));
 
-    $this->post(route('cashier.preorder-slips.paid', $slip))
+    $this->post(route('cashier.preorder-slips.paid', $slip), paidInCash())
         ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number}: payment of ₱2,050.00 from Juan Dela Cruz has been recorded.");
 
     expect($slip->refresh())->paid_centavos->toBe(205000)->paid_by->toBe($cashier->id);
     Notification::assertSentTo($this->buyer, PreorderPaid::class, fn (PreorderPaid $notice): bool => $notice->toPush($this->buyer)['body']
-        === '₱2,050.00 paid. Keep your preorder slip as proof of payment.');
+        === '₱2,050.00 paid (Payment Receipt '.Payment::sole()->receipt_number.'). Keep your preorder slip and receipt as proof of payment.');
 
     // Not twice; the number typed in finds it too; it is in today's payments.
-    $this->post(route('cashier.preorder-slips.paid', $slip))
+    $this->post(route('cashier.preorder-slips.paid', $slip), paidInCash())
         ->assertInertiaFlash('toast.message', "Preorder slip {$slip->number} has already been paid (recorded by Cashier 1 on Nov 14, 2026, 10:00 AM).");
-    $this->get(route('cashier.index', ['code' => strtolower((string) $slip->number)]))
+    $this->get(route('cashier.record', ['code' => strtolower((string) $slip->number)]))
         ->assertInertia(fn (Assert $page) => $page
             ->where('result.slip.status', 'paid')
             ->where('result.can_mark_paid', false)
@@ -93,13 +97,13 @@ test('the cashier scans the slip and marks it paid; the buyer is told and the sl
     // The Specialist sees it paid, and can no longer mark slips paid.
     $this->actingAs($this->specialist)->get(route('orders.slip', ['code' => $slip->code]))
         ->assertInertia(fn (Assert $page) => $page->where('preorderResult.slip.status', 'paid'));
-    $this->post(route('cashier.preorder-slips.paid', $slip))->assertForbidden();
+    $this->post(route('cashier.preorder-slips.paid', $slip), paidInCash())->assertForbidden();
 });
 
 test('a paid preorder can no longer be changed or cancelled, and keeps the price it was paid at', function () {
     $slip = preorderThreeHoodies();
     $preorder = Preorder::sole();
-    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $slip));
+    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $slip), paidInCash());
 
     $this->actingAs($this->buyer)->delete(route('my-preorders.destroy', $preorder))
         ->assertInertiaFlash('toast.message', 'You already paid for your preorder of STI Batch 2027 Hoodie, so it can no longer be cancelled. There is no refund.');
@@ -126,15 +130,43 @@ test('on the phone the buyer sees the slip and the cashier marks it paid', funct
 
     Sanctum::actingAs(User::factory()->cashier()->create());
     $this->getJson(route('api.v1.cashier.slip', ['code' => $slip->code]))->assertOk()->assertJsonPath('kind', 'preorder')->assertJsonPath('can_mark_paid', true)->assertJsonPath('to_collect_centavos', 205000);
-    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertOk()->assertJsonPath('message', "Preorder slip {$slip->number}: payment of ₱2,050.00 from Juan Dela Cruz has been recorded.");
-    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertUnprocessable();
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip), paidInCash())->assertOk()->assertJsonPath('message', "Preorder slip {$slip->number}: payment of ₱2,050.00 from Juan Dela Cruz has been recorded.");
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip), paidInCash())->assertUnprocessable();
 
     // Only the cashier marks slips paid: not the buyer, not the Specialist.
     Sanctum::actingAs($this->buyer);
-    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertForbidden();
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip), paidInCash())->assertForbidden();
     Sanctum::actingAs($this->specialist);
-    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip))->assertForbidden();
-    $this->actingAs($this->buyer)->post(route('cashier.preorder-slips.paid', $slip))->assertForbidden();
+    $this->postJson(route('api.v1.cashier.preorder-slips.paid', $slip), paidInCash())->assertForbidden();
+    $this->actingAs($this->buyer)->post(route('cashier.preorder-slips.paid', $slip), paidInCash())->assertForbidden();
+});
+
+test('the Specialist is told of a preorder payment, and the cashier can undo it the same day before the items arrive', function () {
+    Notification::fake();
+    $slip = preorderThreeHoodies();
+    $cashier = User::factory()->cashier()->create(['name' => 'Cashier 1']);
+    $this->actingAs($cashier)->post(route('cashier.preorder-slips.paid', $slip), paidInCash());
+
+    Notification::assertSentTo($this->specialist, PaymentRecorded::class, fn (PaymentRecorded $notice): bool => $notice->toPush($this->specialist)['title'] === "Paid: {$slip->number} · Juan Dela Cruz"
+        && $notice->toPush($this->specialist)['body'] === '₱2,050.00 paid. The items are released once they arrive.');
+
+    $receipt = Payment::sole()->receipt_number;
+    $this->get(route('cashier.record', ['code' => $slip->number]))->assertInertia(fn (Assert $page) => $page->where('result.can_undo', true));
+    $this->post(route('cashier.preorder-slips.undo-payment', $slip), ['reason' => 'Recorded on the wrong slip.'])
+        ->assertInertiaFlash('toast.message', "The payment for preorder slip {$slip->number} (₱2,050.00 from Juan Dela Cruz) has been undone. Payment Receipt {$receipt} has been voided, and the slip is waiting for payment again.");
+
+    expect($slip->refresh())->paid_at->toBeNull()->paid_by->toBeNull()->paid_centavos->toBeNull()
+        ->and(Payment::sole())->preorder_slip_id->toBe($slip->id)->amount_centavos->toBe(205000)->isVoid()->toBeTrue();
+    Notification::assertSentTo($this->buyer, PaymentUndone::class, fn (PaymentUndone $notice): bool => $notice->toPush($this->buyer)['body']
+        === 'The cashier undid your ₱2,050.00 payment (Payment Receipt '.$receipt.' is void): Recorded on the wrong slip. Pay at the cashier again with your preorder slip.');
+    Notification::assertSentTo($this->specialist, PaymentUndoneForStaff::class);
+
+    // Paid again, then its items arrive: the payment can no longer be undone.
+    $this->post(route('cashier.preorder-slips.paid', $slip), paidInCash());
+    Preorder::sole()->forceFill(['status' => PreorderStatus::Held])->save();
+    $this->post(route('cashier.preorder-slips.undo-payment', $slip), ['reason' => 'Recorded by mistake.'])
+        ->assertInertiaFlash('toast.message', "The items for preorder slip {$slip->number} have already arrived, so its payment can no longer be undone.");
+    expect($slip->refresh()->isPaid())->toBeTrue();
 });
 
 test('a slip asks only for the preorders still waiting, not one already ordered and paid as an order', function () {

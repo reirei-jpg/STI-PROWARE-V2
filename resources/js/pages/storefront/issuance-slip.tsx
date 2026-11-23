@@ -6,6 +6,7 @@ import {
     Clock,
     LoaderCircle,
     Printer,
+    ReceiptText,
     X,
     XCircle,
 } from 'lucide-react';
@@ -28,25 +29,27 @@ import {
 import { formatDateOrdered, formatPeso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
-import type { IssuanceSlipData } from '@/types';
+import type { IssuanceSlipData, ReceiptLink } from '@/types';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { confirmLeave } from '@/lib/back-guard';
 
 /**
  * The order's own page, opened from My Orders or right after Place Order:
- * its issuance slip to show (on the phone or printed) at the PROWARE
- * office, where the Specialist scans its QR, the student pays, and the
- * items are released. Above it, what to do next in V1's colors: amber
- * waiting, green ready or released, red cancelled. Below it, Cancel while
- * the office has not prepared the order yet.
+ * its issuance slip to show (on the phone or printed) at the cashier, who
+ * records the payment, and at the PROWARE office, where the items are
+ * released. Above it, what to do next in V1's colors: amber waiting, blue
+ * paid, green released, red cancelled. Below it, Cancel until it is paid.
  */
 export default function StudentIssuanceSlip({
     slip,
     canCancel,
+    receipt,
 }: {
     slip: IssuanceSlipData;
     /** True while the order is not released or cancelled yet. */
     canCancel: boolean;
+    /** The cashier's Payment Receipt, once paid. */
+    receipt: ReceiptLink | null;
 }) {
     // While the order is open the page checks it every 10 seconds, so once
     // the office releases it the Cancel button is gone by itself, without
@@ -100,6 +103,18 @@ export default function StudentIssuanceSlip({
                                 ? 'Back to the store'
                                 : 'Back to My Orders'}
                         </Link>
+                        {receipt && (
+                            <Link
+                                href={StudentOrderController.receipt(
+                                    receipt.id,
+                                )}
+                                className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100"
+                            >
+                                <ReceiptText size={17} />
+                                Payment Receipt
+                                {receipt.void ? ' (VOID)' : ''}
+                            </Link>
+                        )}
                         {slip.status !== 'cancelled' && (
                             <a
                                 href={
@@ -129,7 +144,7 @@ export default function StudentIssuanceSlip({
 }
 
 /**
- * Cancel while the office has not prepared the order yet: Cancel order
+ * Cancel until the order is paid: Cancel order
  * opens a pop-up to pick why, like in online shops (Other asks to write
  * why), so the PROWARE office knows.
  */
@@ -150,8 +165,8 @@ function CancelOrder({ slip }: { slip: IssuanceSlipData }) {
     return (
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-sm text-slate-600">
-                Changed your mind? You can cancel while the office has not
-                prepared it yet.
+                Changed your mind? You can cancel the order until you pay for
+                it.
             </p>
             <button
                 type="button"

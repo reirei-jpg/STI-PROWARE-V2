@@ -56,7 +56,7 @@ export default function OrderItemsList({
             ))}
             <View className="flex-row items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
                 <Text className="font-sans-bold text-sm text-slate-600">
-                    {order.status === 'picked_up'
+                    {order.status === 'picked_up' || order.status === 'paid'
                         ? 'Total paid at the cashier'
                         : order.status === 'cancelled'
                           ? 'Order total'

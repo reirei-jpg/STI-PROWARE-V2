@@ -326,7 +326,16 @@ export type StudentNotificationData =
           total_centavos: number;
           pick_up_by: string | null;
       }
-    | { kind: 'order_paid'; order_id: number; order_number: string; items: string; total_centavos: number; short?: string | null }
+    | {
+          kind: 'order_paid';
+          order_id: number;
+          order_number: string;
+          items: string;
+          total_centavos: number;
+          short?: string | null;
+          payment_id?: number | null;
+          receipt_number?: string | null;
+      }
     | { kind: 'order_released'; order_id: number; order_number: string; items: string; short?: string | null }
     | {
           kind: 'order_last_day';
@@ -365,6 +374,8 @@ export type StudentNotificationData =
           product_id: number;
           product_name: string;
           paid_centavos: number | null;
+          payment_id?: number | null;
+          receipt_number?: string | null;
       }
     | {
           kind: 'product_announced';
@@ -450,6 +461,33 @@ export type StudentNotificationData =
           student_name: string;
           total_centavos: number;
           items_count: number;
+      }
+    // The cashier recorded a payment: an order to release, or a preorder slip.
+    | {
+          kind: 'payment_recorded';
+          order_id: number | null;
+          preorder_slip_id: number | null;
+          number: string | null;
+          buyer_name: string;
+          amount_centavos: number;
+      }
+    // A paid order or slip is awaiting payment again (to the Specialist; no cashier details).
+    | {
+          kind: 'payment_undone_staff';
+          order_id: number | null;
+          preorder_slip_id: number | null;
+          number: string | null;
+          buyer_name: string;
+      }
+    // The cashier undid the buyer's payment recorded by mistake (to the buyer).
+    | {
+          kind: 'payment_undone';
+          order_id: number | null;
+          slip_id: number | null;
+          items: string;
+          amount_centavos: number;
+          reason: string;
+          receipt_number?: string | null;
       }
     | {
           kind: 'low_stock';
@@ -559,8 +597,6 @@ export type OrderCardKey = 'waiting' | 'paid' | 'released_today';
 /** A student's order on the Specialist's list. */
 export type SpecialistOrder = Omit<StudentOrder, 'can_cancel'> & {
     handled_by: string | null;
-    /** The cashier who took the payment. */
-    paid_to?: string | null;
 };
 
 /** A scanned slip (or typed order number): the order, its slip, and the student's other open orders. */
@@ -715,10 +751,109 @@ export type CashierLookup = {
     to_collect_centavos: number | null;
     /** What is no longer left, so not charged. */
     short: string[];
+    /** Paid today and not released (or its items not arrived): Undo payment. */
+    can_undo: boolean;
+    /** Its Payment Receipt, once paid. */
+    receipt: ReceiptLink | null;
 };
 
-/** What this cashier collected today. */
+/** Today's payments (every receipt issued today); a void one is listed but not in the total. */
 export type CashierPaidToday = {
-    rows: { kind: 'order' | 'preorder'; number: string | null; buyer: string; amount_centavos: number; paid_at: string | null }[];
+    rows: PaymentRow[];
     total_centavos: number;
+};
+
+/** One payment as the cashier's lists show it (a Payment Receipt). */
+export type PaymentRow = {
+    id: number;
+    /** "RCT-2026-000001" */
+    receipt_number: string | null;
+    kind: 'order' | 'preorder';
+    number: string | null;
+    buyer_name: string;
+    buyer_id: string | null;
+    is_staff: boolean;
+    amount_centavos: number;
+    method: 'cash' | 'gcash';
+    method_label: string;
+    amount_received_centavos: number | null;
+    change_centavos: number | null;
+    gcash_reference: string | null;
+    paid_at: string;
+    cashier: string | null;
+    void: boolean;
+    voided_at: string | null;
+    voided_by: string | null;
+    void_reason: string | null;
+    released: boolean;
+};
+
+/** A Payment Receipt as issued. */
+export type PaymentReceipt = {
+    school: string;
+    address_lines: string[];
+    row: PaymentRow;
+    for_label: string;
+    section: string | null;
+    lines: { quantity: number; item: string; unit_price_centavos: number; amount_centavos: number }[];
+    prints: number;
+    note: string;
+};
+
+/** The link to a slip's Payment Receipt (the standing one, else the latest void one). */
+export type ReceiptLink = { id: number; receipt_number: string | null; void?: boolean };
+
+/** What payments add up to: the standing ones by method, the void ones apart. */
+export type PaymentTotals = {
+    count: number;
+    total_centavos: number;
+    cash_count: number;
+    cash_centavos: number;
+    gcash_count: number;
+    gcash_centavos: number;
+    void_count: number;
+    void_centavos: number;
+};
+
+/** A slip awaiting payment. */
+export type AwaitingRow = {
+    kind: 'order' | 'preorder';
+    id: number;
+    number: string | null;
+    buyer_name: string;
+    buyer_id: string | null;
+    is_staff: boolean;
+    for: string;
+    amount_centavos: number;
+    since: string | null;
+    pay_until: string | null;
+};
+
+/** What the cashier sees on opening the app. */
+export type CashierDashboard = {
+    today: PaymentTotals;
+    awaiting: { orders: number; slips: number; total_centavos: number };
+    latest: PaymentRow[];
+    oldest_awaiting: AwaitingRow[];
+};
+
+export type PaymentFilters = {
+    period: 'today' | 'week' | 'month' | 'custom';
+    date_from: string;
+    date_to: string;
+    method: '' | 'cash' | 'gcash';
+    type: '' | 'order' | 'preorder';
+    status: '' | 'paid' | 'void';
+    search: string;
+    group: 'day' | 'month';
+};
+
+export type CollectionRow = {
+    period: string;
+    label: string;
+    count: number;
+    total_centavos: number;
+    cash_centavos: number;
+    gcash_centavos: number;
+    void_count: number;
 };

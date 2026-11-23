@@ -121,13 +121,12 @@ class PlaceOrder
     }
 
     /**
-     * "Order PW-0001 has been placed. Pay at the cashier, then show the receipt and
-     * its issuance slip at the PROWARE office by Oct 7, 2026 to collect your
-     * items." (website and phone app).
+     * "Order PW-0001 has been placed. Pay at the cashier with its issuance
+     * slip, then claim your items at the PROWARE office." (website and phone app).
      */
     public static function message(Order $order): string
     {
-        return "Order {$order->number} has been placed. Pay at the cashier, then show the receipt and its issuance slip at the PROWARE office to collect your items. First to pay, first served.";
+        return "Order {$order->number} has been placed. Pay at the cashier with its issuance slip, then claim your items at the PROWARE office. First to pay, first served.";
     }
 
     /**

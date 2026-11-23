@@ -3,16 +3,20 @@ import {
     Banknote,
     CalendarClock,
     ClipboardList,
+    Clock,
     FileScan,
     Gift,
     LayoutDashboard,
     Package,
+    ReceiptText,
     Settings,
     ShoppingBag,
     TrendingUp,
     Truck,
+    Wallet,
 } from 'lucide-react';
 import CashierController from '@/actions/App/Http/Controllers/CashierController';
+import CashierRecordsController from '@/actions/App/Http/Controllers/CashierRecordsController';
 import DeliveryController from '@/actions/App/Http/Controllers/DeliveryController';
 import FreeUniformController from '@/actions/App/Http/Controllers/FreeUniformController';
 import MaintenanceController from '@/actions/App/Http/Controllers/MaintenanceController';
@@ -27,6 +31,9 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { Auth, NavItem, UserRole } from '@/types';
+
+/** Payment Receipts (/cashier/receipts/{id}) open under Payment History. */
+const RECEIPTS_PATH = CashierController.receipt.url(0).replace(/\/0$/, '');
 
 const workspaceNames: Record<UserRole, string> = {
     specialist: 'Specialist Workspace',
@@ -48,13 +55,34 @@ export function useWorkspaceName(): string {
 function useStaffMenuItems(): NavItem[] {
     const { auth } = usePage<{ auth: Auth }>().props;
 
-    // The cashier only takes payments (panel revision, 20 Nov 2026).
+    // The cashier takes payments and keeps their records (panel revision, 20 Nov 2026).
     if (auth.user.role === 'cashier') {
         return [
             {
-                title: 'Payments',
+                title: 'Dashboard',
                 href: CashierController.index(),
+                icon: LayoutDashboard,
+            },
+            {
+                title: 'Record Payment',
+                href: CashierController.record(),
                 icon: Banknote,
+            },
+            {
+                title: 'Awaiting Payment',
+                href: CashierRecordsController.awaiting(),
+                icon: Clock,
+            },
+            {
+                title: 'Payment History',
+                href: CashierRecordsController.history(),
+                icon: ReceiptText,
+                alsoActiveOn: [RECEIPTS_PATH],
+            },
+            {
+                title: 'Collections',
+                href: CashierRecordsController.collections(),
+                icon: Wallet,
             },
         ];
     }
@@ -68,13 +96,26 @@ function useStaffMenuItems(): NavItem[] {
         },
     ];
 
-    // The School Admin monitors what arrived (view only).
+    // The School Admin monitors what arrived and the cashier's collections (view only).
     if (auth.user.role === 'school_admin') {
-        items.push({
-            title: 'Stock In',
-            href: DeliveryController.index(),
-            icon: Truck,
-        });
+        items.push(
+            {
+                title: 'Stock In',
+                href: DeliveryController.index(),
+                icon: Truck,
+            },
+            {
+                title: 'Payment History',
+                href: CashierRecordsController.history(),
+                icon: ReceiptText,
+                alsoActiveOn: [RECEIPTS_PATH],
+            },
+            {
+                title: 'Collections',
+                href: CashierRecordsController.collections(),
+                icon: Wallet,
+            },
+        );
     }
 
     if (auth.user.role === 'specialist') {
@@ -135,12 +176,18 @@ export function StaffMenu({ onNavigate }: { onNavigate?: () => void }) {
     const items = useStaffMenuItems();
     const { currentUrl } = useCurrentUrl();
 
+    const matches = (path: string): boolean =>
+        currentUrl === path || currentUrl.startsWith(`${path}/`);
+
     const activePath = items
-        .map((item) => toUrl(item.href))
-        .filter(
-            (path) => currentUrl === path || currentUrl.startsWith(`${path}/`),
+        .flatMap((item) =>
+            [toUrl(item.href), ...(item.alsoActiveOn ?? [])].map((path) => ({
+                path,
+                href: toUrl(item.href),
+            })),
         )
-        .sort((a, b) => b.length - a.length)[0];
+        .filter(({ path }) => matches(path))
+        .sort((a, b) => b.path.length - a.path.length)[0]?.href;
 
     return (
         <nav className="space-y-1.5">

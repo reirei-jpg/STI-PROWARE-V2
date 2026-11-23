@@ -78,7 +78,7 @@ final class IssuanceSlip
     /**
      * "STI Hoodie (M)", "STI Ballpen · Box of 12", "BSIT Polo (M) · BSIT Uniform Set (For Boys)".
      */
-    private static function itemName(OrderItem $item): string
+    public static function itemName(OrderItem $item): string
     {
         $name = $item->product_name.($item->variant_label ? " ({$item->variant_label})" : '');
         $name = $item->pieces_per_unit > 1 ? "{$name} · {$item->unit_name} of {$item->pieces_per_unit}" : $name;

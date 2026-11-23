@@ -94,7 +94,7 @@ function OrdersScreen() {
                 <Text className="font-sans-bold text-2xl text-slate-900">Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
                     {show === 'orders'
-                        ? 'Pay at the cashier, then show the receipt and the issuance slip at the PROWARE office to get your items.'
+                        ? 'Pay at the cashier with your issuance slip, then claim your items at the PROWARE office.'
                         : 'Reserved items. Pay at the cashier with the preorder slip. You are notified when it arrives.'}
                 </Text>
             </View>

@@ -3,10 +3,11 @@
 namespace App\Services\Shop;
 
 use App\Actions\Orders\MarkOrderPaid;
+use App\Actions\Orders\UndoOrderPayment;
+use App\Actions\Preorders\UndoPreorderPayment;
 use App\Enums\OrderStatus;
-use App\Models\Order;
+use App\Models\Payment;
 use App\Models\PreorderSlip;
-use App\Models\User;
 use App\Services\Preorders\PreorderPayment;
 
 /**
@@ -21,7 +22,7 @@ final class CashierDesk
      * A scanned or typed slip: an order's or a preorder's, or null when it
      * is not a PROWARE slip.
      *
-     * @return array{kind: string, order?: array<string, mixed>, slip: array<string, mixed>, can_mark_paid: bool, refusal: string|null, to_collect_centavos: int|null, short: list<string>}|null
+     * @return array{kind: string, order?: array<string, mixed>, slip: array<string, mixed>, receipt: array{id: int, receipt_number: string|null}|null, can_mark_paid: bool, refusal: string|null, to_collect_centavos: int|null, short: list<string>, can_undo: bool}|null
      */
     public static function lookup(string $code): ?array
     {
@@ -37,6 +38,10 @@ final class CashierDesk
                 'kind' => 'order',
                 'order' => $found['order'],
                 'slip' => $found['slip'],
+                // Its Payment Receipt, once paid (none for an order paid before receipts were introduced).
+                'receipt' => self::receiptLink(PaymentRecorder::standing($order)),
+                // Paid by mistake today and not released yet: Undo payment.
+                'can_undo' => $order->status === OrderStatus::Paid && UndoOrderPayment::refusal($order) === null,
                 'can_mark_paid' => $waiting && ! $nothingLeft,
                 'refusal' => match (true) {
                     ! $waiting => MarkOrderPaid::notWaiting($order),
@@ -50,14 +55,17 @@ final class CashierDesk
         }
 
         $preorder = PreorderPayment::bySlip($code);
+        $slip = $preorder === null ? null : PreorderSlip::query()->find($preorder['slip']['slip_id']);
 
-        if ($preorder === null) {
+        if ($preorder === null || $slip === null) {
             return null;
         }
 
         return [
             'kind' => 'preorder',
             'slip' => $preorder['slip'],
+            'receipt' => self::receiptLink(PaymentRecorder::standing($slip)),
+            'can_undo' => $slip->isPaid() && UndoPreorderPayment::refusal($slip) === null,
             'can_mark_paid' => $preorder['can_mark_paid'],
             'refusal' => $preorder['refusal'],
             'to_collect_centavos' => $preorder['can_mark_paid'] ? $preorder['slip']['total_centavos'] : null,
@@ -66,45 +74,30 @@ final class CashierDesk
     }
 
     /**
-     * What this cashier marked paid today, the latest first, and the total.
+     * Today's payments (every receipt issued today, the latest first) and
+     * what they add up to; a void payment is listed but not counted.
      *
-     * @return array{rows: list<array{kind: string, number: string|null, buyer: string, amount_centavos: int, paid_at: string|null}>, total_centavos: int}
+     * @return array{rows: list<array<string, mixed>>, total_centavos: int}
      */
-    public static function paidToday(User $cashier): array
+    public static function paidToday(): array
     {
-        $orders = Order::query()
-            ->with('student')
-            ->where('paid_to', $cashier->id)
-            ->whereDate('paid_at', now()->toDateString())
-            // A released paid preorder's order was collected on its slip.
-            ->whereDoesntHave('preorders')
-            ->get()
-            ->map(fn (Order $order): array => [
-                'kind' => 'order',
-                'number' => $order->number,
-                'buyer' => $order->student->name,
-                'amount_centavos' => $order->total_centavos,
-                'paid_at' => $order->paid_at?->toIso8601String(),
-            ]);
-
-        $slips = PreorderSlip::query()
-            ->with('student')
-            ->where('paid_by', $cashier->id)
-            ->whereDate('paid_at', now()->toDateString())
-            ->get()
-            ->map(fn (PreorderSlip $slip): array => [
-                'kind' => 'preorder',
-                'number' => $slip->number,
-                'buyer' => $slip->student->name,
-                'amount_centavos' => (int) $slip->paid_centavos,
-                'paid_at' => $slip->paid_at?->toIso8601String(),
-            ]);
-
-        $rows = $orders->concat($slips)->sortByDesc('paid_at')->values();
+        $today = now()->toDateString();
+        $filters = ['period' => 'today', 'date_from' => $today, 'date_to' => $today, 'method' => '', 'type' => '', 'status' => '', 'search' => '', 'group' => 'day'];
 
         return [
-            'rows' => array_values($rows->all()),
-            'total_centavos' => (int) $rows->sum('amount_centavos'),
+            'rows' => array_values(CashierRecords::query($filters)
+                ->with(['cashier', 'voider', 'buyer', 'order', 'preorderSlip.preorders'])
+                ->latest('paid_at')->latest('id')->get()
+                ->map(fn (Payment $payment): array => CashierRecords::row($payment))->all()),
+            'total_centavos' => CashierRecords::totals(CashierRecords::query($filters))['total_centavos'],
         ];
+    }
+
+    /**
+     * @return array{id: int, receipt_number: string|null}|null
+     */
+    private static function receiptLink(?Payment $payment): ?array
+    {
+        return $payment === null ? null : ['id' => $payment->id, 'receipt_number' => $payment->receipt_number];
     }
 }

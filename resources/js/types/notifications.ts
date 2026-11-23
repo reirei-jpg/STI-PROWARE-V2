@@ -62,6 +62,9 @@ export type OrderPaidData = {
     total_centavos: number;
     /** What was sold out before they paid (not charged). */
     short?: string | null;
+    /** The Payment Receipt (missing on older notices). */
+    payment_id?: number | null;
+    receipt_number?: string | null;
 };
 
 /** The order was released to the student at the PROWARE office. */
@@ -139,6 +142,9 @@ export type PreorderPaidData = {
     product_id: number;
     product_name: string;
     paid_centavos: number | null;
+    /** The Payment Receipt (missing on older notices). */
+    payment_id?: number | null;
+    receipt_number?: string | null;
 };
 
 /** The Specialist told the top buyers that a product is in the store now. */
@@ -309,6 +315,39 @@ export type AccountLockedStaffData = {
     locks_today: number;
 };
 
+/** The cashier recorded a payment (to the Specialist): an order to release, or a preorder slip. */
+export type PaymentRecordedData = {
+    kind: 'payment_recorded';
+    order_id: number | null;
+    preorder_slip_id: number | null;
+    /** "PW-0042" or "PR-0003" */
+    number: string | null;
+    buyer_name: string;
+    amount_centavos: number;
+};
+
+/** The cashier undid the buyer's payment recorded by mistake (to the buyer). */
+export type PaymentUndoneData = {
+    kind: 'payment_undone';
+    order_id: number | null;
+    slip_id: number | null;
+    /** The item names, never the PW-/PR- number. */
+    items: string;
+    amount_centavos: number;
+    reason: string;
+    /** The Payment Receipt made void (missing on older notices). */
+    receipt_number?: string | null;
+};
+
+/** A paid order or preorder slip is awaiting payment again (to the Specialist; no cashier details). */
+export type PaymentUndoneStaffData = {
+    kind: 'payment_undone_staff';
+    order_id: number | null;
+    preorder_slip_id: number | null;
+    number: string | null;
+    buyer_name: string;
+};
+
 /** Your account was signed in on a phone. */
 export type PhoneSignedInData = {
     kind: 'phone_signed_in';
@@ -360,6 +399,9 @@ export type StaffNotification = {
         | PurchaseOrderClosedShortData
         | AccountLockedData
         | AccountLockedStaffData
+        | PaymentRecordedData
+        | PaymentUndoneData
+        | PaymentUndoneStaffData
         | PhoneSignedInData;
     read: boolean;
     created_at: string | null;

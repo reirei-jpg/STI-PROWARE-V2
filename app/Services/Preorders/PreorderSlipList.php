@@ -13,10 +13,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 /**
  * The Preorders card on the Specialist's dashboard (website and phone): a
  * shortcut to the preorder slips still waiting for their items, so the
- * Specialist can check which are paid. "To verify" are the unpaid slips
- * (the buyer still has to show the cashier's receipt); "Paid" are the paid
- * slips not yet released. Check payment opens the slip, where the receipt
- * is checked and the slip is marked paid, as when it is scanned. The list
+ * Specialist can see which are paid. "Awaiting payment" (to_verify) are the
+ * unpaid slips (the cashier records the payment); "Paid" are the paid slips
+ * not yet released. View slip opens the slip, as when it is scanned. The list
  * shows one card per buyer with all their slips, since a buyer who
  * preordered two items has two slips (one per press of Preorder).
  *

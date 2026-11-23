@@ -61,6 +61,7 @@ function RootNavigator() {
                 <Stack.Screen name="order/[id]" />
                 <Stack.Screen name="slip/[id]" />
                 <Stack.Screen name="preorder-slip/[id]" />
+                <Stack.Screen name="receipt/[id]" />
                 <Stack.Screen name="wishlist" />
             </Stack.Protected>
 
@@ -72,10 +73,14 @@ function RootNavigator() {
                 <Stack.Screen name="record-delivery" />
             </Stack.Protected>
 
-            {/* The cashier: Payments, and a scanned slip (panel revision, 20 Nov 2026). */}
+            {/* The cashier: Dashboard, a scanned slip, receipts and records (panel revision, 20 Nov 2026). */}
             <Stack.Protected guard={isCashier}>
                 <Stack.Screen name="cashier" />
                 <Stack.Screen name="cashier-slip" />
+                <Stack.Screen name="cashier-receipt/[id]" />
+                <Stack.Screen name="cashier-awaiting" />
+                <Stack.Screen name="cashier-history" />
+                <Stack.Screen name="cashier-collections" />
             </Stack.Protected>
 
             <Stack.Protected guard={isSpecialist || isCashier}>

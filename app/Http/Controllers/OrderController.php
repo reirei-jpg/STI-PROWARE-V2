@@ -16,11 +16,11 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The Specialist's Orders page: buyers' orders waiting for payment, and
- * those released or cancelled. A buyer pays at the cashier and shows the
- * receipt and the order's issuance slip; the Specialist scans (or types)
- * its code, checks it, and releases the items (HandleOrderBySpecialist,
- * shared with the phone app). Only the buyer can cancel an order.
+ * The Specialist's Orders page: buyers' orders waiting for payment, paid,
+ * released or cancelled. A buyer pays at the cashier, who records it; the
+ * Specialist scans (or types) the issuance slip's code and releases a paid
+ * order (HandleOrderBySpecialist, shared with the phone app). Only the
+ * buyer can cancel an order, and only before paying.
  */
 class OrderController extends Controller
 {

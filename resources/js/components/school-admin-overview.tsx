@@ -171,7 +171,7 @@ export default function SchoolAdminOverview({
 }: {
     firstName: string;
     overview: SchoolAdminOverviewData;
-    /** The Specialist's account, when locked after 5 wrong passwords. */
+    /** The Specialist's or the cashier's account, when locked after 5 wrong passwords. */
     lockedAccounts: LockedAccount[];
 }) {
     const [viewing, setViewing] = useState<number | null>(null);
@@ -262,12 +262,14 @@ export default function SchoolAdminOverview({
                         <div>
                             <h2 className="flex items-center gap-2 font-black text-red-800">
                                 <LockKeyhole size={18} />
-                                The Specialist's account is locked
+                                {lockedAccounts.length === 1
+                                    ? `${lockedAccounts[0].role_label} account locked`
+                                    : 'Staff accounts locked'}
                             </h2>
                             <p className="mt-1 text-sm leading-6 text-red-900/80">
-                                5 wrong passwords were typed in a row. It opens
-                                by itself after 15 minutes, or you can unlock it
-                                now if the Specialist asks you.
+                                5 wrong passwords were typed in a row. A locked
+                                account opens by itself after 15 minutes, or you
+                                can unlock it now when its owner asks you.
                             </p>
                         </div>
                         <LockedAccounts

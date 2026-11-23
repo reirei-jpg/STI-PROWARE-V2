@@ -107,6 +107,26 @@ test('the School Admin unlocks the Specialist, and nobody unlocks an account tha
     $this->actingAs(User::factory()->student()->create())->post(route('locked-accounts.unlock', $this->buyer))->assertForbidden();
 });
 
+test('the School Admin is told when the cashier is locked out, and unlocks the cashier', function () {
+    Notification::fake();
+    $cashier = User::factory()->cashier()->create(['name' => 'Cashier 1']);
+    lockOut($cashier);
+    auth()->logout();
+
+    Notification::assertSentTo($this->schoolAdmin, AccountLockedForStaff::class, fn (AccountLockedForStaff $notice) => $notice->toPush($this->schoolAdmin)['title'] === 'Account locked: Cashier 1');
+    Notification::assertNotSentTo($this->specialist, AccountLockedForStaff::class);
+
+    $this->actingAs($this->schoolAdmin)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('lockedAccounts.0.name', 'Cashier 1')
+        ->where('lockedAccounts.0.role_label', 'Cashier'));
+
+    // The Specialist does not unlock the cashier; the School Admin does.
+    $this->actingAs($this->specialist)->post(route('locked-accounts.unlock', $cashier))->assertForbidden();
+    $this->actingAs($this->schoolAdmin)->post(route('locked-accounts.unlock', $cashier))
+        ->assertInertiaFlash('toast.message', "Cashier 1's account has been unlocked. They can sign in now.");
+    expect(SignInLock::isLocked($cashier->refresh()))->toBeFalse();
+});
+
 test('the Specialist unlocks a buyer from the phone app', function () {
     lockOut($this->buyer);
     auth()->logout();

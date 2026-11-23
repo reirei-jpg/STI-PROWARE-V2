@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PlaceOrderRequest;
 use App\Http\Requests\StudentCancelOrderRequest;
 use App\Models\Order;
+use App\Models\Payment;
+use App\Services\Shop\CashierRecords;
 use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\OrderRow;
 use Illuminate\Http\JsonResponse;
@@ -37,7 +39,20 @@ class OrderController extends Controller
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
-        return response()->json(OrderRow::forStudent($order->load(['items', 'student'])));
+        return response()->json([
+            ...OrderRow::forStudent($order->load(['items', 'student'])),
+            'receipt' => CashierRecords::receiptLinkFor($order),
+        ]);
+    }
+
+    /**
+     * The buyer's own Payment Receipt (another buyer's is not found).
+     */
+    public function receipt(Request $request, Payment $payment): JsonResponse
+    {
+        abort_unless($payment->user_id === $request->user()->id, 404);
+
+        return response()->json(CashierRecords::receipt($payment));
     }
 
     /**

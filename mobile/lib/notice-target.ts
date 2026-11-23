@@ -47,6 +47,21 @@ export function noticeTarget(data: Record<string, unknown>): Href | null {
         case 'order_cancelled_by_student':
         case 'order_placed':
             return hasOrder ? `/staff-order/${orderId}` : null;
+        // The cashier recorded or undid a payment: the slip, with Release once paid.
+        case 'payment_recorded':
+        case 'payment_undone_staff':
+            return typeof data.number === 'string' && data.number !== ''
+                ? { pathname: '/slip-check', params: { code: data.number } }
+                : null;
+        case 'payment_undone': {
+            const slipId = Number(data.slip_id);
+
+            if (Number.isInteger(slipId) && slipId > 0) {
+                return `/preorder-slip/${slipId}`;
+            }
+
+            return hasOrder ? `/order/${orderId}` : '/orders';
+        }
         case 'low_stock':
             return hasProduct ? `/stock/${productId}` : null;
         case 'purchase_order_reminder':

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CashierController;
+use App\Http\Controllers\CashierRecordsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\FreeUniformController;
@@ -61,6 +62,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('my-orders/{order}/cancel', [StudentOrderController::class, 'cancel'])->name('my-orders.cancel');
         Route::get('my-orders/{order}/slip', [StudentOrderController::class, 'slip'])->name('my-orders.slip');
         Route::get('my-orders/{order}/slip/print', [StudentOrderController::class, 'printSlip'])->name('my-orders.slip.print');
+        // The buyer's own Payment Receipts (for orders and preorder slips).
+        Route::get('my-receipts/{payment}', [StudentOrderController::class, 'receipt'])->name('my-receipts.show');
+        Route::get('my-receipts/{payment}/print', [StudentOrderController::class, 'printReceipt'])->name('my-receipts.print');
     });
 
     Route::middleware('role:specialist,school_admin')->group(function () {
@@ -71,11 +75,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
     });
 
-    // The cashier marks buyers' slips Paid (panel revision, 20 Nov 2026).
+    // The cashier takes payments and issues Payment Receipts (panel revision, 20 Nov 2026).
     Route::middleware('role:cashier')->prefix('cashier')->name('cashier.')->group(function () {
         Route::get('/', [CashierController::class, 'index'])->name('index');
+        Route::get('record', [CashierController::class, 'record'])->name('record');
         Route::post('orders/{order}/paid', [CashierController::class, 'payOrder'])->name('orders.paid');
         Route::post('preorder-slips/{preorderSlip}/paid', [CashierController::class, 'payPreorderSlip'])->name('preorder-slips.paid');
+        // A payment recorded by mistake: undone the same day, before release; its receipt becomes VOID.
+        Route::post('orders/{order}/undo-payment', [CashierController::class, 'undoOrderPayment'])->name('orders.undo-payment');
+        Route::post('preorder-slips/{preorderSlip}/undo-payment', [CashierController::class, 'undoPreorderPayment'])->name('preorder-slips.undo-payment');
+        Route::get('receipts/{payment}/print', [CashierController::class, 'printReceipt'])->name('receipts.print');
+        Route::get('awaiting', [CashierRecordsController::class, 'awaiting'])->name('awaiting.index');
+        Route::get('awaiting/preview', [CashierRecordsController::class, 'awaitingPreview'])->name('awaiting.preview');
+        Route::get('payments/export', [CashierRecordsController::class, 'historyCsv'])->name('payments.export');
+        Route::get('collections/export', [CashierRecordsController::class, 'collectionsCsv'])->name('collections.export');
+        Route::get('collections/daily-report', [CashierRecordsController::class, 'daily'])->name('collections.daily');
+    });
+
+    // The cashier's records: the School Admin can view them too (read-only), the Specialist cannot.
+    Route::middleware('role:cashier,school_admin')->prefix('cashier')->name('cashier.')->group(function () {
+        Route::get('payments', [CashierRecordsController::class, 'history'])->name('payments.index');
+        Route::get('payments/preview', [CashierRecordsController::class, 'historyPreview'])->name('payments.preview');
+        Route::get('collections', [CashierRecordsController::class, 'collections'])->name('collections.index');
+        Route::get('receipts/{payment}', [CashierController::class, 'receipt'])->name('receipts.show');
     });
 
     Route::middleware('role:school_admin')->group(function () {

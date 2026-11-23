@@ -250,8 +250,59 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
                     {data.student_name} · {data.items_count}{' '}
                     {data.items_count === 1 ? 'item' : 'items'} ·{' '}
-                    {formatPeso(data.total_centavos)} to pay at the cashier.
-                    Release it when they show the receipt.
+                    {formatPeso(data.total_centavos)} to pay at the cashier. It
+                    can be released once the payment is recorded.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'payment_recorded') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-blue-800">
+                    Paid: {data.number} · {data.buyer_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    {formatPeso(data.amount_centavos)} paid.{' '}
+                    {data.order_id !== null
+                        ? 'Ready for release.'
+                        : 'The items are released once they arrive.'}
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'payment_undone_staff') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Awaiting payment again: {data.number} · {data.buyer_name}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    Its payment was undone at the cashier. Release it only once
+                    it is paid.
+                </span>
+            </>
+        );
+    }
+
+    if (data.kind === 'payment_undone') {
+        return (
+            <>
+                <span className="block text-sm font-bold text-red-700">
+                    Payment undone: {data.items}
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    The cashier undid your {formatPeso(data.amount_centavos)}{' '}
+                    payment
+                    {data.receipt_number
+                        ? ` (Payment Receipt ${data.receipt_number} is void)`
+                        : ''}
+                    : {data.reason}{' '}
+                    {data.order_id !== null
+                        ? 'Pay at the cashier again to claim your items.'
+                        : 'Pay at the cashier again with your preorder slip.'}
                 </span>
             </>
         );
@@ -282,9 +333,12 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Payment received: {data.items}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    {formatPeso(data.total_centavos)} has been received. Present
-                    your issuance slip at the PROWARE office to claim your
-                    items.
+                    {formatPeso(data.total_centavos)} has been received
+                    {data.receipt_number
+                        ? ` (Payment Receipt ${data.receipt_number})`
+                        : ''}
+                    . Present your issuance slip at the PROWARE office to claim
+                    your items.
                     {data.short &&
                         ` Not charged (sold out before your payment): ${data.short}.`}
                 </span>
@@ -404,8 +458,10 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                     Preorder paid: {data.product_name}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    {formatPeso(data.paid_centavos ?? 0)} paid. Keep your
-                    preorder slip as proof of payment.
+                    {formatPeso(data.paid_centavos ?? 0)} paid
+                    {data.receipt_number
+                        ? ` (Payment Receipt ${data.receipt_number}). Keep your preorder slip and receipt as proof of payment.`
+                        : '. Keep your preorder slip as proof of payment.'}
                 </span>
             </>
         );

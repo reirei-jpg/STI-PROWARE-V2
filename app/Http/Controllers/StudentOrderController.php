@@ -7,6 +7,8 @@ use App\Actions\Orders\PlaceOrder;
 use App\Http\Requests\PlaceOrderRequest;
 use App\Http\Requests\StudentCancelOrderRequest;
 use App\Models\Order;
+use App\Models\Payment;
+use App\Services\Shop\CashierRecords;
 use App\Services\Shop\IssuanceSlip;
 use App\Services\Shop\OrderRow;
 use Illuminate\Http\RedirectResponse;
@@ -48,7 +50,28 @@ class StudentOrderController extends Controller
         return Inertia::render('storefront/issuance-slip', [
             'slip' => IssuanceSlip::of($order->load(['items', 'student', 'handler'])),
             'canCancel' => CancelOrderByStudent::refusal($order) === null,
+            'receipt' => CashierRecords::receiptLinkFor($order),
         ]);
+    }
+
+    /**
+     * The buyer's own Payment Receipt (another buyer's is not found).
+     */
+    public function receipt(Request $request, Payment $payment): Response
+    {
+        abort_unless($payment->user_id === $request->user()->id, 404);
+
+        return Inertia::render('storefront/payment-receipt', ['receipt' => CashierRecords::receipt($payment)]);
+    }
+
+    /**
+     * The buyer's own Payment Receipt alone, to print (not counted as the cashier's reprint).
+     */
+    public function printReceipt(Request $request, Payment $payment): Response
+    {
+        abort_unless($payment->user_id === $request->user()->id, 404);
+
+        return Inertia::render('print/payment-receipt', ['receipt' => CashierRecords::receipt($payment), 'buyerCopy' => true]);
     }
 
     /**

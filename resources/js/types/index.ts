@@ -1,4 +1,5 @@
 export type * from './auth';
+export type * from './cashier';
 export type * from './deliveries';
 export type * from './free-uniforms';
 export type * from './navigation';

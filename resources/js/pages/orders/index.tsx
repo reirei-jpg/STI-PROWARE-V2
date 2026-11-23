@@ -126,7 +126,7 @@ export default function OrdersIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Orders"
-                    description="Orders placed on the storefront by students and STI staff. Scan the buyer's issuance slip and check the cashier's receipt to release the items, or open any order below. First to pay, first served."
+                    description="Orders placed on the storefront by students and STI staff. The cashier records each payment; scan the buyer's issuance slip to release a paid order, or open any order below. First to pay, first served."
                 />
 
                 <SlipScanBox />
@@ -392,11 +392,6 @@ function OrderDate({ order }: { order: SpecialistOrder }) {
         return (
             <p className="text-sm whitespace-nowrap text-blue-700">
                 {formatDateOrdered(order.paid_at)}
-                {order.paid_to && (
-                    <span className="block text-xs text-slate-500">
-                        {order.paid_to}
-                    </span>
-                )}
             </p>
         );
     }

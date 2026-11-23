@@ -45,7 +45,7 @@ function describe(data: StudentNotificationData): {
         case 'order_paid':
             return {
                 title: `Payment received: ${data.items}`,
-                body: `${formatPeso(data.total_centavos)} has been received. Present your issuance slip at the PROWARE office to claim your items.${data.short ? ` Not charged (sold out before your payment): ${data.short}.` : ''}`,
+                body: `${formatPeso(data.total_centavos)} has been received${data.receipt_number ? ` (Payment Receipt ${data.receipt_number})` : ''}. Present your issuance slip at the PROWARE office to claim your items.${data.short ? ` Not charged (sold out before your payment): ${data.short}.` : ''}`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
@@ -105,7 +105,9 @@ function describe(data: StudentNotificationData): {
         case 'preorder_paid':
             return {
                 title: `Preorder paid: ${data.product_name}`,
-                body: `${formatPeso(data.paid_centavos ?? 0)} paid. Keep your preorder slip as proof of payment.`,
+                body: data.receipt_number
+                    ? `${formatPeso(data.paid_centavos ?? 0)} paid (Payment Receipt ${data.receipt_number}). Keep your preorder slip and receipt as proof of payment.`
+                    : `${formatPeso(data.paid_centavos ?? 0)} paid. Keep your preorder slip as proof of payment.`,
                 titleClass: 'text-emerald-700',
                 stripe: '#10b981',
             };
@@ -224,9 +226,30 @@ function describe(data: StudentNotificationData): {
         case 'order_placed':
             return {
                 title: `New order ${data.order_number}`,
-                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay at the cashier. Release it when they show the receipt.`,
+                body: `${data.student_name} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · ${formatPeso(data.total_centavos)} to pay at the cashier. It can be released once the payment is recorded.`,
                 titleClass: 'text-blue-800',
                 stripe: '#3b82f6',
+            };
+        case 'payment_recorded':
+            return {
+                title: `Paid: ${data.number} · ${data.buyer_name}`,
+                body: `${formatPeso(data.amount_centavos)} paid. ${data.order_id !== null ? 'Ready for release.' : 'The items are released once they arrive.'}`,
+                titleClass: 'text-blue-800',
+                stripe: '#3b82f6',
+            };
+        case 'payment_undone_staff':
+            return {
+                title: `Awaiting payment again: ${data.number} · ${data.buyer_name}`,
+                body: 'Its payment was undone at the cashier. Release it only once it is paid.',
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
+        case 'payment_undone':
+            return {
+                title: `Payment undone: ${data.items}`,
+                body: `The cashier undid your ${formatPeso(data.amount_centavos)} payment${data.receipt_number ? ` (Payment Receipt ${data.receipt_number} is void)` : ''}: ${data.reason} ${data.order_id !== null ? 'Pay at the cashier again to claim your items.' : 'Pay at the cashier again with your preorder slip.'}`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
             };
         case 'low_stock':
             return {

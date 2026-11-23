@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CircleCheck, Clock } from 'lucide-react-native';
+import { ArrowLeft, CircleCheck, Clock, ReceiptText } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,24 +10,24 @@ import LoadingState from '@/components/LoadingState';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatPeso } from '@/lib/format';
-import type { PreorderSlipData } from '@/lib/types';
+import type { PreorderSlipData, ReceiptLink } from '@/lib/types';
 
 /**
  * A batch's preorder slip, like the website's: show it at the cashier to
- * pay, then the PROWARE office marks it Paid. Once paid it is stamped PAID
+ * pay, and the cashier records the payment. Once paid it is stamped PAID
  * and is the buyer's proof of payment. There is no refund after paying.
  */
 export default function PreorderSlipScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const insets = useSafeAreaInsets();
     const { request } = useAuth();
-    const [slip, setSlip] = useState<PreorderSlipData | null>(null);
+    const [slip, setSlip] = useState<(PreorderSlipData & { receipt?: ReceiptLink | null }) | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async (): Promise<void> => {
         try {
-            setSlip(await request<PreorderSlipData>(`/preorders/slips/${id}`));
+            setSlip(await request<PreorderSlipData & { receipt?: ReceiptLink | null }>(`/preorders/slips/${id}`));
             setLoadError(null);
         } catch (caught) {
             setLoadError(
@@ -42,7 +42,7 @@ export default function PreorderSlipScreen() {
         void load();
     }, [load]);
 
-    // After the office marks it paid, pulling down shows PAID.
+    // After the cashier records the payment, pulling down shows PAID.
     const pullToRefresh = async (): Promise<void> => {
         setRefreshing(true);
         await load();
@@ -102,12 +102,26 @@ export default function PreorderSlipScreen() {
                             ) : (
                                 <>
                                     Pay <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text> at
-                                    the cashier: show this slip there. Once you have paid, the PROWARE office marks
-                                    it Paid. There is no refund after paying.
+                                    the cashier: present this slip there. The cashier records your payment and the
+                                    slip is marked PAID. There is no refund after paying.
                                 </>
                             )}
                         </Text>
                     </View>
+
+                    {slip.receipt && (
+                        <Pressable
+                            onPress={() => router.push(`/receipt/${slip.receipt?.id}`)}
+                            accessibilityRole="button"
+                            className="flex-row items-center justify-center gap-2 rounded-2xl border border-blue-300 bg-blue-50 py-3.5"
+                        >
+                            <ReceiptText size={18} color="#1d4ed8" />
+                            <Text className="font-sans-bold text-base text-blue-700">
+                                Payment Receipt {slip.receipt.receipt_number}
+                                {slip.receipt.void ? ' (VOID)' : ''}
+                            </Text>
+                        </Pressable>
+                    )}
 
                     <IssuanceSlipCard
                         slip={{ ...slip, order_id: slip.slip_id, status: released ? 'picked_up' : 'placed', pick_up_by: null, released_on: null, issued_by: null }}

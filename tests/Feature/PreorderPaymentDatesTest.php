@@ -39,7 +39,7 @@ test('setting the payment dates tells the buyers with unpaid preorders to pay by
     preorderUnpaidHoodie($this->juan, 2);
     $beaSlip = preorderUnpaidHoodie($this->bea);
     // Bea already paid: she is not asked again.
-    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $beaSlip));
+    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $beaSlip), paidInCash());
     $this->actingAs($this->specialist);
 
     $this->patch(route('preorders.payment-dates', $this->hoodie), ['preorder_pay_from' => '2026-11-15', 'preorders_close_on' => '2026-11-30'])
@@ -73,7 +73,7 @@ test('after the close date, unpaid preorders are dropped and their buyers told; 
     Notification::fake();
     preorderUnpaidHoodie($this->juan);
     $beaSlip = preorderUnpaidHoodie($this->bea);
-    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $beaSlip));
+    $this->actingAs(User::factory()->cashier()->create())->post(route('cashier.preorder-slips.paid', $beaSlip), paidInCash());
     $this->actingAs($this->specialist);
     $this->patch(route('preorders.payment-dates', $this->hoodie), ['preorder_pay_from' => '2026-11-14', 'preorders_close_on' => '2026-11-20']);
 

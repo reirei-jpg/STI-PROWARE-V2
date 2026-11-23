@@ -52,9 +52,9 @@ function selectLines(ids: number[], selected: boolean): void {
 
 /**
  * The student's cart at today's prices, and Place Order for the ticked
- * items (the rest stay in the cart for later). They pay at the cashier, then
- * show the receipt and the issuance slip at the PROWARE office; the items are
- * held for them until the pick-up date.
+ * items (the rest stay in the cart for later). They pay at the cashier with
+ * the issuance slip, then claim the items at the PROWARE office with it;
+ * whoever pays first gets the items.
  */
 export default function Cart({
     lines,
@@ -177,12 +177,12 @@ export default function Cart({
                                 <ol className="space-y-3">
                                     <Step number={1}>Place your order</Step>
                                     <Step number={2}>
-                                        Pay at the cashier and keep the official
-                                        receipt
+                                        Pay at the cashier with your issuance
+                                        slip
                                     </Step>
                                     <Step number={3}>
-                                        Show the receipt and your issuance slip
-                                        at the PROWARE office to get your items
+                                        Present your issuance slip at the
+                                        PROWARE office to claim your items
                                     </Step>
                                 </ol>
                                 <p className="-mt-2 pl-10 text-xs text-slate-500">
