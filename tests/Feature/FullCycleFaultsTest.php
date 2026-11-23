@@ -147,6 +147,9 @@ test('a wrong price or date gets one clear message', function () {
     $this->patch(route('preorders.close-date', $product), ['preorders_close_on' => 'tomorrow'])
         ->assertSessionHasErrors(['preorders_close_on' => 'Choose a valid date.']);
     expect(session('errors')->get('preorders_close_on'))->toHaveCount(1);
+    $this->patch(route('preorders.close-date', $product), ['preorders_close_on' => 'hello'])
+        ->assertSessionHasErrors(['preorders_close_on' => 'Choose a valid date.']);
+    expect(session('errors')->get('preorders_close_on'))->toHaveCount(1);
 
     $this->post(route('products.store'), plannerForm(['name' => str_repeat('x', 121)]))
         ->assertSessionHasErrors(['name' => 'The product name may not be longer than 120 characters.']);

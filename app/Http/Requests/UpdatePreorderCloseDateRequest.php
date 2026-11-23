@@ -20,7 +20,7 @@ class UpdatePreorderCloseDateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'preorders_close_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'preorders_close_on' => ['bail', 'required', 'date_format:Y-m-d', 'after_or_equal:today'],
         ];
     }
 

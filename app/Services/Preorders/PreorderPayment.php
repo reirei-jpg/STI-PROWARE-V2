@@ -26,7 +26,7 @@ use Illuminate\Validation\ValidationException;
  * there is no refund. A payment recorded by mistake can be undone by the
  * cashier the same day, before the items arrive (UndoPreorderPayment).
  *
- * @phpstan-type SlipView array{kind: string, school: string, address_lines: list<string>, slip_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, is_staff: bool, product_id: int, product_name: string, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, paid_on: string|null, received_by: string|null, qr_svg: string}
+ * @phpstan-type SlipView array{kind: string, school: string, address_lines: list<string>, slip_id: int, number: string|null, date: string|null, student_name: string, student_id: string|null, section: string|null, is_staff: bool, product_id: int, product_name: string, items: list<array{quantity: int, item: string, unit_price_centavos: int, amount_centavos: int}>, total_centavos: int, status: string, status_label: string, closed_on: string|null, paid_on: string|null, received_by: string|null, qr_svg: string}
  */
 final class PreorderPayment
 {
@@ -64,12 +64,42 @@ final class PreorderPayment
             'product_name' => $slip->product->name,
             'items' => $items,
             'total_centavos' => $slip->amountDue(),
-            'status' => self::released($slip) ? 'released' : ($slip->isPaid() ? 'paid' : 'waiting_payment'),
-            'status_label' => self::released($slip) ? 'Released' : ($slip->isPaid() ? 'Paid' : 'Waiting for payment'),
+            'status' => $status = self::status($slip, $preorders->isEmpty()),
+            'status_label' => match ($status) {
+                'released' => 'Released',
+                'paid' => 'Paid',
+                'not_paid' => 'Not paid in time',
+                'closed' => 'Nothing to pay',
+                default => 'Waiting for payment',
+            },
+            'closed_on' => $slip->product->preorders_close_on?->toDateString(),
             'paid_on' => $slip->paid_at?->toDateString(),
             'received_by' => $slip->payer?->name,
             'qr_svg' => IssuanceSlip::qrSvg($slip->code),
         ];
+    }
+
+    /**
+     * Where the slip stands. An unpaid slip with no preorder still waiting
+     * has nothing to pay: its preorders were dropped because they were not
+     * paid by the closing date (not_paid), or were all cancelled or turned
+     * into an order (closed).
+     */
+    private static function status(PreorderSlip $slip, bool $nothingWaiting): string
+    {
+        if (self::released($slip)) {
+            return 'released';
+        }
+
+        if ($slip->isPaid()) {
+            return 'paid';
+        }
+
+        if (! $nothingWaiting) {
+            return 'waiting_payment';
+        }
+
+        return $slip->preorders()->where('status', PreorderStatus::NotPaid)->exists() ? 'not_paid' : 'closed';
     }
 
     /**

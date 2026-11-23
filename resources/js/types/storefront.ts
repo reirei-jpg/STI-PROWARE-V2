@@ -295,7 +295,10 @@ export type PreorderSlipData = {
     items: IssuanceSlipData['items'];
     total_centavos: number;
     /** released: every piece was given to the buyer. */
-    status: 'waiting_payment' | 'paid' | 'released';
+    /** not_paid: dropped, not paid by the closing date; closed: cancelled or ordered, nothing to pay. */
+    status: 'waiting_payment' | 'paid' | 'released' | 'not_paid' | 'closed';
+    /** The product's last day to preorder and pay. */
+    closed_on: string | null;
     status_label: string;
     paid_on: string | null;
     /** The Specialist who marked it paid. */

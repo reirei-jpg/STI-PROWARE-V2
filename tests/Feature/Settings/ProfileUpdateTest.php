@@ -4,6 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -120,6 +121,29 @@ class ProfileUpdateTest extends TestCase
             ->assertRedirect(route('profile.edit'));
 
         $this->assertSame('Juan P. Dela Cruz', $student->refresh()->name);
+    }
+
+    public function test_the_cashier_opens_settings_and_changes_their_name_and_password()
+    {
+        $cashier = User::factory()->cashier()->create(['name' => 'Cashier 1']);
+
+        $this->actingAs($cashier)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('settings/profile'));
+        $this->get(route('security.edit'))->assertOk();
+
+        $this->patch(route('profile.update'), ['name' => 'Ana Cruz'])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'));
+        $this->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'New@Pass2026',
+            'password_confirmation' => 'New@Pass2026',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('Ana Cruz', $cashier->refresh()->name);
+        $this->assertTrue(Hash::check('New@Pass2026', $cashier->password));
     }
 
     public function test_staff_accounts_cannot_be_deleted_from_settings()

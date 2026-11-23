@@ -94,7 +94,7 @@ function ProfileScreen() {
                     <Text className="font-sans text-sm leading-5 text-amber-900">
                         {user?.role === 'specialist'
                             ? 'Notifications are off, so you will not be notified on this phone when a new order comes in or stock runs low.'
-                            : 'Notifications are off, so you will not be notified on this phone when an order is ready.'}{' '}
+                            : 'Notifications are off, so you will not be notified on this phone when your payment is received or your items are released.'}{' '}
                         Turn them on in the phone&apos;s settings.
                     </Text>
                     <Pressable

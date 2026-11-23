@@ -111,7 +111,7 @@ export default function CashierSlipScreen() {
     const amount = result.to_collect_centavos ?? 0;
     const alreadyPaid = isOrder
         ? result.order?.status === 'paid' || result.order?.status === 'picked_up'
-        : result.slip.status !== 'waiting_payment';
+        : (result.slip.status === 'paid' || result.slip.status === 'released');
 
     // What the cashier entered, checked as it is typed (the server checks it again).
     const receivedCentavos = toCentavos(received);

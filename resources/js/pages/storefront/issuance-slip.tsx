@@ -84,8 +84,8 @@ export default function StudentIssuanceSlip({
                             Issuance Slip
                         </h1>
                         <p className="mt-1 text-sm text-slate-500">
-                            Order {slip.number}. This is your receipt for the
-                            order.
+                            Order {slip.number}. Show it at the cashier to pay,
+                            and at the PROWARE office to claim your items.
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -289,7 +289,8 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
                     Released on{' '}
                     <strong>{formatDateOrdered(slip.released_on)}</strong>
                     {slip.issued_by && ` by ${slip.issued_by}`}. Keep this slip
-                    as your receipt.
+                    as proof that the items were released to you; your Payment
+                    Receipt is your proof of payment.
                 </Notice>
             );
         default:

@@ -84,7 +84,7 @@ export default function SlipScreen() {
                     <View>
                         <Text className="font-sans-bold text-2xl text-slate-900">Issuance Slip</Text>
                         <Text className="font-sans text-sm text-slate-500">
-                            Order {slip.number}. This is your receipt for the order.
+                            Order {slip.number}. Show it at the cashier to pay, and at the PROWARE office to claim your items.
                         </Text>
                     </View>
 
@@ -117,7 +117,7 @@ function SlipNextStep({ slip }: { slip: IssuanceSlipData }) {
             return (
                 <Notice tone="green" icon={<CircleCheck size={20} color="#047857" />}>
                     Released on <Text className="font-sans-bold">{formatDate(slip.released_on)}</Text>
-                    {slip.issued_by ? ` by ${slip.issued_by}` : ''}. Keep this slip as your receipt.
+                    {slip.issued_by ? ` by ${slip.issued_by}` : ''}. Keep this slip as proof that the items were released to you; your Payment Receipt is your proof of payment.
                 </Notice>
             );
         default:

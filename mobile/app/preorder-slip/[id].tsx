@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CircleCheck, Clock, ReceiptText } from 'lucide-react-native';
+import { ArrowLeft, CircleCheck, CircleSlash, Clock, ReceiptText } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +51,9 @@ export default function PreorderSlipScreen() {
 
     const released = slip?.status === 'released';
     const paid = slip?.status === 'paid' || released;
+    // Dropped (not paid by the closing date) or all cancelled: nothing to pay.
+    const dropped = slip?.status === 'not_paid' || slip?.status === 'closed';
+    const tone = paid ? 'green' : dropped ? 'red' : 'amber';
 
     return (
         <ScrollView
@@ -86,18 +89,37 @@ export default function PreorderSlipScreen() {
                     </View>
 
                     <View
-                        style={{ borderLeftWidth: 5, borderLeftColor: paid ? '#10b981' : '#f59e0b' }}
-                        className={`flex-row items-start gap-3 rounded-2xl border px-4 py-3 ${paid ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}
+                        style={{ borderLeftWidth: 5, borderLeftColor: tone === 'green' ? '#10b981' : tone === 'red' ? '#ef4444' : '#f59e0b' }}
+                        className={`flex-row items-start gap-3 rounded-2xl border px-4 py-3 ${tone === 'green' ? 'border-emerald-200 bg-emerald-50' : tone === 'red' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}
                     >
-                        {paid ? <CircleCheck size={20} color="#047857" /> : <Clock size={20} color="#b45309" />}
-                        <Text className={`flex-1 font-sans text-sm leading-5 ${paid ? 'text-emerald-900' : 'text-amber-900'}`}>
+                        {tone === 'green' ? (
+                            <CircleCheck size={20} color="#047857" />
+                        ) : tone === 'red' ? (
+                            <CircleSlash size={20} color="#b91c1c" />
+                        ) : (
+                            <Clock size={20} color="#b45309" />
+                        )}
+                        <Text
+                            className={`flex-1 font-sans text-sm leading-5 ${tone === 'green' ? 'text-emerald-900' : tone === 'red' ? 'text-red-900' : 'text-amber-900'}`}
+                        >
                             {released ? (
-                                'Released. All the items were given to you. Keep this slip as your receipt.'
+                                'Released. All the items were given to you. Keep this slip as proof that they were released to you; your Payment Receipt is your proof of payment.'
                             ) : paid ? (
                                 <>
                                     Paid <Text className="font-sans-bold">{formatPeso(slip.total_centavos)}</Text>
-                                    {slip.paid_on ? ` on ${formatDate(slip.paid_on)}` : ''}. Keep this slip: it is
-                                    your proof of payment. Show it when you get your items.
+                                    {slip.paid_on ? ` on ${formatDate(slip.paid_on)}` : ''}. Your Payment Receipt is your
+                                    proof of payment. Show this slip when you get your items.
+                                </>
+                            ) : slip.status === 'not_paid' ? (
+                                <>
+                                    <Text className="font-sans-bold">Not paid in time. </Text>
+                                    Preorders closed{slip.closed_on ? ` on ${formatDate(slip.closed_on)}` : ''} before this slip was paid, so
+                                    the preorder was dropped. There is nothing to pay.
+                                </>
+                            ) : slip.status === 'closed' ? (
+                                <>
+                                    <Text className="font-sans-bold">Nothing to pay. </Text>
+                                    The preorders on this slip were cancelled or became an order.
                                 </>
                             ) : (
                                 <>

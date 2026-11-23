@@ -296,7 +296,7 @@ function describe(data: StudentNotificationData): {
  */
 export default function NotificationsScreen() {
     const insets = useSafeAreaInsets();
-    const { request } = useAuth();
+    const { request, user } = useAuth();
     const { unreadCount, setUnreadCount } = useNotifications();
     const notices = usePagedList<StudentNotification>('/notifications');
     const [refreshing, setRefreshing] = useState(false);
@@ -446,8 +446,9 @@ export default function NotificationsScreen() {
                             No notifications yet
                         </Text>
                         <Text className="mt-1 text-center font-sans text-sm text-slate-500">
-                            You will be notified here when an order is ready, on its
-                            last day, when it is cancelled, or a preordered item arrives.
+                            {user?.role === 'specialist'
+                                ? 'You will be notified here when a new order comes in, a payment is recorded at the cashier, or stock runs low.'
+                                : 'You will be notified here when your payment is received, your items are released, an order is cancelled, or a preordered item arrives.'}
                         </Text>
                     </View>
                 )

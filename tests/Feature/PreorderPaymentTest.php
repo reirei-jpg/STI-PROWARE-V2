@@ -64,6 +64,25 @@ test('a preorder gets a slip to pay at the cashier, with the early-bird price', 
     $this->actingAs(User::factory()->student()->create())->get(route('my-preorders.slip', $slip))->assertNotFound();
 });
 
+test('a slip dropped for not being paid by the closing date says so, with nothing to pay', function () {
+    $slip = preorderThreeHoodies();
+    $this->hoodie->forceFill(['preorder_pay_from' => '2026-11-20'])->save();
+    $this->travelTo(CarbonImmutable::parse('2026-12-01 10:00', 'Asia/Manila'));
+    $this->artisan('preorders:drop-unpaid')->assertSuccessful();
+
+    $this->actingAs($this->buyer)->get(route('my-preorders.slip', $slip))->assertInertia(fn (Assert $page) => $page
+        ->where('slip.status', 'not_paid')
+        ->where('slip.status_label', 'Not paid in time')
+        ->where('slip.closed_on', '2026-11-30')
+        ->where('slip.total_centavos', 0));
+    $this->getJson(route('api.v1.preorders.slip', $slip))->assertOk()->assertJsonPath('status', 'not_paid');
+
+    // The cashier cannot take a payment for it, and it is not shown as paid.
+    $this->actingAs(User::factory()->cashier()->create())
+        ->get(route('cashier.record', ['code' => $slip->code]))
+        ->assertInertia(fn (Assert $page) => $page->where('result.can_mark_paid', false)->where('result.slip.status', 'not_paid'));
+});
+
 test('the cashier scans the slip and marks it paid; the buyer is told and the slip says PAID', function () {
     Notification::fake();
     $slip = preorderThreeHoodies();

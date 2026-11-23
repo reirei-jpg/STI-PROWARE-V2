@@ -1,5 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Clock, ReceiptText } from 'lucide-react';
+import {
+    ArrowLeft,
+    CheckCircle2,
+    CircleSlash,
+    Clock,
+    ReceiptText,
+} from 'lucide-react';
 import StudentOrderController from '@/actions/App/Http/Controllers/StudentOrderController';
 import StudentPreorderController from '@/actions/App/Http/Controllers/StudentPreorderController';
 import IssuanceSlip from '@/components/issuance-slip';
@@ -23,6 +29,8 @@ export default function PreorderSlip({
 }) {
     const released = slip.status === 'released';
     const paid = slip.status === 'paid' || released;
+    // Dropped (not paid by the closing date) or all cancelled: nothing to pay.
+    const dropped = slip.status === 'not_paid' || slip.status === 'closed';
     // Laid out like the issuance slip; stamped RELEASED once all was given.
     const asSlip: IssuanceSlipData = {
         ...slip,
@@ -75,11 +83,15 @@ export default function PreorderSlip({
                         'mx-auto flex max-w-3xl items-start gap-3 rounded-2xl border px-5 py-4',
                         paid
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                            : 'border-amber-200 bg-amber-50 text-amber-900',
+                            : dropped
+                              ? 'border-red-200 bg-red-50 text-red-900'
+                              : 'border-amber-200 bg-amber-50 text-amber-900',
                     )}
                 >
                     {paid ? (
                         <CheckCircle2 size={22} className="mt-0.5 shrink-0" />
+                    ) : dropped ? (
+                        <CircleSlash size={22} className="mt-0.5 shrink-0" />
                     ) : (
                         <Clock size={22} className="mt-0.5 shrink-0" />
                     )}
@@ -89,14 +101,20 @@ export default function PreorderSlip({
                                 ? 'Released'
                                 : paid
                                   ? `Paid ${formatPeso(slip.total_centavos)}${slip.paid_on ? ` on ${formatDateOrdered(slip.paid_on)}` : ''}`
-                                  : `Pay ${formatPeso(slip.total_centavos)} at the cashier`}
+                                  : dropped
+                                    ? slip.status_label
+                                    : `Pay ${formatPeso(slip.total_centavos)} at the cashier`}
                         </p>
                         <p>
                             {released
-                                ? 'All the items were given to you. Keep this slip as your receipt.'
+                                ? 'All the items were given to you. Keep this slip as proof that they were released to you; your Payment Receipt is your proof of payment.'
                                 : paid
-                                  ? 'Keep this slip: it is your proof of payment. Show it when you get your items.'
-                                  : 'Present this slip at the cashier. The cashier records your payment and the slip is marked PAID. There is no refund after paying.'}
+                                  ? 'Your Payment Receipt is your proof of payment. Show this slip when you get your items.'
+                                  : slip.status === 'not_paid'
+                                    ? `Preorders closed${slip.closed_on ? ` on ${formatDateOrdered(slip.closed_on)}` : ''} before this slip was paid, so the preorder was dropped. There is nothing to pay.`
+                                    : slip.status === 'closed'
+                                      ? 'The preorders on this slip were cancelled or became an order, so there is nothing to pay.'
+                                      : 'Present this slip at the cashier. The cashier records your payment and the slip is marked PAID. There is no refund after paying.'}
                         </p>
                     </div>
                 </div>

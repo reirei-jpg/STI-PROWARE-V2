@@ -309,7 +309,10 @@ export type PreorderSlipData = Omit<IssuanceSlipData, 'order_id' | 'status' | 'p
     product_id: number;
     product_name: string;
     /** released: every piece was given to the buyer. */
-    status: 'waiting_payment' | 'paid' | 'released';
+    /** not_paid: dropped, not paid by the closing date; closed: cancelled or ordered, nothing to pay. */
+    status: 'waiting_payment' | 'paid' | 'released' | 'not_paid' | 'closed';
+    /** The product's last day to preorder and pay. */
+    closed_on: string | null;
     paid_on: string | null;
     /** The Specialist who marked it paid. */
     received_by: string | null;
