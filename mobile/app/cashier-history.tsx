@@ -29,7 +29,7 @@ const START: PaymentFilters = { period: 'today', date_from: '', date_to: '', met
  */
 export default function CashierHistoryScreen() {
     const insets = useSafeAreaInsets();
-    const { request } = useAuth();
+    const { request, user } = useAuth();
     const params = useLocalSearchParams<{ period?: string; date_from?: string; date_to?: string; method?: string; status?: string }>();
     const [first] = useState<PaymentFilters>(() => filtersFromLink(START, params));
     const [filters, setFilters] = useState<PaymentFilters>(first);
@@ -141,7 +141,7 @@ export default function CashierHistoryScreen() {
             keyboardShouldPersistTaps="handled"
         >
             <Pressable
-                onPress={() => (router.canGoBack() ? router.back() : router.replace('/cashier'))}
+                onPress={() => (router.canGoBack() ? router.back() : router.replace(user?.role === 'school_admin' ? '/admin-payments' : '/cashier'))}
                 accessibilityRole="button"
                 className="flex-row items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2"
             >

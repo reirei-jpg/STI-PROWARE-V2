@@ -51,7 +51,9 @@ function ProfileScreen() {
         const afterwards =
             user?.role === 'specialist'
                 ? 'You will need to sign in again to see your To-do on this phone.'
-                : 'You can still browse the store; sign in again to order.';
+                : user?.role === 'school_admin'
+                  ? 'You will need to sign in again to see the Dashboard on this phone.'
+                  : 'You can still browse the store; sign in again to order.';
 
         Alert.alert('Log out?', afterwards, [
             { text: 'Stay signed in', style: 'cancel' },
@@ -94,7 +96,9 @@ function ProfileScreen() {
                     <Text className="font-sans text-sm leading-5 text-amber-900">
                         {user?.role === 'specialist'
                             ? 'Notifications are off, so you will not be notified on this phone when a new order comes in or stock runs low.'
-                            : 'Notifications are off, so you will not be notified on this phone when your payment is received or your items are released.'}{' '}
+                            : user?.role === 'school_admin'
+                              ? 'Notifications are off, so you will not be notified on this phone when an eStore order is uploaded, arrives or is late, or when a staff account is locked.'
+                              : 'Notifications are off, so you will not be notified on this phone when your payment is received or your items are released.'}{' '}
                         Turn them on in the phone&apos;s settings.
                     </Text>
                     <Pressable

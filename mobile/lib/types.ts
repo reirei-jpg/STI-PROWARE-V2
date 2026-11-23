@@ -519,6 +519,56 @@ export type StudentNotificationData =
           quantity_remaining: number;
           quantity_ordered: number;
           reminded_by: string;
+      }
+    // The School Admin's notices about the eStore orders.
+    | {
+          kind: 'purchase_order_uploaded';
+          purchase_order_id: number;
+          order_number: string | null;
+          uploaded_by: string;
+          date_ordered: string;
+          total_amount_centavos: number | null;
+          items_count: number;
+      }
+    | {
+          kind: 'purchase_order_completed';
+          purchase_order_id: number;
+          order_number: string | null;
+          date_ordered: string;
+          completed_at: string | null;
+          completed_after_days: number;
+          quantity_received: number;
+          recorded_by: string;
+      }
+    | {
+          kind: 'purchase_order_late';
+          purchase_order_id: number;
+          order_number: string | null;
+          date_ordered: string;
+          late_days: number;
+          quantity_received: number;
+          quantity_ordered: number;
+          percent_received: number;
+      }
+    | {
+          kind: 'purchase_order_closed_short';
+          purchase_order_id: number;
+          order_number: string | null;
+          reason: string | null;
+          closed_by: string | null;
+          percent_received: number;
+      }
+    | {
+          kind: 'delivery_recorded';
+          delivery_id: number;
+          purchase_order_id: number | null;
+          order_numbers: string[];
+          received_on: string;
+          sales_invoice_number: string | null;
+          delivery_receipt_number: string | null;
+          recorded_by: string;
+          items_count: number;
+          quantity_received: number;
       };
 
 export type StudentNotification = {
@@ -859,4 +909,125 @@ export type CollectionRow = {
     cash_centavos: number;
     gcash_centavos: number;
     void_count: number;
+};
+/** The School Admin's eStore order tabs: Awaiting Delivery, Partially Received, Completed. */
+export type AdminDeliveryTab = 'coming' | 'ongoing' | 'completed';
+
+/** One eStore order on the School Admin's list (the website's dashboard row). */
+export type AdminOrderRow = {
+    id: number;
+    order_number: string | null;
+    category: string | null;
+    date_ordered: string;
+    days_since_ordered: number;
+    items_count: number;
+    completed_at: string | null;
+    completed_after_days: number | null;
+    status: 'awaiting' | 'partially_received' | 'completed' | 'completed_short';
+    status_label: string;
+    percent_received: number;
+    quantity_ordered: number;
+    quantity_received: number;
+    is_late: boolean;
+    reminded_at: string | null;
+    reminded_by: string | null;
+    can_remind: boolean;
+    remind_again_on: string | null;
+};
+
+export type AdminTopSeller = {
+    rank: number;
+    product_id: number;
+    product_name: string;
+    pieces: number;
+    price_total_centavos: number;
+    top_variant_label: string | null;
+    top_variant_pieces: number;
+};
+
+export type AdminNotSelling = {
+    product_id: number;
+    product_name: string;
+    stock_pieces: number;
+    first_arrived_at: string | null;
+    last_sold_at: string | null;
+    days_without_sale: number;
+};
+
+/** A staff account locked after 5 wrong passwords, which the School Admin may unlock. */
+export type LockedAccount = {
+    id: number;
+    name: string;
+    email: string;
+    role_label: string;
+    locked_until: string;
+    locks_today: number;
+};
+
+/** The School Admin's overview (the website's dashboard data). */
+export type AdminOverview = {
+    deliveries: {
+        tab: AdminDeliveryTab;
+        search: string | null;
+        late_days: number;
+        counts: { coming: number; ongoing: number; completed: number; coming_late: number; ongoing_late: number };
+        orders: Page<AdminOrderRow>;
+    };
+    sales: {
+        period: 'all' | 'week' | 'month' | 'year';
+        from: string;
+        to: string;
+        totals: { pieces: number; price_centavos: number; best: AdminTopSeller | null; not_selling_pieces: number };
+        top_sellers: Page<AdminTopSeller>;
+        slow_days: number;
+        not_selling: Page<AdminNotSelling>;
+    };
+    locked_accounts: LockedAccount[];
+};
+
+/** One eStore order in full: its items and the deliveries of it. */
+export type PurchaseOrderDetails = {
+    id: number;
+    order_number: string | null;
+    ordered_by: string | null;
+    date_ordered: string;
+    category: string | null;
+    total_amount_centavos: number | null;
+    uploaded_by: string;
+    uploaded_at: string | null;
+    delivery_status: AdminOrderRow['status'];
+    delivery_status_label: string;
+    quantity_ordered_total: number;
+    quantity_received_total: number;
+    percent_received: number;
+    closed_reason: string | null;
+    closed_at: string | null;
+    closed_by: string | null;
+    completed_at: string | null;
+    completed_after_days: number | null;
+    is_late: boolean;
+    late_days: number;
+    reminded_at: string | null;
+    reminded_by: string | null;
+    can_remind: boolean;
+    remind_again_on: string | null;
+    items: {
+        row_number: number | null;
+        item_code: string;
+        description: string;
+        quantity_ordered: number;
+        quantity_received: number;
+        quantity_remaining: number;
+        unit_price_centavos: number | null;
+        amount_centavos: number | null;
+    }[];
+    deliveries: {
+        id: number;
+        received_on: string;
+        sales_invoice_number: string | null;
+        delivery_receipt_number: string | null;
+        recorded_by: string;
+        recorded_at: string | null;
+        items: { item_code: string; description: string; quantity_received: number }[];
+    }[];
 };

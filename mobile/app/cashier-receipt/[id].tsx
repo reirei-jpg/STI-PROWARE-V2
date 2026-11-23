@@ -19,7 +19,8 @@ import type { PaymentReceipt } from '@/lib/types';
 export default function CashierReceiptScreen() {
     const { id, done } = useLocalSearchParams<{ id: string; done?: string }>();
     const insets = useSafeAreaInsets();
-    const { request } = useAuth();
+    const { request, user } = useAuth();
+    const isSchoolAdmin = user?.role === 'school_admin';
     const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +43,7 @@ export default function CashierReceiptScreen() {
             contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 32, paddingHorizontal: 16, gap: 16 }}
         >
             <Pressable
-                onPress={() => (router.canGoBack() ? router.back() : router.replace('/cashier'))}
+                onPress={() => (router.canGoBack() ? router.back() : router.replace(isSchoolAdmin ? '/admin-payments' : '/cashier'))}
                 accessibilityRole="button"
                 className="flex-row items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2"
             >
@@ -70,14 +71,17 @@ export default function CashierReceiptScreen() {
                 </>
             )}
 
-            <Pressable
-                onPress={() => router.replace('/scan-slip')}
-                accessibilityRole="button"
-                className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
-            >
-                <ScanLine size={18} color="#ffffff" />
-                <Text className="font-sans-bold text-base text-white">Scan the next slip</Text>
-            </Pressable>
+            {/* The School Admin only reads receipts. */}
+            {!isSchoolAdmin && (
+                <Pressable
+                    onPress={() => router.replace('/scan-slip')}
+                    accessibilityRole="button"
+                    className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
+                >
+                    <ScanLine size={18} color="#ffffff" />
+                    <Text className="font-sans-bold text-base text-white">Scan the next slip</Text>
+                </Pressable>
+            )}
         </ScrollView>
     );
 }

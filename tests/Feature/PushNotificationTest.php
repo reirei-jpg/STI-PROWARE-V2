@@ -127,14 +127,15 @@ function pushMessagesSent(): array
         ->all();
 }
 
-test('registering a phone needs a signed-in student or Specialist', function () {
+test('registering a phone needs a signed-in account; the School Admin can register one', function () {
     $this->putJson(route('api.v1.device-token.store'), ['token' => 'abc'])->assertUnauthorized();
-
-    pushRegister($this, pushPhone(User::factory()->schoolAdmin()->create()))->assertForbidden();
     expect(DeviceToken::query()->count())->toBe(0);
 
-    pushRegister($this, pushPhone(User::factory()->specialist()->create()))->assertOk();
+    pushRegister($this, pushPhone(User::factory()->schoolAdmin()->create()))->assertOk();
     expect(DeviceToken::query()->count())->toBe(1);
+
+    pushRegister($this, pushPhone(User::factory()->specialist()->create()), 'fcm-token-2')->assertOk();
+    expect(DeviceToken::query()->count())->toBe(2);
 });
 
 test('a student registers their phone and it is tied to that sign-in', function () {

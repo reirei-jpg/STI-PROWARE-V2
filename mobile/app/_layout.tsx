@@ -27,6 +27,7 @@ function RootNavigator() {
     const isStudent = user?.role === 'student' || user?.role === 'employee';
     const isSpecialist = user?.role === 'specialist';
     const isCashier = user?.role === 'cashier';
+    const isSchoolAdmin = user?.role === 'school_admin';
 
     // A sign-in that expired opens the sign-in screen, which says why. It
     // waits until signing out has moved the app back to the store, which
@@ -52,7 +53,7 @@ function RootNavigator() {
                 contentStyle: { backgroundColor: '#F3F7FA' },
             }}
         >
-            <Stack.Protected guard={!isSpecialist && !isCashier}>
+            <Stack.Protected guard={!isSpecialist && !isCashier && !isSchoolAdmin}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="product/[id]" />
             </Stack.Protected>
@@ -77,8 +78,17 @@ function RootNavigator() {
             <Stack.Protected guard={isCashier}>
                 <Stack.Screen name="cashier" />
                 <Stack.Screen name="cashier-slip" />
-                <Stack.Screen name="cashier-receipt/[id]" />
                 <Stack.Screen name="cashier-awaiting" />
+            </Stack.Protected>
+
+            {/* The School Admin (view only): Dashboard, eStore Orders, Stock In, Payments, Profile. */}
+            <Stack.Protected guard={isSchoolAdmin}>
+                <Stack.Screen name="(admin)" />
+            </Stack.Protected>
+
+            {/* The cashier's records, which the School Admin also reads. */}
+            <Stack.Protected guard={isCashier || isSchoolAdmin}>
+                <Stack.Screen name="cashier-receipt/[id]" />
                 <Stack.Screen name="cashier-history" />
                 <Stack.Screen name="cashier-collections" />
             </Stack.Protected>
