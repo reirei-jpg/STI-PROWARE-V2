@@ -349,12 +349,15 @@ function Payment({ result }: { result: CashierResult }) {
                                         <button
                                             type="button"
                                             data-test="exact-amount"
-                                            onClick={() =>
+                                            onClick={() => {
                                                 form.setData(
                                                     'amount_received',
                                                     (amount / 100).toFixed(2),
-                                                )
-                                            }
+                                                );
+                                                form.clearErrors(
+                                                    'amount_received',
+                                                );
+                                            }}
                                             className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-100"
                                         >
                                             <Banknote size={15} />
@@ -370,12 +373,16 @@ function Payment({ result }: { result: CashierResult }) {
                                             inputMode="decimal"
                                             autoFocus
                                             value={form.data.amount_received}
-                                            onChange={(event) =>
+                                            onChange={(event) => {
                                                 form.setData(
                                                     'amount_received',
                                                     event.target.value,
-                                                )
-                                            }
+                                                );
+                                                // A refusal is about what was typed before.
+                                                form.clearErrors(
+                                                    'amount_received',
+                                                );
+                                            }}
                                             maxLength={12}
                                             placeholder={(amount / 100).toFixed(
                                                 2,
@@ -419,12 +426,14 @@ function Payment({ result }: { result: CashierResult }) {
                                         inputMode="numeric"
                                         autoFocus
                                         value={form.data.gcash_reference}
-                                        onChange={(event) =>
+                                        onChange={(event) => {
                                             form.setData(
                                                 'gcash_reference',
                                                 event.target.value,
-                                            )
-                                        }
+                                            );
+                                            // A refusal is about what was typed before.
+                                            form.clearErrors('gcash_reference');
+                                        }}
                                         maxLength={17}
                                         placeholder="13 digits, e.g. 1004 123 456789"
                                         className="h-11 w-full rounded-xl border border-slate-200 px-3 font-mono text-base font-bold tracking-wider text-slate-900 shadow-sm outline-none placeholder:font-sans placeholder:text-sm placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
