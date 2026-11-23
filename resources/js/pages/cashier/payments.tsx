@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import type { LucideIcon } from 'lucide-react';
 import {
     Banknote,
     Download,
@@ -17,6 +18,8 @@ import CashierRecordsController from '@/actions/App/Http/Controllers/CashierReco
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel from '@/components/panel';
+import PaymentListDialog from '@/components/payment-list-dialog';
+import type { PaymentListRequest } from '@/components/payment-list-dialog';
 import PaymentPeriodFilter, {
     paymentQuery,
 } from '@/components/payment-period-filter';
@@ -73,22 +76,56 @@ export default function PaymentHistory({
         );
     };
 
+    const [popup, setPopup] = useState<PaymentListRequest | null>(null);
+
     /**
-     * A summary card shows only its receipts; clicking it again while it is
-     * the chosen one shows every receipt of the period again.
+     * A summary card opens its receipts in a pop-up window: those of this
+     * list (same period, type and search) that the card counts. Its button
+     * shows only them in the list below, or all again when the card is the
+     * chosen one. A card the list's own filter rules out (e.g. GCash while
+     * the list shows Cash only) counts nothing, so it does not open.
      */
-    const cardFilter = (
+    const cardPopup = (
         method: PaymentFilters['method'],
         status: PaymentFilters['status'],
-        label: string,
+        title: string,
+        icon: LucideIcon,
+        empty: string,
+        extra: Partial<PaymentListRequest> = {},
     ) => {
+        const ruledOut =
+            (method !== '' &&
+                filters.method !== '' &&
+                filters.method !== method) ||
+            (filters.status !== '' && filters.status !== status);
+
+        if (ruledOut) {
+            return {};
+        }
+
+        const card = { method: method || filters.method, status };
         const active = filters.method === method && filters.status === status;
 
         return {
             active,
-            actionLabel: active ? 'Show all receipts' : label,
+            actionLabel: 'View receipts',
             onClick: () =>
-                show(active ? { method: '', status: '' } : { method, status }),
+                setPopup({
+                    title,
+                    icon,
+                    query: paymentQuery({ ...filters, ...card }, 'today'),
+                    empty,
+                    action: {
+                        label: active
+                            ? 'Show all receipts in the list'
+                            : 'Show only these in the list',
+                        onClick: () => {
+                            setPopup(null);
+                            show(active ? { method: '', status: '' } : card);
+                        },
+                    },
+                    ...extra,
+                }),
         };
     };
 
@@ -150,7 +187,14 @@ export default function PaymentHistory({
                         value={formatPeso(totals.total_centavos)}
                         description={`${receiptCount(totals.count)} in this list`}
                         icon={ReceiptText}
-                        {...cardFilter('', 'paid', 'Show paid receipts')}
+                        {...cardPopup(
+                            '',
+                            'paid',
+                            'Total Collected',
+                            ReceiptText,
+                            'No payments match this list.',
+                            { split: true },
+                        )}
                         testId="card-total"
                     />
                     <SummaryCard
@@ -158,7 +202,13 @@ export default function PaymentHistory({
                         value={formatPeso(totals.cash_centavos)}
                         description={receiptCount(totals.cash_count)}
                         icon={Banknote}
-                        {...cardFilter('cash', 'paid', 'Show Cash only')}
+                        {...cardPopup(
+                            'cash',
+                            'paid',
+                            'Cash Payments',
+                            Banknote,
+                            'No cash payments match this list.',
+                        )}
                         testId="card-cash"
                     />
                     <SummaryCard
@@ -166,7 +216,13 @@ export default function PaymentHistory({
                         value={formatPeso(totals.gcash_centavos)}
                         description={receiptCount(totals.gcash_count)}
                         icon={Smartphone}
-                        {...cardFilter('gcash', 'paid', 'Show GCash only')}
+                        {...cardPopup(
+                            'gcash',
+                            'paid',
+                            'GCash Payments',
+                            Smartphone,
+                            'No GCash payments match this list.',
+                        )}
                         testId="card-gcash"
                     />
                     <SummaryCard
@@ -174,10 +230,22 @@ export default function PaymentHistory({
                         value={formatPeso(totals.void_centavos)}
                         description={`${receiptCount(totals.void_count)}, not counted in the total`}
                         icon={XCircle}
-                        {...cardFilter('', 'void', 'Show voided only')}
+                        {...cardPopup(
+                            '',
+                            'void',
+                            'Voided Payments',
+                            XCircle,
+                            'No voided payments match this list.',
+                            { voided: true },
+                        )}
                         testId="card-void"
                     />
                 </section>
+
+                <PaymentListDialog
+                    request={popup}
+                    onClose={() => setPopup(null)}
+                />
 
                 <Panel>
                     <div className="space-y-4 border-b border-slate-100 px-6 py-4">

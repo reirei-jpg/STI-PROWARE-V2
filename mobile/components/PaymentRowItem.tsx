@@ -10,12 +10,27 @@ import type { PaymentRow } from '@/lib/types';
  * receipt number, slip, buyer, method, time and amount; a void one crossed
  * out with its reason. Tapping it opens the Payment Receipt.
  */
-export default function PaymentRowItem({ row, first = false }: { row: PaymentRow; first?: boolean }) {
+export default function PaymentRowItem({
+    row,
+    first = false,
+    detail,
+    onOpen,
+}: {
+    row: PaymentRow;
+    first?: boolean;
+    /** An extra line, e.g. the change given or the GCash reference. */
+    detail?: string;
+    /** Runs before the receipt opens, e.g. to close the pop-up it is in. */
+    onOpen?: () => void;
+}) {
     const Icon = row.void ? Undo2 : row.method === 'cash' ? Banknote : Smartphone;
 
     return (
         <Pressable
-            onPress={() => router.push({ pathname: '/cashier-receipt/[id]', params: { id: String(row.id) } })}
+            onPress={() => {
+                onOpen?.();
+                router.push({ pathname: '/cashier-receipt/[id]', params: { id: String(row.id) } });
+            }}
             accessibilityRole="button"
             accessibilityLabel={`Payment Receipt ${row.receipt_number ?? ''}`}
             className={`flex-row items-center gap-3 px-4 py-3 ${first ? '' : 'border-t border-slate-100'} ${row.void ? 'bg-red-50/50' : ''}`}
@@ -33,6 +48,7 @@ export default function PaymentRowItem({ row, first = false }: { row: PaymentRow
                 </Text>
                 <Text className="font-sans text-xs text-slate-400">{formatDateTime(row.paid_at)}</Text>
                 {row.void && row.void_reason ? <Text className="font-sans text-xs text-red-700">{row.void_reason}</Text> : null}
+                {detail && !row.void ? <Text className="font-sans text-xs text-slate-500">{detail}</Text> : null}
             </View>
             <Text className={`font-sans-bold text-sm ${row.void ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
                 {formatPeso(row.amount_centavos)}

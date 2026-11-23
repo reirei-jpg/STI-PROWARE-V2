@@ -33,10 +33,11 @@ export default function PrintPaymentReceipt({
                 title={`Payment Receipt ${receipt.row.receipt_number ?? ''}`}
             />
 
-            <style>{'@page { margin: 12mm; }'}</style>
+            {/* A till slip: 80 mm wide, as long as the receipt. */}
+            <style>{'@page { size: 80mm auto; margin: 4mm; }'}</style>
 
-            <div className="min-h-screen bg-slate-100 px-4 py-6 print:bg-white print:p-0">
-                <div className="mx-auto mb-4 flex max-w-2xl justify-end gap-2 print:hidden">
+            <div className="min-h-screen bg-slate-200 px-4 py-6 print:bg-white print:p-0">
+                <div className="mx-auto mb-4 flex max-w-[380px] justify-end gap-2 print:hidden">
                     <button
                         type="button"
                         onClick={close}
@@ -64,7 +65,7 @@ export default function PrintPaymentReceipt({
                               ? 'REPRINT'
                               : null
                     }
-                    className="shadow-sm print:max-w-none print:border-0 print:shadow-none"
+                    className="shadow-2xl print:max-w-none print:px-0 print:py-0 print:shadow-none"
                 />
             </div>
         </>

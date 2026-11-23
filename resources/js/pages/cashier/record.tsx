@@ -335,13 +335,32 @@ function Payment({ result }: { result: CashierResult }) {
 
                             {form.data.method === 'cash' && (
                                 <div className="space-y-1.5">
-                                    <label
-                                        htmlFor="amount-received"
-                                        className="text-sm font-black text-slate-700"
-                                    >
-                                        Amount received{' '}
-                                        <span className="text-red-600">*</span>
-                                    </label>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <label
+                                            htmlFor="amount-received"
+                                            className="text-sm font-black text-slate-700"
+                                        >
+                                            Amount received{' '}
+                                            <span className="text-red-600">
+                                                *
+                                            </span>
+                                        </label>
+                                        {/* The buyer handed over exactly the amount due: no typing, no change. */}
+                                        <button
+                                            type="button"
+                                            data-test="exact-amount"
+                                            onClick={() =>
+                                                form.setData(
+                                                    'amount_received',
+                                                    (amount / 100).toFixed(2),
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-100"
+                                        >
+                                            <Banknote size={15} />
+                                            Exact amount · {formatPeso(amount)}
+                                        </button>
+                                    </div>
                                     <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
                                         <span className="font-black text-slate-500">
                                             ₱

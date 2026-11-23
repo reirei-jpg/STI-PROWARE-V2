@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import type { LucideIcon } from 'lucide-react';
 import {
     Banknote,
     Download,
@@ -15,6 +16,8 @@ import Panel from '@/components/panel';
 import PaymentPeriodFilter, {
     paymentQuery,
 } from '@/components/payment-period-filter';
+import PaymentListDialog from '@/components/payment-list-dialog';
+import type { PaymentListRequest } from '@/components/payment-list-dialog';
 import SummaryCard from '@/components/summary-card';
 import { todayIso } from '@/lib/dates';
 import { formatPeso, receiptCount } from '@/lib/format';
@@ -61,24 +64,37 @@ export default function Collections({
         );
     };
 
-    /** The receipts behind a card: Payment History for this same period. */
-    const receiptsUrl = (
+    const [popup, setPopup] = useState<PaymentListRequest | null>(null);
+
+    /**
+     * A card's pop-up window: the receipts behind it for this same period,
+     * and a button to Payment History showing them all.
+     */
+    const open = (
         method: PaymentFilters['method'],
         status: PaymentFilters['status'],
-    ): string =>
-        CashierRecordsController.history({
-            query: paymentQuery(
-                {
-                    ...filters,
-                    method,
-                    status,
-                    type: '',
-                    search: '',
-                    group: 'day',
-                },
-                'today',
-            ),
-        }).url;
+        title: string,
+        icon: LucideIcon,
+        empty: string,
+        extra: Partial<PaymentListRequest> = {},
+    ) => {
+        const query = paymentQuery(
+            { ...filters, method, status, type: '', search: '', group: 'day' },
+            'today',
+        );
+
+        setPopup({
+            title,
+            icon,
+            query,
+            empty,
+            action: {
+                label: 'Open Payment History',
+                href: CashierRecordsController.history({ query }).url,
+            },
+            ...extra,
+        });
+    };
 
     const exportUrl = CashierRecordsController.collectionsCsv({
         query: paymentQuery(filters, 'month'),
@@ -116,7 +132,16 @@ export default function Collections({
                         value={formatPeso(totals.total_centavos)}
                         description={`${receiptCount(totals.count)} in this period`}
                         icon={ReceiptText}
-                        href={receiptsUrl('', 'paid')}
+                        onClick={() =>
+                            open(
+                                '',
+                                'paid',
+                                'Total Collected',
+                                ReceiptText,
+                                'No payments were recorded in this period.',
+                                { split: true },
+                            )
+                        }
                         actionLabel="View receipts"
                         testId="card-total"
                     />
@@ -125,7 +150,15 @@ export default function Collections({
                         value={formatPeso(totals.cash_centavos)}
                         description={receiptCount(totals.cash_count)}
                         icon={Banknote}
-                        href={receiptsUrl('cash', 'paid')}
+                        onClick={() =>
+                            open(
+                                'cash',
+                                'paid',
+                                'Cash Payments',
+                                Banknote,
+                                'No cash payments were recorded in this period.',
+                            )
+                        }
                         actionLabel="View Cash payments"
                         testId="card-cash"
                     />
@@ -134,7 +167,15 @@ export default function Collections({
                         value={formatPeso(totals.gcash_centavos)}
                         description={receiptCount(totals.gcash_count)}
                         icon={Smartphone}
-                        href={receiptsUrl('gcash', 'paid')}
+                        onClick={() =>
+                            open(
+                                'gcash',
+                                'paid',
+                                'GCash Payments',
+                                Smartphone,
+                                'No GCash payments were recorded in this period.',
+                            )
+                        }
                         actionLabel="View GCash payments"
                         testId="card-gcash"
                     />
@@ -143,11 +184,25 @@ export default function Collections({
                         value={formatPeso(totals.void_centavos)}
                         description={`${receiptCount(totals.void_count)}, not counted in the total`}
                         icon={XCircle}
-                        href={receiptsUrl('', 'void')}
+                        onClick={() =>
+                            open(
+                                '',
+                                'void',
+                                'Voided Payments',
+                                XCircle,
+                                'No payments were voided in this period.',
+                                { voided: true },
+                            )
+                        }
                         actionLabel="View voided payments"
                         testId="card-void"
                     />
                 </section>
+
+                <PaymentListDialog
+                    request={popup}
+                    onClose={() => setPopup(null)}
+                />
 
                 {!readOnly && (
                     <Panel

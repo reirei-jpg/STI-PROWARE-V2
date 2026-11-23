@@ -1,17 +1,20 @@
 import { router, useFocusEffect } from 'expo-router';
-import { ChevronRight, Clock, LogOut, ReceiptText, ScanLine, Search, Wallet, XCircle } from 'lucide-react-native';
+import { Banknote, ChevronRight, Clock, LogOut, ReceiptText, ScanLine, Search, Smartphone, Wallet, XCircle } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
-import { receiptsLink } from '@/components/PaymentPeriodPicker';
+import AwaitingSheet from '@/components/AwaitingSheet';
+import { paymentQuery, receiptsLink } from '@/components/PaymentPeriodPicker';
+import PaymentListSheet from '@/components/PaymentListSheet';
+import type { PaymentListRequest } from '@/components/PaymentListSheet';
 import PaymentRowItem from '@/components/PaymentRowItem';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatPeso, receiptCount } from '@/lib/format';
-import type { CashierDashboard } from '@/lib/types';
+import type { CashierDashboard, PaymentFilters } from '@/lib/types';
 
 /**
  * The cashier's Dashboard on the phone, like the website's (panel revision,
@@ -66,8 +69,29 @@ export default function CashierScreen() {
         ]);
 
     const today = dashboard?.today;
-    const todayPeriod = { period: 'today' as const, date_from: '', date_to: '' };
-    const openReceipts = (method: '' | 'cash' | 'gcash', status: '' | 'paid' | 'void'): void => router.push(receiptsLink(todayPeriod, method, status));
+    const [sheet, setSheet] = useState<PaymentListRequest | null>(null);
+    const [awaitingOpen, setAwaitingOpen] = useState(false);
+
+    /** A card's pop-up: today's receipts behind it, and a button to Payment History. */
+    const openReceipts = (
+        method: PaymentFilters['method'],
+        status: PaymentFilters['status'],
+        title: string,
+        icon: ReactNode,
+        empty: string,
+        extra: Partial<PaymentListRequest> = {},
+    ): void => {
+        const filters: PaymentFilters = { period: 'today', date_from: '', date_to: '', method, type: '', status, search: '', group: 'day' };
+
+        setSheet({
+            title,
+            icon,
+            query: paymentQuery(filters),
+            empty,
+            action: { label: 'Open Payment History', onPress: () => router.push(receiptsLink(filters, method, status)) },
+            ...extra,
+        });
+    };
     const awaiting = dashboard?.awaiting;
 
     return (
@@ -101,24 +125,24 @@ export default function CashierScreen() {
 
             {/* Until the figures arrive, a dash: never a ₱0.00 that looks real. */}
             <View className="flex-row gap-3">
-                <Card label="Total Collected Today" value={today ? formatPeso(today.total_centavos) : '—'} action="View receipts" onPress={() => openReceipts('', 'paid')}>
+                <Card label="Total Collected Today" value={today ? formatPeso(today.total_centavos) : '—'} action="View receipts" onPress={() => openReceipts('', 'paid', 'Total Collected Today', <Wallet size={20} color="#1d4ed8" />, 'No payments have been recorded today.', { split: true })}>
                     {today ? `${receiptCount(today.count)} issued today` : 'Loading…'}
                 </Card>
-                <Card label="Awaiting Payment" value={awaiting ? String(awaiting.orders + awaiting.slips) : '—'} action="View list" onPress={() => router.push('/cashier-awaiting')}>
+                <Card label="Awaiting Payment" value={awaiting ? String(awaiting.orders + awaiting.slips) : '—'} action="View list" onPress={() => setAwaitingOpen(true)}>
                     {awaiting ? `${formatPeso(awaiting.total_centavos)} in total` : 'Loading…'}
                 </Card>
             </View>
             <View className="flex-row gap-3">
-                <Card label="Cash Payments" value={today ? formatPeso(today.cash_centavos) : '—'} action="View Cash" onPress={() => openReceipts('cash', 'paid')}>
+                <Card label="Cash Payments" value={today ? formatPeso(today.cash_centavos) : '—'} action="View Cash" onPress={() => openReceipts('cash', 'paid', 'Cash Payments', <Banknote size={20} color="#1d4ed8" />, 'No cash payments have been recorded today.')}>
                     {today ? `${receiptCount(today.cash_count)} today` : 'Loading…'}
                 </Card>
-                <Card label="GCash Payments" value={today ? formatPeso(today.gcash_centavos) : '—'} action="View GCash" onPress={() => openReceipts('gcash', 'paid')}>
+                <Card label="GCash Payments" value={today ? formatPeso(today.gcash_centavos) : '—'} action="View GCash" onPress={() => openReceipts('gcash', 'paid', 'GCash Payments', <Smartphone size={20} color="#1d4ed8" />, 'No GCash payments have been recorded today.')}>
                     {today ? `${receiptCount(today.gcash_count)} today` : 'Loading…'}
                 </Card>
             </View>
             {(today?.void_count ?? 0) > 0 && (
                 <Pressable
-                    onPress={() => openReceipts('', 'void')}
+                    onPress={() => openReceipts('', 'void', 'Voided Payments', <XCircle size={20} color="#b91c1c" />, 'No payments have been voided today.', { voided: true })}
                     accessibilityRole="button"
                     className="flex-row items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3"
                 >
@@ -181,6 +205,8 @@ export default function CashierScreen() {
                     dashboard.latest.map((row, index) => <PaymentRowItem key={row.id} row={row} first={index === 0} />)
                 )}
             </View>
+            <PaymentListSheet request={sheet} onClose={() => setSheet(null)} />
+            <AwaitingSheet open={awaitingOpen} onClose={() => setAwaitingOpen(false)} />
         </ScrollView>
     );
 }

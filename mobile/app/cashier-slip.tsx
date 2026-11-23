@@ -292,9 +292,24 @@ export default function CashierSlipScreen() {
 
                     {method === 'cash' && (
                         <View className="gap-1.5">
-                            <Text className="font-sans-bold text-sm text-slate-700">
-                                Amount received <Text className="text-red-600">*</Text>
-                            </Text>
+                            <View className="flex-row flex-wrap items-center justify-between gap-2">
+                                <Text className="font-sans-bold text-sm text-slate-700">
+                                    Amount received <Text className="text-red-600">*</Text>
+                                </Text>
+                                {/* The buyer handed over exactly the amount due: no typing, no change. */}
+                                <Pressable
+                                    onPress={() => {
+                                        setReceived((amount / 100).toFixed(2));
+                                        setFieldError(null);
+                                    }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Exact amount, ${formatPeso(amount)}`}
+                                    className="flex-row items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 active:bg-emerald-100"
+                                >
+                                    <Banknote size={15} color="#065f46" />
+                                    <Text className="font-sans-bold text-sm text-emerald-800">Exact amount · {formatPeso(amount)}</Text>
+                                </Pressable>
+                            </View>
                             <View className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
                                 <Text className="font-sans-bold text-base text-slate-500">₱</Text>
                                 <TextInput

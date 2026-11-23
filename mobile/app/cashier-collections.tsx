@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
-import { ArrowLeft, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, Banknote, ChevronRight, ReceiptText, Smartphone, XCircle } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
+import PaymentListSheet from '@/components/PaymentListSheet';
+import type { PaymentListRequest } from '@/components/PaymentListSheet';
 import PaymentPeriodPicker, { paymentQuery, receiptsLink } from '@/components/PaymentPeriodPicker';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -19,8 +22,8 @@ const START: PaymentFilters = { period: 'month', date_from: '', date_to: '', met
  * Collections on the phone, like the website's: the money collected in a
  * period (this month by default, or any From / To days, e.g. January to
  * February), by day or by month, in Cash and GCash; voided payments are not
- * counted. Tapping a total opens Payment History for the same period with
- * only those receipts. The daily report and the Excel download are on the
+ * counted. Tapping a total opens its receipts for the same period in a
+ * pop-up, with a button to Payment History. The daily report and the Excel download are on the
  * website.
  */
 export default function CashierCollectionsScreen() {
@@ -55,7 +58,25 @@ export default function CashierCollectionsScreen() {
 
     const show = (next: Partial<PaymentFilters>): void => void load({ ...filters, ...next });
     const totals = answer?.totals;
-    const openReceipts = (method: PaymentFilters['method'], status: PaymentFilters['status']): void => router.push(receiptsLink(filters, method, status));
+    const [sheet, setSheet] = useState<PaymentListRequest | null>(null);
+
+    /** A total's pop-up: the receipts behind it for this same period, and a button to Payment History. */
+    const openReceipts = (
+        method: PaymentFilters['method'],
+        status: PaymentFilters['status'],
+        title: string,
+        icon: ReactNode,
+        empty: string,
+        extra: Partial<PaymentListRequest> = {},
+    ): void =>
+        setSheet({
+            title,
+            icon,
+            query: paymentQuery({ ...filters, method, status, type: '', search: '', group: 'day' }),
+            empty,
+            action: { label: 'Open Payment History', onPress: () => router.push(receiptsLink(filters, method, status)) },
+            ...extra,
+        });
 
     return (
         <ScrollView
@@ -102,7 +123,7 @@ export default function CashierCollectionsScreen() {
 
             {totals && (
                 <>
-                    <Pressable onPress={() => openReceipts('', 'paid')} accessibilityRole="button" className="gap-1 rounded-3xl bg-brand p-4">
+                    <Pressable onPress={() => openReceipts('', 'paid', 'Total Collected', <ReceiptText size={20} color="#1d4ed8" />, 'No payments were recorded in this period.', { split: true })} accessibilityRole="button" className="gap-1 rounded-3xl bg-brand p-4">
                         <Text className="font-sans-semibold text-xs uppercase text-blue-100">Total collected</Text>
                         <Text className="font-sans-bold text-3xl text-white">{formatPeso(totals.total_centavos)}</Text>
                         <View className="flex-row items-center justify-between gap-2">
@@ -114,9 +135,9 @@ export default function CashierCollectionsScreen() {
                         </View>
                     </Pressable>
                     <View className="flex-row gap-2">
-                        <Tile label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} onPress={() => openReceipts('cash', 'paid')} />
-                        <Tile label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} onPress={() => openReceipts('gcash', 'paid')} />
-                        <Tile label="Voided" value={formatPeso(totals.void_centavos)} detail={`${receiptCount(totals.void_count)}, not counted`} onPress={() => openReceipts('', 'void')} />
+                        <Tile label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} onPress={() => openReceipts('cash', 'paid', 'Cash Payments', <Banknote size={20} color="#1d4ed8" />, 'No cash payments were recorded in this period.')} />
+                        <Tile label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} onPress={() => openReceipts('gcash', 'paid', 'GCash Payments', <Smartphone size={20} color="#1d4ed8" />, 'No GCash payments were recorded in this period.')} />
+                        <Tile label="Voided" value={formatPeso(totals.void_centavos)} detail={`${receiptCount(totals.void_count)}, not counted`} onPress={() => openReceipts('', 'void', 'Voided Payments', <XCircle size={20} color="#b91c1c" />, 'No payments were voided in this period.', { voided: true })} />
                     </View>
                 </>
             )}
@@ -146,6 +167,7 @@ export default function CashierCollectionsScreen() {
                     ))}
                 </View>
             )}
+            <PaymentListSheet request={sheet} onClose={() => setSheet(null)} />
         </ScrollView>
     );
 }

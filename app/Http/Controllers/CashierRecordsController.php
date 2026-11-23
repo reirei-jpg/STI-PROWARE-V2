@@ -6,6 +6,7 @@ use App\Http\Requests\FilterPaymentsRequest;
 use App\Services\Shop\CashierRecords;
 use Carbon\CarbonImmutable;
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,6 +49,28 @@ class CashierRecordsController extends Controller
             ...CashierRecords::history($filters),
             'filters' => $filters,
             'readOnly' => ! $request->user()->isCashier(),
+        ]);
+    }
+
+    /**
+     * What a summary card's pop-up window shows: the latest receipts matching
+     * the filters (the first page) and their totals.
+     */
+    public function historyPreview(FilterPaymentsRequest $request): JsonResponse
+    {
+        $filters = $request->filters();
+
+        return response()->json([...CashierRecords::history($filters), 'filters' => $filters]);
+    }
+
+    /**
+     * The Awaiting Payment card's pop-up window: the orders and preorder slips waiting the longest.
+     */
+    public function awaitingPreview(): JsonResponse
+    {
+        return response()->json([
+            'orders' => CashierRecords::awaitingOrders(''),
+            'slips' => CashierRecords::awaitingSlips(''),
         ]);
     }
 

@@ -1,3 +1,4 @@
+import { CheckCircle2 } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
@@ -5,106 +6,196 @@ import { formatDateTime, formatPeso } from '@/lib/format';
 import type { PaymentReceipt } from '@/lib/types';
 
 /**
- * A Payment Receipt on the phone, like the website's: the school, PAYMENT
- * RECEIPT on a gold band, the receipt number and date, who paid for which
- * slip, each line paid for, the total, how it was paid (cash with the
- * amount received and the change, or GCash with its reference), and who
- * received it. A voided receipt is stamped VOID with the reason.
+ * A Payment Receipt on the phone, like the website's and V1's: a till slip
+ * in a typewriter font with dashed lines. STI PROWARE and the school on
+ * top, PAYMENT RECEIPT, the receipt number, slip, date and cashier, who
+ * paid, each item with "qty x price", the total between two thick lines,
+ * how it was paid, PAYMENT CONFIRMED and the note that it is not an
+ * official receipt. A voided receipt is stamped VOID with the reason.
  */
 export default function PaymentReceiptCard({ receipt }: { receipt: PaymentReceipt }) {
     const { row } = receipt;
+    const pieces = receipt.lines.reduce((sum, line) => sum + line.quantity, 0);
 
     return (
-        <View className="overflow-hidden rounded-3xl border border-slate-300 bg-white p-4">
+        <View className="overflow-hidden bg-white px-5 py-6" style={{ elevation: 4 }}>
             <View className="items-center">
-                <Text className="font-sans-bold text-base text-slate-900">{receipt.school}</Text>
+                <Mono bold size={20}>
+                    STI PROWARE
+                </Mono>
+                <Mono bold size={10} className="mt-1 text-center">
+                    {receipt.school}
+                </Mono>
                 {receipt.address_lines.map((line) => (
-                    <Text key={line} className="font-sans text-[11px] text-slate-600">
+                    <Mono key={line} size={10} className="text-center">
                         {line}
-                    </Text>
+                    </Mono>
                 ))}
-                <Text className="mt-0.5 font-sans-bold text-[11px] text-slate-600">PROWARE Merchandise</Text>
-            </View>
-
-            <View className="mt-3 border-y-2 border-[#1E4E9C] bg-[#F7D44C] py-1.5">
-                <Text className="text-center font-sans-bold text-sm tracking-[3px] text-slate-900">PAYMENT RECEIPT</Text>
+                <Mono bold size={12} className="mt-3" style={{ letterSpacing: 2 }}>
+                    PAYMENT RECEIPT
+                </Mono>
             </View>
 
             {row.void && (
-                <View className="mt-3 items-center rounded-xl border-4 border-red-500/60 py-1">
-                    <Text className="font-sans-bold text-3xl tracking-[6px] text-red-600/80">VOID</Text>
+                <View
+                    className="mt-3 items-center self-center px-5 py-0.5"
+                    style={{ transform: [{ rotate: '-8deg' }], borderWidth: 4, borderStyle: 'solid', borderColor: '#dc2626', borderRadius: 10 }}
+                >
+                    <Mono bold size={32} style={{ color: '#dc2626', letterSpacing: 6 }}>
+                        VOID
+                    </Mono>
                 </View>
             )}
 
-            <View className="mt-3 gap-1.5">
-                <Field label="Receipt No.">
-                    <Text className="font-sans-bold text-base text-red-700">{row.receipt_number}</Text>
-                </Field>
-                <Field label="Date">{formatDateTime(row.paid_at)}</Field>
-                <Field label="Received from">{row.buyer_name}</Field>
-                <Field label={row.is_staff ? 'Employee ID' : 'Student ID'}>{row.buyer_id ?? '—'}</Field>
-                <Field label={row.is_staff ? 'Office/Department' : 'Section'}>{receipt.section ?? '—'}</Field>
-                <Field label="For">{receipt.for_label}</Field>
-            </View>
+            <Divider />
 
-            <View className="mt-3 overflow-hidden rounded-xl border border-[#1E4E9C]">
-                <View className="flex-row bg-[#F7D44C] px-2 py-1.5">
-                    <Text className="w-10 font-sans-bold text-[11px] text-slate-900">QTY</Text>
-                    <Text className="flex-1 font-sans-bold text-[11px] text-slate-900">ITEM</Text>
-                    <Text className="w-24 text-right font-sans-bold text-[11px] text-slate-900">AMOUNT</Text>
-                </View>
-                {receipt.lines.map((line, index) => (
-                    <View key={`${line.item}-${index}`} className="flex-row border-t border-[#1E4E9C]/40 px-2 py-1.5">
-                        <Text className="w-10 font-sans text-sm text-slate-900">{line.quantity}</Text>
-                        <View className="flex-1 pr-2">
-                            <Text className="font-sans text-sm text-slate-900">{line.item}</Text>
-                            <Text className="font-sans text-[11px] text-slate-500">{formatPeso(line.unit_price_centavos)} each</Text>
+            <Row label="RECEIPT NO." value={row.receipt_number ?? '—'} />
+            <Row label={row.kind === 'order' ? 'ORDER' : 'PREORDER SLIP'} value={row.number ?? '—'} />
+            <Row label="DATE PAID" value={formatDateTime(row.paid_at)} />
+            <Row label="CASHIER" value={row.cashier ?? '—'} />
+
+            <Divider />
+
+            <Mono bold>{row.is_staff ? 'EMPLOYEE' : 'STUDENT'}</Mono>
+            <Mono bold className="mt-1">
+                {row.buyer_name}
+            </Mono>
+            <Mono>{row.buyer_id || '—'}</Mono>
+            <Mono>{receipt.section || '—'}</Mono>
+
+            <Divider />
+
+            <View className="flex-row justify-between">
+                <Mono bold>ITEM</Mono>
+                <Mono bold>AMOUNT</Mono>
+            </View>
+            <View className="mt-3 gap-3">
+                {receipt.lines.map((line, index) => {
+                    const { name, option } = splitItem(line.item);
+
+                    return (
+                        <View key={`${line.item}-${index}`} className="flex-row justify-between gap-3">
+                            <View className="flex-1">
+                                <Mono bold>{name}</Mono>
+                                {option ? <Mono size={10}>{option}</Mono> : null}
+                                <Mono size={10}>
+                                    {line.quantity} x {formatPeso(line.unit_price_centavos)}
+                                </Mono>
+                            </View>
+                            <Mono bold>{formatPeso(line.amount_centavos)}</Mono>
                         </View>
-                        <Text className="w-24 text-right font-sans-bold text-sm text-slate-900">{formatPeso(line.amount_centavos)}</Text>
-                    </View>
-                ))}
-                <View className="flex-row border-t border-[#1E4E9C] px-2 py-2">
-                    <Text className="flex-1 font-sans-bold text-xs uppercase text-slate-900">Total amount paid</Text>
-                    <Text className="font-sans-bold text-base text-slate-900">{formatPeso(row.amount_centavos)}</Text>
-                </View>
+                    );
+                })}
             </View>
 
-            <View className="mt-3 gap-1.5">
-                <Field label="Payment method">{row.method_label}</Field>
-                {row.method === 'cash' ? (
-                    <>
-                        <Field label="Amount received">{formatPeso(row.amount_received_centavos)}</Field>
-                        <Field label="Change">{formatPeso(row.change_centavos)}</Field>
-                    </>
-                ) : (
-                    <Field label="GCash reference no.">{row.gcash_reference ?? '—'}</Field>
-                )}
-                <Field label="Received by">{row.cashier ?? '—'}</Field>
+            <Divider />
+
+            <Row label="TOTAL ITEMS" value={String(pieces)} />
+
+            <View className="my-4 flex-row items-end justify-between py-3" style={{ borderTopWidth: 2, borderBottomWidth: 2, borderColor: '#000000' }}>
+                <Mono bold size={16}>
+                    TOTAL
+                </Mono>
+                <Mono bold size={20} style={row.void ? { textDecorationLine: 'line-through' } : undefined}>
+                    {formatPeso(row.amount_centavos)}
+                </Mono>
             </View>
 
-            {row.void && (
-                <Text className="mt-3 rounded-xl bg-red-50 px-3 py-2 font-sans-semibold text-xs leading-5 text-red-800">
-                    Voided on {formatDateTime(row.voided_at)}
-                    {row.voided_by ? ` by ${row.voided_by}` : ''}: {row.void_reason}
-                </Text>
+            <Row label="METHOD" value={row.method_label} />
+            {row.method === 'cash' ? (
+                <>
+                    <Row label="AMOUNT RECEIVED" value={formatPeso(row.amount_received_centavos)} />
+                    <Row label="CHANGE" value={formatPeso(row.change_centavos)} />
+                </>
+            ) : (
+                <Row label="REFERENCE" value={row.gcash_reference ?? '—'} />
             )}
 
-            <Text className="mt-4 border-t border-slate-200 pt-3 text-center font-sans text-[11px] leading-4 text-slate-500">
+            {row.void && (
+                <View className="mt-4 px-2 py-1.5" style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: '#b91c1c' }}>
+                    <Mono bold size={11} style={{ color: '#991b1b' }}>
+                        VOIDED {formatDateTime(row.voided_at)}
+                        {row.voided_by ? ` by ${row.voided_by}` : ''}: {row.void_reason}
+                    </Mono>
+                </View>
+            )}
+
+            <Divider />
+
+            <View className="items-center">
+                {!row.void && (
+                    <View className="flex-row items-center gap-2">
+                        <CheckCircle2 size={16} color="#000000" />
+                        <Mono bold>PAYMENT CONFIRMED</Mono>
+                    </View>
+                )}
+                <Mono size={10} className="mt-2 text-center">
+                    Keep this receipt as proof of your payment.
+                </Mono>
+                <Mono bold className="mt-5">
+                    THANK YOU!
+                </Mono>
+            </View>
+
+            <Divider />
+
+            <Mono size={9} className="text-center">
                 {receipt.note}
-            </Text>
+            </Mono>
         </View>
     );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+/** "STI Classic Tee (Black / M)" -> the name, and the size/color below it. */
+function splitItem(item: string): { name: string; option: string | null } {
+    const match = item.match(/^(.*) \(([^()]*)\)$/);
+
+    return match ? { name: match[1], option: match[2] } : { name: item, option: null };
+}
+
+/** Receipt text: the typewriter font of a till slip. */
+function Mono({
+    children,
+    bold = false,
+    size = 12,
+    className = '',
+    style,
+}: {
+    children: ReactNode;
+    bold?: boolean;
+    size?: number;
+    className?: string;
+    style?: object;
+}) {
     return (
-        <View className="flex-row items-start gap-2">
-            <Text className="w-32 font-sans-bold text-xs text-slate-500">{label}</Text>
-            {typeof children === 'string' ? (
-                <Text className="flex-1 font-sans text-sm text-slate-900">{children}</Text>
-            ) : (
-                <View className="flex-1">{children}</View>
-            )}
+        <Text
+            className={`text-black ${className}`}
+            style={[{ fontFamily: 'monospace', fontSize: size, lineHeight: Math.round(size * 1.5), fontWeight: bold ? '700' : '400' }, style]}
+        >
+            {children}
+        </Text>
+    );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+    return (
+        <View className="flex-row items-start justify-between gap-4">
+            <Mono>{label}</Mono>
+            <Mono bold className="flex-1 text-right">
+                {value}
+            </Mono>
+        </View>
+    );
+}
+
+/**
+ * A dashed line across the slip. Android draws a one-sided dashed border as
+ * a solid line, so this is a dashed box with only its top edge showing.
+ */
+function Divider() {
+    return (
+        <View className="my-4" style={{ height: 1, overflow: 'hidden' }}>
+            <View style={{ height: 2, borderWidth: 1, borderStyle: 'dashed', borderColor: '#00000099', borderRadius: 1 }} />
         </View>
     );
 }

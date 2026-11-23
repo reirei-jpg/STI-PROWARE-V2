@@ -56,10 +56,9 @@ export default function BuyerPaymentReceipt({
                     </div>
                 </div>
 
-                <PaymentReceipt
-                    receipt={receipt}
-                    className="rounded-2xl shadow-sm"
-                />
+                <div className="rounded-3xl bg-slate-200 px-4 py-8">
+                    <PaymentReceipt receipt={receipt} className="shadow-2xl" />
+                </div>
             </div>
         </>
     );

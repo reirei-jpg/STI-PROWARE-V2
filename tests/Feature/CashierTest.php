@@ -420,6 +420,44 @@ test('Payment History filters by period, method, Order or Preorder, Paid or Void
         ->assertJsonPath('errors', ['date_from' => ['Choose a valid "From" date.']]);
 });
 
+test('a summary card pop-up loads the receipts behind the card, and the slips awaiting payment; only the cashier (and the School Admin for receipts)', function () {
+    $cash = lanyardOrder($this->juan, 1);
+    $gcash = lanyardOrder(User::factory()->student()->create(['name' => 'Bea Villareal']), 1);
+    $waiting = lanyardOrder($this->juan, 1);
+    $this->actingAs($this->cashier)->post(route('cashier.orders.paid', $cash), paidInCash('100'));
+    $this->post(route('cashier.orders.paid', $gcash), ['method' => 'gcash', 'gcash_reference' => '9876543210123']);
+
+    // The Cash Payments card: today's cash receipts only, with their total.
+    $this->getJson(route('cashier.payments.preview', ['method' => 'cash', 'status' => 'paid']))->assertOk()
+        ->assertJsonPath('payments.total', 1)
+        ->assertJsonPath('payments.data.0.number', $cash->number)
+        ->assertJsonPath('payments.data.0.change_centavos', 2000)
+        ->assertJsonPath('totals.total_centavos', 8000)
+        ->assertJsonPath('filters.period', 'today');
+    $this->getJson(route('cashier.payments.preview', ['method' => 'gcash', 'status' => 'paid']))
+        ->assertJsonPath('payments.data.0.gcash_reference', '9876543210123');
+
+    // The Awaiting Payment card: what is still to pay, the oldest first.
+    $this->getJson(route('cashier.awaiting.preview'))->assertOk()
+        ->assertJsonPath('orders.total', 1)
+        ->assertJsonPath('orders.data.0.number', $waiting->number)
+        ->assertJsonPath('slips.total', 0);
+
+    // A wrong filter is refused with the reason the pop-up shows.
+    $this->getJson(route('cashier.payments.preview', ['period' => 'custom', 'date_from' => '2026-11-20', 'date_to' => '2026-12-01']))
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.date_to.0', 'The "To" date cannot be after today.');
+
+    // The School Admin views the receipts (not the awaiting list); the Specialist and buyers neither.
+    $this->actingAs($this->schoolAdmin)->getJson(route('cashier.payments.preview'))->assertOk()->assertJsonPath('totals.count', 2);
+    $this->getJson(route('cashier.awaiting.preview'))->assertForbidden();
+
+    foreach ([$this->specialist, $this->juan] as $other) {
+        $this->actingAs($other)->getJson(route('cashier.payments.preview'))->assertForbidden();
+        $this->getJson(route('cashier.awaiting.preview'))->assertForbidden();
+    }
+});
+
 test('Collections add up the money by day or by month (void payments apart), and both lists download for Excel', function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-15 10:00', 'Asia/Manila'));
     payAtCashier(lanyardOrder($this->juan, 1), $this->cashier);

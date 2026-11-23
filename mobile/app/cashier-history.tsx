@@ -1,11 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Search } from 'lucide-react-native';
+import { ArrowLeft, Banknote, ReceiptText, Search, Smartphone, XCircle } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoadError from '@/components/LoadError';
 import PaymentPeriodPicker, { filtersFromLink, paymentQuery } from '@/components/PaymentPeriodPicker';
+import PaymentListSheet from '@/components/PaymentListSheet';
+import type { PaymentListRequest } from '@/components/PaymentListSheet';
 import PaymentRowItem from '@/components/PaymentRowItem';
 import { loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -21,8 +24,8 @@ const START: PaymentFilters = { period: 'today', date_from: '', date_to: '', met
  * today first by default. Filter by period, method, Order or Preorder, Paid
  * or Voided, and search by receipt, slip number, buyer name or ID, or GCash
  * reference. The totals are of everything that matches; tapping a total
- * shows only its receipts (tapping it again shows all), and a dashboard or
- * Collections card opens it already filtered. A receipt opens when tapped.
+ * opens its receipts in a pop-up, and a dashboard or Collections card
+ * opens it already filtered. A receipt opens when tapped.
  */
 export default function CashierHistoryScreen() {
     const insets = useSafeAreaInsets();
@@ -87,12 +90,49 @@ export default function CashierHistoryScreen() {
 
     const show = (next: Partial<PaymentFilters>): void => void load({ ...filters, ...next, search: search.trim() }, 1);
 
-    /** A total shows only its receipts; tapped again while chosen, it shows all. */
-    const totalFilter = (method: PaymentFilters['method'], status: PaymentFilters['status']) => {
-        const active = filters.method === method && filters.status === status;
+    const [sheet, setSheet] = useState<PaymentListRequest | null>(null);
 
-        return { active, onPress: () => show(active ? { method: '', status: '' } : { method, status }) };
+    /**
+     * A total opens its receipts in a pop-up: those of this list (same
+     * period, type and search) that it counts. The pop-up's button shows
+     * only them in the list, or all again when the total is the chosen one.
+     * A total the list's own filter rules out (GCash while the list shows
+     * Cash only) counts nothing, so it does not open.
+     */
+    const totalFilter = (
+        method: PaymentFilters['method'],
+        status: PaymentFilters['status'],
+        title: string,
+        icon: ReactNode,
+        empty: string,
+        extra: Partial<PaymentListRequest> = {},
+    ): { active: boolean; onPress?: () => void } => {
+        const active = filters.method === method && filters.status === status;
+        const ruledOut = (method !== '' && filters.method !== '' && filters.method !== method) || (filters.status !== '' && filters.status !== status);
+
+        if (ruledOut) {
+            return { active };
+        }
+
+        const card = { method: method || filters.method, status };
+
+        return {
+            active,
+            onPress: () =>
+                setSheet({
+                    title,
+                    icon,
+                    query: paymentQuery({ ...filters, ...card, search: search.trim() }),
+                    empty,
+                    action: {
+                        label: active ? 'Show all receipts in the list' : 'Show only these in the list',
+                        onPress: () => show(active ? { method: '', status: '' } : card),
+                    },
+                    ...extra,
+                }),
+        };
     };
+    const voidTotal = totalFilter('', 'void', 'Voided Payments', <XCircle size={20} color="#b91c1c" />, 'No voided payments match this list.', { voided: true });
 
     return (
         <ScrollView
@@ -159,22 +199,23 @@ export default function CashierHistoryScreen() {
 
             {totals && (
                 <View className="flex-row gap-2">
-                    <Total label="Total" value={formatPeso(totals.total_centavos)} detail={receiptCount(totals.count)} {...totalFilter('', 'paid')} />
-                    <Total label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} {...totalFilter('cash', 'paid')} />
-                    <Total label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} {...totalFilter('gcash', 'paid')} />
+                    <Total label="Total" value={formatPeso(totals.total_centavos)} detail={receiptCount(totals.count)} {...totalFilter('', 'paid', 'Total Collected', <ReceiptText size={20} color="#1d4ed8" />, 'No payments match this list.', { split: true })} />
+                    <Total label="Cash" value={formatPeso(totals.cash_centavos)} detail={receiptCount(totals.cash_count)} {...totalFilter('cash', 'paid', 'Cash Payments', <Banknote size={20} color="#1d4ed8" />, 'No cash payments match this list.')} />
+                    <Total label="GCash" value={formatPeso(totals.gcash_centavos)} detail={receiptCount(totals.gcash_count)} {...totalFilter('gcash', 'paid', 'GCash Payments', <Smartphone size={20} color="#1d4ed8" />, 'No GCash payments match this list.')} />
                 </View>
             )}
             {totals && totals.void_count > 0 && (
                 <Pressable
-                    onPress={totalFilter('', 'void').onPress}
+                    onPress={voidTotal.onPress}
+                    disabled={voidTotal.onPress === undefined}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: totalFilter('', 'void').active }}
-                    className={`flex-row items-center justify-between gap-2 rounded-2xl border px-3 py-2.5 ${totalFilter('', 'void').active ? 'border-red-400 bg-red-100' : 'border-red-200 bg-red-50'}`}
+                    accessibilityState={{ selected: voidTotal.active }}
+                    className={`flex-row items-center justify-between gap-2 rounded-2xl border px-3 py-2.5 ${voidTotal.active ? 'border-red-400 bg-red-100' : 'border-red-200 bg-red-50'}`}
                 >
                     <Text className="flex-1 font-sans-semibold text-xs text-red-700">
                         {totals.void_count} {totals.void_count === 1 ? 'voided payment' : 'voided payments'} ({formatPeso(totals.void_centavos)}), not counted in the total.
                     </Text>
-                    <Text className="font-sans-bold text-xs text-red-700">{totalFilter('', 'void').active ? 'Show all' : 'View'}</Text>
+                    <Text className="font-sans-bold text-xs text-red-700">View</Text>
                 </Pressable>
             )}
 
@@ -208,6 +249,7 @@ export default function CashierHistoryScreen() {
                     <Text className="font-sans-bold text-sm text-blue-700">{loading ? 'Loading…' : 'Show more'}</Text>
                 </Pressable>
             )}
+            <PaymentListSheet request={sheet} onClose={() => setSheet(null)} />
         </ScrollView>
     );
 }
@@ -230,10 +272,11 @@ function ChipRow({ options, value, onPick }: { options: [string, string][]; valu
     );
 }
 
-function Total({ label, value, detail, active, onPress }: { label: string; value: string; detail?: string; active: boolean; onPress: () => void }) {
+function Total({ label, value, detail, active, onPress }: { label: string; value: string; detail?: string; active: boolean; onPress?: () => void }) {
     return (
         <Pressable
             onPress={onPress}
+            disabled={onPress === undefined}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             className={`flex-1 rounded-2xl border p-3 ${active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'}`}
@@ -241,7 +284,7 @@ function Total({ label, value, detail, active, onPress }: { label: string; value
             <Text className="font-sans-bold text-[11px] text-slate-500">{label}</Text>
             <Text className="font-sans-bold text-sm text-slate-900">{value}</Text>
             {detail ? <Text className="font-sans text-[11px] text-slate-500">{detail}</Text> : null}
-            <Text className="mt-1 font-sans-bold text-[11px] text-blue-700">{active ? 'Show all' : 'View'}</Text>
+            {onPress ? <Text className="mt-1 font-sans-bold text-[11px] text-blue-700">View</Text> : null}
         </Pressable>
     );
 }
