@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { PackagePlus, Search, Truck, Unlink, X } from 'lucide-react-native';
+import { PackagePlus, Search, Truck, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import DeliveryRow from '@/components/DeliveryRow';
 import LoadError from '@/components/LoadError';
 import LoadingState from '@/components/LoadingState';
 import NoResults from '@/components/NoResults';
-import { formatDate, formatDateTime, formatUnits } from '@/lib/format';
 import type { RecordedDelivery } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
@@ -143,47 +143,3 @@ export default function StaffDeliveriesScreen() {
     );
 }
 
-function DeliveryRow({ delivery }: { delivery: RecordedDelivery }) {
-    const numbers = [
-        delivery.sales_invoice_number ? `SI ${delivery.sales_invoice_number}` : null,
-        delivery.delivery_receipt_number ? `DR ${delivery.delivery_receipt_number}` : null,
-    ].filter(Boolean);
-
-    return (
-        <View
-            style={{
-                borderLeftWidth: 5,
-                borderLeftColor: delivery.items_not_in_stock > 0 ? '#f59e0b' : '#10b981',
-            }}
-            className="gap-1 rounded-2xl border border-slate-200 bg-white px-4 py-3"
-        >
-            <Text className="font-sans-bold text-base text-slate-900">
-                Received {formatDate(delivery.received_on)}
-            </Text>
-            {numbers.length > 0 && (
-                <Text className="font-sans-semibold text-xs text-slate-500">{numbers.join(' · ')}</Text>
-            )}
-            {delivery.order_numbers.length > 0 && (
-                <Text className="font-sans text-sm text-slate-700">
-                    Order #{delivery.order_numbers.join(', #')}
-                </Text>
-            )}
-            <Text className="font-sans-bold text-sm text-emerald-700">
-                {formatUnits(delivery.pieces_added_to_stock, 'Piece')} added to stock
-            </Text>
-            {delivery.items_not_in_stock > 0 && (
-                <View className="flex-row items-center gap-1.5">
-                    <Unlink size={13} color="#b45309" />
-                    <Text className="flex-1 font-sans-semibold text-xs text-amber-700">
-                        {delivery.items_not_in_stock === 1
-                            ? '1 item not linked to a product, so not in stock yet'
-                            : `${delivery.items_not_in_stock} items not linked to a product, so not in stock yet`}
-                    </Text>
-                </View>
-            )}
-            <Text className="font-sans text-[11px] text-slate-400">
-                Recorded by {delivery.recorded_by} · {formatDateTime(delivery.recorded_at)}
-            </Text>
-        </View>
-    );
-}

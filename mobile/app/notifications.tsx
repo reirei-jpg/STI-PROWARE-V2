@@ -279,6 +279,41 @@ function describe(data: StudentNotificationData): {
                 titleClass: 'text-red-700',
                 stripe: '#f87171',
             };
+        case 'purchase_order_uploaded':
+            return {
+                title: 'New purchase order uploaded',
+                body: `${data.uploaded_by} uploaded ${data.order_number ? `Order #${data.order_number}, dated` : 'an order dated'} ${formatDate(data.date_ordered)} · ${formatPeso(data.total_amount_centavos ?? 0)} · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'}`,
+                titleClass: 'text-slate-900',
+                stripe: '#60a5fa',
+            };
+        case 'purchase_order_completed':
+            return {
+                title: `Order completed${data.order_number ? `: Order #${data.order_number}` : ''}`,
+                body: `Everything arrived (${data.quantity_received.toLocaleString('en-PH')} as ordered on the eStore) · ordered ${formatDate(data.date_ordered)}${data.completed_at ? `, completed ${formatDateTime(data.completed_at)}` : ''} (${data.completed_after_days === 0 ? 'the same day' : `${data.completed_after_days} ${data.completed_after_days === 1 ? 'day' : 'days'}`}) · by ${data.recorded_by}`,
+                titleClass: 'text-emerald-700',
+                stripe: '#10b981',
+            };
+        case 'purchase_order_late':
+            return {
+                title: `Order late${data.order_number ? `: Order #${data.order_number}` : ''}`,
+                body: `Not complete after ${data.late_days} days · ordered ${formatDate(data.date_ordered)} · ${data.quantity_received.toLocaleString('en-PH')} of ${data.quantity_ordered.toLocaleString('en-PH')} received (${data.percent_received}%)`,
+                titleClass: 'text-red-700',
+                stripe: '#f87171',
+            };
+        case 'purchase_order_closed_short':
+            return {
+                title: `Completed (some missing)${data.order_number ? `: Order #${data.order_number}` : ''}`,
+                body: `${data.reason ? `"${data.reason}" · ` : ''}${data.percent_received}% received${data.closed_by ? ` · by ${data.closed_by}` : ''}`,
+                titleClass: 'text-amber-800',
+                stripe: '#f59e0b',
+            };
+        case 'delivery_recorded':
+            return {
+                title: `Delivery recorded${data.order_numbers.length > 0 ? `: Order ${data.order_numbers.map((number) => `#${number}`).join(', ')}` : ''}`,
+                body: `${data.quantity_received.toLocaleString('en-PH')} received (as ordered on the eStore) · ${data.items_count} ${data.items_count === 1 ? 'item' : 'items'} · received ${formatDate(data.received_on)}${data.sales_invoice_number ? ` · SI # ${data.sales_invoice_number}` : ''}${data.delivery_receipt_number ? ` · DR # ${data.delivery_receipt_number}` : ''} · by ${data.recorded_by}`,
+                titleClass: 'text-emerald-700',
+                stripe: '#10b981',
+            };
         default:
             return {
                 title: 'Notice from the PROWARE office',
@@ -346,7 +381,7 @@ export default function NotificationsScreen() {
                 onPress: async () => {
                     try {
                         const result = await request<{ unlocked: boolean; message: string }>(
-                            `/specialist/locked-accounts/${userId}/unlock`,
+                            `/${user?.role === 'school_admin' ? 'admin' : 'specialist'}/locked-accounts/${userId}/unlock`,
                             { method: 'POST' },
                         );
 

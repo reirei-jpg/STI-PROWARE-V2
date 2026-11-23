@@ -28,7 +28,7 @@ const START: PaymentFilters = { period: 'month', date_from: '', date_to: '', met
  */
 export default function CashierCollectionsScreen() {
     const insets = useSafeAreaInsets();
-    const { request } = useAuth();
+    const { request, user } = useAuth();
     const [filters, setFilters] = useState<PaymentFilters>(START);
     const [answer, setAnswer] = useState<CollectionsAnswer | null>(null);
     const [loading, setLoading] = useState(false);
@@ -85,7 +85,7 @@ export default function CashierCollectionsScreen() {
             keyboardShouldPersistTaps="handled"
         >
             <Pressable
-                onPress={() => (router.canGoBack() ? router.back() : router.replace('/cashier'))}
+                onPress={() => (router.canGoBack() ? router.back() : router.replace(user?.role === 'school_admin' ? '/admin-payments' : '/cashier'))}
                 accessibilityRole="button"
                 className="flex-row items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2"
             >

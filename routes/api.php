@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PreorderController;
+use App\Http\Controllers\Api\V1\SchoolAdmin\OverviewController;
 use App\Http\Controllers\Api\V1\Specialist\DeliveryController;
 use App\Http\Controllers\Api\V1\Specialist\LockedAccountController;
 use App\Http\Controllers\Api\V1\Specialist\OrderController as SpecialistOrderController;
@@ -15,11 +16,13 @@ use App\Http\Controllers\Api\V1\Specialist\StockController;
 use App\Http\Controllers\Api\V1\Specialist\TaskController;
 use App\Http\Controllers\Api\V1\StorefrontController;
 use App\Http\Controllers\Api\V1\WishlistController;
+use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Middleware\UseRequestHostForPhotos;
 use Illuminate\Support\Facades\Route;
 
 /*
-| The phone app's API (/api/v1), for students and the PROWARE Specialist.
+| The phone app's API (/api/v1), for buyers, the PROWARE Specialist, the
+| cashier and the School Admin.
 | Each phone signs in with its own token; every rule is the website's own
 | (shared services and actions).
 */
@@ -32,8 +35,9 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
     Route::get('merchandise', [StorefrontController::class, 'merchandise'])->name('storefront.merchandise');
     Route::get('products/{product}', [StorefrontController::class, 'show'])->name('storefront.product');
 
-    // Buyers (students and STI staff) and the Specialist.
-    Route::middleware(['auth:sanctum', 'role:student,employee,specialist'])->group(function () {
+    // Everyone who signs in on the phone: buyers (students and STI staff), the
+    // Specialist, the cashier and the School Admin.
+    Route::middleware(['auth:sanctum', 'role:student,employee,specialist,cashier,school_admin'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
@@ -80,13 +84,27 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::get('slip', [CashierController::class, 'lookup'])->name('slip');
         Route::get('paid-today', [CashierController::class, 'paidToday'])->name('paid-today');
         Route::get('awaiting', [CashierController::class, 'awaiting'])->name('awaiting');
-        Route::get('payments', [CashierController::class, 'history'])->name('payments');
-        Route::get('collections', [CashierController::class, 'collections'])->name('collections');
-        Route::get('receipts/{payment}', [CashierController::class, 'receipt'])->name('receipts.show');
         Route::post('orders/{order}/paid', [CashierController::class, 'payOrder'])->name('orders.paid');
         Route::post('preorder-slips/{preorderSlip}/paid', [CashierController::class, 'payPreorderSlip'])->name('preorder-slips.paid');
         Route::post('orders/{order}/undo-payment', [CashierController::class, 'undoOrderPayment'])->name('orders.undo-payment');
         Route::post('preorder-slips/{preorderSlip}/undo-payment', [CashierController::class, 'undoPreorderPayment'])->name('preorder-slips.undo-payment');
+    });
+
+    // The cashier's records: the School Admin views them too (read-only).
+    Route::middleware(['auth:sanctum', 'role:cashier,school_admin'])->prefix('cashier')->name('cashier.')->group(function () {
+        Route::get('payments', [CashierController::class, 'history'])->name('payments');
+        Route::get('collections', [CashierController::class, 'collections'])->name('collections');
+        Route::get('receipts/{payment}', [CashierController::class, 'receipt'])->name('receipts.show');
+    });
+
+    // The School Admin, view only like the website: the eStore orders, what
+    // sells, what arrived; Remind Specialist and Unlock are the only actions.
+    Route::middleware(['auth:sanctum', 'role:school_admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('overview', [OverviewController::class, 'index'])->name('overview');
+        Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
+        Route::post('purchase-orders/{purchaseOrder}/remind-specialist', [OverviewController::class, 'remind'])->whereNumber('purchaseOrder')->name('purchase-orders.remind-specialist');
+        Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
+        Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');
     });
 
     Route::middleware(['auth:sanctum', 'role:specialist'])->prefix('specialist')->name('specialist.')->group(function () {
