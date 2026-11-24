@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PreorderKind;
 use App\Enums\PreorderStatus;
 use Database\Factories\PreorderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -28,6 +29,7 @@ use Illuminate\Support\Str;
  * @property int|null $price_centavos one piece's price on the day it was preordered (null before this was kept)
  * @property int $early_bird_pieces how many of its pieces get the early-bird price
  * @property PreorderStatus $status
+ * @property PreorderKind $kind a Preorder (Coming Soon item) or a Back Order (sold-out size of an item in the store)
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $arrived_at when the student was told it arrived
  * @property Carbon|null $not_restocked_at when the student was told it will not be restocked
@@ -40,7 +42,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'price_centavos', 'early_bird_pieces', 'status', 'cancelled_at', 'arrived_at', 'not_restocked_at', 'not_restocked_reason', 'held_until', 'hold_ended_at', 'order_id', 'batch', 'edited_at'])]
+#[Fillable(['user_id', 'product_id', 'product_variant_id', 'quantity', 'price_centavos', 'early_bird_pieces', 'status', 'kind', 'cancelled_at', 'arrived_at', 'not_restocked_at', 'not_restocked_reason', 'held_until', 'hold_ended_at', 'order_id', 'batch', 'edited_at'])]
 class Preorder extends Model
 {
     /** @use HasFactory<PreorderFactory> */
@@ -55,6 +57,7 @@ class Preorder extends Model
             'quantity' => 'integer',
             'early_bird_pieces' => 'integer',
             'status' => PreorderStatus::class,
+            'kind' => PreorderKind::class,
             'cancelled_at' => 'datetime',
             'held_until' => 'datetime',
             'hold_ended_at' => 'datetime',

@@ -308,7 +308,7 @@ function statusPill(preorder: StudentPreorder): { text: string; box: string; wor
             return { text: 'Not paid in time', box: 'border-red-200 bg-red-50', word: 'text-red-700' };
         default:
             return {
-                text: preorder.waiting_for_restock ? 'Waiting for restock' : 'Waiting to arrive',
+                text: preorder.waiting_for_restock ? 'Back order · waiting for restock' : 'Waiting to arrive',
                 box: 'border-amber-200 bg-amber-50',
                 word: 'text-amber-700',
             };

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Preorders;
 
+use App\Enums\PreorderKind;
 use App\Enums\PreorderStatus;
 use App\Enums\UserRole;
 use App\Models\Preorder;
@@ -50,6 +51,8 @@ class PlacePreorder
                 $saved[] = $student->preorders()->create([
                     'product_variant_id' => $item['product_variant_id'],
                     'status' => PreorderStatus::Active,
+                    // A sold-out size of an item already in the store is a Back Order.
+                    'kind' => LowStockAlerts::isSold($product) ? PreorderKind::BackOrder : PreorderKind::Preorder,
                     'product_id' => $product->id,
                     'quantity' => $item['quantity'],
                     // Shown as "Preordered at ₱500 each"; the price paid is the one on the day it is ordered.

@@ -9,6 +9,7 @@ use App\Http\Requests\UpdatePreorderCloseDateRequest;
 use App\Models\Preorder;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Preorders\BackOrders;
 use App\Services\Preorders\PaymentDates;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -84,6 +85,8 @@ class PreorderController extends Controller
             ]),
             'filters' => ['search' => $search === '' ? null : $search, 'stage' => $stage],
             'summary' => $this->summary(),
+            // Back orders by status (panel revision A2): Pending, Filled, Cancelled, Not restocked.
+            'backOrders' => BackOrders::counts(),
             'details' => Inertia::optional(fn (): ?array => isset($validated['details']) ? $this->details((int) $validated['details'], $stage) : null),
             'today' => $today,
         ]);
@@ -119,6 +122,40 @@ class PreorderController extends Controller
      * product. With ?product= it is that one product's preorders so far.
      * The Item Code column is left out when no row has one.
      */
+    /**
+     * Every back order (panel revision A2), the newest first, with its status
+     * kept apart: Pending, Filled, Cancelled or Not restocked. PROWARE has no
+     * returned orders, which the last line says.
+     */
+    public function exportBackOrders(): StreamedResponse
+    {
+        $backOrders = BackOrders::query()
+            ->with(['student', 'product', 'variant'])
+            ->latest('id')
+            ->get();
+
+        return response()->streamDownload(function () use ($backOrders): void {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Date placed', 'Buyer', 'Product', 'Size / Color', 'Item Code', 'Pieces', 'Status']);
+
+            foreach ($backOrders as $backOrder) {
+                fputcsv($out, [
+                    $backOrder->created_at?->format('M j, Y'),
+                    $backOrder->student->name,
+                    $backOrder->product->name,
+                    $backOrder->variant === null || $backOrder->variant->choices === [] ? '' : $backOrder->variant->label(),
+                    $backOrder->variant?->estore_item_code ?? '',
+                    $backOrder->quantity,
+                    BackOrders::STATUSES[BackOrders::statusOf($backOrder)]['label'],
+                ]);
+            }
+
+            fputcsv($out, []);
+            fputcsv($out, ['Returned orders: none. A release is final and there are no refunds.']);
+            fclose($out);
+        }, 'back-orders-'.now()->toDateString().'.csv', ['Content-Type' => 'text/csv']);
+    }
+
     public function export(Request $request): StreamedResponse
     {
         $productId = $request->integer('product') ?: null;

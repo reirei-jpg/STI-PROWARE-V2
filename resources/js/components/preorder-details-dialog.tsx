@@ -143,7 +143,7 @@ export default function PreorderDetailsDialog({
                                     {arrived
                                         ? 'What arrived for them'
                                         : restock
-                                          ? 'Waiting for restock: order these in the eStore'
+                                          ? 'Back orders: order these in the eStore'
                                           : details.stage === 'to_order'
                                             ? 'What to order in the eStore'
                                             : 'Preordered so far'}

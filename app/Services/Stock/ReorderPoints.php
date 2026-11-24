@@ -22,9 +22,10 @@ use Illuminate\Database\Eloquent\Collection;
  * safety stock is the product's "Safety stock" number. When the pieces free to
  * sell fall to the Reorder Point it is time to order more on the eStore, and
  * PROWARE suggests how many: enough to stay above the Reorder Point and last
- * 30 more days, less what is still coming on eStore orders, in whole packs.
+ * 30 more days and fill the pending back orders, less what is still coming on
+ * eStore orders, in whole packs.
  *
- * @phpstan-type ReorderView array{reorder_point: int, used_last_30_days: int, safety_stock: int, lead_days: int, on_order: int, suggested: int, status: string, status_label: string, formula: string}
+ * @phpstan-type ReorderView array{reorder_point: int, used_last_30_days: int, safety_stock: int, lead_days: int, on_order: int, back_ordered: int, suggested: int, status: string, status_label: string, formula: string}
  */
 final class ReorderPoints
 {
@@ -186,7 +187,7 @@ final class ReorderPoints
      *
      * @return ReorderView|null
      */
-    public static function view(ProductVariant $variant, int $onOrder = 0): ?array
+    public static function view(ProductVariant $variant, int $onOrder = 0, int $backOrdered = 0): ?array
     {
         $variant->loadMissing(['product', 'estorePack']);
 
@@ -201,8 +202,8 @@ final class ReorderPoints
 
         if ($free <= $point) {
             $lasts = (int) ceil($used * self::COVER_DAYS / self::SALES_DAYS);
-            // Enough to be above the Reorder Point and last 30 more days.
-            $suggested = max($point + $lasts, $point + 1) - $free - $onOrder;
+            // Enough to be above the Reorder Point, last 30 more days and fill the back orders.
+            $suggested = max($point + $lasts, $point + 1) + $backOrdered - $free - $onOrder;
             $pack = $variant->estorePack->pieces ?? 1;
 
             if ($suggested > 0 && $pack > 1) {
@@ -223,6 +224,7 @@ final class ReorderPoints
             'safety_stock' => (int) $variant->product->low_stock_alert_at,
             'lead_days' => self::leadDays(),
             'on_order' => $onOrder,
+            'back_ordered' => $backOrdered,
             'suggested' => max(0, $suggested),
             'status' => $status,
             'status_label' => self::STATUS_LABELS[$status],

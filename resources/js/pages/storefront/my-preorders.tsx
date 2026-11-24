@@ -469,7 +469,7 @@ function PreorderLine({
     const [confirming, setConfirming] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const look = preorder.waiting_for_restock
-        ? { ...statusLooks.active, label: 'Waiting for Restock' }
+        ? { ...statusLooks.active, label: 'Back Order · Waiting for Restock' }
         : statusLooks[preorder.status];
     const StatusIcon = look.icon;
     const button =

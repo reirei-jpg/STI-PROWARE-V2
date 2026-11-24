@@ -39,17 +39,17 @@ type Stage = 'all' | PreorderStage;
 const tabs: { value: Stage; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'to_order', label: 'To order' },
-    { value: 'sold_out', label: 'Waiting for restock' },
+    { value: 'sold_out', label: 'Back Orders' },
     { value: 'open', label: 'Taking preorders' },
     { value: 'arrived', label: 'Arrived' },
 ];
 
 const descriptions: Record<Stage, string> = {
-    all: 'To order and waiting for restock first, then those taking preorders (closing soonest), then arrived.',
+    all: 'To order and back orders first, then those taking preorders (closing soonest), then arrived.',
     to_order:
         'Preorders closed. Order these pieces in the eStore, then set the product to Available when they arrive.',
     sold_out:
-        'Students preordered sizes that are out of stock. Order more in the eStore; students are notified when a delivery puts the size back in stock. Mark a size as not restocked if it will not come back.',
+        'Back orders: buyers ordered sizes that are sold out in the store. Order more in the eStore; they are notified when a delivery puts the size back in stock. Mark a size as not restocked if it will not come back.',
     open: 'These can still be preordered. Closing soonest first.',
     arrived:
         'For sale now. The buyers who preordered were notified; nothing is held for them.',
@@ -59,7 +59,7 @@ const descriptions: Record<Stage, string> = {
  * The Specialist's Preorders page. Each Preorder product goes from Taking
  * preorders to To order in eStore (preorders closed) to Arrived (for sale,
  * the students were told). A product for sale whose sold-out sizes students
- * preordered is Waiting for restock. Four cards say how many are in each
+ * preordered has Back Orders. Four cards say how many are in each
  * stage and filter the table; each row shows the stage, the date that
  * matters, the pieces per size, and View Details (what to order, who
  * preordered, change the date, mark a size as not restocked). Export
@@ -69,12 +69,18 @@ export default function PreordersIndex({
     products,
     filters,
     summary,
+    backOrders,
     details,
     today,
 }: {
     products: Paginated<PreorderProductSummary>;
     filters: { search: string | null; stage: Stage };
     summary: Record<PreorderStage, PreorderStageNumbers>;
+    /** Back orders by status (panel revision A2). */
+    backOrders: Record<
+        'pending' | 'filled' | 'cancelled' | 'not_restocked',
+        { label: string; pieces: number; buyers: number; sizes: number }
+    >;
     details?: PreorderDetails | null;
     today: string;
 }) {
@@ -180,7 +186,7 @@ export default function PreordersIndex({
                         current={filters.stage}
                         icon={PackageSearch}
                         tone="orange"
-                        title="Waiting for restock"
+                        title="Back Orders (pending)"
                         value={formatUnits(summary.sold_out.pieces, 'Piece')}
                         detail={`${summary.sold_out.products} ${summary.sold_out.products === 1 ? 'product' : 'products'} · ${summary.sold_out.students} ${summary.sold_out.students === 1 ? 'student' : 'students'} waiting`}
                         onClick={() => showList('sold_out', search)}
@@ -205,6 +211,40 @@ export default function PreordersIndex({
                         detail={`${formatUnits(summary.arrived.pieces, 'Piece')} preordered · ${summary.arrived.students} ${summary.arrived.students === 1 ? 'student' : 'students'} notified`}
                         onClick={() => showList('arrived', search)}
                     />
+                </section>
+
+                {/* Back orders kept apart by status; PROWARE has no returned orders. */}
+                <section className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 shadow-sm">
+                    <span className="mr-1 text-xs font-black tracking-wide text-slate-500 uppercase">
+                        Back orders
+                    </span>
+                    {(
+                        [
+                            ['pending', 'bg-amber-100 text-amber-800'],
+                            ['filled', 'bg-emerald-100 text-emerald-700'],
+                            ['cancelled', 'bg-red-100 text-red-700'],
+                            ['not_restocked', 'bg-slate-100 text-slate-700'],
+                        ] as const
+                    ).map(([key, classes]) => (
+                        <span
+                            key={key}
+                            className={`rounded-full px-3 py-1 text-xs font-black ${classes}`}
+                            title={`${backOrders[key].buyers} ${backOrders[key].buyers === 1 ? 'buyer' : 'buyers'} · ${backOrders[key].sizes} ${backOrders[key].sizes === 1 ? 'size' : 'sizes'}`}
+                        >
+                            {backOrders[key].label}:{' '}
+                            {formatUnits(backOrders[key].pieces, 'Piece')}
+                        </span>
+                    ))}
+                    <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500">
+                        Returned: none (releases are final)
+                    </span>
+                    <a
+                        href={PreorderController.exportBackOrders().url}
+                        className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                    >
+                        <Download size={15} />
+                        Export back orders (CSV)
+                    </a>
                 </section>
 
                 <Panel>
