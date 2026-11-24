@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\SchoolAdmin;
 
 use App\Actions\PurchaseOrders\RemindSpecialist;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Requests\FilterAdminDashboardRequest;
 use App\Models\PurchaseOrder;
 use App\Services\Auth\SignInLock;
@@ -29,6 +30,16 @@ class OverviewController extends Controller
             ...$overview->all($request->tab(), $request->search(), $request->period()),
             'locked_accounts' => SignInLock::lockedFor($request->user()),
         ]);
+    }
+
+    /**
+     * One eStore order in full, the same as the website's View Details. Its
+     * own action, so the website's route helper for PurchaseOrderController
+     * show stays one route.
+     */
+    public function purchaseOrder(PurchaseOrder $purchaseOrder, PurchaseOrderController $orders): JsonResponse
+    {
+        return $orders->show($purchaseOrder);
     }
 
     /**

@@ -14,7 +14,10 @@ export type LowStockData = {
     /** "TM Polo (S/M)", or the product name without options. */
     product_name: string;
     stock_on_hand: number;
+    /** The Reorder Point (the low-stock number on notices sent before it). */
     alert_at: number;
+    /** Pieces to order; missing on notices sent before the Reorder Point. */
+    suggested?: number | null;
 };
 
 export type SaleEndingData = {

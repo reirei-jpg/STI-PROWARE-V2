@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1\Specialist;
 
-use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterStockHistoryRequest;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Services\Stock\LowStockAlerts;
 use App\Services\Stock\ProductStock;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,9 +13,9 @@ use Illuminate\Http\Request;
 
 /**
  * Stock lookup on the Specialist's phone: find a product by name (or only
- * those low on stock, as the website's Low stock filter), then see each
- * size or color's pieces and the history of changes, as on the website's
- * Stock History page (ProductStock).
+ * those to reorder, at or below a Reorder Point), then see each size or
+ * color's pieces, Reorder Point and the history of changes, as on the
+ * website's Stock History page (ProductStock).
  */
 class StockController extends Controller
 {
@@ -33,7 +31,7 @@ class StockController extends Controller
             ->with('mainPhoto')
             ->withSum('variants', 'stock_on_hand')
             ->withSum('variants', 'held_pieces')
-            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft)])
+            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->atReorderPoint()])
             ->when($search !== '', fn (Builder $query) => $query->whereLike('name', "%{$search}%"))
             ->when($request->boolean('low'), fn (Builder $query) => $query->lowOnStock())
             ->orderBy('name')

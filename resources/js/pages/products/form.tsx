@@ -751,7 +751,7 @@ export default function ProductForm({
                 };
             case 'low_stock_alert_at':
                 return {
-                    place: 'Notify me when stock falls to',
+                    place: 'Safety stock',
                     section: 'product-packs',
                 };
             case 'most_per_buyer':
@@ -963,8 +963,8 @@ export default function ProductForm({
         },
         data.low_stock_alert_at.trim() === '' && {
             key: 'low_stock_alert_at',
-            label: 'Notify me when stock falls to',
-            message: 'Enter the number of pieces to be warned at, e.g. 5.',
+            label: 'Safety stock',
+            message: 'Enter the safety stock, the pieces always kept, e.g. 5.',
             section: 'product-packs',
         },
         data.most_per_buyer.trim() !== '' &&
@@ -1693,7 +1693,7 @@ export default function ProductForm({
                                 <RequiredLabel
                                     required={stillNeeded('low_stock_alert_at')}
                                 >
-                                    Notify me when stock falls to
+                                    Safety stock
                                 </RequiredLabel>
                                 <input
                                     value={data.low_stock_alert_at}
@@ -1714,17 +1714,18 @@ export default function ProductForm({
                                         inputClasses,
                                         'w-24 text-right',
                                     )}
-                                    aria-label="Low-stock number of pieces"
+                                    aria-label="Safety stock in pieces"
                                 />
                                 pcs
                             </span>
                             <span className="text-xs leading-5 text-slate-500">
-                                Applies to each variant (e.g. only S/M can be
-                                low). You are notified once in the bell, and
-                                again after the stock goes back above this
-                                number. Enter 0 to be notified only when it runs
-                                out. Only Available and On Sale products are
-                                watched.
+                                The pieces of each variant always kept on the
+                                shelf. Each variant&apos;s Reorder Point is its
+                                pieces used per day × the days Head Office takes
+                                to deliver (Maintenance) + this safety stock.
+                                When the stock falls to the Reorder Point, you
+                                are notified once with a suggested order. Only
+                                Available and On Sale products are watched.
                             </span>
                             <InputError
                                 message={

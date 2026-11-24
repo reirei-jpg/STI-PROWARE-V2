@@ -7,6 +7,7 @@ import {
     LockKeyhole,
     PackageCheck,
     Save,
+    Timer,
     UserPlus,
     Users,
 } from 'lucide-react';
@@ -63,12 +64,14 @@ type ChoiceSetting = {
  */
 export default function Maintenance({
     followUpDays,
+    reorderLeadDays,
     promoGroupSize,
     mostPerItem,
     buyersAllowedMore,
     lockedAccounts,
 }: {
     followUpDays: ChoiceSetting;
+    reorderLeadDays: LimitSetting;
     promoGroupSize: NumberSetting;
     mostPerItem: LimitSetting;
     buyersAllowedMore: BuyerAllowedMore[];
@@ -96,9 +99,12 @@ export default function Maintenance({
 
                 <Panel
                     title="Stock In"
-                    description="How purchase orders from Head Office are followed up."
+                    description="How purchase orders from Head Office are followed up, and when to order more."
                 >
                     <FollowUpDaysSetting setting={followUpDays} />
+                    <div className="border-t border-slate-100">
+                        <ReorderLeadDaysSetting setting={reorderLeadDays} />
+                    </div>
                 </Panel>
 
                 <Panel
@@ -158,6 +164,89 @@ function FollowUpDaysSetting({ setting }: { setting: ChoiceSetting }) {
                 })
             }
         />
+    );
+}
+
+/**
+ * The days Head Office takes to deliver an eStore order, used in every
+ * size's Reorder Point (pieces used per day × these days + safety stock).
+ * Typed, from 1 to 180.
+ */
+function ReorderLeadDaysSetting({ setting }: { setting: LimitSetting }) {
+    const form = useForm({ lead_days: String(setting.value) });
+    const typed = Number(form.data.lead_days) || 0;
+    const tooFew = form.data.lead_days !== '' && typed < setting.min;
+    const changed =
+        form.data.lead_days !== '' && !tooFew && typed !== setting.value;
+
+    return (
+        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1fr_22rem]">
+            <SettingText
+                icon={<Timer size={19} className="text-amber-600" />}
+                title="Days Head Office takes to deliver"
+                explanation="Used for each size or color's Reorder Point: the pieces it used per day in the last 30 days × these days + its safety stock (on the product). When the stock falls to the Reorder Point, you are notified with a suggested order, so more arrives before it runs out."
+                example={`Example with ${setting.default} days: a shirt size that sold 30 pieces in 30 days (1 a day) with a safety stock of 5 has a Reorder Point of 1 × ${setting.default} + 5 = ${setting.default + 5} pieces.`}
+                setting={setting}
+            />
+
+            <form
+                className="space-y-3 self-start rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+
+                    if (!changed) {
+                        return;
+                    }
+
+                    form.patch(
+                        MaintenanceController.updateReorderLeadDays().url,
+                        { preserveScroll: true },
+                    );
+                }}
+            >
+                <p className="text-xs font-black tracking-wide text-slate-500 uppercase">
+                    Now:{' '}
+                    <span className="text-slate-900">
+                        {setting.value} {setting.value === 1 ? 'day' : 'days'}
+                    </span>
+                </p>
+                <label className="block space-y-1.5">
+                    <span className="text-sm font-bold text-slate-700">
+                        Days ({setting.min} to {setting.max})
+                    </span>
+                    <input
+                        inputMode="numeric"
+                        value={form.data.lead_days}
+                        onChange={(event) =>
+                            form.setData(
+                                'lead_days',
+                                wholeNumberInput(
+                                    event.target.value,
+                                    setting.max,
+                                ),
+                            )
+                        }
+                        aria-invalid={
+                            tooFew || form.errors.lead_days !== undefined
+                        }
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                    />
+                </label>
+                <InputError
+                    message={
+                        tooFew
+                            ? `Enter a whole number of days from ${setting.min} to ${setting.max}.`
+                            : form.errors.lead_days
+                    }
+                />
+                <SaveButton disabled={!changed} processing={form.processing} />
+                {!changed && !tooFew && (
+                    <p className="text-center text-xs font-semibold text-slate-500">
+                        Type a different number to save.
+                    </p>
+                )}
+            </form>
+        </div>
     );
 }
 

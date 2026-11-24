@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Notifications\PurchaseOrderReminder;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
@@ -101,4 +102,14 @@ test('the cashier can now sign out on the phone, which ends that phone sign-in',
     $this->withToken($token)->getJson(route('api.v1.auth.me'))->assertOk();
     $this->withToken($token)->postJson(route('api.v1.auth.logout'))->assertSuccessful();
     expect($cashier->tokens()->count())->toBe(0);
+});
+
+test('the website keeps one route to an eStore order, so its link helper still works', function () {
+    // The phone has its own action: two routes on one action would turn
+    // the website's PurchaseOrderController.show helper into a list.
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->filter(fn ($route): bool => $route->getActionName() === 'App\Http\Controllers\PurchaseOrderController@show');
+
+    expect($routes)->toHaveCount(1)
+        ->and($routes->first()->uri())->toBe('purchase-orders/{purchaseOrder}');
 });

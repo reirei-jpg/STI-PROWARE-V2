@@ -10,5 +10,9 @@ Schedule::command('sales:check')->everyMinute()->withoutOverlapping();
 // School Admin, once per order.
 Schedule::command('purchase-orders:notify-late')->hourly()->withoutOverlapping();
 
+// The Reorder Points look back on the last 30 days of sales, which move on
+// each night.
+Schedule::command('stock:reorder-points')->dailyAt('00:10')->withoutOverlapping();
+
 // Preorders not paid by the close date of their payment dates are dropped.
 Schedule::command('preorders:drop-unpaid')->everyMinute()->withoutOverlapping();

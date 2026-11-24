@@ -497,7 +497,10 @@ export type StudentNotificationData =
           product_id: number;
           product_name: string;
           stock_on_hand: number;
+          /** The Reorder Point (the low-stock number on notices sent before it). */
           alert_at: number;
+          /** Pieces to order; missing on notices sent before the Reorder Point. */
+          suggested?: number | null;
       }
     | {
           kind: 'preorder_placed';
@@ -716,6 +719,22 @@ export type StockListProduct = {
     is_low: boolean;
 };
 
+/**
+ * A size or color's Reorder Point (pieces used per day × days Head Office
+ * takes to deliver + safety stock), its status and how many to order.
+ */
+export type ReorderView = {
+    reorder_point: number;
+    used_last_30_days: number;
+    safety_stock: number;
+    lead_days: number;
+    on_order: number;
+    suggested: number;
+    status: 'out_of_stock' | 'reorder' | 'on_order' | 'ok';
+    status_label: string;
+    formula: string;
+};
+
 /** One product's stock, as on the website's Stock History page. */
 export type ProductStockView = {
     product: {
@@ -723,7 +742,9 @@ export type ProductStockView = {
         name: string;
         has_options: boolean;
         stock_on_hand: number;
+        /** The safety stock (part of each Reorder Point). */
         low_stock_alert_at: number;
+        lead_days?: number;
         is_sold: boolean;
     };
     variants: {
@@ -732,8 +753,11 @@ export type ProductStockView = {
         /** Hidden from buyers (not sold yet). */
         is_draft: boolean;
         stock_on_hand: number;
+        free_to_sell?: number;
         estore_item_code: string | null;
         sent_by: string | null;
+        /** Missing on an older server; null when not watched. */
+        reorder?: ReorderView | null;
     }[];
     movements: Page<{
         id: number;

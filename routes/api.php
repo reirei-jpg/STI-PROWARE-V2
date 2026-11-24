@@ -16,7 +16,6 @@ use App\Http\Controllers\Api\V1\Specialist\StockController;
 use App\Http\Controllers\Api\V1\Specialist\TaskController;
 use App\Http\Controllers\Api\V1\StorefrontController;
 use App\Http\Controllers\Api\V1\WishlistController;
-use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Middleware\UseRequestHostForPhotos;
 use Illuminate\Support\Facades\Route;
 
@@ -101,7 +100,7 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
     // sells, what arrived; Remind Specialist and Unlock are the only actions.
     Route::middleware(['auth:sanctum', 'role:school_admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('overview', [OverviewController::class, 'index'])->name('overview');
-        Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
+        Route::get('purchase-orders/{purchaseOrder}', [OverviewController::class, 'purchaseOrder'])->whereNumber('purchaseOrder')->name('purchase-orders.show');
         Route::post('purchase-orders/{purchaseOrder}/remind-specialist', [OverviewController::class, 'remind'])->whereNumber('purchaseOrder')->name('purchase-orders.remind-specialist');
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
         Route::post('locked-accounts/{user}/unlock', [LockedAccountController::class, 'unlock'])->whereNumber('user')->name('locked-accounts.unlock');

@@ -9,12 +9,32 @@ import LoadingState from '@/components/LoadingState';
 import { ApiError, loadErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatUnits } from '@/lib/format';
-import type { ProductStockView } from '@/lib/types';
+import type { ProductStockView, ReorderView } from '@/lib/types';
+
+/** Reorder status colors, as on the website (V1's): red, amber, blue, green. */
+const reorderTone: Record<ReorderView['status'], { box: string; text: string }> = {
+    out_of_stock: { box: 'bg-red-100', text: 'text-red-700' },
+    reorder: { box: 'bg-amber-100', text: 'text-amber-700' },
+    on_order: { box: 'bg-blue-100', text: 'text-blue-700' },
+    ok: { box: 'bg-emerald-100', text: 'text-emerald-700' },
+};
+
+/** "Reorder Point 19 pcs · order 34 pcs · 20 pcs on order". */
+function reorderLine(reorder: ReorderView): string {
+    return [
+        `Reorder Point ${formatUnits(reorder.reorder_point, 'Piece')}`,
+        reorder.suggested > 0 ? `order ${formatUnits(reorder.suggested, 'Piece')}` : null,
+        reorder.on_order > 0 ? `${formatUnits(reorder.on_order, 'Piece')} on order` : null,
+    ]
+        .filter(Boolean)
+        .join(' · ');
+}
 
 /**
  * One product's stock on the Specialist's phone, as on the website's Stock
- * History page: pieces per size or color (red when out, amber when at or
- * below the warning number) and the latest changes with the balance after.
+ * History page: pieces per size or color with its reorder status (Out of
+ * stock, Reorder now, On order, OK), its Reorder Point and how many to
+ * order, and the latest changes with the balance after.
  */
 export default function StockScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -72,8 +92,10 @@ export default function StockScreen() {
                     <View>
                         <Text className="font-sans-bold text-2xl text-slate-900">{stock.product.name}</Text>
                         <Text className="font-sans text-sm text-slate-500">
-                            {formatUnits(stock.product.stock_on_hand, 'Piece')} in all · warned at{' '}
-                            {formatUnits(stock.product.low_stock_alert_at, 'Piece')}
+                            {formatUnits(stock.product.stock_on_hand, 'Piece')} in all
+                            {stock.product.is_sold
+                                ? ` · safety stock ${formatUnits(stock.product.low_stock_alert_at, 'Piece')}${stock.product.lead_days ? ` · Head Office delivers in ${stock.product.lead_days} ${stock.product.lead_days === 1 ? 'day' : 'days'}` : ''}`
+                                : ' · not watched for reorder'}
                         </Text>
                     </View>
 
@@ -81,29 +103,26 @@ export default function StockScreen() {
                         {stock.variants.map((variant, position) => {
                             // A Draft size is not sold yet, so it is never low or out of stock.
                             const out = !variant.is_draft && variant.stock_on_hand === 0;
-                            const low = !out && !variant.is_draft && variant.stock_on_hand <= stock.product.low_stock_alert_at;
+                            const reorder = variant.reorder ?? null;
+                            const tone = reorder && reorder.status !== 'ok' ? reorderTone[reorder.status] : null;
 
                             return (
                                 <View
                                     key={variant.id}
-                                    className={`flex-row items-center justify-between gap-3 px-4 py-3 ${position === 0 ? '' : 'border-t border-slate-100'}`}
+                                    className={`gap-1 px-4 py-3 ${position === 0 ? '' : 'border-t border-slate-100'}`}
                                 >
-                                    <View className="flex-1">
-                                        <Text className="font-sans-bold text-sm text-slate-900">
-                                            {stock.product.has_options ? variant.label : stock.product.name}
-                                        </Text>
-                                        {variant.estore_item_code && (
-                                            <Text className="font-sans text-xs text-slate-500">
-                                                {variant.estore_item_code}
+                                    <View className="flex-row items-center justify-between gap-3">
+                                        <View className="flex-1">
+                                            <Text className="font-sans-bold text-sm text-slate-900">
+                                                {stock.product.has_options ? variant.label : stock.product.name}
                                             </Text>
-                                        )}
-                                    </View>
-                                    <View
-                                        className={`rounded-full px-3 py-1 ${out ? 'bg-red-100' : low ? 'bg-amber-100' : 'bg-slate-100'}`}
-                                    >
-                                        <Text
-                                            className={`font-sans-bold text-xs ${out ? 'text-red-700' : low ? 'text-amber-700' : 'text-slate-700'}`}
-                                        >
+                                            {variant.estore_item_code && (
+                                                <Text className="font-sans text-xs text-slate-500">
+                                                    {variant.estore_item_code}
+                                                </Text>
+                                            )}
+                                        </View>
+                                        <Text className={`font-sans-bold text-sm ${out ? 'text-red-600' : 'text-slate-800'}`}>
                                             {variant.is_draft && variant.stock_on_hand === 0
                                                 ? 'Draft'
                                                 : out
@@ -111,6 +130,16 @@ export default function StockScreen() {
                                                   : formatUnits(variant.stock_on_hand, 'Piece')}
                                         </Text>
                                     </View>
+                                    {reorder && (
+                                        <View className="flex-row flex-wrap items-center gap-2">
+                                            {tone && (
+                                                <Text className={`rounded-full px-2.5 py-0.5 font-sans-bold text-xs ${tone.box} ${tone.text}`}>
+                                                    {reorder.status_label}
+                                                </Text>
+                                            )}
+                                            <Text className="flex-1 font-sans text-xs text-slate-500">{reorderLine(reorder)}</Text>
+                                        </View>
+                                    )}
                                 </View>
                             );
                         })}

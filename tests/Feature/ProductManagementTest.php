@@ -220,7 +220,7 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
 })->with([
     'no name' => [['name' => ''], 'name', 'Enter the product name.'],
     'no price per piece' => [['price' => ''], 'price', 'Enter the Selling Price per piece (set by Head Office).'],
-    'no low-stock number' => [['low_stock_alert_at' => ''], 'low_stock_alert_at', 'Enter the number of pieces to be warned at, e.g. 5.'],
+    'no low-stock number' => [['low_stock_alert_at' => ''], 'low_stock_alert_at', 'Enter the safety stock, the pieces always kept, e.g. 5.'],
     'price in words' => [['price' => 'three fifty'], 'price', 'Enter the Selling Price in pesos, e.g. 350 or 350.50.'],
     'price above ₱100,000' => [['price' => '100000.01'], 'price', 'The Selling Price cannot be more than ₱100,000.00.'],
     'an endless price' => [['price' => '5353453535353535353453453535675675675675675756756756756756'], 'price', 'The Selling Price cannot be more than ₱100,000.00.'],

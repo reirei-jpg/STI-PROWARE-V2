@@ -219,11 +219,21 @@ test('Low stock lists sizes with a few pieces left; Out of stock lists the ones 
         ->assertInertia(fn (Assert $page) => $page
             ->where('lowStockCount', 1)
             ->where('outOfStockCount', 1)
-            ->where('products.data.0.stock_sizes', [['label' => 'S / Navy Blue', 'free_to_sell' => 2]]));
+            ->has('products.data.0.stock_sizes', 1)
+            ->where('products.data.0.stock_sizes.0.label', 'S / Navy Blue')
+            ->where('products.data.0.stock_sizes.0.free_to_sell', 2)
+            // Nothing sold yet: the Reorder Point is the safety stock (5); 4 more makes 6.
+            ->where('products.data.0.stock_sizes.0.reorder.reorder_point', 5)
+            ->where('products.data.0.stock_sizes.0.reorder.status', 'reorder')
+            ->where('products.data.0.stock_sizes.0.reorder.suggested', 4));
 
     $this->get(route('products.index', ['stock' => 'out']))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('products.data.0.stock_sizes', [['label' => 'S / Red', 'free_to_sell' => 0]]));
+            ->has('products.data.0.stock_sizes', 1)
+            ->where('products.data.0.stock_sizes.0.label', 'S / Red')
+            ->where('products.data.0.stock_sizes.0.free_to_sell', 0)
+            ->where('products.data.0.stock_sizes.0.reorder.status', 'out_of_stock')
+            ->where('products.data.0.stock_sizes.0.reorder.suggested', 6));
 
     $navy->forceFill(['stock_on_hand' => 20])->save();
 

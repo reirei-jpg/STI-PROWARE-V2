@@ -74,7 +74,7 @@ function openLabel(target: NonNullable<SpecialistTask['target']>): string {
         return 'Stock In';
     }
 
-    return target.id ? 'See stock' : 'See low stock';
+    return target.id ? 'See stock' : 'See items to reorder';
 }
 
 function open(target: NonNullable<SpecialistTask['target']>): void {

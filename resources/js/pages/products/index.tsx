@@ -20,7 +20,9 @@ import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import ProductDetailsDialog from '@/components/product-details-dialog';
 import ProductStatusBadge from '@/components/product-status-badge';
+import ReorderBadge, { reorderLine } from '@/components/reorder-badge';
 import { isOutOfStock } from '@/lib/product-stock';
+import { formatUnits } from '@/lib/units';
 import { openCalendar } from '@/lib/open-calendar';
 import { monthBefore } from '@/lib/dates';
 import PutOnSaleDialog from '@/components/put-on-sale-dialog';
@@ -289,7 +291,7 @@ export default function ProductsIndex({
                                 }`}
                             >
                                 <TriangleAlert size={14} />
-                                Low stock
+                                Reorder now
                                 <span
                                     className={`rounded-full px-1.5 text-[11px] font-black ${
                                         filters.stock === 'low'
@@ -602,9 +604,17 @@ export default function ProductsIndex({
                                                     <p className="font-black text-slate-900">
                                                         {product.name}
                                                     </p>
+                                                    {/* The Reorder and Out of stock lists show only
+                                                        those sizes or colors, each with how many to order. */}
+                                                    {product.stock_sizes && (
+                                                        <ReorderSizes
+                                                            sizes={
+                                                                product.stock_sizes
+                                                            }
+                                                        />
+                                                    )}
                                                     <p className="mt-0.5 text-xs text-slate-500">
-                                                        {/* The Draft, Low stock and Out of stock lists show
-                                                            only those sizes or colors. */}
+                                                        {/* The Draft list shows only those sizes or colors. */}
                                                         {product.stock_sizes
                                                             ? stockSizesLine(
                                                                   product.stock_sizes,
@@ -670,7 +680,7 @@ export default function ProductsIndex({
                                                         ) : (
                                                             <ProductStatusBadge
                                                                 status="preorder"
-                                                                label="Low stock"
+                                                                label="Reorder now"
                                                             />
                                                         )
                                                     ) : showsDraftPart(
@@ -797,10 +807,10 @@ export default function ProductsIndex({
                                                             {product.low_stock && (
                                                                 <p
                                                                     className="mt-0.5 flex items-center justify-end gap-1 text-xs font-black text-amber-700"
-                                                                    title={`A size or color is at or below ${product.low_stock_alert_at} pcs`}
+                                                                    title="A size or color is at or below its Reorder Point"
                                                                 >
                                                                     <span className="h-2 w-2 rounded-full bg-amber-500" />
-                                                                    Low
+                                                                    Reorder
                                                                 </p>
                                                             )}
                                                         </>
@@ -952,36 +962,62 @@ function statusBreakdown(
     return parts.length > 1 ? ` · ${parts.join(' · ')}` : '';
 }
 
+/** Sizes listed one per line in the Reorder and Out of stock lists; View Details shows all. */
+const REORDER_SIZES_SHOWN = 3;
+
 /**
- * The sizes or colors a product is in the Low stock or Out of stock list
- * for: "Low: S 2 pcs, M 3 pcs and 2 more", or "Out of stock: S, XL". Without
- * options: "Low: 5 pcs left" or "Out of stock".
+ * Under the name in the Reorder or Out of stock list: each size or color
+ * with what is left, its status and how many to order, e.g. "Black / M ·
+ * 15 pcs left · Reorder now · Reorder Point 19 pcs · order 34 pcs".
+ */
+function ReorderSizes({
+    sizes,
+}: {
+    sizes: NonNullable<ProductListItem['stock_sizes']>;
+}) {
+    return (
+        <ul className="mt-1.5 grid gap-1">
+            {sizes.slice(0, REORDER_SIZES_SHOWN).map((size, index) => (
+                <li
+                    key={`${size.label}-${index}`}
+                    className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600"
+                >
+                    <span className="font-bold text-slate-800">
+                        {size.label ?? 'This item'}
+                    </span>
+                    <span>
+                        {size.free_to_sell === 0
+                            ? 'none left'
+                            : `${formatUnits(size.free_to_sell, 'Piece')} left`}
+                    </span>
+                    {size.reorder && (
+                        <>
+                            <ReorderBadge reorder={size.reorder} />
+                            <span>{reorderLine(size.reorder)}</span>
+                        </>
+                    )}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+/**
+ * Below the Reorder or Out of stock sizes: how many there are in all,
+ * e.g. "4 sizes or colors to reorder · 1 more in View Details".
  */
 function stockSizesLine(
-    sizes: { label: string | null; free_to_sell: number }[],
+    sizes: NonNullable<ProductListItem['stock_sizes']>,
     out: boolean,
 ): string {
-    const named = sizes.filter((size) => size.label !== null);
+    const more = sizes.length - REORDER_SIZES_SHOWN;
+    const named = sizes.filter((size) => size.label !== null).length;
 
-    if (named.length === 0) {
-        const left = sizes.reduce((sum, size) => sum + size.free_to_sell, 0);
-
-        return out
-            ? 'Out of stock'
-            : `Low: ${left} ${left === 1 ? 'pc' : 'pcs'} left`;
+    if (named === 0) {
+        return out ? 'Out of stock' : 'To reorder';
     }
 
-    const shown = named
-        .slice(0, 3)
-        .map((size) =>
-            out
-                ? size.label
-                : `${size.label} ${size.free_to_sell} ${size.free_to_sell === 1 ? 'pc' : 'pcs'}`,
-        )
-        .join(', ');
-    const more = named.length - 3;
-
-    return `${out ? 'Out of stock' : 'Low'}: ${shown}${more > 0 ? ` and ${more} more` : ''}`;
+    return `${named} ${named === 1 ? 'size or color' : 'sizes or colors'} ${out ? 'out of stock' : 'to reorder'}${more > 0 ? ` · ${more} more in View Details` : ''}`;
 }
 
 /** At most this many pieces sold in the time chosen: slow-moving (FilterProductsRequest). */

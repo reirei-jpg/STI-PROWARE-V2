@@ -121,12 +121,12 @@ export default function StockCards({ data }: { data: StockCardsData }) {
                     <Card
                         icon={TriangleAlert}
                         iconClassName="bg-red-50 text-red-600"
-                        title="Low stock"
+                        title="Reorder now"
                         value={data.low_stock.count.toLocaleString('en-PH')}
                         detail={
                             data.low_stock.count === 1
-                                ? 'item low or out of stock'
-                                : 'items low or out of stock'
+                                ? 'item at its Reorder Point or out of stock'
+                                : 'items at their Reorder Point or out of stock'
                         }
                         onOpen={() => setOpen('low_stock')}
                     />
@@ -292,13 +292,13 @@ function LowStockList({ data }: { data: StockCardsData }) {
     return (
         <>
             <ListHeader
-                title="Low stock"
-                description={`${count} ${count === 1 ? 'item' : 'items'}, the emptiest first. Order more in the eStore.`}
+                title="Reorder now"
+                description={`${count} ${count === 1 ? 'item' : 'items'} at or below the Reorder Point, the emptiest first. Order more in the eStore; See stock shows how many to order.`}
             />
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {items.length === 0 ? (
                     <p className="px-6 py-12 text-center text-sm text-slate-500">
-                        Nothing is low on stock.
+                        Nothing needs reordering.
                     </p>
                 ) : (
                     <ul className="divide-y divide-slate-100">
@@ -321,7 +321,8 @@ function LowStockList({ data }: { data: StockCardsData }) {
                                     >
                                         {item.out_of_stock
                                             ? 'Out of stock'
-                                            : `${item.low_sizes ?? `${formatUnits(item.pieces_left, 'Piece')} left`} · warned at ${formatUnits(item.warn_at, 'Piece')}`}
+                                            : (item.low_sizes ??
+                                              `${formatUnits(item.pieces_left, 'Piece')} left · Reorder Point ${formatUnits(item.warn_at, 'Piece')}`)}
                                     </p>
                                 </div>
                                 <Link

@@ -22,12 +22,12 @@ import { usePagedList } from '@/lib/use-paged-list';
 
 /**
  * The Specialist's stock lookup: find a product by name, or show only those
- * low on stock (as the website's Low stock filter). Tapping one shows each
+ * to reorder (at or below a Reorder Point, as the website's Reorder now list). Tapping one shows each
  * size or color's pieces and the latest changes.
  */
 export default function StaffStockScreen() {
     const insets = useSafeAreaInsets();
-    // Opened from the To-do's "See low stock".
+    // Opened from the To-do's "See items to reorder".
     const params = useLocalSearchParams<{ low?: string }>();
     const lowOnly = params.low === '1';
     const setLowOnly = (next: boolean): void => router.setParams({ low: next ? '1' : '0' });
@@ -96,7 +96,7 @@ export default function StaffStockScreen() {
             <View className="flex-row gap-2">
                 {[
                     { value: false, label: 'All products' },
-                    { value: true, label: 'Low stock only' },
+                    { value: true, label: 'To reorder' },
                 ].map((chip) => (
                     <Pressable
                         key={chip.label}
@@ -201,7 +201,7 @@ function ProductRow({ product }: { product: StockListProduct }) {
                     className={`font-sans-bold text-sm ${out ? 'text-red-600' : product.is_low ? 'text-amber-600' : 'text-slate-800'}`}
                 >
                     {/* In the store with nothing left: Out of stock, not "0 pcs · low". */}
-                    {out ? 'Out of stock' : `${formatUnits(product.stock_on_hand, 'Piece')}${product.is_low ? ' · low' : ''}`}
+                    {out ? 'Out of stock' : `${formatUnits(product.stock_on_hand, 'Piece')}${product.is_low ? ' · reorder' : ''}`}
                 </Text>
             </View>
             <ChevronRight size={18} color="#94a3b8" />

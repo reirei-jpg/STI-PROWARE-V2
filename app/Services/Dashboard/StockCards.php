@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * The stock cards on the Specialist's dashboard (website and phone To-do):
  *
- * - Low stock: items at or below their low-stock number, the emptiest first.
+ * - Reorder: items at or below their Reorder Point, the emptiest first.
  * - Best sellers this month, by pieces sold.
  * - Top buyers: who spent the most in the last 3 months, and telling them
  *   about a product in stock (TopBuyers).
@@ -49,7 +49,7 @@ final class StockCards
     {
         $products = Product::query()
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft))
+            ->whereHas('variants', fn (Builder $variants) => $variants->atReorderPoint())
             // Draft sizes are not sold yet, so they are never low.
             ->with(['variants' => fn ($variants) => $variants->where('status', '!=', ProductStatus::Draft)])
             ->get()
@@ -58,7 +58,8 @@ final class StockCards
                 'product_name' => $product->name,
                 'pieces_left' => (int) $product->variants->sum(fn (ProductVariant $variant): int => $variant->freeToSell()),
                 'out_of_stock' => $product->variants->every(fn (ProductVariant $variant): bool => $variant->freeToSell() === 0),
-                'warn_at' => $product->low_stock_alert_at,
+                // The Reorder Point; one number only for a product without options.
+                'warn_at' => (int) $product->variants->min('reorder_point'),
                 'low_sizes' => self::lowSizes($product),
             ])
             ->sortBy([['pieces_left', 'asc'], ['product_name', 'asc']])
@@ -74,7 +75,7 @@ final class StockCards
     private static function lowSizes(Product $product): ?string
     {
         $low = $product->variants
-            ->filter(fn (ProductVariant $variant): bool => $variant->choices !== [] && $variant->freeToSell() <= $product->low_stock_alert_at)
+            ->filter(fn (ProductVariant $variant): bool => $variant->choices !== [] && $variant->freeToSell() <= $variant->reorder_point)
             ->sortBy(fn (ProductVariant $variant): int => $variant->freeToSell())
             ->map(fn (ProductVariant $variant): string => $variant->label().': '.($variant->freeToSell() === 0 ? 'none left' : Units::count($variant->freeToSell(), 'Piece').' left'))
             ->values();

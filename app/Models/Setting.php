@@ -27,6 +27,9 @@ class Setting extends Model
 
     public const MOST_PER_ITEM = 'most_per_item';
 
+    /** Days Head Office takes to deliver an eStore order, for the Reorder Points. */
+    public const REORDER_LEAD_DAYS = 'reorder_lead_days';
+
     protected $primaryKey = 'key';
 
     protected $keyType = 'string';
