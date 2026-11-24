@@ -34,6 +34,7 @@ function bagongProductForm(array $statuses, array $overrides = []): array
         'sold_by_piece' => '1',
         'price' => '150',
         'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise',
         'preorders_close_on' => '2026-11-30',
         'expected_arrival_from' => '2026-12-14',
         'expected_arrival_to' => '2026-12-21',

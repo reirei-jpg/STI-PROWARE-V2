@@ -46,6 +46,7 @@ function draftProductWithCode(string $code): array
         'status' => 'draft',
         'sale_price' => '',
         'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise',
         'photos' => [],
         'packs' => [],
         'options' => [],
@@ -366,7 +367,7 @@ test('creating a product from an eStore item starts with its description and cod
     $this->get(route('products.create', ['item_code' => 'prcu01-01']))
         ->assertInertia(fn (Assert $page) => $page
             ->component('products/form')
-            ->where('fromItem', ['item_code' => 'PRCU01-01', 'description' => 'Item PRCU01-01'])
+            ->where('fromItem', ['item_code' => 'PRCU01-01', 'description' => 'Item PRCU01-01', 'category' => 'proware_merchandise'])
         );
 
     $this->get(route('products.create', ['item_code' => 'UTMP02-03']))

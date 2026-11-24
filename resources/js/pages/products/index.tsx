@@ -604,6 +604,13 @@ export default function ProductsIndex({
                                                     <p className="font-black text-slate-900">
                                                         {product.name}
                                                     </p>
+                                                    {product.category_label && (
+                                                        <p className="text-[11px] font-bold tracking-wide text-slate-400 uppercase">
+                                                            {
+                                                                product.category_label
+                                                            }
+                                                        </p>
+                                                    )}
                                                     {/* The Reorder and Out of stock lists show only
                                                         those sizes or colors, each with how many to order. */}
                                                     {product.stock_sizes && (

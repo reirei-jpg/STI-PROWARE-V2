@@ -44,7 +44,7 @@ function productInStore(ProductStatus $status, int $stock): array
 function plannerForm(array $changes): array
 {
     return array_merge([
-        'name' => 'STI Planner', 'sold_by_piece' => '1', 'price' => '180', 'status' => 'available', 'low_stock_alert_at' => '3',
+        'name' => 'STI Planner', 'sold_by_piece' => '1', 'price' => '180', 'status' => 'available', 'low_stock_alert_at' => '3', 'category' => 'proware_merchandise',
         'photos' => [['file' => UploadedFile::fake()->image('planner.jpg'), 'label' => 'Front']],
         'options' => [],
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],

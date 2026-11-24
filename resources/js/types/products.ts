@@ -24,6 +24,8 @@ export type ReorderView = {
 export type ProductListItem = {
     id: number;
     name: string;
+    /** The eStore's category, e.g. PROWARE Merchandise. */
+    category_label: string | null;
     status: ProductStatus;
     status_label: string;
     sold_by_piece: boolean;
@@ -84,6 +86,7 @@ export type ProductListItem = {
 export type ProductDetails = {
     id: number;
     name: string;
+    category_label: string | null;
     status: ProductStatus;
     status_label: string;
     sale_ends_at: string | null;
@@ -191,6 +194,8 @@ export type EditableProduct = {
     id: number;
     name: string;
     /** The product's own Item Code, e.g. BP-01; empty for one saved before codes. */
+    /** The eStore's category, e.g. proware_merchandise; empty when not chosen yet. */
+    category: string;
     item_code: string;
     sold_by_piece: boolean;
     price: string;
@@ -227,6 +232,8 @@ export type EditableProduct = {
 export type ProductFromItem = {
     item_code: string;
     description: string;
+    /** The eStore order's category, chosen for her; null when unknown. */
+    category: string | null;
 };
 
 export type ItemToLink = {

@@ -60,7 +60,8 @@ function earlyBirdHoodieForm(Product $product, array $overrides = []): array
 {
     return array_merge([
         'name' => 'STI Hoodie', 'sold_by_piece' => '1', 'price' => '750', 'status' => 'preorder', 'sale_price' => '',
-        'low_stock_alert_at' => '5', 'packs' => [],
+        'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise', 'packs' => [],
         'photos' => [['id' => $product->photos()->value('id'), 'label' => '']],
         'options' => [['name' => 'Size', 'choices' => ['S', 'M']]],
         'variants' => [

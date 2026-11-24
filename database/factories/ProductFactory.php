@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProductCategory;
 use App\Enums\ProductStatus;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,6 +26,7 @@ class ProductFactory extends Factory
             'sale_price_centavos' => null,
             'status' => ProductStatus::Available,
             'low_stock_alert_at' => 5,
+            'category' => ProductCategory::ProwareMerchandise,
         ];
     }
 

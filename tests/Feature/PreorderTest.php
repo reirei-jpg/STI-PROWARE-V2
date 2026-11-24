@@ -241,7 +241,8 @@ test('preorder products move from taking preorders to to order to arrived', func
 
     $this->actingAs($specialist)->put(route('products.update', $arriving), [
         'name' => 'Chibi Keychain', 'sold_by_piece' => '1', 'price' => '25', 'status' => 'available', 'sale_price' => '',
-        'low_stock_alert_at' => '5', 'photos' => [['id' => $arriving->photos()->create(['path' => 'products/a.jpg', 'position' => 0])->id, 'label' => '']], 'packs' => [], 'options' => [],
+        'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise', 'photos' => [['id' => $arriving->photos()->create(['path' => 'products/a.jpg', 'position' => 0])->id, 'label' => '']], 'packs' => [], 'options' => [],
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
     ])->assertSessionHasNoErrors();
 
@@ -380,7 +381,8 @@ test('a preorder product needs a close date that is not in the past', function (
     $this->actingAs(User::factory()->specialist()->create());
     $form = [
         'name' => 'Anniversary Shirt', 'sold_by_piece' => '1', 'price' => '350', 'status' => 'draft', 'sale_price' => '',
-        'low_stock_alert_at' => '5', 'photos' => [], 'packs' => [], 'options' => [],
+        'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise', 'photos' => [], 'packs' => [], 'options' => [],
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
         'expected_arrival_from' => '2026-10-15', 'expected_arrival_to' => '2026-10-22',
     ];

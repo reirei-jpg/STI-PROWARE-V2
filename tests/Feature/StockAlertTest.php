@@ -271,6 +271,7 @@ test('the product form saves the low-stock number', function () {
         'status' => 'draft',
         'sale_price' => '',
         'low_stock_alert_at' => '12',
+        'category' => 'proware_merchandise',
         'photos' => [],
         'packs' => [],
         'options' => [],

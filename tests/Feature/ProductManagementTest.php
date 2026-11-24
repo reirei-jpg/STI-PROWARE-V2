@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\PreorderStatus;
+use App\Enums\ProductCategory;
 use App\Enums\ProductStatus;
 use App\Models\Preorder;
 use App\Models\Product;
@@ -33,6 +34,7 @@ function productForm(array $overrides = []): array
         'status' => 'available',
         'sale_price' => '',
         'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise',
         'photos' => [
             ['file' => UploadedFile::fake()->image('front.jpg'), 'label' => 'Front'],
         ],
@@ -220,6 +222,8 @@ test('the form explains what is wrong', function (array $overrides, string $fiel
 })->with([
     'no name' => [['name' => ''], 'name', 'Enter the product name.'],
     'no price per piece' => [['price' => ''], 'price', 'Enter the Selling Price per piece (set by Head Office).'],
+    'no category' => [['category' => ''], 'category', 'Choose the category, as on the eStore order.'],
+    'unknown category' => [['category' => 'shoes'], 'category', 'Choose PROWARE Merchandise, Tertiary Uniform, SHS Uniform or Marketing.'],
     'no low-stock number' => [['low_stock_alert_at' => ''], 'low_stock_alert_at', 'Enter the safety stock, the pieces always kept, e.g. 5.'],
     'price in words' => [['price' => 'three fifty'], 'price', 'Enter the Selling Price in pesos, e.g. 350 or 350.50.'],
     'price above ₱100,000' => [['price' => '100000.01'], 'price', 'The Selling Price cannot be more than ₱100,000.00.'],
@@ -628,4 +632,19 @@ test('the edit form gets the product as the specialist saved it', function () {
             ->where('product.variants.0.estore_item_code', 'PRPE01-01')
             ->where('product.variants.0.price', '400')
         );
+});
+
+test('the product is saved with its eStore category', function () {
+    $this->actingAs(User::factory()->specialist()->create())
+        ->post(route('products.store'), productForm(['name' => 'BSIT Polo', 'category' => 'tertiary_uniform']))
+        ->assertSessionHasNoErrors();
+
+    $product = Product::query()->where('name', 'BSIT Polo')->sole();
+
+    expect($product->category)->toBe(ProductCategory::TertiaryUniform);
+
+    $this->get(route('products.edit', $product))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('product.category', 'tertiary_uniform')
+            ->has('categories', 4));
 });
