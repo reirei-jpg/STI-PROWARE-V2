@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Services\Reports\SalesReport;
+use App\Services\Reports\SchoolCalendar;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,13 +11,13 @@ use Illuminate\Validation\Validator;
 
 /**
  * The Sales Reports filters, read from the page address: the period
- * (all time, today, this week, this month, or From / To days up to today;
- * all time by default, so every sale shows),
+ * (today, this week, this month, this semester, this school year, all time,
+ * or From / To days up to today; this month by default, panel revision D2),
  * which tab, and a product search.
  */
 class SalesReportRequest extends FormRequest
 {
-    public const PERIODS = ['all', 'today', 'week', 'month', 'custom'];
+    public const PERIODS = [...SchoolCalendar::PERIODS, 'custom'];
 
     public const TABS = ['spent', 'sold', 'best', 'free'];
 
@@ -61,6 +61,7 @@ class SalesReportRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'period.in' => 'Choose Today, This Week, This Month, This Semester, This School Year, All Time, or From and To days.',
             'date_from.required' => 'Choose the "From" date.',
             'date_to.required' => 'Choose the "To" date.',
             'date_from.date_format' => 'Choose a valid "From" date.',
@@ -96,7 +97,7 @@ class SalesReportRequest extends FormRequest
 
     public function period(): string
     {
-        return $this->string('period')->toString() ?: 'all';
+        return $this->string('period')->toString() ?: SchoolCalendar::DEFAULT_PERIOD;
     }
 
     /**
@@ -109,14 +110,11 @@ class SalesReportRequest extends FormRequest
         $today = CarbonImmutable::now();
 
         return match ($this->period()) {
-            'today' => [$today->startOfDay(), $today->endOfDay()],
-            'week' => [$today->startOfWeek(), $today->endOfDay()],
             'custom' => [
                 CarbonImmutable::parse($this->string('date_from')->toString())->startOfDay(),
                 CarbonImmutable::parse($this->string('date_to')->toString())->endOfDay(),
             ],
-            'month' => [$today->startOfMonth(), $today->endOfDay()],
-            default => [SalesReport::firstDay(), $today->endOfDay()],
+            default => [SchoolCalendar::startOf($this->period(), $today), $today->endOfDay()],
         };
     }
 

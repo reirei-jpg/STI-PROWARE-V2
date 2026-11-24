@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Services\Deliveries\FollowUp;
 use App\Services\Reports\SalesReport;
+use App\Services\Reports\SchoolCalendar;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -41,14 +42,9 @@ final class SchoolAdminOverview
     /**
      * @return array{deliveries: array{tab: string, search: string|null, late_days: int, counts: array{coming: int, ongoing: int, completed: int, coming_late: int, ongoing_late: int}, orders: LengthAwarePaginator<int, array<string, mixed>>}, sales: array{period: string, from: string, to: string, totals: array{pieces: int, price_centavos: int, best: TopSellerRow|null, not_selling_pieces: int}, top_sellers: Paginator<int, TopSellerRow>, slow_days: int, not_selling: Paginator<int, NotSellingRow>}}
      */
-    public function all(AdminDeliveryTab $tab, ?string $search = null, string $period = 'all'): array
+    public function all(AdminDeliveryTab $tab, ?string $search = null, string $period = SchoolCalendar::DEFAULT_PERIOD): array
     {
-        $from = match ($period) {
-            'week' => CarbonImmutable::now()->startOfWeek(),
-            'month' => CarbonImmutable::now()->startOfMonth(),
-            'year' => CarbonImmutable::now()->startOfYear(),
-            default => SalesReport::firstDay(),
-        };
+        $from = SchoolCalendar::startOf($period);
         $to = CarbonImmutable::now()->endOfDay();
 
         return [

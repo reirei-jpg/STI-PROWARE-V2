@@ -131,7 +131,7 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
     releasedJackets($variant, 3); // 3 × ₱350 on sale
     $this->actingAs($this->specialist);
 
-    $this->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('sales-reports.index', ['period' => 'all']))->assertInertia(fn (Assert $page) => $page
         ->component('sales-reports/index')
         ->where('filters.tab', 'sold')
         ->where('summary.spent_centavos', 200000)
@@ -192,7 +192,7 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
     $this->get(route('sales-reports.index', ['period' => 'custom', 'date_from' => '2026-09-01', 'date_to' => '2026-09-30']))
         ->assertInertia(fn (Assert $page) => $page->where('summary.price_centavos', 0)->where('summary.spent_centavos', 0));
 
-    $csv = $this->get(route('sales-reports.export'))->assertDownload('sales-2026-10-09-to-2026-10-09.csv')->streamedContent();
+    $csv = $this->get(route('sales-reports.export', ['period' => 'all']))->assertDownload('sales-2026-10-09-to-2026-10-09.csv')->streamedContent();
     expect($csv)->toContain('"Lower Price Because"')
         ->toContain(',Piece,3,3,350.00,"On sale",1050.00,600.00,450.00')
         ->toContain(',Piece,2,2,400.00,,800.00,400.00,400.00')
@@ -200,23 +200,32 @@ test('the sales report shows what was spent, sold at Cost and Price, the profit 
         ->toContain('"Total sales","₱1,850.00"');
 });
 
-test('the report opens on all time, so sales from earlier months show', function () {
+test('the report opens on this month; earlier sales show under This Semester, This School Year and All Time', function () {
     $variant = costedJacket();
     $this->travelTo(CarbonImmutable::parse('2026-09-20 10:00', 'Asia/Manila'));
     receivedJacketOrder(packs: 1, pricePerPack: 100000);
     releasedJackets($variant, 2);
     $this->travelTo(CarbonImmutable::parse('2026-10-09 10:00', 'Asia/Manila'));
 
+    // Panel revision D2: no totals without a date range, so This Month first.
     $this->actingAs($this->specialist)->get(route('sales-reports.index'))->assertInertia(fn (Assert $page) => $page
-        ->where('filters.period', 'all')
-        ->where('filters.date_from', '2026-09-20')
+        ->where('filters.period', 'month')
+        ->where('filters.date_from', '2026-10-01')
         ->where('filters.date_to', '2026-10-09')
-        ->where('summary.pieces', 2)
-        ->where('summary.spent_centavos', 100000));
-
-    $this->get(route('sales-reports.index', ['period' => 'month']))->assertInertia(fn (Assert $page) => $page
         ->where('summary.pieces', 0)
         ->where('summary.spent_centavos', 0));
+
+    // The school year and the 1st semester start on August 1.
+    foreach (['semester', 'school_year'] as $period) {
+        $this->get(route('sales-reports.index', ['period' => $period]))->assertInertia(fn (Assert $page) => $page
+            ->where('filters.date_from', '2026-08-01')
+            ->where('summary.pieces', 2));
+    }
+
+    $this->get(route('sales-reports.index', ['period' => 'all']))->assertInertia(fn (Assert $page) => $page
+        ->where('filters.date_from', '2026-09-20')
+        ->where('summary.pieces', 2)
+        ->where('summary.spent_centavos', 100000));
 });
 
 test('an item put on sale below its Cost shows what was lost', function () {

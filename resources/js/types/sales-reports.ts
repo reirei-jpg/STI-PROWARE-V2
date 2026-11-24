@@ -1,4 +1,11 @@
-export type SalesPeriod = 'all' | 'today' | 'week' | 'month' | 'custom';
+export type SalesPeriod =
+    | 'today'
+    | 'week'
+    | 'month'
+    | 'semester'
+    | 'school_year'
+    | 'all'
+    | 'custom';
 
 export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
 
