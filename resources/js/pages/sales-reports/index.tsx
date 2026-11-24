@@ -23,6 +23,7 @@ import PageHeader from '@/components/page-header';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import { OptionTables, StockTrendTable } from '@/components/sales-breakdown';
 import {
     Dialog,
     DialogClose,
@@ -36,6 +37,8 @@ import { openCalendar } from '@/lib/open-calendar';
 import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
 import type {
+    SalesByOption,
+    StockTrend,
     BestSellerRow,
     FreeRow,
     FreeUniformGroupDetails,
@@ -64,6 +67,8 @@ const tabs: { value: SalesTab; label: string }[] = [
     { value: 'spent', label: 'Purchases' },
     { value: 'sold', label: 'Sales' },
     { value: 'best', label: 'Top Sellers' },
+    { value: 'options', label: 'By Size, Color, Grade' },
+    { value: 'trend', label: 'Stock Trend' },
     { value: 'free', label: 'Free Uniforms' },
 ];
 
@@ -80,6 +85,9 @@ export default function SalesReportsIndex({
     spent,
     sold,
     best,
+    options,
+    trend,
+    trend_products,
     free,
     free_group,
     sold_details,
@@ -89,6 +97,11 @@ export default function SalesReportsIndex({
     spent: Paginated<SpentRow> | null;
     sold: Paginated<SoldProduct> | null;
     best: Paginated<BestSellerRow> | null;
+    /** By Size, Color, Grade (panel revision D1). */
+    options: SalesByOption | null;
+    /** Stock Trend (panel revision D1). */
+    trend: StockTrend | null;
+    trend_products: { id: number; name: string }[] | null;
     free: Paginated<FreeRow> | null;
     /** The group opened with View Details on Free Uniforms; undefined until loaded. */
     free_group?: FreeUniformGroupDetails | null;
@@ -130,6 +143,10 @@ export default function SalesReportsIndex({
 
         if (merged.tab === 'sold' && merged.only) {
             query.only = merged.only;
+        }
+
+        if (merged.tab === 'trend' && merged.product) {
+            query.product = String(merged.product);
         }
 
         router.get(SalesReportController.index().url, query, {
@@ -450,6 +467,15 @@ export default function SalesReportsIndex({
                     )}
                     {best && (
                         <BestSellersTable rows={best} details={sold_details} />
+                    )}
+                    {options && <OptionTables data={options} />}
+                    {trend && (
+                        <StockTrendTable
+                            trend={trend}
+                            products={trend_products ?? []}
+                            product={filters.product}
+                            onProduct={(product) => show({ product })}
+                        />
                     )}
                     {free && (
                         <FreeTable rows={free} groupDetails={free_group} />

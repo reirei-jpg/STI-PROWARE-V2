@@ -7,7 +7,39 @@ export type SalesPeriod =
     | 'all'
     | 'custom';
 
-export type SalesTab = 'spent' | 'sold' | 'best' | 'free';
+export type SalesTab = 'spent' | 'sold' | 'best' | 'options' | 'trend' | 'free';
+
+/** One size, color or grade level on By Size, Color, Grade. */
+export type OptionRow = {
+    label: string;
+    pieces: number;
+    price_total_centavos: number;
+    /** % of all pieces sold in the period. */
+    share: number;
+    /** The products that sold most in it, e.g. `BSIT Polo 20, Classic Tee 12`. */
+    top: string;
+};
+
+export type SalesByOption = {
+    size: OptionRow[];
+    color: OptionRow[];
+    grade: OptionRow[];
+    pieces: number;
+    price_total_centavos: number;
+};
+
+/** One day or week on Stock Trend. */
+export type TrendRow = {
+    label: string;
+    from: string;
+    received: number;
+    sold: number;
+    free: number;
+    corrections: number;
+    stock_at_end: number;
+};
+
+export type StockTrend = { by: 'day' | 'week'; rows: TrendRow[] };
 
 /** The numbers at the top for the period. */
 export type SalesSummary = {
@@ -156,6 +188,8 @@ export type SalesReportFilters = {
     search: string | null;
     /** Sales showing only the products sold below cost. */
     only: 'below_cost' | null;
+    /** Stock Trend of one product; null for every product. */
+    product: number | null;
 };
 
 /** Sales: one product, all its sizes, colors and prices together. */
