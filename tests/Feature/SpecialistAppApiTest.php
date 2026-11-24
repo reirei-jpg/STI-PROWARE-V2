@@ -64,7 +64,7 @@ test('the to-do list is the website dashboard\'s, and says which phone screen op
     $tasks = $this->getJson(route('api.v1.specialist.tasks'))->assertOk();
 
     // Student orders are order cards, as on the website, not tasks.
-    $tasks->assertJsonPath('now.0.title', 'Low stock: STI Lanyard')
+    $tasks->assertJsonPath('now.0.title', 'Reorder now: STI Lanyard')
         ->assertJsonPath('now.0.target', ['screen' => 'stock', 'id' => $lanyard->id])
         ->assertJsonPath('order_cards.waiting.count', 1)
         ->assertJsonPath('order_cards.waiting.orders.0.id', $order->id);

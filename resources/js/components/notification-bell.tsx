@@ -726,13 +726,18 @@ function NotificationText({ data }: { data: StaffNotification['data'] }) {
                 <span
                     className={`block text-sm font-bold ${data.stock_on_hand === 0 ? 'text-red-700' : 'text-amber-800'}`}
                 >
-                    {data.stock_on_hand === 0 ? 'Out of stock' : 'Low stock'}:{' '}
-                    {data.product_name}
+                    {data.stock_on_hand === 0
+                        ? 'Out of stock'
+                        : data.suggested === undefined
+                          ? 'Low stock'
+                          : 'Reorder now'}
+                    : {data.product_name}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-slate-600">
-                    {formatUnits(data.stock_on_hand, 'Piece')} left · you are
-                    warned at {formatUnits(data.alert_at, 'Piece')}. Order more
-                    in the eStore.
+                    {/* Notices sent before the Reorder Point keep their words. */}
+                    {data.suggested === undefined
+                        ? `${formatUnits(data.stock_on_hand, 'Piece')} left · you are warned at ${formatUnits(data.alert_at, 'Piece')}. Order more in the eStore.`
+                        : `${formatUnits(data.stock_on_hand, 'Piece')} left · Reorder Point ${formatUnits(data.alert_at, 'Piece')}.${data.suggested ? ` Suggested order: ${formatUnits(data.suggested, 'Piece')}.` : ''} Order more in the eStore.`}
                 </span>
             </>
         );

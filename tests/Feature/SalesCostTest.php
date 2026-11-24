@@ -396,7 +396,7 @@ test('a price below the Cost and a taken name show together with the other mista
     $this->actingAs($this->specialist)
         ->put(route('products.update', $variant->product), $form('STI Lanyard'))
         ->assertSessionHasErrors([
-            'low_stock_alert_at' => 'The number cannot be below 0.',
+            'low_stock_alert_at' => 'The safety stock cannot be below 0.',
             'name' => 'There is already a product named "STI Lanyard". Use another name, or edit that product.',
             'price' => 'The Selling Price (₱150.00) is below the Cost on the eStore order (₱200.00 per piece). Check the price from Head Office.',
         ]);

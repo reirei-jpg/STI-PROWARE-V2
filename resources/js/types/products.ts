@@ -1,5 +1,26 @@
 export type ProductStatus = 'draft' | 'preorder' | 'available' | 'on_sale';
 
+export type ReorderStatus = 'out_of_stock' | 'reorder' | 'on_order' | 'ok';
+
+/**
+ * A size or color's Reorder Point (pieces used per day × days Head Office
+ * takes to deliver + safety stock), its status and how many to order.
+ */
+export type ReorderView = {
+    reorder_point: number;
+    used_last_30_days: number;
+    safety_stock: number;
+    lead_days: number;
+    /** Pieces still coming on eStore orders not complete yet. */
+    on_order: number;
+    /** Pieces to order now (in whole packs); 0 when none are needed. */
+    suggested: number;
+    status: ReorderStatus;
+    status_label: string;
+    /** How the Reorder Point was worked out, in words. */
+    formula: string;
+};
+
 export type ProductListItem = {
     id: number;
     name: string;
@@ -21,9 +42,9 @@ export type ProductListItem = {
     }[];
     /** Pieces in stock across all variants. */
     stock_on_hand: number;
-    /** Pieces at which the Specialist is warned, per variant. */
+    /** The safety stock: pieces of each variant always kept (part of its Reorder Point). */
     low_stock_alert_at: number;
-    /** On sale to students with a variant at or below that number. */
+    /** On sale to students with a variant at or below its Reorder Point. */
     low_stock: boolean;
     /** Sold for less than one piece cost on the latest eStore order (its variant furthest below). */
     below_cost: {
@@ -48,8 +69,14 @@ export type ProductListItem = {
     days_without_sale: number | null;
     /** Slow-moving: pieces sold in the time chosen. */
     sold_in_period: number | null;
-    /** In the Low stock or Out of stock list: those sizes or colors (label null without options). */
-    stock_sizes: { label: string | null; free_to_sell: number }[] | null;
+    /** In the Reorder or Out of stock list: those sizes or colors (label null without options). */
+    stock_sizes:
+        | {
+              label: string | null;
+              free_to_sell: number;
+              reorder: ReorderView | null;
+          }[]
+        | null;
     updated_at: string | null;
 };
 
@@ -60,8 +87,10 @@ export type ProductDetails = {
     status: ProductStatus;
     status_label: string;
     sale_ends_at: string | null;
-    /** Pieces at which the Specialist is warned, per variant. */
+    /** The safety stock: pieces of each variant always kept (part of its Reorder Point). */
     low_stock_alert_at: number;
+    /** Days Head Office takes to deliver (Maintenance). */
+    lead_days: number;
     /** The most pieces one buyer can get, all sizes together; null: no limit. */
     most_per_buyer: number | null;
     /** Only Available and On Sale products are watched for low stock. */
@@ -81,6 +110,8 @@ export type ProductDetails = {
         /** Pieces kept for paid preorders (orders do not hold stock). */
         held_pieces: number;
         free_to_sell: number;
+        /** Its Reorder Point and status; null when not watched (Draft, or not for sale). */
+        reorder: ReorderView | null;
         price_centavos: number | null;
         sale_price_centavos: number | null;
     }[];
@@ -227,9 +258,11 @@ export type StockProduct = {
     held_pieces: number;
     /** Pieces on the shelf students can still order. */
     free_to_sell: number;
-    /** Pieces at which the Specialist is warned, per variant. */
+    /** The safety stock: pieces of each variant always kept (part of its Reorder Point). */
     low_stock_alert_at: number;
-    /** Available or On Sale: only these get low-stock warnings. */
+    /** Days Head Office takes to deliver (Maintenance). */
+    lead_days: number;
+    /** Available or On Sale: only these get reorder warnings. */
     is_sold: boolean;
 };
 
@@ -244,6 +277,8 @@ export type StockVariant = {
     estore_item_code: string | null;
     /** "Pack (10 pcs)" when Head Office sends it by a pack; null by the piece. */
     sent_by: string | null;
+    /** Its Reorder Point and status; null when not watched (Draft, or not for sale). */
+    reorder: ReorderView | null;
 };
 
 /** Pieces held on the shelf for an order of an arrived preorder (other orders hold nothing). */

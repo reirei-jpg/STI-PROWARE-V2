@@ -8,11 +8,13 @@ import CorrectStockDialog from '@/components/correct-stock-dialog';
 import PageHeader from '@/components/page-header';
 import Pagination from '@/components/pagination';
 import Panel, { TableHeading, TableScroll } from '@/components/panel';
+import { reorderLine } from '@/components/reorder-badge';
 import { formatDateOrdered } from '@/lib/format';
 import { formatConversion, formatUnits } from '@/lib/units';
 import { cn } from '@/lib/utils';
 import type {
     Paginated,
+    ReorderView,
     StockCorrectionReasonOption,
     StockHold,
     StockMovementRow,
@@ -67,8 +69,12 @@ export default function ProductStock({
         product.held_pieces > 0 &&
             `${formatUnits(product.held_pieces, 'Piece')} held for preorders`,
         product.is_sold
-            ? `warned at ${formatUnits(product.low_stock_alert_at, 'Piece')}${product.has_options ? ' each' : ''}`
-            : 'not watched for low stock',
+            ? `safety stock ${formatUnits(product.low_stock_alert_at, 'Piece')}${product.has_options ? ' each' : ''} · Head Office delivers in ${product.lead_days} ${product.lead_days === 1 ? 'day' : 'days'}`
+            : 'not watched for reorder',
+        // Without sizes or colors, its one Reorder Point is in the summary.
+        !product.has_options &&
+            variants[0]?.reorder &&
+            `${variants[0].reorder.status_label}: ${reorderLine(variants[0].reorder)}`,
         sharedCode,
     ]
         .filter(Boolean)
@@ -130,7 +136,8 @@ export default function ProductStock({
                                 }
                                 pieces={variant.stock_on_hand}
                                 held={variant.held_pieces}
-                                level={stockLevel(product, variant)}
+                                level={stockLevel(variant)}
+                                reorder={variant.reorder}
                                 code={
                                     sharedCode === null
                                         ? variant.estore_item_code
@@ -383,12 +390,11 @@ function Change({ movement }: { movement: StockMovementRow }) {
 
 type StockLevel = 'ok' | 'low' | 'out';
 
-/** Low or out of stock, for a product that is watched for low stock. */
-function stockLevel(product: StockProduct, variant: StockVariant): StockLevel {
+/** At or below its Reorder Point, or out of stock; ok when not watched (Draft, not for sale). */
+function stockLevel(variant: StockVariant): StockLevel {
     if (
-        !product.is_sold ||
-        variant.is_draft ||
-        variant.free_to_sell > product.low_stock_alert_at
+        variant.reorder === null ||
+        variant.free_to_sell > variant.reorder.reorder_point
     ) {
         return 'ok';
     }
@@ -408,6 +414,7 @@ function SizeTile({
     held = 0,
     level = 'ok',
     code = null,
+    reorder = null,
 }: {
     active: boolean;
     onClick: () => void;
@@ -417,6 +424,8 @@ function SizeTile({
     level?: StockLevel;
     /** The size's own eStore code, when sizes do not share one. */
     code?: string | null;
+    /** Its Reorder Point and suggested order; null when not watched. */
+    reorder?: ReorderView | null;
 }) {
     return (
         <button
@@ -473,10 +482,25 @@ function SizeTile({
                                 level === 'out' ? 'bg-red-500' : 'bg-amber-500',
                             )}
                         />
-                        {level === 'out' ? 'Out' : 'Low'}
+                        {level === 'out'
+                            ? 'Out'
+                            : reorder?.status === 'on_order'
+                              ? 'On order'
+                              : 'Reorder'}
                     </span>
                 )}
             </span>
+            {reorder && (
+                <span
+                    title={reorder.formula}
+                    className={cn(
+                        'mt-0.5 block text-xs whitespace-nowrap',
+                        active ? 'text-white/80' : 'text-slate-500',
+                    )}
+                >
+                    {reorderLine(reorder)}
+                </span>
+            )}
             {(held > 0 || code) && (
                 <span
                     className={cn(

@@ -43,6 +43,8 @@ use Illuminate\Support\Carbon;
  * @property int $uncosted_pieces pieces in stock with no eStore price yet (StockCost)
  * @property Carbon|null $low_stock_notified_at when the low-stock warning was sent; cleared once more pieces came in and the stock is above the number
  * @property int|null $low_stock_notified_stock the pieces on the shelf when that warning was sent
+ * @property int $reorder_point pieces free to sell at which more should be ordered (ReorderPoints)
+ * @property int $used_last_30_days pieces sold or given free in the last 30 days, which the Reorder Point comes from
  * @property Carbon|null $not_restocked_at when the Specialist said this sold-out size will not be restocked; cleared when stock comes in
  * @property int $position
  * @property Carbon|null $created_at
@@ -74,8 +76,23 @@ class ProductVariant extends Model
             'uncosted_pieces' => 'integer',
             'low_stock_notified_at' => 'datetime',
             'low_stock_notified_stock' => 'integer',
+            'reorder_point' => 'integer',
+            'used_last_30_days' => 'integer',
             'not_restocked_at' => 'datetime',
         ];
+    }
+
+    /**
+     * A new size or color has sold nothing yet, so its Reorder Point starts
+     * as the product's safety stock (ReorderPoints works it out from then on).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $variant): void {
+            if (! array_key_exists('reorder_point', $variant->getAttributes())) {
+                $variant->reorder_point = (int) Product::query()->whereKey($variant->product_id)->value('low_stock_alert_at');
+            }
+        });
     }
 
     /**
@@ -88,8 +105,8 @@ class ProductVariant extends Model
     }
 
     /**
-     * Sizes or colors on sale (not Drafts) with a few pieces left: at or
-     * below the product's low-stock number, but not none.
+     * Sizes or colors on sale (not Drafts) to reorder: some pieces left, at
+     * or below their Reorder Point, but not none (those are Out of stock).
      *
      * @param  Builder<self>  $query
      */
@@ -98,7 +115,20 @@ class ProductVariant extends Model
     {
         $query->where('product_variants.status', '!=', ProductStatus::Draft)
             ->whereRaw(self::FREE_TO_SELL_SQL.' > 0')
-            ->whereRaw(self::FREE_TO_SELL_SQL.' <= (select low_stock_alert_at from products where products.id = product_variants.product_id)');
+            ->whereRaw(self::FREE_TO_SELL_SQL.' <= product_variants.reorder_point');
+    }
+
+    /**
+     * Sizes or colors on sale (not Drafts) at or below their Reorder Point,
+     * Out of stock ones included.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function atReorderPoint(Builder $query): void
+    {
+        $query->where('product_variants.status', '!=', ProductStatus::Draft)
+            ->whereRaw(self::FREE_TO_SELL_SQL.' <= product_variants.reorder_point');
     }
 
     /**

@@ -84,7 +84,7 @@ final class SpecialistTasks
     }
 
     /**
-     * One row per product with variants at or below its warning number,
+     * One row per product with variants at or below their Reorder Point,
      * the most recently warned first, e.g. "STI Umbrella: White, Red out of
      * stock · Black 4 pcs left".
      *
@@ -95,7 +95,7 @@ final class SpecialistTasks
         $atWarning = fn () => ProductVariant::query()
             ->join('products', 'products.id', '=', 'product_variants.product_id')
             ->whereIn('products.status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at');
+            ->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= product_variants.reorder_point');
 
         $total = $atWarning()->distinct()->count('product_variants.product_id');
 
@@ -137,12 +137,12 @@ final class SpecialistTasks
                     $out->isEmpty() ? null : self::listed($out->map(fn (ProductVariant $variant): string => $variant->label())->all()).' out of stock',
                     $low->isEmpty() ? null : self::listed($low->map(fn (ProductVariant $variant): string => $variant->label().' '.Units::count($variant->freeToSell(), 'Piece'))->all()).' left',
                 ]))
-                : Units::count($first->freeToSell(), 'Piece').' left · warned at '.Units::count($product->low_stock_alert_at, 'Piece');
+                : Units::count($first->freeToSell(), 'Piece').' left · Reorder Point '.Units::count($first->reorder_point, 'Piece');
 
             $tasks[] = self::task(
                 key: "low-{$productId}",
                 kind: $low->isEmpty() ? 'out_of_stock' : 'low_stock',
-                title: ($low->isEmpty() ? 'Out of stock: ' : 'Low stock: ').$product->name,
+                title: ($low->isEmpty() ? 'Out of stock: ' : 'Reorder now: ').$product->name,
                 detail: $detail.'. Order more in the eStore.',
                 label: 'See stock',
                 url: route('products.stock', $productId),
@@ -150,7 +150,7 @@ final class SpecialistTasks
             );
         }
 
-        return [...$tasks, ...self::more($total, 'more product low on stock', 'more products low on stock', route('products.index', ['stock' => 'low']), ['screen' => 'stock'])];
+        return [...$tasks, ...self::more($total, 'more product to reorder', 'more products to reorder', route('products.index', ['stock' => 'low']), ['screen' => 'stock'])];
     }
 
     /**

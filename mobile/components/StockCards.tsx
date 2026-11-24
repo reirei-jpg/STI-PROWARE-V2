@@ -74,9 +74,13 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                     icon={TriangleAlert}
                     box="bg-red-50"
                     color="#dc2626"
-                    label="Low stock"
+                    label="Reorder now"
                     value={String(data.low_stock.count)}
-                    detail={data.low_stock.count === 1 ? 'item low or out of stock' : 'items low or out of stock'}
+                    detail={
+                        data.low_stock.count === 1
+                            ? 'item at its Reorder Point or out of stock'
+                            : 'items at their Reorder Point or out of stock'
+                    }
                     onPress={() => setOpen('low_stock')}
                 />
                 <Pressable
@@ -127,13 +131,13 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
             <BottomSheet
                 open={open === 'low_stock'}
                 onClose={() => setOpen(null)}
-                title={`Low stock · ${data.low_stock.count}`}
-                subtitle="The emptiest first. Order more in the eStore."
+                title={`Reorder now · ${data.low_stock.count}`}
+                subtitle="The emptiest first. Tap one to see how many to order."
                 icon={<TriangleAlert size={20} color="#dc2626" />}
                 footer={<CloseButton onPress={() => setOpen(null)} />}
             >
                 {data.low_stock.items.length === 0 ? (
-                    <Text className="font-sans text-sm text-slate-500">Nothing is low on stock.</Text>
+                    <Text className="font-sans text-sm text-slate-500">Nothing needs reordering.</Text>
                 ) : (
                     <View className="gap-2">
                         {data.low_stock.items.map((item) => (
@@ -152,7 +156,8 @@ export default function StockCards({ data, onChanged }: { data: StockCardsData; 
                                 >
                                     {item.out_of_stock
                                         ? 'Out of stock'
-                                        : `${item.low_sizes ?? `${formatUnits(item.pieces_left, 'Piece')} left`} · warned at ${formatUnits(item.warn_at, 'Piece')}`}
+                                        : (item.low_sizes ??
+                                          `${formatUnits(item.pieces_left, 'Piece')} left · Reorder Point ${formatUnits(item.warn_at, 'Piece')}`)}
                                 </Text>
                             </Pressable>
                         ))}

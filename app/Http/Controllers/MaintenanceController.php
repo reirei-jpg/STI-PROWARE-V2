@@ -9,6 +9,8 @@ use App\Services\Auth\SignInLock;
 use App\Services\Deliveries\FollowUp;
 use App\Services\FreeUniforms\PromoRules;
 use App\Services\Shop\BuyerLimit;
+use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\ReorderPoints;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -18,7 +20,8 @@ use Inertia\Response;
 /**
  * The Specialist's Maintenance page: settings that change how PROWARE
  * works without changing its code, each with who changed it last: after how many days
- * a purchase order not complete is to be followed up, how many students
+ * a purchase order not complete is to be followed up, how many days Head
+ * Office takes to deliver (for the Reorder Points), how many students
  * must enroll together to get free uniforms, and the most of one item a
  * buyer can get (with the buyers the Specialist allowed more).
  */
@@ -53,7 +56,45 @@ class MaintenanceController extends Controller
                 'max' => PromoRules::MAX_GROUP_SIZE,
                 ...Setting::lastChange(Setting::PROMO_GROUP_SIZE),
             ],
+            'reorderLeadDays' => [
+                'value' => ReorderPoints::leadDays(),
+                'min' => ReorderPoints::MIN_LEAD_DAYS,
+                'max' => ReorderPoints::MAX_LEAD_DAYS,
+                'default' => ReorderPoints::DEFAULT_LEAD_DAYS,
+                ...Setting::lastChange(Setting::REORDER_LEAD_DAYS),
+            ],
         ]);
+    }
+
+    /**
+     * The days Head Office takes to deliver an eStore order. Every Reorder
+     * Point is worked out again with it; sizes that reach theirs are warned.
+     */
+    public function updateReorderLeadDays(Request $request, ReorderPoints $reorderPoints, LowStockAlerts $lowStockAlerts): RedirectResponse
+    {
+        $min = ReorderPoints::MIN_LEAD_DAYS;
+        $max = ReorderPoints::MAX_LEAD_DAYS;
+        $message = "Enter a whole number of days from {$min} to {$max}.";
+        $days = (int) $request->validate(
+            ['lead_days' => ['required', 'integer', "between:{$min},{$max}"]],
+            ['lead_days.required' => $message, 'lead_days.integer' => $message, 'lead_days.between' => $message],
+        )['lead_days'];
+
+        Setting::put(Setting::REORDER_LEAD_DAYS, $days, $request->user());
+
+        $changed = $reorderPoints->refreshAll();
+
+        foreach ($changed as $variant) {
+            $lowStockAlerts->check($variant);
+        }
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "Head Office now takes {$days} ".($days === 1 ? 'day' : 'days').' to deliver. The Reorder Points have been worked out again'
+                .($changed->isEmpty() ? '; none changed.' : ': '.$changed->count().' changed.'),
+        ]);
+
+        return back();
     }
 
     /**

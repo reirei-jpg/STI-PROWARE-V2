@@ -5,6 +5,7 @@ import ProductController from '@/actions/App/Http/Controllers/ProductController'
 import ProductStockController from '@/actions/App/Http/Controllers/ProductStockController';
 import EndSaleButton from '@/components/end-sale-button';
 import ProductStatusBadge from '@/components/product-status-badge';
+import ReorderBadge, { reorderLine } from '@/components/reorder-badge';
 import {
     Dialog,
     DialogClose,
@@ -180,10 +181,15 @@ export default function ProductDetailsDialog({
                                         </>
                                     )}
                                 </Fact>
-                                <Fact label="Low-stock warning">
+                                <Fact label="Safety stock">
                                     {details?.watched_for_low_stock === false
                                         ? 'Not watched'
-                                        : `at ${product.low_stock_alert_at.toLocaleString('en-PH')} pcs${hasOptions ? ' each' : ''}`}
+                                        : `${product.low_stock_alert_at.toLocaleString('en-PH')} pcs${hasOptions ? ' each' : ''}`}
+                                </Fact>
+                                <Fact label="Head Office delivers in">
+                                    {details
+                                        ? `${details.lead_days} ${details.lead_days === 1 ? 'day' : 'days'}`
+                                        : '…'}
                                 </Fact>
                                 <Fact label="Most per buyer">
                                     {!details
@@ -227,7 +233,7 @@ export default function ProductDetailsDialog({
                                     {draftPart
                                         ? 'Draft sizes / colors'
                                         : only === 'low'
-                                          ? 'Sizes / colors low on stock'
+                                          ? 'Sizes / colors to reorder'
                                           : only === 'out'
                                             ? 'Sizes / colors out of stock'
                                             : hasOptions
@@ -275,6 +281,11 @@ export default function ProductDetailsDialog({
                                                     <Heading right>
                                                         Free to sell
                                                     </Heading>
+                                                    {details.watched_for_low_stock && (
+                                                        <Heading>
+                                                            Reorder
+                                                        </Heading>
+                                                    )}
                                                     <Heading right>
                                                         Price
                                                     </Heading>
@@ -286,12 +297,14 @@ export default function ProductDetailsDialog({
                                                         draftPart
                                                             ? variant.is_draft
                                                             : only === 'low'
-                                                              ? variant.status ===
-                                                                    'available' &&
+                                                              ? variant.reorder !==
+                                                                    null &&
                                                                 variant.free_to_sell >
                                                                     0 &&
                                                                 variant.free_to_sell <=
-                                                                    details.low_stock_alert_at
+                                                                    variant
+                                                                        .reorder
+                                                                        .reorder_point
                                                               : only === 'out'
                                                                 ? variant.status ===
                                                                       'available' &&
@@ -307,11 +320,12 @@ export default function ProductDetailsDialog({
                                                             variant.free_to_sell ===
                                                                 0;
                                                         const isLow =
-                                                            details.watched_for_low_stock &&
-                                                            !variant.is_draft &&
+                                                            variant.reorder !==
+                                                                null &&
                                                             !isOut &&
                                                             variant.free_to_sell <=
-                                                                details.low_stock_alert_at;
+                                                                variant.reorder
+                                                                    .reorder_point;
 
                                                         return (
                                                             <tr
@@ -383,6 +397,31 @@ export default function ProductDetailsDialog({
                                                                         </>
                                                                     )}
                                                                 </NumberCell>
+                                                                {details.watched_for_low_stock && (
+                                                                    <td className="px-4 py-2.5">
+                                                                        {variant.reorder ? (
+                                                                            <div className="grid gap-1">
+                                                                                <span>
+                                                                                    <ReorderBadge
+                                                                                        reorder={
+                                                                                            variant.reorder
+                                                                                        }
+                                                                                    />
+                                                                                </span>
+                                                                                <span className="text-xs whitespace-nowrap text-slate-500">
+                                                                                    {reorderLine(
+                                                                                        variant.reorder,
+                                                                                    )}
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-xs text-slate-400">
+                                                                                Not
+                                                                                watched
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                )}
                                                                 <NumberCell>
                                                                     {variant.price_centavos ===
                                                                     null ? (

@@ -323,8 +323,8 @@ test('the Specialist\'s notices are pushed with the bell\'s words', function (Cl
     ],
     'low stock' => [
         fn () => new LowStockAlert(ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Ballpen', 'low_stock_alert_at' => 5]))->create(['stock_on_hand' => 3])),
-        'Low stock: STI Ballpen',
-        '3 pcs left · you are warned at 5 pcs. Order more in the eStore.',
+        'Reorder now: STI Ballpen',
+        '3 pcs left · Reorder Point 5 pcs. Suggested order: 3 pcs. Order more in the eStore.',
         'low_stock',
     ],
     'sale ending' => [

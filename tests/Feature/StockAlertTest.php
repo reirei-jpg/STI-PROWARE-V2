@@ -54,7 +54,10 @@ test('the specialist is warned once when a variant falls to the low-stock number
             'product_id' => $variant->product_id,
             'product_name' => 'Chibi Keychain IT',
             'stock_on_hand' => 4,
+            // The Reorder Point: nothing sold, so the safety stock.
             'alert_at' => 5,
+            // Enough to be above the Reorder Point again: 6 - 4.
+            'suggested' => 2,
         ])
         ->and($schoolAdmin->notifications()->count())->toBe(0);
 });

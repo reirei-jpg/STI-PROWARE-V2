@@ -34,7 +34,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $price_centavos
  * @property int|null $sale_price_centavos
  * @property ProductStatus $status
- * @property int $low_stock_alert_at pieces at which the Specialist is warned, per variant
+ * @property int $low_stock_alert_at the safety stock: pieces of each variant always kept, part of its Reorder Point (ReorderPoints); the store says "Only N left" at or below it
  * @property int|null $most_per_buyer the most pieces one buyer can get, all sizes and colors together (null: no limit of its own; ProductBuyerLimit)
  * @property Carbon|null $sale_started_at
  * @property Carbon|null $sale_ends_at
@@ -179,7 +179,7 @@ class Product extends Model
 
     /**
      * Products students can buy now (Available or On Sale) with a variant
-     * at or below the product's low-stock number.
+     * at or below its Reorder Point (Out of stock included).
      *
      * @param  Builder<self>  $query
      */
@@ -187,13 +187,13 @@ class Product extends Model
     protected function lowOnStock(Builder $query): void
     {
         $query->whereIn('status', [ProductStatus::Available, ProductStatus::OnSale])
-            ->whereHas('variants', fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft));
+            ->whereHas('variants', fn (Builder $variants) => $variants->atReorderPoint());
     }
 
     /**
-     * Products in the store with a size or color running low: a few pieces
-     * left, at or below the low-stock number, but not none (those are
-     * Out of stock, see soldOut).
+     * Products in the store with a size or color to reorder: some pieces
+     * left, at or below its Reorder Point, but not none (those are Out of
+     * stock, see soldOut).
      *
      * @param  Builder<self>  $query
      */

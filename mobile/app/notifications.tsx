@@ -253,8 +253,12 @@ function describe(data: StudentNotificationData): {
             };
         case 'low_stock':
             return {
-                title: `${data.stock_on_hand === 0 ? 'Out of stock' : 'Low stock'}: ${data.product_name}`,
-                body: `${formatUnits(data.stock_on_hand, 'Piece')} left · you are warned at ${formatUnits(data.alert_at, 'Piece')}. Order more in the eStore.`,
+                // Notices sent before the Reorder Point (no suggested order) keep their words.
+                title: `${data.stock_on_hand === 0 ? 'Out of stock' : data.suggested === undefined ? 'Low stock' : 'Reorder now'}: ${data.product_name}`,
+                body:
+                    data.suggested === undefined
+                        ? `${formatUnits(data.stock_on_hand, 'Piece')} left · you are warned at ${formatUnits(data.alert_at, 'Piece')}. Order more in the eStore.`
+                        : `${formatUnits(data.stock_on_hand, 'Piece')} left · Reorder Point ${formatUnits(data.alert_at, 'Piece')}.${data.suggested ? ` Suggested order: ${formatUnits(data.suggested, 'Piece')}.` : ''} Order more in the eStore.`,
                 titleClass: data.stock_on_hand === 0 ? 'text-red-700' : 'text-amber-800',
                 stripe: data.stock_on_hand === 0 ? '#f87171' : '#f59e0b',
             };

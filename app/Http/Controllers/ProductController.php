@@ -19,6 +19,7 @@ use App\Services\EstorePo\ItemCode;
 use App\Services\Sales\HeadOfficeCost;
 use App\Services\Sales\SellingBelowCost;
 use App\Services\Stock\LowStockAlerts;
+use App\Services\Stock\ReorderPoints;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,7 +63,7 @@ class ProductController extends Controller
             ->withSum('variants', 'stock_on_hand')
             ->withSum(['variants as draft_stock_on_hand' => fn (Builder $variants) => $variants->where('status', ProductStatus::Draft)], 'stock_on_hand')
             ->withMin('variants as lowest_variant_sale_price', 'sale_price_centavos')
-            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->whereRaw(ProductVariant::FREE_TO_SELL_SQL.' <= products.low_stock_alert_at')->where('product_variants.status', '!=', ProductStatus::Draft)])
+            ->withExists(['variants as has_variant_at_alert' => fn (Builder $variants) => $variants->atReorderPoint()])
             ->addSelect([
                 'first_received_at' => $movementsOfThisProduct()->selectRaw('min(stock_movements.created_at)'),
                 'last_sale_at' => $movementsOfThisProduct()
@@ -101,7 +102,14 @@ class ProductController extends Controller
             ->latest('updated_at')
             ->latest('id')
             ->paginate(20)
-            ->withQueryString()
+            ->withQueryString();
+
+        // What is still coming on eStore orders for the sizes in the Reorder and Out of stock lists.
+        $onOrder = in_array($stockFilter, ['low', 'out'], true)
+            ? ReorderPoints::onOrder($products->getCollection()->flatMap(fn (Product $product) => $product->variants))
+            : [];
+
+        $products = $products
             ->through(fn (Product $product): array => [
                 'id' => $product->id,
                 'name' => $product->name,
@@ -144,11 +152,13 @@ class ProductController extends Controller
                 'last_sale_at' => $product->getAttribute('last_sale_at')?->toIso8601String(),
                 'photo_url' => $product->mainPhoto?->url(),
                 'variants_count' => $product->variants_count,
-                // In the Low stock or Out of stock list: those sizes or colors, with what is left.
+                // In the Reorder or Out of stock list: those sizes or colors, with
+                // what is left, their Reorder Point and how many to order.
                 'stock_sizes' => in_array($stockFilter, ['low', 'out'], true)
                     ? $product->variants->map(fn (ProductVariant $variant): array => [
                         'label' => $variant->choices === [] ? null : $variant->label(),
                         'free_to_sell' => $variant->freeToSell(),
+                        'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0),
                     ])->values()->all()
                     : null,
                 // How many sizes or colors have each status, e.g. 12 Available and 6 Draft.
@@ -202,6 +212,7 @@ class ProductController extends Controller
         }
 
         $onSale = $product->status === ProductStatus::OnSale;
+        $onOrder = ReorderPoints::onOrder($product->variants);
 
         return [
             'id' => $product->id,
@@ -209,7 +220,9 @@ class ProductController extends Controller
             'status' => $product->status->value,
             'status_label' => $product->status->label(),
             'sale_ends_at' => $onSale ? $product->sale_ends_at?->toIso8601String() : null,
+            // The safety stock (part of each Reorder Point).
             'low_stock_alert_at' => $product->low_stock_alert_at,
+            'lead_days' => ReorderPoints::leadDays(),
             'most_per_buyer' => $product->most_per_buyer,
             'watched_for_low_stock' => LowStockAlerts::isSold($product),
             'updated_at' => $product->updated_at?->toIso8601String(),
@@ -226,6 +239,7 @@ class ProductController extends Controller
                 // the order made when one is released).
                 'held_pieces' => $variant->held_pieces + $variant->preorder_held_pieces,
                 'free_to_sell' => $variant->freeToSell(),
+                'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0),
                 'price_centavos' => $variant->price_centavos ?? $product->price_centavos,
                 'sale_price_centavos' => $onSale ? ($variant->sale_price_centavos ?? $product->sale_price_centavos) : null,
             ])->values()->all(),

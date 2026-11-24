@@ -122,6 +122,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
         Route::patch('maintenance/follow-up-days', [MaintenanceController::class, 'updateFollowUpDays'])->name('maintenance.follow-up-days');
         Route::patch('maintenance/promo-group-size', [MaintenanceController::class, 'updatePromoGroupSize'])->name('maintenance.promo-group-size');
+        Route::patch('maintenance/reorder-lead-days', [MaintenanceController::class, 'updateReorderLeadDays'])->name('maintenance.reorder-lead-days');
         Route::patch('maintenance/most-per-item', [MaintenanceController::class, 'updateMostPerItem'])->name('maintenance.most-per-item');
         Route::post('maintenance/buyers-allowed-more', [MaintenanceController::class, 'allowBuyerMore'])->name('maintenance.buyers-allowed-more.store');
         Route::delete('maintenance/buyers-allowed-more/{buyer}', [MaintenanceController::class, 'removeBuyerAllowance'])->name('maintenance.buyers-allowed-more.destroy');

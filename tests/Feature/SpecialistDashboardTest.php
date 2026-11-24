@@ -51,7 +51,7 @@ test('the to-do list puts each task in its group, and the order cards show order
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             // The student orders are in the order cards, not in the tasks.
-            ->where('tasks.now.0.title', 'Low stock: STI Lanyard')
+            ->where('tasks.now.0.title', 'Reorder now: STI Lanyard')
             ->has('tasks.now', 1)
             ->where('tasks.today.0.title', 'Not complete after 30 days: Order #30801')
             ->where('tasks.today.0.detail', 'Ordered Aug 20 (44 days ago) · 0% received. Ask Head Office about the rest.')
@@ -68,7 +68,7 @@ test('the to-do list puts each task in its group, and the order cards show order
     // The phone's To-do shows the same tasks and the same order cards.
     Sanctum::actingAs($this->specialist);
     $this->getJson(route('api.v1.specialist.tasks'))
-        ->assertJsonPath('now.0.title', 'Low stock: STI Lanyard')
+        ->assertJsonPath('now.0.title', 'Reorder now: STI Lanyard')
         ->assertJsonCount(1, 'now')
         ->assertJsonCount(1, 'today')
         ->assertJsonPath('order_cards.waiting.count', 2)
@@ -102,7 +102,7 @@ test('low stock is one row per product, naming its variants', function () {
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             ->has('tasks.now', 1)
-            ->where('tasks.now.0.title', 'Low stock: STI Umbrella')
+            ->where('tasks.now.0.title', 'Reorder now: STI Umbrella')
             ->where('tasks.now.0.detail', 'White, Red, Gray and 1 more out of stock · Black 4 pcs left. Order more in the eStore.')
         );
 });
@@ -116,7 +116,7 @@ test('a long list shows the first five and how many more', function () {
 
     $this->getJson(route('api.v1.specialist.tasks'))
         ->assertJsonCount(6, 'now')
-        ->assertJsonPath('now.5.title', 'And 2 more products low on stock')
+        ->assertJsonPath('now.5.title', 'And 2 more products to reorder')
         ->assertJsonPath('now.5.hidden', 2)
         ->assertJsonPath('now.5.action.url', route('products.index', ['stock' => 'low']))
         ->assertJsonPath('now.0.hidden', 0);
@@ -133,7 +133,7 @@ test('a product that just sold out is shown before ones that ran out long ago', 
 
     $this->getJson(route('api.v1.specialist.tasks'))
         ->assertJsonPath('now.0.title', 'Out of stock: STI Classic Tee')
-        ->assertJsonPath('now.5.title', 'And 2 more products low on stock');
+        ->assertJsonPath('now.5.title', 'And 2 more products to reorder');
 });
 
 test('preorders closing this week show the preordered products first, and how many more', function () {

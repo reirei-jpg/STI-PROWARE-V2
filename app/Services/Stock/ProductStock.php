@@ -21,11 +21,12 @@ use Illuminate\Pagination\LengthAwarePaginator;
 final class ProductStock
 {
     /**
-     * @return array{product: array{id: int, name: string, has_options: bool, stock_on_hand: int, held_pieces: int, free_to_sell: int, low_stock_alert_at: int, is_sold: bool}, variants: list<array{id: int, label: string, stock_on_hand: int, held_pieces: int, free_to_sell: int, estore_item_code: string|null, sent_by: string|null}>, holds: list<array{order_id: int, order_number: string|null, student_name: string, variant_label: string, pieces: int}>}
+     * @return array{product: array{id: int, name: string, has_options: bool, stock_on_hand: int, held_pieces: int, free_to_sell: int, low_stock_alert_at: int, lead_days: int, is_sold: bool}, variants: list<array{id: int, label: string, stock_on_hand: int, held_pieces: int, free_to_sell: int, estore_item_code: string|null, sent_by: string|null, reorder: array<string, mixed>|null}>, holds: list<array{order_id: int, order_number: string|null, student_name: string, variant_label: string, pieces: int}>}
      */
     public static function summary(Product $product): array
     {
         $product->loadMissing(['variants.estorePack']);
+        $onOrder = ReorderPoints::onOrder($product->variants);
 
         return [
             'holds' => self::holds($product),
@@ -36,7 +37,9 @@ final class ProductStock
                 'stock_on_hand' => (int) $product->variants->sum('stock_on_hand'),
                 'held_pieces' => (int) $product->variants->sum('held_pieces'),
                 'free_to_sell' => (int) $product->variants->sum(fn (ProductVariant $variant): int => $variant->freeToSell()),
+                // The safety stock (part of each Reorder Point).
                 'low_stock_alert_at' => $product->low_stock_alert_at,
+                'lead_days' => ReorderPoints::leadDays(),
                 'is_sold' => LowStockAlerts::isSold($product),
             ],
             'variants' => array_values($product->variants->map(fn (ProductVariant $variant): array => [
@@ -49,6 +52,8 @@ final class ProductStock
                 'free_to_sell' => $variant->freeToSell(),
                 'estore_item_code' => $variant->estore_item_code,
                 'sent_by' => $variant->estorePack?->label(),
+                // Its Reorder Point, status and suggested order; null when not watched.
+                'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0),
             ])->all()),
         ];
     }
