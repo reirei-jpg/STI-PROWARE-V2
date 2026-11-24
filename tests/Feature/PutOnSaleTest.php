@@ -292,9 +292,9 @@ test('slow-moving lists available products in stock that sold nothing in the cho
         ->assertInertia(fn (Assert $page) => $page->where('slowMovingCount', 3));
 });
 
-test('the school admin cannot put products on sale', function () {
+test('the cashier cannot put products on sale (the Specialist and the School Admin can)', function () {
     $product = saleProduct();
-    $this->actingAs(User::factory()->schoolAdmin()->create());
+    $this->actingAs(User::factory()->cashier()->create());
 
     $this->getJson(route('products.sale.show', $product))->assertForbidden();
     $this->post(route('products.sale.store', $product), ['sale_price' => '50', 'days' => '7'])->assertForbidden();

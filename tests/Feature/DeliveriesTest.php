@@ -193,7 +193,7 @@ test('the record delivery popup of an order lists only that order\'s waiting ite
         ->assertJsonCount(1, 'groups.0.rows')
         ->assertJsonPath('groups.0.rows.0.order_number', '30722');
 
-    $this->actingAs(User::factory()->schoolAdmin()->create())
+    $this->actingAs(User::factory()->cashier()->create())
         ->getJson(route('purchase-orders.waiting-items', $order))
         ->assertForbidden();
 });
@@ -451,13 +451,15 @@ test('the deliveries page shows 5 deliveries or waiting orders a page', function
         ->where('waitingOrders.data.0.order_number', '30656'));
 });
 
-test('the school admin can only watch deliveries, not record them', function () {
+test('the cashier cannot see or record deliveries (the Specialist and the School Admin can)', function () {
     $order = orderWith(['UTMP02-03' => 10]);
-    $this->actingAs(User::factory()->schoolAdmin()->create());
+    $this->actingAs(User::factory()->cashier()->create());
 
-    $this->get(route('deliveries.index'))->assertOk();
+    $this->get(route('deliveries.index'))->assertForbidden();
     $this->get(route('deliveries.create'))->assertForbidden();
     $this->post(route('deliveries.store'), [...papers()])->assertForbidden();
     $this->post(route('purchase-orders.close', $order), [])->assertForbidden();
-    $this->getJson(route('purchase-orders.show', $order))->assertOk()->assertJsonPath('delivery_status', 'awaiting');
+    $this->getJson(route('purchase-orders.show', $order))->assertForbidden();
+
+    expect($order->refresh()->delivery_status->value)->toBe('awaiting');
 });

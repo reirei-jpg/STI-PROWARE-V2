@@ -22,6 +22,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import RecordDeliveryDialog from '@/components/record-delivery-dialog';
 import { formatDateOrdered, formatDateTime } from '@/lib/format';
+import { managesStock } from '@/lib/roles';
 import { formatUnits } from '@/lib/units';
 import { cn, isSameSearch } from '@/lib/utils';
 import type {
@@ -68,7 +69,7 @@ const titles = (days: number): Record<DeliveriesShow, [string, string]> => ({
  * which orders, what went into stock, View Details) and the Waiting to
  * arrive tab (purchase orders still to come, with the days since they were
  * ordered). Head Office gives no delivery date, so the Date Ordered is what
- * is known. The School Admin only looks; recording is the Specialist's.
+ * is known. The Specialist and the School Admin both record deliveries.
  */
 export default function DeliveriesIndex({
     deliveries,
@@ -87,7 +88,8 @@ export default function DeliveriesIndex({
         errors: Record<string, string>;
         auth: Auth;
     }>().props;
-    const canRecord = auth.user.role === 'specialist';
+    // The Specialist and the School Admin both record deliveries.
+    const canRecord = managesStock(auth.user);
     const [search, setSearch] = useState(filters.search ?? '');
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [recordingId, setRecordingId] = useState<number | null>(null);

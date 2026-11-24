@@ -3,14 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\DeliveryStatus;
-use App\Enums\UserRole;
 use App\Http\Requests\FilterPurchaseOrdersRequest;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
-use App\Models\User;
 use App\Notifications\PurchaseOrderUploaded;
 use App\Services\Dashboard\SchoolAdminOverview;
 use App\Services\Deliveries\FollowUp;
@@ -21,6 +19,7 @@ use App\Services\EstorePo\ScannedPurchaseOrderItem;
 use App\Services\EstorePo\UnreadablePurchaseOrderException;
 use App\Services\Preorders\PreorderDemand;
 use App\Services\Stock\LinkedItems;
+use App\Services\Stock\StockTeam;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -238,10 +237,7 @@ class PurchaseOrderController extends Controller
 
         $pendingScans->keep($request->session(), $pending, $documentPath);
 
-        Notification::send(
-            User::query()->where('role', UserRole::SchoolAdmin)->get(),
-            new PurchaseOrderUploaded($purchaseOrder),
-        );
+        Notification::send(StockTeam::toTell($request->user()), new PurchaseOrderUploaded($purchaseOrder));
 
         // New item codes: link each to its product (e.g. one made for
         // preorders) so its deliveries go into stock.

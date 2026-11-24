@@ -58,10 +58,13 @@ async function ensurePermission(Notifications: NotificationsModule): Promise<boo
  * order, an item, a product's stock), or Notifications when the phone has
  * no screen for it.
  */
-function openFrom(response: {
-    notification: { request: { content: { data?: Record<string, unknown> } } };
-}): void {
-    router.push(noticeTarget(response.notification.request.content.data ?? {}) ?? '/notifications');
+function openFrom(
+    response: {
+        notification: { request: { content: { data?: Record<string, unknown> } } };
+    },
+    role?: string,
+): void {
+    router.push(noticeTarget(response.notification.request.content.data ?? {}, role) ?? '/notifications');
 }
 
 /**
@@ -127,7 +130,7 @@ export default function PushHandler() {
 
                     if (handled.current !== id) {
                         handled.current = id;
-                        openFrom(response);
+                        openFrom(response, user.role);
                     }
                 });
                 const refreshed = Notifications.addPushTokenListener(
@@ -145,7 +148,7 @@ export default function PushHandler() {
 
                 if (last && handled.current !== last.notification.request.identifier) {
                     handled.current = last.notification.request.identifier;
-                    openFrom(last);
+                    openFrom(last, user.role);
                 }
 
                 if (await ensurePermission(Notifications)) {

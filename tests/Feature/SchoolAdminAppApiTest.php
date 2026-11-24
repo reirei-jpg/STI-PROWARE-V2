@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Delivery;
 use App\Models\User;
 use App\Notifications\PurchaseOrderReminder;
 use Carbon\CarbonImmutable;
@@ -71,17 +72,16 @@ test('the School Admin opens an order and reminds the Specialist about a late on
         ->assertJsonValidationErrors(['reminder' => 'The Specialist was already reminded about Order #30650. The next reminder can be sent on Nov 30, 2026.']);
 });
 
-test('the School Admin views Stock In, Payment History and Collections, but changes nothing', function () {
+test('the School Admin views Stock In, Payment History and Collections, but not the cashier\'s or the Specialist\'s orders', function () {
     Sanctum::actingAs($this->admin);
 
     $this->getJson(route('api.v1.admin.deliveries.index'))->assertOk();
     $this->getJson(route('api.v1.cashier.payments'))->assertOk()->assertJsonPath('filters.period', 'today');
     $this->getJson(route('api.v1.cashier.collections'))->assertOk()->assertJsonPath('filters.period', 'month');
 
-    // The cashier's and the Specialist's work stays theirs.
+    // Payments and orders stay the cashier's and the Specialist's (she records deliveries since 24 Nov 2026).
     $this->getJson(route('api.v1.cashier.dashboard'))->assertForbidden();
     $this->getJson(route('api.v1.cashier.awaiting'))->assertForbidden();
-    $this->postJson(route('api.v1.specialist.deliveries.store'), [])->assertForbidden();
     $this->getJson(route('api.v1.specialist.orders.index'))->assertForbidden();
 });
 
@@ -112,4 +112,22 @@ test('the website keeps one route to an eStore order, so its link helper still w
 
     expect($routes)->toHaveCount(1)
         ->and($routes->first()->uri())->toBe('purchase-orders/{purchaseOrder}');
+});
+
+test('the School Admin uses the stock lookup and records a delivery on the phone, but not the Specialist\'s orders', function () {
+    $admin = User::factory()->schoolAdmin()->create();
+    $order = orderWith(['PRUM01-01' => 5]);
+    Sanctum::actingAs($admin);
+
+    $this->getJson(route('api.v1.specialist.stock.index', ['low' => 1]))->assertOk()->assertJsonStructure(['data', 'total']);
+    $this->getJson(route('api.v1.specialist.deliveries.waiting'))->assertOk();
+    $this->postJson(route('api.v1.specialist.deliveries.store'), [...papers(),
+        'items' => [['purchase_order_item_id' => itemOf($order, 'PRUM01-01'), 'quantity_received' => 5]],
+    ])->assertCreated();
+
+    expect($order->refresh()->quantity_received_total)->toBe(5)
+        ->and(Delivery::sole()->recorded_by)->toBe($admin->id);
+
+    $this->getJson(route('api.v1.specialist.tasks'))->assertForbidden();
+    $this->getJson(route('api.v1.specialist.orders.index'))->assertForbidden();
 });

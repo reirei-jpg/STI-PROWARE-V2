@@ -97,6 +97,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     /**
      * The cashier: marks buyers' slips Paid when they pay.
      */
+    /**
+     * The Specialist and the School Admin manage the products and the stock
+     * (Scan eStore PO, Stock In, Items to Link, Products, Put on Sale,
+     * Correct stock); orders, preorders and reports stay the Specialist's.
+     */
+    public function managesStock(): bool
+    {
+        return $this->isSpecialist() || $this->isSchoolAdmin();
+    }
+
     public function isCashier(): bool
     {
         return $this->role === UserRole::Cashier;

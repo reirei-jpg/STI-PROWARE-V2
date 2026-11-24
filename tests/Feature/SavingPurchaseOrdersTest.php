@@ -143,8 +143,8 @@ test('saving without a scanned file explains what to do', function () {
         ->assertSessionHasErrors(['save' => 'There is no scanned file to save. Scan the purchase order again.']);
 });
 
-test('a school admin cannot save purchase orders', function () {
-    $this->actingAs(User::factory()->schoolAdmin()->create())
+test('the cashier cannot save purchase orders (the Specialist and the School Admin can)', function () {
+    $this->actingAs(User::factory()->cashier()->create())
         ->post(route('purchase-orders.store'))
         ->assertForbidden();
 });

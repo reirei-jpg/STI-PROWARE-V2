@@ -15,8 +15,8 @@ test('guests are sent to the login page', function () {
     $this->get(route('purchase-orders.scan'))->assertRedirect(route('login'));
 });
 
-test('a school admin cannot open or use the scanner', function () {
-    $this->actingAs(User::factory()->schoolAdmin()->create());
+test('the cashier cannot open or use the scanner (the Specialist and the School Admin can)', function () {
+    $this->actingAs(User::factory()->cashier()->create());
 
     $this->get(route('purchase-orders.scan'))->assertForbidden();
     $this->post(route('purchase-orders.scan.store'), ['document' => estorePoWordUpload()])->assertForbidden();

@@ -3,13 +3,13 @@
 namespace App\Actions\Deliveries;
 
 use App\Enums\DeliveryStatus;
-use App\Enums\UserRole;
 use App\Models\Delivery;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
 use App\Notifications\PurchaseOrderCompleted;
 use App\Services\Stock\DeliveredStock;
+use App\Services\Stock\StockTeam;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -37,11 +37,11 @@ class RecordDelivery
         $delivery = $this->record($recordedBy, $details, $quantities, $completed);
 
         if ($completed !== []) {
-            $schoolAdmins = User::query()->where('role', UserRole::SchoolAdmin)->get();
+            $toTell = StockTeam::toTell($recordedBy);
             $delivery->load('recorder');
 
             foreach ($completed as $order) {
-                Notification::send($schoolAdmins, new PurchaseOrderCompleted($order, $delivery));
+                Notification::send($toTell, new PurchaseOrderCompleted($order, $delivery));
             }
         }
 

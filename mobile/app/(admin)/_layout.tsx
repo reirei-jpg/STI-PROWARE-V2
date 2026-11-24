@@ -5,9 +5,10 @@ const BRAND_BLUE = '#0D6EFD';
 const INACTIVE = '#94a3b8';
 
 /**
- * The School Admin's tabs (view only, like the website): the Dashboard, the
- * eStore Orders by what has arrived, Stock In, the cashier's Payments, and
- * Profile.
+ * The School Admin's tabs: the Dashboard (with a Stock box that opens the
+ * stock lookup), the eStore Orders by what has arrived, Stock In (she
+ * records deliveries too, since 24 Nov 2026), the cashier's Payments (view
+ * only), and Profile.
  */
 export default function AdminTabsLayout() {
     return (
@@ -40,6 +41,8 @@ export default function AdminTabsLayout() {
                 name="admin-account"
                 options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <UserRound color={color} size={size} /> }}
             />
+            {/* Opened from the Dashboard's Stock box, not from the tab bar. */}
+            <Tabs.Screen name="admin-stock" options={{ href: null, title: 'Stock' }} />
         </Tabs>
     );
 }

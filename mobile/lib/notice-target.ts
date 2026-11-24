@@ -8,7 +8,7 @@ import type { Href } from 'expo-router';
  * Deliveries, where the Specialist records it when it arrives; the School
  * Admin's own notices about an eStore order open that order.
  */
-export function noticeTarget(data: Record<string, unknown>): Href | null {
+export function noticeTarget(data: Record<string, unknown>, role?: string): Href | null {
     const orderId = Number(data.order_id);
     const productId = Number(data.product_id);
     const hasOrder = Number.isInteger(orderId) && orderId > 0;
@@ -67,12 +67,18 @@ export function noticeTarget(data: Record<string, unknown>): Href | null {
             return hasProduct ? `/stock/${productId}` : null;
         case 'purchase_order_reminder':
             return '/staff-deliveries';
-        // The School Admin's notices about an eStore order: that order, on eStore Orders.
+        // Notices about an eStore order: the School Admin opens that order on
+        // eStore Orders; the Specialist (told when the School Admin uploaded,
+        // completed or closed one) opens Stock In.
         case 'purchase_order_uploaded':
         case 'purchase_order_completed':
         case 'purchase_order_late':
         case 'purchase_order_closed_short':
         case 'delivery_recorded': {
+            if (role === 'specialist') {
+                return '/staff-deliveries';
+            }
+
             const purchaseOrderId = Number(data.purchase_order_id);
 
             return Number.isInteger(purchaseOrderId) && purchaseOrderId > 0

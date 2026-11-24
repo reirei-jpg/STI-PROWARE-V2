@@ -394,8 +394,9 @@ test('the top sellers show 5 products a page', function () {
 });
 
 test('a page the account cannot open shows PROWARE\'s error page with a way back, and the phone app still gets JSON', function () {
+    // Orders are the Specialist's page.
     $this->actingAs($this->schoolAdmin)
-        ->get(route('products.index'))
+        ->get(route('orders.index'))
         ->assertForbidden()
         ->assertInertia(fn (Assert $page) => $page
             ->component('error')
@@ -416,7 +417,7 @@ test('a page the account cannot open shows PROWARE\'s error page with a way back
         ->assertJsonStructure(['message']);
 });
 
-test('the school admin sees every delivery, but cannot record one', function () {
+test('the school admin sees every delivery, and who recorded it', function () {
     $order = orderWith(['PRUM01-01' => 20], ['order_number' => '30801']);
     $this->actingAs($this->specialist)->post(route('deliveries.store'), [...papers(),
         'received_on' => '2026-10-08',
@@ -430,6 +431,7 @@ test('the school admin sees every delivery, but cannot record one', function () 
             ->where('deliveries.data.0.orders', [['id' => $order->id, 'order_number' => '30801']])
         );
 
-    $this->get(route('deliveries.create'))->assertForbidden();
+    // She can record one too (panel revision, 24 Nov 2026).
+    $this->get(route('deliveries.create'))->assertOk();
     expect(PurchaseOrder::sole()->quantity_received_total)->toBe(5);
 });

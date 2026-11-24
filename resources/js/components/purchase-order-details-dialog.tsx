@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
 import { formatConversion, unitWord } from '@/lib/units';
+import { managesStock } from '@/lib/roles';
 import { cn } from '@/lib/utils';
 import type {
     OrderDeliveryRecord,
@@ -36,12 +37,11 @@ type Tab = 'items' | 'deliveries';
 
 /**
  * The pop-up window with one purchase order, as a back-office record: the
- * order number with its category and the Specialist's actions on top, one
+ * order number with its category and the stock actions on top, one
  * row of key facts, then the ordered items and the delivery history in two
- * tabs. The details are loaded when the window opens. 
-eadOnly (Sales
- * Reports) shows the figures only: Stock In and Rest won't arrive stay on
- * Purchase Orders.
+ * tabs. The details are loaded when the window opens.
+ * readOnly (Sales Reports) shows the figures only: Stock In and Rest won't
+ * arrive stay on Purchase Orders, for the Specialist and the School Admin.
  */
 export default function PurchaseOrderDetailsDialog({
     purchaseOrderId,
@@ -53,7 +53,8 @@ export default function PurchaseOrderDetailsDialog({
     readOnly?: boolean;
 }) {
     const { auth } = usePage().props;
-    const isSpecialist = auth.user.role === 'specialist';
+    // Stock In and Rest won't arrive: the Specialist and the School Admin.
+    const canManageStock = managesStock(auth.user);
     const isSchoolAdmin = auth.user.role === 'school_admin';
     const http = useHttp<Record<string, never>, PurchaseOrderDetails>({});
     const [details, setDetails] = useState<PurchaseOrderDetails | null>(null);
@@ -144,7 +145,7 @@ export default function PurchaseOrderDetailsDialog({
                         </div>
 
                         <div className="flex shrink-0 items-center gap-2">
-                            {isSpecialist && isOpen && !readOnly && (
+                            {canManageStock && isOpen && !readOnly && (
                                 <>
                                     <button
                                         type="button"
