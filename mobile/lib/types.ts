@@ -998,7 +998,7 @@ export type AdminOverview = {
         orders: Page<AdminOrderRow>;
     };
     sales: {
-        period: 'all' | 'week' | 'month' | 'year';
+        period: 'today' | 'week' | 'month' | 'semester' | 'school_year' | 'all';
         from: string;
         to: string;
         totals: { pieces: number; price_centavos: number; best: AdminTopSeller | null; not_selling_pieces: number };

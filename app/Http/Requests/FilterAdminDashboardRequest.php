@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\AdminDeliveryTab;
+use App\Services\Reports\SchoolCalendar;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -13,7 +14,7 @@ use Illuminate\Validation\Rule;
  */
 class FilterAdminDashboardRequest extends FormRequest
 {
-    public const PERIODS = ['all', 'week', 'month', 'year'];
+    public const PERIODS = SchoolCalendar::PERIODS;
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -35,16 +36,16 @@ class FilterAdminDashboardRequest extends FormRequest
         return [
             'tab' => 'Choose Awaiting Delivery, Partially Received or Completed.',
             'search' => 'Type an Order # of up to 40 characters.',
-            'period' => 'Choose All time, This week, This month or This year.',
+            'period' => 'Choose Today, This week, This month, This semester, This school year or All time.',
         ];
     }
 
-    /** The Top sellers period: all time (the default), this week, this month or this year. */
+    /** The Sales period: this month by default (panel revision D2), or another of SchoolCalendar's. */
     public function period(): string
     {
         $period = (string) $this->input('period', '');
 
-        return in_array($period, self::PERIODS, true) ? $period : 'all';
+        return in_array($period, self::PERIODS, true) ? $period : SchoolCalendar::DEFAULT_PERIOD;
     }
 
     /** Ongoing unless another tab is chosen. */

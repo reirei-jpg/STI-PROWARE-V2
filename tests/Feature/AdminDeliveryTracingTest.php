@@ -321,7 +321,7 @@ test('opening a reminder notice opens that purchase order for the Specialist', f
         ->assertRedirect(route('purchase-orders.index', ['view' => $late->id]));
 });
 
-test('the school admin sees the top sellers of the week, month or year and what is not selling', function () {
+test('the school admin sees the top sellers of this month (the default), the week or the school year, and what is not selling', function () {
     $polo = ProductVariant::factory()->for(Product::factory()->create(['name' => 'BSIT Polo', 'status' => ProductStatus::Available]))->create(['stock_on_hand' => 7]);
     $cap = ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Cap', 'status' => ProductStatus::Available]))->create(['stock_on_hand' => 4]);
     $umbrella = ProductVariant::factory()->for(Product::factory()->create(['name' => 'STI Umbrella', 'status' => ProductStatus::Available]))->create(['stock_on_hand' => 10]);
@@ -342,8 +342,8 @@ test('the school admin sees the top sellers of the week, month or year and what 
 
     $this->actingAs($this->schoolAdmin);
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
-        ->where('overview.sales.period', 'all')
-        ->where('overview.sales.from', '2026-10-02')
+        ->where('overview.sales.period', 'month')
+        ->where('overview.sales.from', '2026-10-01')
         ->where('overview.sales.totals.pieces', 8)
         ->where('overview.sales.totals.price_centavos', 8 * 55000)
         ->where('overview.sales.totals.best.product_name', 'STI Cap')
@@ -370,7 +370,7 @@ test('the school admin sees the top sellers of the week, month or year and what 
     // it and says what was wrong.
     $this->get(route('dashboard', ['period' => 'decade']))
         ->assertRedirect(route('dashboard'))
-        ->assertInertiaFlash('toast.message', 'Choose All time, This week, This month or This year. The list is shown without its filters.');
+        ->assertInertiaFlash('toast.message', 'Choose Today, This week, This month, This semester, This school year or All time. The list is shown without its filters.');
     $this->get(route('dashboard', ['tab' => 'xyz']))
         ->assertRedirect(route('dashboard'))
         ->assertInertiaFlash('toast.message', 'Choose Awaiting Delivery, Partially Received or Completed. The list is shown without its filters.');

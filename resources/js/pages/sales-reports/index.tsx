@@ -52,10 +52,12 @@ import type {
 } from '@/types';
 
 const periods: { value: SalesPeriod; label: string }[] = [
-    { value: 'all', label: 'All Time' },
     { value: 'today', label: 'Today' },
     { value: 'week', label: 'This Week' },
     { value: 'month', label: 'This Month' },
+    { value: 'semester', label: 'This Semester' },
+    { value: 'school_year', label: 'This School Year' },
+    { value: 'all', label: 'All Time' },
 ];
 
 const tabs: { value: SalesTab; label: string }[] = [
@@ -112,7 +114,8 @@ export default function SalesReportsIndex({
             query.tab = merged.tab;
         }
 
-        if (merged.period !== 'all') {
+        // This Month is the default (panel revision D2), so it stays out of the address.
+        if (merged.period !== 'month') {
             query.period = merged.period;
         }
 
@@ -337,10 +340,12 @@ export default function SalesReportsIndex({
                                 {pickedDates && (
                                     <button
                                         type="button"
-                                        onClick={() => show({ period: 'all' })}
+                                        onClick={() =>
+                                            show({ period: 'month' })
+                                        }
                                         className="inline-flex size-7 items-center justify-center rounded-lg bg-white/20 transition hover:bg-white/30"
                                         aria-label="Clear the dates"
-                                        title="Clear the dates (All Time)"
+                                        title="Clear the dates (This Month)"
                                     >
                                         <X size={15} />
                                     </button>

@@ -85,7 +85,13 @@ export type SchoolAdminOverviewData = {
     };
 };
 
-export type SalesPeriod = 'all' | 'week' | 'month' | 'year';
+export type SalesPeriod =
+    | 'today'
+    | 'week'
+    | 'month'
+    | 'semester'
+    | 'school_year'
+    | 'all';
 
 type TopSeller = {
     rank: number;
@@ -98,10 +104,16 @@ type TopSeller = {
 };
 
 const periods: { value: SalesPeriod; label: string; words: string }[] = [
-    { value: 'all', label: 'All time', words: 'so far' },
+    { value: 'today', label: 'Today', words: 'today' },
     { value: 'week', label: 'This week', words: 'this week' },
     { value: 'month', label: 'This month', words: 'this month' },
-    { value: 'year', label: 'This year', words: 'this year' },
+    { value: 'semester', label: 'This semester', words: 'this semester' },
+    {
+        value: 'school_year',
+        label: 'This school year',
+        words: 'this school year',
+    },
+    { value: 'all', label: 'All time', words: 'so far' },
 ];
 
 const tabs: {

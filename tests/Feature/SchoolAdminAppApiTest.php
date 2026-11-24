@@ -33,7 +33,7 @@ test('the School Admin signs in on the phone and sees the eStore orders, sales a
         ->assertJsonPath('deliveries.orders.data.0.order_number', '30650')
         ->assertJsonPath('deliveries.orders.data.0.is_late', true)
         ->assertJsonPath('deliveries.orders.data.0.can_remind', true)
-        ->assertJsonPath('sales.period', 'all')
+        ->assertJsonPath('sales.period', 'month')
         ->assertJsonPath('locked_accounts', []);
 
     // A search by Order #, and a wrong tab is refused with the reason.

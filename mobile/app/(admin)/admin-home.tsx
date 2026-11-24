@@ -17,10 +17,12 @@ type Period = AdminOverview['sales']['period'];
 
 /** The website's period buttons, and the words used in the Sales notes. */
 const PERIODS: { value: Period; label: string; words: string }[] = [
-    { value: 'all', label: 'All time', words: 'so far' },
+    { value: 'today', label: 'Today', words: 'today' },
     { value: 'week', label: 'This week', words: 'this week' },
     { value: 'month', label: 'This month', words: 'this month' },
-    { value: 'year', label: 'This year', words: 'this year' },
+    { value: 'semester', label: 'Semester', words: 'this semester' },
+    { value: 'school_year', label: 'School year', words: 'this school year' },
+    { value: 'all', label: 'All time', words: 'so far' },
 ];
 
 const tileTone: Record<string, { box: string; count: string }> = {
@@ -47,7 +49,7 @@ export default function AdminHomeScreen() {
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingSales, setLoadingSales] = useState(false);
-    const [period, setPeriod] = useState<Period>('all');
+    const [period, setPeriod] = useState<Period>('month');
     const [list, setList] = useState<'top' | 'slow'>('top');
     const pages = useRef({ top: 1, slow: 1 });
     const latest = useRef(0);
