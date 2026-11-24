@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SalesReportRequest;
+use App\Models\Product;
 use App\Services\FreeUniforms\FreeUniformScreens;
+use App\Services\Reports\SalesBreakdown;
 use App\Services\Reports\SalesReport;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,6 +33,10 @@ class SalesReportController extends Controller
             'sold' => $tab === 'sold' ? SalesReport::soldProducts($from, $to, $request->search(), $request->onlyBelowCost()) : null,
             'best' => $tab === 'best' ? SalesReport::bestSellers($from, $to) : null,
             'free' => $tab === 'free' ? SalesReport::free($from, $to) : null,
+            // Panel revision D1: sales by size, color and grade level, and the stock trend.
+            'options' => $tab === 'options' ? SalesBreakdown::byOption($from, $to) : null,
+            'trend' => $tab === 'trend' ? SalesBreakdown::stockTrend($from, $to, $request->integer('product') ?: null) : null,
+            'trend_products' => $tab === 'trend' ? Product::query()->orderBy('name')->get(['id', 'name'])->map(fn (Product $product): array => ['id' => $product->id, 'name' => $product->name])->all() : null,
             // A product's sizes and colors and its eStore orders, for its View Details pop-up.
             'sold_details' => Inertia::optional(fn (): ?array => $request->filled('details') ? SalesReport::soldDetails($request->integer('details'), $from, $to) : null),
             // A group's students and pieces, for its View Details pop-up.
@@ -42,6 +48,7 @@ class SalesReportController extends Controller
                 'date_to' => $to->toDateString(),
                 'search' => $request->search(),
                 'only' => $request->onlyBelowCost() ? 'below_cost' : null,
+                'product' => $request->integer('product') ?: null,
             ],
         ]);
     }

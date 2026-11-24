@@ -560,7 +560,7 @@ final class SalesReport
      *
      * @return Builder<OrderItem>
      */
-    private static function soldLines(CarbonImmutable $from, CarbonImmutable $to): Builder
+    public static function soldLines(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
         return OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')

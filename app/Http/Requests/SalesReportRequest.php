@@ -19,7 +19,7 @@ class SalesReportRequest extends FormRequest
 {
     public const PERIODS = [...SchoolCalendar::PERIODS, 'custom'];
 
-    public const TABS = ['spent', 'sold', 'best', 'free'];
+    public const TABS = ['spent', 'sold', 'best', 'options', 'trend', 'free'];
 
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -34,6 +34,8 @@ class SalesReportRequest extends FormRequest
             'tab' => ['nullable', Rule::in(self::TABS)],
             'details' => ['nullable', 'integer'],
             'only' => ['nullable', Rule::in(['below_cost'])],
+            // Stock Trend of one product; every product when empty.
+            'product' => ['nullable', 'integer', Rule::exists('products', 'id')],
         ];
     }
 
@@ -69,7 +71,9 @@ class SalesReportRequest extends FormRequest
             'date_from.before_or_equal' => 'The "From" date cannot be after today.',
             'date_to.before_or_equal' => 'The "To" date cannot be after today.',
             // e.g. an old link to the Prices tab, now part of Sales.
-            'tab.in' => 'Choose Purchases, Sales, Top Sellers or Free Uniforms. Prices are on Sales.',
+            'tab.in' => 'Choose Purchases, Sales, Top Sellers, By Size, Color, Grade, Stock Trend or Free Uniforms. Prices are on Sales.',
+            'product.integer' => 'Choose a product from the list, or All products.',
+            'product.exists' => 'That product was not found. Choose one from the list, or All products.',
             'only.in' => 'That list does not exist. Sales is shown with all products.',
         ];
     }
