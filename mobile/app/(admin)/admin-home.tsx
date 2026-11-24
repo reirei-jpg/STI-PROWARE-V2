@@ -156,7 +156,7 @@ export default function AdminHomeScreen() {
                     <View className="flex-1">
                         <Text className="font-sans-semibold text-xs uppercase tracking-wide text-blue-100">STI PROWARE · School Admin</Text>
                         <Text className="mt-1 font-sans-bold text-2xl text-white">Welcome, {user?.name.split(' ')[0]}</Text>
-                        <Text className="mt-0.5 font-sans text-sm leading-5 text-blue-50">{today} · eStore orders, deliveries and sales. View only.</Text>
+                        <Text className="mt-0.5 font-sans text-sm leading-5 text-blue-50">{today} · eStore orders, stock and sales.</Text>
                     </View>
                     <Pressable
                         onPress={() => router.push('/notifications')}

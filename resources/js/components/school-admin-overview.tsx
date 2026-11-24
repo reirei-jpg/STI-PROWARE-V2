@@ -157,7 +157,7 @@ const emptyText: Record<AdminDeliveryTab, string> = {
 };
 
 /**
- * The School Admin's dashboard (view only): every eStore order the
+ * The School Admin's dashboard: every eStore order the
  * Specialist uploaded, in three tabs by what has arrived, with its Date
  * Ordered. 5 orders a page; View Details opens the order with the date and
  * time of each step. The
@@ -255,7 +255,7 @@ export default function SchoolAdminOverview({
             <div className="space-y-7">
                 <PageHeader
                     title={`Welcome, ${firstName}`}
-                    description={`${today} · eStore orders, deliveries and sales. View only.`}
+                    description={`${today} · eStore orders, stock and sales.`}
                 />
 
                 {lockedAccounts.length > 0 && (

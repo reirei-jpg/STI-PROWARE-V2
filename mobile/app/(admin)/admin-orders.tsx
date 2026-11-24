@@ -124,7 +124,7 @@ export default function AdminOrdersScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">eStore Orders</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    Every eStore order the Specialist uploaded, by how much has arrived. Tap one to see its items and Delivery History. View only.
+                    Every eStore order uploaded, by how much has arrived. Tap one to see its items and Delivery History.
                 </Text>
             </View>
 
