@@ -364,7 +364,8 @@ test('the Selling Price cannot be set below the Cost on the eStore order', funct
     $variant->product->forceFill(['status' => ProductStatus::Draft])->save();
     $form = fn (string $price, string $packPrice = '') => [
         'name' => 'STI Jacket', 'sold_by_piece' => '1', 'price' => $price, 'status' => 'draft', 'sale_price' => '',
-        'low_stock_alert_at' => '0', 'photos' => [], 'options' => [],
+        'low_stock_alert_at' => '0',
+        'category' => 'proware_merchandise', 'photos' => [], 'options' => [],
         'packs' => [['key' => (string) $pack->id, 'id' => $pack->id, 'name' => 'Pack', 'pieces' => '5', 'sold_to_students' => $packPrice === '' ? '0' : '1', 'price' => $packPrice]],
         'variants' => [['combination' => '', 'estore_item_code' => 'UJKT01-02', 'estore_pack_key' => (string) $pack->id, 'price' => '']],
     ];
@@ -388,7 +389,8 @@ test('a price below the Cost and a taken name show together with the other mista
     $pack = $variant->estorePack;
     $form = fn (string $name) => [
         'name' => $name, 'sold_by_piece' => '1', 'price' => '150', 'status' => 'draft', 'sale_price' => '',
-        'low_stock_alert_at' => '-1', 'photos' => [], 'options' => [],
+        'low_stock_alert_at' => '-1',
+        'category' => 'proware_merchandise', 'photos' => [], 'options' => [],
         'packs' => [['key' => (string) $pack->id, 'id' => $pack->id, 'name' => 'Pack', 'pieces' => '5', 'sold_to_students' => '0', 'price' => '']],
         'variants' => [['combination' => '', 'estore_item_code' => 'UJKT01-02', 'estore_pack_key' => (string) $pack->id, 'price' => '']],
     ];

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\PreorderStatus;
+use App\Enums\ProductCategory;
 use App\Enums\ProductStatus;
 use App\Models\Preorder;
 use App\Models\Product;
@@ -77,6 +78,7 @@ class SaveProductRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:120'],
+            'category' => ['required', Rule::enum(ProductCategory::class)],
             // Empty: PROWARE makes one from the name (ProductCode).
             'item_code' => ['nullable', 'string', 'max:30'],
             'sold_by_piece' => ['required', 'boolean'],
@@ -170,6 +172,8 @@ class SaveProductRequest extends FormRequest
         return [
             'name.required' => 'Enter the product name.',
             'name.max' => 'The product name may not be longer than 120 characters.',
+            'category.required' => 'Choose the category, as on the eStore order.',
+            'category.enum' => 'Choose PROWARE Merchandise, Tertiary Uniform, SHS Uniform or Marketing.',
             'price.required' => 'Enter the Selling Price per piece (set by Head Office).',
             'price.decimal' => 'Enter the Selling Price in pesos, e.g. 350 or 350.50.',
             'price.gt' => 'The Selling Price must be more than ₱0.',

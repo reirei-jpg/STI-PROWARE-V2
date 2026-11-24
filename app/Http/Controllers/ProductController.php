@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Products\SaveProduct;
 use App\Enums\OrderStatus;
+use App\Enums\ProductCategory;
 use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
 use App\Http\Requests\FilterProductsRequest;
@@ -113,6 +114,7 @@ class ProductController extends Controller
             ->through(fn (Product $product): array => [
                 'id' => $product->id,
                 'name' => $product->name,
+                'category_label' => $product->category?->label(),
                 'status' => $product->status->value,
                 'status_label' => $product->status->label(),
                 'sold_by_piece' => $product->sold_by_piece,
@@ -217,6 +219,7 @@ class ProductController extends Controller
         return [
             'id' => $product->id,
             'name' => $product->name,
+            'category_label' => $product->category?->label(),
             'status' => $product->status->value,
             'status_label' => $product->status->label(),
             'sale_ends_at' => $onSale ? $product->sale_ends_at?->toIso8601String() : null,
@@ -263,10 +266,13 @@ class ProductController extends Controller
             'fromItem' => $orderedItem === null ? null : [
                 'item_code' => $orderedItem->item_code,
                 'description' => $orderedItem->description,
+                // The eStore order's category, chosen for her (she can change it).
+                'category' => ProductCategory::fromEstore($orderedItem->purchaseOrder?->category)?->value,
             ],
             // What PROWARE paid per eStore unit, shown beside the Selling Price.
             'costs' => $orderedItem === null ? [] : HeadOfficeCost::latestUnitPrices([$orderedItem->item_code]),
             'today' => now()->toDateString(),
+            'categories' => ProductCategory::options(),
             'usedProductCodes' => $this->usedProductCodes(null),
         ]);
     }
@@ -287,6 +293,7 @@ class ProductController extends Controller
             'product' => [
                 'id' => $product->id,
                 'name' => $product->name,
+                'category' => $product->category->value ?? '',
                 'item_code' => $product->item_code ?? '',
                 'sold_by_piece' => $product->sold_by_piece,
                 'price' => $product->price_centavos === null ? '' : $this->pesos($product->price_centavos),
@@ -330,6 +337,7 @@ class ProductController extends Controller
             // With the product's own code: what the sizes or colors cost on orders made before each had its own.
             'costs' => HeadOfficeCost::latestUnitPrices(array_values(array_unique(array_filter([...$product->variants->pluck('estore_item_code')->all(), $product->item_code], 'is_string')))),
             'today' => now()->toDateString(),
+            'categories' => ProductCategory::options(),
             'usedProductCodes' => $this->usedProductCodes($product->id),
         ]);
     }

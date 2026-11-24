@@ -463,7 +463,8 @@ test('students who preordered are told when the item arrives', function () {
 
     $this->actingAs($this->specialist)->put(route('products.update', $product), [
         'name' => 'Anniversary Shirt', 'sold_by_piece' => '1', 'price' => '350', 'status' => 'available', 'sale_price' => '',
-        'low_stock_alert_at' => '5', 'photos' => [['id' => $product->photos()->value('id'), 'label' => '']], 'packs' => [], 'options' => [],
+        'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise', 'photos' => [['id' => $product->photos()->value('id'), 'label' => '']], 'packs' => [], 'options' => [],
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
     ])->assertSessionHasNoErrors();
 

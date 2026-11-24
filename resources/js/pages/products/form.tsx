@@ -89,6 +89,8 @@ type VariantInput = {
 
 type ProductFormData = {
     name: string;
+    /** The eStore's category; required. */
+    category: string;
     /** The product's own Item Code (BP-01); made from the name until typed by hand. */
     item_code: string;
     item_code_typed: boolean;
@@ -203,6 +205,7 @@ export default function ProductForm({
     costs,
     today,
     usedProductCodes,
+    categories,
 }: {
     product: EditableProduct | null;
     fromItem: ProductFromItem | null;
@@ -212,6 +215,8 @@ export default function ProductForm({
     today: string;
     /** Other products' own Item Codes, for the next free number (BP-02). */
     usedProductCodes: string[];
+    /** The eStore's categories, to choose from. */
+    categories: { value: string; label: string }[];
 }) {
     // Head Office sends every variant the same way (by the piece or a pack).
     const savedVariants = product?.variants ?? [];
@@ -221,6 +226,7 @@ export default function ProductForm({
 
     const form = useForm<ProductFormData>({
         name: product?.name ?? fromItem?.description.slice(0, 120) ?? '',
+        category: product?.category || fromItem?.category || '',
         // A saved code (or the eStore item's) is kept as it is.
         item_code: product?.item_code || fromItem?.item_code || '',
         item_code_typed: Boolean(product?.item_code || fromItem),
@@ -737,6 +743,8 @@ export default function ProductForm({
                 };
             case 'name':
                 return { place: 'Product name', section: 'product-details' };
+            case 'category':
+                return { place: 'Category', section: 'product-details' };
             case 'item_code':
                 return { place: 'Item Code', section: 'product-details' };
             case 'price':
@@ -923,6 +931,12 @@ export default function ProductForm({
             key: 'name',
             label: 'Product name',
             message: 'Enter the product name.',
+            section: 'product-details',
+        },
+        data.category === '' && {
+            key: 'category',
+            label: 'Category',
+            message: 'Choose the category, as on the eStore order.',
             section: 'product-details',
         },
         status !== 'draft' &&
@@ -1328,6 +1342,39 @@ export default function ProductForm({
                                         </span>
                                     </p>
                                 )}
+                        </Field>
+                        <Field
+                            label="Category"
+                            hint="As on Head Office's eStore order."
+                            required={stillNeeded('category')}
+                            error={
+                                errors.category ?? requiredMessage('category')
+                            }
+                        >
+                            <select
+                                value={data.category}
+                                onChange={(event) =>
+                                    setData('category', event.target.value)
+                                }
+                                onBlur={() => touch('category')}
+                                aria-invalid={Boolean(
+                                    errors.category ??
+                                    requiredMessage('category'),
+                                )}
+                                className={inputClasses}
+                            >
+                                <option value="" disabled>
+                                    Choose the category
+                                </option>
+                                {categories.map((category) => (
+                                    <option
+                                        key={category.value}
+                                        value={category.value}
+                                    >
+                                        {category.label}
+                                    </option>
+                                ))}
+                            </select>
                         </Field>
                         <Field
                             label="Item Code"

@@ -38,7 +38,8 @@ function hoodieForm(Product $product, array $overrides = []): array
 {
     return array_merge([
         'name' => 'STI Hoodie', 'sold_by_piece' => '1', 'price' => '750', 'status' => 'preorder', 'sale_price' => '',
-        'low_stock_alert_at' => '5', 'packs' => [], 'options' => [],
+        'low_stock_alert_at' => '5',
+        'category' => 'proware_merchandise', 'packs' => [], 'options' => [],
         'photos' => [['id' => $product->photos()->value('id'), 'label' => '']],
         'variants' => [['combination' => '', 'estore_item_code' => '', 'estore_pack_key' => '', 'price' => '']],
         'preorders_close_on' => '2026-11-05',

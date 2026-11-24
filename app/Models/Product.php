@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Enums\ProductCategory;
 use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
 use Carbon\CarbonInterface;
@@ -34,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $price_centavos
  * @property int|null $sale_price_centavos
  * @property ProductStatus $status
+ * @property ProductCategory|null $category the eStore's category (required on the form)
  * @property int $low_stock_alert_at the safety stock: pieces of each variant always kept, part of its Reorder Point (ReorderPoints); the store says "Only N left" at or below it
  * @property int|null $most_per_buyer the most pieces one buyer can get, all sizes and colors together (null: no limit of its own; ProductBuyerLimit)
  * @property Carbon|null $sale_started_at
@@ -49,7 +51,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'item_code', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'most_per_buyer', 'preorders_close_on', 'expected_arrival_from', 'expected_arrival_to', 'early_bird_price_centavos', 'early_bird_pieces'])]
+#[Fillable(['name', 'category', 'item_code', 'sold_by_piece', 'price_centavos', 'sale_price_centavos', 'status', 'low_stock_alert_at', 'most_per_buyer', 'preorders_close_on', 'expected_arrival_from', 'expected_arrival_to', 'early_bird_price_centavos', 'early_bird_pieces'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -66,6 +68,7 @@ class Product extends Model
             'sale_price_centavos' => 'integer',
             'status' => ProductStatus::class,
             'low_stock_alert_at' => 'integer',
+            'category' => ProductCategory::class,
             'most_per_buyer' => 'integer',
             'sale_started_at' => 'datetime',
             'sale_ends_at' => 'datetime',

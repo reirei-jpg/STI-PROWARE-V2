@@ -181,6 +181,11 @@ export default function ProductDetailsDialog({
                                         </>
                                     )}
                                 </Fact>
+                                <Fact label="Category">
+                                    {details
+                                        ? (details.category_label ?? '—')
+                                        : '…'}
+                                </Fact>
                                 <Fact label="Safety stock">
                                     {details?.watched_for_low_stock === false
                                         ? 'Not watched'

@@ -80,7 +80,8 @@ test('a code one product\'s colors share still cannot go on another product', fu
     $this->actingAs($this->specialist)
         ->post(route('products.store'), [
             'name' => 'STI Raincoat', 'sold_by_piece' => '1', 'price' => '300', 'status' => 'draft', 'sale_price' => '',
-            'low_stock_alert_at' => '5', 'photos' => [], 'packs' => [], 'options' => [],
+            'low_stock_alert_at' => '5',
+            'category' => 'proware_merchandise', 'photos' => [], 'packs' => [], 'options' => [],
             'variants' => [['combination' => '', 'estore_item_code' => 'PRUM01-01', 'estore_pack_key' => '', 'price' => '']],
         ])
         ->assertSessionHasErrors(['variants.0.estore_item_code' => 'The Item Code PRUM01-01 already belongs to "STI Umbrella".']);

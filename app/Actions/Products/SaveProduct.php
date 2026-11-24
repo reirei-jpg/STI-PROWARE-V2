@@ -3,6 +3,7 @@
 namespace App\Actions\Products;
 
 use App\Enums\PreorderStatus;
+use App\Enums\ProductCategory;
 use App\Enums\ProductStatus;
 use App\Http\Requests\SaveProductRequest;
 use App\Models\Product;
@@ -68,6 +69,7 @@ class SaveProduct
 
                 $product->fill([
                     'name' => $name,
+                    'category' => $request->enum('category', ProductCategory::class),
                     'item_code' => ItemCode::normalize($request->input('item_code'))
                         ?? $product->item_code
                         ?? ProductCode::next($name, $product->id),
