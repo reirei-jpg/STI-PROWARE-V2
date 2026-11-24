@@ -17,6 +17,7 @@ use App\Models\ProductVariant;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Services\EstorePo\ItemCode;
+use App\Services\Preorders\BackOrders;
 use App\Services\Sales\HeadOfficeCost;
 use App\Services\Sales\SellingBelowCost;
 use App\Services\Stock\LowStockAlerts;
@@ -109,6 +110,9 @@ class ProductController extends Controller
         $onOrder = in_array($stockFilter, ['low', 'out'], true)
             ? ReorderPoints::onOrder($products->getCollection()->flatMap(fn (Product $product) => $product->variants))
             : [];
+        $backOrdered = in_array($stockFilter, ['low', 'out'], true)
+            ? BackOrders::pendingPieces($products->getCollection()->flatMap(fn (Product $product) => $product->variants))
+            : [];
 
         $products = $products
             ->through(fn (Product $product): array => [
@@ -160,7 +164,7 @@ class ProductController extends Controller
                     ? $product->variants->map(fn (ProductVariant $variant): array => [
                         'label' => $variant->choices === [] ? null : $variant->label(),
                         'free_to_sell' => $variant->freeToSell(),
-                        'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0),
+                        'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0, $backOrdered[$variant->id] ?? 0),
                     ])->values()->all()
                     : null,
                 // How many sizes or colors have each status, e.g. 12 Available and 6 Draft.
@@ -215,6 +219,7 @@ class ProductController extends Controller
 
         $onSale = $product->status === ProductStatus::OnSale;
         $onOrder = ReorderPoints::onOrder($product->variants);
+        $backOrdered = BackOrders::pendingPieces($product->variants);
 
         return [
             'id' => $product->id,
@@ -242,7 +247,7 @@ class ProductController extends Controller
                 // the order made when one is released).
                 'held_pieces' => $variant->held_pieces + $variant->preorder_held_pieces,
                 'free_to_sell' => $variant->freeToSell(),
-                'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0),
+                'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0, $backOrdered[$variant->id] ?? 0),
                 'price_centavos' => $variant->price_centavos ?? $product->price_centavos,
                 'sale_price_centavos' => $onSale ? ($variant->sale_price_centavos ?? $product->sale_price_centavos) : null,
             ])->values()->all(),

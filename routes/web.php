@@ -153,6 +153,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('preorders', [PreorderController::class, 'index'])->name('preorders.index');
         Route::get('preorders/export', [PreorderController::class, 'export'])->name('preorders.export');
+        Route::get('preorders/back-orders/export', [PreorderController::class, 'exportBackOrders'])->name('preorders.back-orders.export');
         Route::get('preorders/{product}', [PreorderController::class, 'show'])->name('preorders.show');
         Route::patch('preorders/{product}/close-date', [PreorderController::class, 'updateCloseDate'])->name('preorders.close-date');
         Route::patch('preorders/{product}/payment-dates', [PreorderController::class, 'updatePaymentDates'])->name('preorders.payment-dates');

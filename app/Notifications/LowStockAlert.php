@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\ProductVariant;
 use App\Notifications\Channels\PushChannel;
 use App\Notifications\Channels\PushesToPhones;
+use App\Services\Preorders\BackOrders;
 use App\Services\Stock\ReorderPoints;
 use App\Services\Stock\Units;
 use Illuminate\Notifications\Notification;
@@ -56,7 +57,7 @@ class LowStockAlert extends Notification implements PushesToPhones
      */
     public function toArray(object $notifiable): array
     {
-        $reorder = ReorderPoints::view($this->variant, ReorderPoints::onOrder([$this->variant])[$this->variant->id] ?? 0);
+        $reorder = ReorderPoints::view($this->variant, ReorderPoints::onOrder([$this->variant])[$this->variant->id] ?? 0, BackOrders::pendingPieces([$this->variant])[$this->variant->id] ?? 0);
 
         return [
             'kind' => 'low_stock',

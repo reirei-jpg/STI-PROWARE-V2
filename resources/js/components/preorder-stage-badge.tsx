@@ -9,7 +9,7 @@ import type {
 /** V1's colors: blue in progress, amber needs action, green good news. */
 const stages: Record<PreorderStage, { label: string; className: string }> = {
     sold_out: {
-        label: 'Waiting for restock',
+        label: 'Back order',
         className: 'bg-orange-100 text-orange-800',
     },
     open: { label: 'Taking preorders', className: 'bg-blue-100 text-blue-700' },

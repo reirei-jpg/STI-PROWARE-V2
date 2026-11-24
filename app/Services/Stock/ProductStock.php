@@ -6,6 +6,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
+use App\Services\Preorders\BackOrders;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -27,6 +28,7 @@ final class ProductStock
     {
         $product->loadMissing(['variants.estorePack']);
         $onOrder = ReorderPoints::onOrder($product->variants);
+        $backOrdered = BackOrders::pendingPieces($product->variants);
 
         return [
             'holds' => self::holds($product),
@@ -53,7 +55,7 @@ final class ProductStock
                 'estore_item_code' => $variant->estore_item_code,
                 'sent_by' => $variant->estorePack?->label(),
                 // Its Reorder Point, status and suggested order; null when not watched.
-                'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0),
+                'reorder' => ReorderPoints::view($variant->setRelation('product', $product), $onOrder[$variant->id] ?? 0, $backOrdered[$variant->id] ?? 0),
             ])->all()),
         ];
     }
