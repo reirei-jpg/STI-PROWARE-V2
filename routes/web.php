@@ -104,7 +104,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('purchase-orders/{purchaseOrder}/remind-specialist', [PurchaseOrderReminderController::class, 'store'])->name('purchase-orders.remind-specialist');
     });
 
-    Route::middleware('role:specialist')->group(function () {
+    // The products and the stock: the Specialist and the School Admin (panel
+    // revision, 24 Nov 2026). Everything is recorded under who did it.
+    Route::middleware('role:specialist,school_admin')->group(function () {
         Route::post('purchase-orders', [PurchaseOrderController::class, 'store'])->name('purchase-orders.store');
         Route::get('purchase-orders/scan', [PurchaseOrderScanController::class, 'create'])->name('purchase-orders.scan');
         Route::post('purchase-orders/scan', [PurchaseOrderScanController::class, 'store'])->name('purchase-orders.scan.store');
@@ -112,6 +114,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('purchase-orders/{purchaseOrder}/waiting-items', [PurchaseOrderDeliveryController::class, 'waiting'])->whereNumber('purchaseOrder')->name('purchase-orders.waiting-items');
         Route::post('purchase-orders/{purchaseOrder}/close', [PurchaseOrderDeliveryController::class, 'close'])->name('purchase-orders.close');
 
+        Route::get('deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
+        Route::post('deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
+
+        Route::get('products/items-to-link', [ItemLinkController::class, 'index'])->name('item-links.index');
+        Route::get('products/items-to-link/products', [ItemLinkController::class, 'products'])->name('item-links.products');
+        Route::post('products/items-to-link', [ItemLinkController::class, 'store'])->name('item-links.store');
+        Route::get('products/{product}/sale', [ProductSaleController::class, 'show'])->name('products.sale.show');
+        Route::post('products/{product}/sale', [ProductSaleController::class, 'store'])->name('products.sale.store');
+        Route::delete('products/{product}/sale', [ProductSaleController::class, 'destroy'])->name('products.sale.destroy');
+        Route::get('products/{product}/stock', [ProductStockController::class, 'index'])->name('products.stock');
+        Route::post('products/{product}/stock-corrections', [ProductStockController::class, 'store'])->name('products.stock.correct');
+        Route::resource('products', ProductController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+    });
+
+    Route::middleware('role:specialist')->group(function () {
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/slip', [OrderController::class, 'slip'])->name('orders.slip');
         Route::get('orders/{order}/slip/print', [OrderController::class, 'printSlip'])->name('orders.slip.print');
@@ -144,19 +161,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');
         Route::post('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'store'])->name('preorders.not-restocked');
         Route::delete('preorders/variants/{variant}/not-restocked', [PreorderRestockController::class, 'destroy'])->name('preorders.allow-restock');
-
-        Route::get('deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
-        Route::post('deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
-
-        Route::get('products/items-to-link', [ItemLinkController::class, 'index'])->name('item-links.index');
-        Route::get('products/items-to-link/products', [ItemLinkController::class, 'products'])->name('item-links.products');
-        Route::post('products/items-to-link', [ItemLinkController::class, 'store'])->name('item-links.store');
-        Route::get('products/{product}/sale', [ProductSaleController::class, 'show'])->name('products.sale.show');
-        Route::post('products/{product}/sale', [ProductSaleController::class, 'store'])->name('products.sale.store');
-        Route::delete('products/{product}/sale', [ProductSaleController::class, 'destroy'])->name('products.sale.destroy');
-        Route::get('products/{product}/stock', [ProductStockController::class, 'index'])->name('products.stock');
-        Route::post('products/{product}/stock-corrections', [ProductStockController::class, 'store'])->name('products.stock.correct');
-        Route::resource('products', ProductController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     });
 });
 

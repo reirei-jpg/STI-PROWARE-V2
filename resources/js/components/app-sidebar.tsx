@@ -96,13 +96,24 @@ function useStaffMenuItems(): NavItem[] {
         },
     ];
 
-    // The School Admin monitors what arrived and the cashier's collections (view only).
+    // The School Admin also manages the products and the stock (panel
+    // revision, 24 Nov 2026), and views the cashier's collections.
     if (auth.user.role === 'school_admin') {
         items.push(
+            {
+                title: 'Scan eStore PO',
+                href: PurchaseOrderScanController.create(),
+                icon: FileScan,
+            },
             {
                 title: 'Stock In',
                 href: DeliveryController.index(),
                 icon: Truck,
+            },
+            {
+                title: 'Products',
+                href: ProductController.index(),
+                icon: Package,
             },
             {
                 title: 'Payment History',

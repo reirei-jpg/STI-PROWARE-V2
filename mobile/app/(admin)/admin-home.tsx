@@ -30,17 +30,20 @@ const tileTone: Record<string, { box: string; count: string }> = {
 };
 
 /**
- * The School Admin's Dashboard on the phone, like the website's (view
- * only): a greeting with today's date, any staff account locked after 5
- * wrong passwords (with Unlock), the eStore orders by what has arrived (a
- * tile opens them in eStore Orders), and the Sales box: four numbers, then
- * the Best Sellers and the products Not Selling, 5 at a time.
+ * The School Admin's Dashboard on the phone, like the website's: a greeting
+ * with today's date, any staff account locked after 5 wrong passwords (with
+ * Unlock), the eStore orders by what has arrived (a tile opens them in eStore
+ * Orders), the Stock box (products to reorder; it opens the stock lookup),
+ * and the Sales box: four numbers, then the Best Sellers and the products
+ * Not Selling, 5 at a time.
  */
 export default function AdminHomeScreen() {
     const insets = useSafeAreaInsets();
     const { user, request } = useAuth();
     const { unreadCount, refresh: refreshNotifications } = useNotifications();
     const [overview, setOverview] = useState<AdminOverview | null>(null);
+    // Products with a size at its Reorder Point or out of stock (the stock lookup's "To reorder").
+    const [toReorder, setToReorder] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingSales, setLoadingSales] = useState(false);
@@ -59,10 +62,14 @@ export default function AdminHomeScreen() {
             });
 
             try {
-                const answer = await request<AdminOverview>(`/admin/overview?${query.toString()}`);
+                const [answer, reorder] = await Promise.all([
+                    request<AdminOverview>(`/admin/overview?${query.toString()}`),
+                    request<{ total: number }>('/specialist/stock?low=1'),
+                ]);
 
                 if (call === latest.current) {
                     setOverview(answer);
+                    setToReorder(reorder.total);
                     setError(null);
                 }
             } catch (caught) {
@@ -149,7 +156,7 @@ export default function AdminHomeScreen() {
                     <View className="flex-1">
                         <Text className="font-sans-semibold text-xs uppercase tracking-wide text-blue-100">STI PROWARE · School Admin</Text>
                         <Text className="mt-1 font-sans-bold text-2xl text-white">Welcome, {user?.name.split(' ')[0]}</Text>
-                        <Text className="mt-0.5 font-sans text-sm leading-5 text-blue-50">{today} · eStore orders, deliveries and sales. View only.</Text>
+                        <Text className="mt-0.5 font-sans text-sm leading-5 text-blue-50">{today} · eStore orders, stock and sales.</Text>
                     </View>
                     <Pressable
                         onPress={() => router.push('/notifications')}
@@ -245,6 +252,34 @@ export default function AdminHomeScreen() {
                                     </Pressable>
                                 );
                             })}
+                        </View>
+                    )}
+
+                    {toReorder !== null && (
+                        <View className="gap-2.5">
+                            <View className="flex-row items-baseline justify-between gap-2 px-1">
+                                <Text className="font-sans-bold text-xs uppercase tracking-wide text-slate-700">Stock</Text>
+                                <Text className="font-sans text-xs text-slate-400">Tap to see each size.</Text>
+                            </View>
+                            <Pressable
+                                onPress={() => router.navigate({ pathname: '/admin-stock', params: { low: toReorder > 0 ? '1' : '0' } })}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Reorder now, ${toReorder}`}
+                                className={`flex-row items-center gap-3 rounded-3xl border p-4 ${toReorder > 0 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}
+                            >
+                                <View className="flex-1">
+                                    <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-slate-600">Reorder now</Text>
+                                    <Text className={`font-sans-bold text-2xl ${toReorder > 0 ? 'text-amber-800' : 'text-emerald-800'}`}>
+                                        {toReorder.toLocaleString('en-PH')}
+                                    </Text>
+                                    <Text className="font-sans text-xs text-slate-600">
+                                        {toReorder === 0
+                                            ? 'Every size is above its Reorder Point.'
+                                            : `${toReorder === 1 ? 'product has' : 'products have'} a size at its Reorder Point or out of stock, with a suggested order.`}
+                                    </Text>
+                                </View>
+                                <ChevronRight size={18} color="#64748b" />
+                            </Pressable>
                         </View>
                     )}
 

@@ -1,5 +1,5 @@
-import { useFocusEffect } from 'expo-router';
-import { Search, Truck, X } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { PackagePlus, Search, Truck, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,9 +12,9 @@ import type { RecordedDelivery } from '@/lib/types';
 import { usePagedList } from '@/lib/use-paged-list';
 
 /**
- * Stock In on the School Admin's phone (view only, like the website): the
- * deliveries from Head Office the Specialist recorded, newest first,
- * searchable by Order #.
+ * Stock In on the School Admin's phone, as on the Specialist's: Stock In
+ * records a delivery at the counter (since 24 Nov 2026), and the deliveries
+ * already recorded, newest first, searchable by Order #.
  */
 export default function AdminStockInScreen() {
     const insets = useSafeAreaInsets();
@@ -54,9 +54,18 @@ export default function AdminStockInScreen() {
             <View>
                 <Text className="font-sans-bold text-2xl text-slate-900">Stock In</Text>
                 <Text className="mt-1 font-sans text-sm text-slate-500">
-                    What arrived from Head Office, as the Specialist recorded it. View only.
+                    Record what arrived from Head Office, right at the counter.
                 </Text>
             </View>
+
+            <Pressable
+                onPress={() => router.push('/record-delivery')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand py-4"
+            >
+                <PackagePlus size={20} color="#ffffff" />
+                <Text className="font-sans-bold text-base text-white">Stock In</Text>
+            </Pressable>
 
             <View className="flex-row items-center gap-2 rounded-full border border-slate-200 bg-white px-4">
                 <Search size={17} color="#94a3b8" />
@@ -109,7 +118,7 @@ export default function AdminStockInScreen() {
                     <NoResults
                         icon={<Truck size={40} color="#cbd5e1" />}
                         title="No deliveries recorded yet."
-                        hint="A delivery shows here once the Specialist records it at Stock In."
+                        hint="Tap Stock In above when Head Office delivers."
                     />
                 )
             }

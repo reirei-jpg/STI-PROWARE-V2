@@ -471,8 +471,8 @@ test('a product made for preorders is linked to its new eStore code for one size
     Notification::assertSentTo($juan, PreorderReady::class);
 });
 
-test('the school admin cannot link items', function () {
-    $this->actingAs(User::factory()->schoolAdmin()->create());
+test('the cashier cannot link items (the Specialist and the School Admin can)', function () {
+    $this->actingAs(User::factory()->cashier()->create());
 
     $this->get(route('item-links.index'))->assertForbidden();
     $this->getJson(route('item-links.products'))->assertForbidden();

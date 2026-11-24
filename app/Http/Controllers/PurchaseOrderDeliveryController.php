@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
 use App\Http\Requests\ClosePurchaseOrderRequest;
 use App\Models\PurchaseOrder;
-use App\Models\User;
 use App\Notifications\PurchaseOrderClosedShort;
 use App\Services\Deliveries\DeliveryScreens;
+use App\Services\Stock\StockTeam;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Notification;
@@ -52,10 +51,7 @@ class PurchaseOrderDeliveryController extends Controller
         ]);
         $purchaseOrder->refreshDeliveryProgress();
 
-        Notification::send(
-            User::query()->where('role', UserRole::SchoolAdmin)->get(),
-            new PurchaseOrderClosedShort($purchaseOrder->load('closer')),
-        );
+        Notification::send(StockTeam::toTell($request->user()), new PurchaseOrderClosedShort($purchaseOrder->load('closer')));
 
         Inertia::flash('toast', [
             'type' => 'success',

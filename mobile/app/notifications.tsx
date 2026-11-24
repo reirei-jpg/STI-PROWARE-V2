@@ -371,7 +371,7 @@ export default function NotificationsScreen() {
             return;
         }
 
-        const target = noticeTarget(notice.data);
+        const target = noticeTarget(notice.data, user?.role);
         if (target) {
             router.push(target);
         }

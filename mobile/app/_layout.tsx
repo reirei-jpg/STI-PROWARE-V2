@@ -70,8 +70,6 @@ function RootNavigator() {
                 <Stack.Screen name="(staff)" />
                 <Stack.Screen name="staff-order/[id]" />
                 <Stack.Screen name="slip-check" />
-                <Stack.Screen name="stock/[id]" />
-                <Stack.Screen name="record-delivery" />
             </Stack.Protected>
 
             {/* The cashier: Dashboard, a scanned slip, receipts and records (panel revision, 20 Nov 2026). */}
@@ -81,9 +79,15 @@ function RootNavigator() {
                 <Stack.Screen name="cashier-awaiting" />
             </Stack.Protected>
 
-            {/* The School Admin (view only): Dashboard, eStore Orders, Stock In, Payments, Profile. */}
+            {/* The School Admin: Dashboard, eStore Orders, Stock In, Payments, Profile. */}
             <Stack.Protected guard={isSchoolAdmin}>
                 <Stack.Screen name="(admin)" />
+            </Stack.Protected>
+
+            {/* Stock In at the counter and a product's stock: the Specialist and the School Admin (24 Nov 2026). */}
+            <Stack.Protected guard={isSpecialist || isSchoolAdmin}>
+                <Stack.Screen name="stock/[id]" />
+                <Stack.Screen name="record-delivery" />
             </Stack.Protected>
 
             {/* The cashier's records, which the School Admin also reads. */}

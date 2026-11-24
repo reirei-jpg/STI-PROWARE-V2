@@ -24,6 +24,7 @@ import Panel, { TableHeading, TableScroll } from '@/components/panel';
 import PurchaseOrderDetailsDialog from '@/components/purchase-order-details-dialog';
 import SummaryCard from '@/components/summary-card';
 import { formatDateOrdered, formatDateTime, formatPeso } from '@/lib/format';
+import { managesStock } from '@/lib/roles';
 import { isSameSearch } from '@/lib/utils';
 import type {
     Auth,
@@ -125,6 +126,8 @@ export default function PurchaseOrdersIndex({
         errors: Record<string, string>;
     }>().props;
     const isSpecialist = auth.user.role === 'specialist';
+    // The Specialist and the School Admin both scan and upload eStore orders.
+    const canUpload = managesStock(auth.user);
     const isFiltered = Boolean(
         filters.search ||
         filters.category ||
@@ -239,12 +242,12 @@ export default function PurchaseOrdersIndex({
                 <PageHeader
                     title="Purchase Orders"
                     description={
-                        isSpecialist
+                        canUpload
                             ? 'eStore orders approved by the School Admin and uploaded to PROWARE.'
                             : 'The eStore orders the Specialist uploaded. View only.'
                     }
                     actions={
-                        isSpecialist && (
+                        canUpload && (
                             <Link
                                 href={PurchaseOrderScanController.create()}
                                 className={primaryButtonClasses}
@@ -476,7 +479,7 @@ export default function PurchaseOrdersIndex({
                             <h3 className="mt-4 text-lg font-black text-slate-800">
                                 No purchase orders yet
                             </h3>
-                            {isSpecialist ? (
+                            {canUpload ? (
                                 <>
                                     <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
                                         Paste the order details email from the

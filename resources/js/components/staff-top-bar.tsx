@@ -17,8 +17,7 @@ import type { Auth, UserRole } from '@/types';
 
 const workspaceDescriptions: Record<UserRole, string> = {
     specialist: 'eStore purchase orders and deliveries from STI Head Office',
-    school_admin:
-        'eStore orders, deliveries, sales and collections · View only',
+    school_admin: 'eStore orders, stock, products, sales and collections',
     student: 'Official STI merchandise',
     employee: 'Official STI merchandise',
     cashier: 'Payments for PROWARE orders and preorders',

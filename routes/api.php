@@ -119,6 +119,11 @@ Route::prefix('v1')->name('api.v1.')->middleware(UseRequestHostForPhotos::class)
         Route::post('product-announcements', [ProductAnnouncementController::class, 'store'])->name('product-announcements.store');
 
         Route::get('deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
+    });
+
+    // Stock In at the counter and the stock lookup: the Specialist and the
+    // School Admin (panel revision, 24 Nov 2026), on the same screens.
+    Route::middleware(['auth:sanctum', 'role:specialist,school_admin'])->prefix('specialist')->name('specialist.')->group(function () {
         Route::get('deliveries/waiting', [DeliveryController::class, 'waiting'])->name('deliveries.waiting');
         Route::post('deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
 

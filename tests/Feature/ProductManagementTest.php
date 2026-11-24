@@ -77,8 +77,8 @@ test('the most per buyer is optional, and must be a whole number from 1 to 10,00
     expect(Product::query()->orderBy('id')->pluck('most_per_buyer')->all())->toBe([2, null]);
 });
 
-test('only the specialist can manage products', function () {
-    $this->actingAs(User::factory()->schoolAdmin()->create());
+test('only the Specialist and the School Admin manage products', function () {
+    $this->actingAs(User::factory()->cashier()->create());
 
     $this->get(route('products.index'))->assertForbidden();
     $this->get(route('products.create'))->assertForbidden();

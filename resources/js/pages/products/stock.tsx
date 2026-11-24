@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, ClipboardCheck, History, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
@@ -26,8 +26,8 @@ import type {
  * A product's stock: the pieces each variant has on the shelf, how many are
  * held for orders of arrived preorders (and for whom) and free to sell, and every
  * change to the shelf (deliveries, corrections, released orders) with the
- * balance after, newest first. The Specialist corrects the stock here,
- * with a reason.
+ * balance after, newest first. The Specialist or the School Admin corrects
+ * the stock here, with a reason.
  */
 export default function ProductStock({
     product,
@@ -45,6 +45,8 @@ export default function ProductStock({
     reasons: StockCorrectionReasonOption[];
 }) {
     const [correcting, setCorrecting] = useState(false);
+    // Order slips are the Specialist's page; the School Admin sees the number only.
+    const canOpenOrders = usePage().props.auth.user.role === 'specialist';
 
     const showVariant = (variantId: number | null) =>
         router.get(
@@ -171,17 +173,25 @@ export default function ProductStock({
                                     className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 text-sm"
                                 >
                                     <div>
-                                        <Link
-                                            href={OrderController.slip({
-                                                query: {
-                                                    code:
-                                                        hold.order_number ?? '',
-                                                },
-                                            })}
-                                            className="font-black text-blue-700 hover:underline"
-                                        >
-                                            {hold.order_number}
-                                        </Link>{' '}
+                                        {/* Orders are the Specialist's; the School Admin sees the number. */}
+                                        {canOpenOrders ? (
+                                            <Link
+                                                href={OrderController.slip({
+                                                    query: {
+                                                        code:
+                                                            hold.order_number ??
+                                                            '',
+                                                    },
+                                                })}
+                                                className="font-black text-blue-700 hover:underline"
+                                            >
+                                                {hold.order_number}
+                                            </Link>
+                                        ) : (
+                                            <span className="font-black text-slate-900">
+                                                {hold.order_number}
+                                            </span>
+                                        )}{' '}
                                         <span className="font-bold text-slate-700">
                                             {hold.student_name}
                                         </span>
