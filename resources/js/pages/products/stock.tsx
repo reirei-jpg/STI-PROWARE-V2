@@ -463,7 +463,7 @@ function SizeTile({
                         active ? 'text-white/80' : 'text-slate-500',
                     )}
                 >
-                    pcs
+                    {pieces === 1 ? 'pc' : 'pcs'}
                 </span>
                 {level !== 'ok' && (
                     <span
